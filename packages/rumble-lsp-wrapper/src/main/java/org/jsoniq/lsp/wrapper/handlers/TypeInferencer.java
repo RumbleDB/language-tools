@@ -179,7 +179,7 @@ public final class TypeInferencer implements RequestHandler {
         ExceptionMetadata metadata = exception.getMetadata() == null
                 ? ExceptionMetadata.EMPTY_METADATA
                 : exception.getMetadata();
-        String code = exception.getErrorCode();
+        String code = exception.getErrorCode().toString();
         String message = Objects.toString(exception.getJSONiqErrorMessage(), exception.getMessage());
         return new TypeError(
                 code,
