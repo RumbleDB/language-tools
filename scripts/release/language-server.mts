@@ -15,6 +15,7 @@ const MANIFEST_PATH = `${LANGUAGE_SERVER_PACKAGE_DIR}/assets/wrapper/release-man
 
 export function buildLanguageServerProductionArtifacts(): void {
     run("pnpm", ["run", "generate:grammar"]);
+    run("pnpm", ["--filter", "jsoniq-language-server", "run", "generate:w3-catalog"]);
     run("pnpm", ["run", "build:server:prod"]);
 }
 
