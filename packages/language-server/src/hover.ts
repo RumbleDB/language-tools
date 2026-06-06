@@ -1,3 +1,4 @@
+import { getBuiltinFunctionHover } from "server/function-catalog/index.js";
 import { MarkupKind, type Hover, type Position } from "vscode-languageserver";
 import { TextDocument } from "vscode-languageserver-textdocument";
 
@@ -33,8 +34,8 @@ export async function findHover(document: TextDocument, position: Position): Pro
 }
 
 function createHoverContent(typeInference: TypeInferenceIndex, declaration: Definition): string {
-    const name = definitionNameToString(declaration);
     if (isSourceDefinition(declaration)) {
+        const name = definitionNameToString(declaration);
         const declarationLine = declaration.selectionRange.start.line + 1;
 
         return [
@@ -46,13 +47,7 @@ function createHoverContent(typeInference: TypeInferenceIndex, declaration: Defi
             `inferred type: \`${formatOptionalInferredType(typeInference, declaration)}\``,
         ].join("\n");
     } else {
-        return [
-            "```jsoniq",
-            name,
-            "```",
-            `kind: \`${declaration.kind}\``,
-            `(builtin function)`,
-        ].join("\n");
+        return getBuiltinFunctionHover(declaration);
     }
 }
 
