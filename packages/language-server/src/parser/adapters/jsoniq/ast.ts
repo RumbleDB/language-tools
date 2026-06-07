@@ -16,6 +16,7 @@ import {
     type NamespaceDeclarationAstNode,
     type TypeDeclarationAstNode,
     type VariableDeclarationAstNode,
+    type ArgumentAstNode,
 } from "server/parser/types/ast.js";
 import { rangeFromNode } from "server/utils/range.js";
 import { TextDocument } from "vscode-languageserver-textdocument";
@@ -39,6 +40,7 @@ import {
     TypeDeclContext,
     VarDeclContext,
     VarRefContext,
+    ArgumentContext,
     type ModuleAndThisIsItContext,
 } from "./grammar/jsoniqParser.js";
 import { jsoniqVisitor } from "./grammar/jsoniqVisitor.js";
@@ -276,6 +278,14 @@ class JsoniqAstBuilder extends jsoniqVisitor<AstVisitResult> {
 
     public override visitCatchClause = (node: CatchClauseContext): AstVisitResult =>
         this.catchClause(node);
+
+    public override visitArgument = (node: ArgumentContext): AstVisitResult => [
+        {
+            kind: "argument",
+            range: rangeFromNode(node, this.document),
+            children: this.visitChildrenAsNodes(node),
+        } satisfies ArgumentAstNode,
+    ];
 
     private visitChildrenAsNodes(node: ParseTree): AstNode[] {
         return this.visitChildren(node) ?? [];

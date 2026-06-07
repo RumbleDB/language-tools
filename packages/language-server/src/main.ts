@@ -21,6 +21,7 @@ import {
     collectSemanticTokens,
     legend as semanticLegend,
 } from "./semantic.js";
+import { findSignatureHelp } from "./signature-help.js";
 import { collectDocumentSymbols } from "./symbols.js";
 import { collectTypeDiagnostics } from "./type-diagnostics.js";
 import { clearTypeInferenceCache } from "./wrapper/type-inference.js";
@@ -57,6 +58,9 @@ connection.onInitialize(async (_params: InitializeParams): Promise<InitializeRes
             definitionProvider: true,
             referencesProvider: true,
             hoverProvider: true,
+            signatureHelpProvider: {
+                triggerCharacters: ["(", ","],
+            },
             completionProvider: {
                 triggerCharacters: ["$"],
             },
@@ -133,6 +137,16 @@ connection.onHover((params) => {
     }
 
     return findHover(document, params.position);
+});
+
+connection.onSignatureHelp((params) => {
+    const document = documents.get(params.textDocument.uri);
+
+    if (document === undefined || !supportsDocument(document)) {
+        return null;
+    }
+
+    return findSignatureHelp(document, params.position);
 });
 
 connection.onCompletion((params) => {

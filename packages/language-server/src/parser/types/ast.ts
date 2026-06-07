@@ -21,6 +21,7 @@ export type AstNodeKind =
     | "named-function-reference"
     | "variable-reference"
     | "context-item-expression"
+    | "argument"
     | "unknown";
 
 export interface AstNodeBase<K extends AstNodeKind> {
@@ -125,6 +126,8 @@ export interface UnknownAstNode extends AstNodeBase<"unknown"> {
     readonly reason: "unsupported-grammar" | "incomplete";
 }
 
+export interface ArgumentAstNode extends AstNodeBase<"argument"> {}
+
 export type AstNode =
     | ModuleAstNode
     | NamespaceDeclarationAstNode
@@ -143,6 +146,7 @@ export type AstNode =
     | NamedFunctionReferenceAstNode
     | VariableReferenceAstNode
     | ContextItemExpressionAstNode
+    | ArgumentAstNode
     | UnknownAstNode;
 
 export type JsoniqAst = ModuleAstNode;

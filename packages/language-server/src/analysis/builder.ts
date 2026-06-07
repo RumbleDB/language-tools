@@ -183,6 +183,9 @@ class AnalysisBuilder {
                     range: node.range,
                 });
                 break;
+            case "argument":
+                this.visitChildren(node);
+                break;
             case "unknown":
                 this.visitChildren(node);
                 break;

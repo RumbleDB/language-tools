@@ -115,6 +115,9 @@ export class DocumentSymbolsBuilder {
             case "context-item-expression":
             case "reference":
                 break;
+            case "argument":
+                this.visitChildren(node);
+                break;
             default:
                 throw node satisfies never;
         }
