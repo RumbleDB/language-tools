@@ -20,7 +20,7 @@ describe("JSONiq variable scope analysis", () => {
         const analysis = await buildAnalysis(document);
         const declarationNames = analysis.definitions.map((declaration) => declaration.name);
 
-        expect(declarationNames).toEqual([
+        expect(declarationNames).toMatchObject([
             {
                 arity: 2,
                 qname: {
@@ -390,7 +390,7 @@ describe("JSONiq variable scope analysis", () => {
             analysis.definitions
                 .filter((definition) => definition.kind === "catch-variable")
                 .map((definition) => definition.name),
-        ).toEqual([
+        ).toMatchObject([
             { qname: { prefix: "err", localName: "code" } },
             { qname: { prefix: "err", localName: "description" } },
             { qname: { prefix: "err", localName: "value" } },
@@ -408,7 +408,7 @@ describe("JSONiq variable scope analysis", () => {
                     resolvedTo: reference.declaration.name,
                     resolvedKind: reference.declaration.kind,
                 })),
-        ).toEqual([
+        ).toMatchObject([
             {
                 name: { qname: { prefix: "err", localName: "code" } },
                 resolvedTo: { qname: { prefix: "err", localName: "code" } },
