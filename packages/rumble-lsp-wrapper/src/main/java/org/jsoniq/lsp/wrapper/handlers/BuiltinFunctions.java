@@ -3,13 +3,9 @@ package org.jsoniq.lsp.wrapper.handlers;
 import org.jsoniq.lsp.wrapper.messages.Request;
 import org.jsoniq.lsp.wrapper.messages.ResponseBody;
 import org.jsoniq.lsp.wrapper.types.FunctionDefinition;
-import org.jsoniq.lsp.wrapper.types.ResolvedQName;
 import org.rumbledb.context.BuiltinFunction;
 import org.rumbledb.context.BuiltinFunctionCatalogue;
 import org.rumbledb.context.FunctionIdentifier;
-import org.rumbledb.context.Name;
-import org.rumbledb.types.FunctionSignature;
-import org.rumbledb.types.SequenceType;
 
 import java.lang.reflect.Field;
 import java.util.List;
@@ -26,7 +22,7 @@ public class BuiltinFunctions implements RequestHandler {
         Map<FunctionIdentifier, BuiltinFunction> functions = readCatalogue();
         return functions.values()
                 .stream()
-                .map(BuiltinFunctions::toDefinition)
+                .map(FunctionDefinition::fromBuiltinFunction)
                 .toList();
     }
 
@@ -43,46 +39,6 @@ public class BuiltinFunctions implements RequestHandler {
         } catch (ReflectiveOperationException exception) {
             throw new IllegalStateException("Unable to read builtin function catalogue.", exception);
         }
-    }
-
-    private static FunctionDefinition.Signature toSignature(BuiltinFunction function) {
-        FunctionSignature signature = function.getSignature();
-
-        List<String> parameterTypes = signature
-                .getParameterTypes()
-                .stream()
-                .map(SequenceType::toString)
-                .toList();
-
-        String returnType = signature.getReturnType() == null ? "item*" : signature.getReturnType().toString();
-
-        return new FunctionDefinition.Signature(
-                parameterTypes,
-                returnType);
-    }
-
-    private static FunctionDefinition toDefinition(BuiltinFunction function) {
-        FunctionIdentifier identifier = function.getIdentifier();
-        return new FunctionDefinition(
-                toFunctionName(identifier),
-                toSignature(function));
-    }
-
-    private static FunctionDefinition.Name toFunctionName(FunctionIdentifier identifier) {
-        return new FunctionDefinition.Name(
-                toResolvedQName(identifier.getName()),
-                identifier.getArity());
-    }
-
-    private static ResolvedQName toResolvedQName(Name name) {
-        return new ResolvedQName(
-                name.getLocalName(),
-                blankToNull(name.getNamespace()),
-                blankToNull(name.getPrefix()));
-    }
-
-    private static String blankToNull(String value) {
-        return value == null || value.isBlank() ? null : value;
     }
 
     @Override
