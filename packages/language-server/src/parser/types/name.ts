@@ -1,17 +1,25 @@
 export type Prefix = string;
 export type LocalName = string;
 
-export type QName = {
-    prefix?: Prefix;
+export type UnprefixedQName = {
+    kind: "unprefixed-qname";
     localName: LocalName;
 };
 
-export type VarName = {
-    qname: QName;
+export type PrefixedQName = {
+    kind: "prefixed-qname";
+    prefix: Prefix;
+    localName: LocalName;
 };
 
-export type FunctionName = {
-    qname: QName;
+export type LexicalQName = UnprefixedQName | PrefixedQName;
+
+export type LexicalVarName = {
+    qname: LexicalQName;
+};
+
+export type LexicalFunctionName = {
+    qname: LexicalQName;
     arity?: number;
 };
 
@@ -19,47 +27,33 @@ export type NamespaceName = {
     prefix: Prefix;
 };
 
-export type DeclarationNameByKind = {
+export type LexicalDeclarationNameByKind = {
     namespace: NamespaceName;
-    function: FunctionName;
-    parameter: VarName;
-    "declare-variable": VarName;
-    let: VarName;
-    for: VarName;
-    "for-position": VarName;
-    "group-by": VarName;
-    count: VarName;
-    "catch-variable": VarName;
-    type: { qname: QName };
+    function: LexicalFunctionName;
+    parameter: LexicalVarName;
+    "declare-variable": LexicalVarName;
+    let: LexicalVarName;
+    for: LexicalVarName;
+    "for-position": LexicalVarName;
+    "group-by": LexicalVarName;
+    count: LexicalVarName;
+    "catch-variable": LexicalVarName;
+    type: { qname: LexicalQName };
 };
 
-export type ReferenceNameByKind = {
-    function: FunctionName;
-    variable: VarName;
+export type LexicalReferenceNameByKind = {
+    function: LexicalFunctionName;
+    variable: LexicalVarName;
 };
 
-export function qnameToString(qname: QName): string {
-    return qname.prefix === undefined ? qname.localName : `${qname.prefix}:${qname.localName}`;
+export function lexicalQNameToString(qname: LexicalQName): string {
+    return qname.kind === "prefixed-qname" ? `${qname.prefix}:${qname.localName}` : qname.localName;
 }
 
-export function varNameToString(name: VarName): string {
-    return `$${qnameToString(name.qname)}`;
+export function isPrefixedQName(qname: LexicalQName): qname is PrefixedQName {
+    return qname.kind === "prefixed-qname";
 }
 
-export function functionNameToString(name: FunctionName): string {
-    return `${qnameToString(name.qname)}#${name.arity ?? "?"}`;
-}
-
-export function referenceNameToString<K extends keyof ReferenceNameByKind>(
-    name: ReferenceNameByKind[K],
-    kind: K,
-): string {
-    switch (kind) {
-        case "function":
-            return functionNameToString(name as FunctionName);
-        case "variable":
-            return varNameToString(name as VarName);
-        default:
-            throw kind satisfies never;
-    }
+export function varNameToString(name: LexicalVarName): string {
+    return `$${lexicalQNameToString(name.qname)}`;
 }

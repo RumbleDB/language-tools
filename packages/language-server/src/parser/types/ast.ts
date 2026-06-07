@@ -1,6 +1,12 @@
 import type { Range } from "vscode-languageserver";
 
-import type { FunctionName, Prefix, QName, ReferenceNameByKind, VarName } from "./name.js";
+import type {
+    LexicalFunctionName,
+    LexicalQName,
+    LexicalReferenceNameByKind,
+    LexicalVarName,
+    Prefix,
+} from "./name.js";
 
 export type AstNodeKind =
     | "module"
@@ -40,23 +46,23 @@ export interface NamespaceDeclarationAstNode extends AstNodeBase<"namespace-decl
 }
 
 export interface ContextItemDeclarationAstNode extends AstNodeBase<"context-item-declaration"> {
-    readonly name: VarName;
+    readonly name: LexicalVarName;
     readonly selectionRange: Range;
 }
 
 export interface TypeDeclarationAstNode extends AstNodeBase<"type-declaration"> {
-    readonly name: { qname: QName };
+    readonly name: { qname: LexicalQName };
     readonly selectionRange: Range;
 }
 
 export interface AstParameter {
-    readonly name: VarName;
+    readonly name: LexicalVarName;
     readonly range: Range;
     readonly selectionRange: Range;
 }
 
 export interface AstBinding {
-    readonly name: VarName;
+    readonly name: LexicalVarName;
     readonly range: Range;
     readonly selectionRange: Range;
 }
@@ -66,7 +72,7 @@ export interface ForBindingVariable extends AstBinding {
 }
 
 export interface FunctionDeclarationAstNode extends AstNodeBase<"function-declaration"> {
-    readonly name: FunctionName;
+    readonly name: LexicalFunctionName;
     readonly nameRange: Range;
     readonly parameters: AstParameter[];
 }
@@ -96,30 +102,31 @@ export interface FlowrExpressionAstNode extends AstNodeBase<"flowr-expression"> 
 
 export interface CatchClauseAstNode extends AstNodeBase<"catch-clause"> {}
 
-export type ReferenceAstNode<K extends keyof ReferenceNameByKind = keyof ReferenceNameByKind> =
-    K extends keyof ReferenceNameByKind
-        ? AstNodeBase<"reference"> & {
-              readonly name: ReferenceNameByKind[K];
-              readonly referenceKind: K;
-          }
-        : never;
+export type ReferenceAstNode<
+    K extends keyof LexicalReferenceNameByKind = keyof LexicalReferenceNameByKind,
+> = K extends keyof LexicalReferenceNameByKind
+    ? AstNodeBase<"reference"> & {
+          readonly name: LexicalReferenceNameByKind[K];
+          readonly referenceKind: K;
+      }
+    : never;
 
 export interface FunctionCallAstNode extends AstNodeBase<"function-call"> {
-    readonly name: FunctionName;
+    readonly name: LexicalFunctionName;
     readonly nameRange: Range;
 }
 
 export interface NamedFunctionReferenceAstNode extends AstNodeBase<"named-function-reference"> {
-    readonly name: FunctionName;
+    readonly name: LexicalFunctionName;
     readonly nameRange: Range;
 }
 
 export interface VariableReferenceAstNode extends AstNodeBase<"variable-reference"> {
-    readonly name: ReferenceNameByKind["variable"];
+    readonly name: LexicalReferenceNameByKind["variable"];
 }
 
 export interface ContextItemExpressionAstNode extends AstNodeBase<"context-item-expression"> {
-    readonly name: ReferenceNameByKind["variable"];
+    readonly name: LexicalReferenceNameByKind["variable"];
 }
 
 export interface UnknownAstNode extends AstNodeBase<"unknown"> {

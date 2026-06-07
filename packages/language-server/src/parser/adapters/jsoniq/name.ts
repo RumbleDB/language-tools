@@ -1,4 +1,10 @@
-import { FunctionName, QName, VarName } from "server/parser/types/name.js";
+import {
+    LexicalFunctionName,
+    LexicalQName,
+    LexicalVarName,
+    type PrefixedQName,
+    type UnprefixedQName,
+} from "server/parser/types/name.js";
 
 import {
     FunctionCallContext,
@@ -8,15 +14,17 @@ import {
     VarRefContext,
 } from "./grammar/jsoniqParser.js";
 
-export function parseQname(qnameNode: QnameContext): QName {
+export function parseQname(qnameNode: QnameContext): LexicalQName {
     const prefix = qnameNode._ns?.text ?? qnameNode._nskw?.getText() ?? undefined;
     const localName = qnameNode._local_name?.text ?? qnameNode._local_namekw?.getText() ?? "";
 
     if (prefix) {
-        return { prefix, localName };
+        const qname: PrefixedQName = { kind: "prefixed-qname", prefix, localName };
+        return qname;
     }
 
-    return { localName };
+    const qname: UnprefixedQName = { kind: "unprefixed-qname", localName };
+    return qname;
 }
 
 function functionArity(
@@ -34,7 +42,7 @@ function functionArity(
 
 export function parseFunctionName(
     node: FunctionDeclContext | FunctionCallContext | NamedFunctionRefContext,
-): FunctionName {
+): LexicalFunctionName {
     const qnameNode =
         node instanceof FunctionDeclContext ? node.declaredQName().qname() : node.qname();
     const qname = parseQname(qnameNode);
@@ -47,7 +55,7 @@ export function parseFunctionName(
     };
 }
 
-export function parseVarName(node: VarRefContext): VarName | null {
+export function parseVarName(node: VarRefContext): LexicalVarName | null {
     const qname = node.qname();
     return qname === null ? null : { qname: parseQname(qname) };
 }

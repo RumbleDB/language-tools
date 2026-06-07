@@ -48,6 +48,14 @@ import { parseFunctionName, parseQname, parseVarName } from "./name.js";
 
 type AstVisitResult = AstNode[];
 
+function unquoteStringLiteral(text: string): string {
+    return text.length >= 2 &&
+        ((text.startsWith('"') && text.endsWith('"')) ||
+            (text.startsWith("'") && text.endsWith("'")))
+        ? text.slice(1, -1)
+        : text;
+}
+
 class JsoniqAstBuilder extends jsoniqVisitor<AstVisitResult> {
     public constructor(private readonly document: TextDocument) {
         super();
@@ -92,7 +100,7 @@ class JsoniqAstBuilder extends jsoniqVisitor<AstVisitResult> {
             {
                 kind: "namespace-declaration",
                 prefix,
-                namespaceUri: namespaceUriNode.getText(),
+                namespaceUri: unquoteStringLiteral(namespaceUriNode.getText()),
                 range: rangeFromNode(node, this.document),
                 selectionRange: rangeFromNode(nameNode, this.document),
                 children: [],
@@ -105,6 +113,7 @@ class JsoniqAstBuilder extends jsoniqVisitor<AstVisitResult> {
             kind: "context-item-declaration",
             name: {
                 qname: {
+                    kind: "unprefixed-qname",
                     localName: "$",
                 },
             },
@@ -120,7 +129,7 @@ class JsoniqAstBuilder extends jsoniqVisitor<AstVisitResult> {
     public override visitContextItemExpr = (node: ContextItemExprContext): AstVisitResult => [
         {
             kind: "context-item-expression",
-            name: { qname: { localName: "$" } },
+            name: { qname: { kind: "unprefixed-qname", localName: "$" } },
             range: rangeFromNode(node, this.document),
             children: [],
         },
