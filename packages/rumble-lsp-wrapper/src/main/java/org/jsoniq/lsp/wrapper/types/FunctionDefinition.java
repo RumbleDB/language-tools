@@ -1,7 +1,6 @@
 package org.jsoniq.lsp.wrapper.types;
 
 import java.util.List;
-import java.util.Map;
 
 import org.rumbledb.context.BuiltinFunction;
 import org.rumbledb.context.FunctionIdentifier;
@@ -23,34 +22,25 @@ public record FunctionDefinition(
         }
     }
 
-    public record ParameterType(
-            ResolvedQName name,
-            String sequenceType) {
+    public record Parameter(
+            Name name,
+            SequenceType type) {
     }
 
     public record Signature(
-            List<ParameterType> parameters,
-            String returnType) {
-
-        public static Signature fromNode(Map<org.rumbledb.context.Name, SequenceType> parameters, SequenceType returnType) {
-            List<ParameterType> parameterTypes = parameters.entrySet().stream()
-                    .map(entry -> new ParameterType(ResolvedQName.fromName(entry.getKey()), entry.getValue().toString()))
-                    .toList();
-
-            return new Signature(
-                    parameterTypes,
-                    returnType == null ? "item*" : returnType.toString());
-        }
+            List<Parameter> parameterTypes,
+            SequenceType returnType) {
 
         public static Signature fromFunctionSignature(FunctionSignature signature) {
-            List<ParameterType> parameterTypes = signature
+            List<Parameter> parameterTypes = signature
                     .getParameterTypes()
                     .stream()
-                    .map(SequenceType::toString)
-                    .map(sequenceType -> new ParameterType(null, sequenceType))
+                    .map(type -> new Parameter(
+                            null,   /// Builtin functions don't have parameter names saved
+                            type))
                     .toList();
 
-            String returnType = signature.getReturnType() == null ? "item*" : signature.getReturnType().toString();
+            SequenceType returnType = signature.getReturnType();
 
             return new Signature(
                     parameterTypes,

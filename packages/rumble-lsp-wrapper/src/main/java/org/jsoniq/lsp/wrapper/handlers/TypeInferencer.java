@@ -56,11 +56,6 @@ public final class TypeInferencer implements RequestHandler {
         }
     }
 
-    public record ParameterType(
-            ResolvedQName name,
-            String sequenceType) {
-    }
-
     public interface InferredTypeEntry {
         String kind();
 
@@ -234,13 +229,21 @@ public final class TypeInferencer implements RequestHandler {
         /// identify them first by function and then by parameter name
         /// In our LSP, we do have exact position for parameters, so we can complete the
         /// position information for parameters there.
-        FunctionDefinition.Signature signature = FunctionDefinition.Signature.fromNode(
-                functionExpression.getParams(),
-                functionExpression.getReturnType());
+        List<FunctionDefinition.Parameter> parameterTypes = functionExpression.getParams().keySet().stream()
+                .map(paramName -> new FunctionDefinition.Parameter(
+                        new FunctionDefinition.Name(
+                                ResolvedQName.fromName(paramName),
+                                null),
+                        functionExpression.getParams().get(paramName)))
+                .toList();
+
+        SequenceType returnType = functionExpression.getReturnType();
 
         FunctionDefinition function = new FunctionDefinition(
                 FunctionDefinition.Name.create(functionDeclaration.getFunctionIdentifier()),
-                signature);
+                new FunctionDefinition.Signature(
+                        parameterTypes,
+                        returnType));
 
         Position position = Position.fromExceptionMetadata(metadata);
         types.add(new FunctionType(

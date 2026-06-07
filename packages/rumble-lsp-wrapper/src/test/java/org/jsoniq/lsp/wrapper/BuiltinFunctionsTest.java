@@ -32,7 +32,7 @@ class BuiltinFunctionsTest {
         assertTrue(count.isPresent());
         assertEquals("fn", count.get().name().qname().lexicalPrefix());
         assertNotNull(count.get().name().qname().namespaceUri());
-        assertEquals("xs:integer", count.get().signature().returnType());
-        assertFalse(count.get().signature().parameters().isEmpty());
+        assertEquals("xs:integer", count.get().signature().returnType().toString());
+        assertFalse(count.get().signature().parameterTypes().isEmpty());
     }
 }

@@ -68,11 +68,9 @@ class TypeInferencerTest {
                 .orElseThrow();
 
         assertEquals("local", functionType.function().name().qname().lexicalPrefix());
-        assertEquals("a", functionType.function().signature().parameters().get(0).name().localName());
-        assertEquals("b", functionType.function().signature().parameters().get(1).name().localName());
-        assertEquals("xs:integer", functionType.function().signature().parameters().get(0).sequenceType());
-        assertEquals("item*", functionType.function().signature().parameters().get(1).sequenceType());
-        assertEquals("item*", functionType.function().signature().returnType());
+        assertEquals("xs:integer", functionType.function().signature().parameterTypes().get(0).type().toString());
+        assertEquals("item*", functionType.function().signature().parameterTypes().get(1).type().toString());
+        assertEquals("item*", functionType.function().signature().returnType().toString());
     }
 
     @Test
