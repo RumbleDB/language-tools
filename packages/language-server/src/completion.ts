@@ -15,7 +15,8 @@ import {
     type BaseDefinition,
 } from "./analysis/model.js";
 import { getVisibleDeclarationsAtPosition } from "./analysis/queries.js";
-import { getBuiltinFunctionHover } from "./function-catalog/index.js";
+import { getBuiltinFunctionDocumentation } from "./function-catalog/index.js";
+import { getW3Catalog } from "./function-catalog/loader.js";
 import { collectCompletionIntent } from "./parser/index.js";
 import { qnameToString } from "./parser/types/name.js";
 import { getDocumentText } from "./parser/utils.js";
@@ -121,22 +122,40 @@ function toCompletionItem(declaration: BaseDefinition): CompletionItem {
 }
 
 async function getBuiltinFunctionCompletionItems(): Promise<CompletionItem[]> {
-    return (await getBuiltinFunctions()).all.map((definition) => {
+    const itemsByName = new Map<string, CompletionItem>();
+    const catalog = getW3Catalog();
+
+    for (const definition of (await getBuiltinFunctions()).all) {
         const { qname, arity } = definition.name;
         const functionName = qnameToString(qname);
+        const catalogKey = `${qname.prefix || "fn"}:${qname.localName}`;
+        const overloadCount = catalog[catalogKey]?.signatures.length;
         const parameterTypes = definition.signature.parameterTypes.join(", ");
         const signature = `${functionName}(${parameterTypes}) as ${definition.signature.returnType}`;
-
-        return {
+        const item: CompletionItem = {
             label: functionName,
             kind: CompletionItemKind.Function,
-            detail: arity === undefined ? signature : `${signature} / ${arity}`,
+            detail:
+                overloadCount !== undefined && overloadCount > 1
+                    ? `${functionName}(...) • ${overloadCount} overloads`
+                    : arity === undefined
+                      ? signature
+                      : `${signature} / ${arity}`,
             documentation: {
                 kind: MarkupKind.Markdown,
-                value: getBuiltinFunctionHover(definition),
+                value: getBuiltinFunctionDocumentation(definition, {
+                    preferMatchingArity: false,
+                }),
             },
         };
-    });
+
+        const existing = itemsByName.get(functionName);
+        if (existing === undefined) {
+            itemsByName.set(functionName, item);
+        }
+    }
+
+    return [...itemsByName.values()];
 }
 
 function keywordCompletions(

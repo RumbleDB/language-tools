@@ -6,7 +6,18 @@ import type { FunctionEntry, Parameter, Signature } from "./types.js";
 
 export type { FunctionEntry, Parameter, Signature };
 
+interface BuiltinDocumentationOptions {
+    preferMatchingArity?: boolean;
+}
+
 export function getBuiltinFunctionHover(declaration: BuiltinFunctionDefinition): string {
+    return getBuiltinFunctionDocumentation(declaration, { preferMatchingArity: true });
+}
+
+export function getBuiltinFunctionDocumentation(
+    declaration: BuiltinFunctionDefinition,
+    options: BuiltinDocumentationOptions = {},
+): string {
     const qname = declaration.name.qname;
     const prefix = qname.prefix || "fn";
     const localName = qname.localName;
@@ -37,7 +48,7 @@ export function getBuiltinFunctionHover(declaration: BuiltinFunctionDefinition):
 
         // Try to find matching signature based on arity
         let activeSignature = "";
-        if (arity !== undefined) {
+        if (options.preferMatchingArity !== false && arity !== undefined) {
             const matchingSigIdx = entry.signatures.findIndex(
                 (sig: Signature) => sig.params.length === arity,
             );
