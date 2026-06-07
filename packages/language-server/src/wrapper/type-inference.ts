@@ -1,59 +1,11 @@
 import { getDocumentText } from "server/parser/utils.js";
 import { createLogger } from "server/utils/logger.js";
-import type { DocumentUri, Position } from "vscode-languageserver";
+import type { DocumentUri } from "vscode-languageserver";
 import { TextDocument } from "vscode-languageserver-textdocument";
 
 import { getWrapperClient } from "./client.js";
 import type { WrapperDaemonResponse } from "./protocol.js";
-
-export type WrapperVariableKind =
-    | "declare-variable"
-    | "let"
-    | "for"
-    | "for-position"
-    | "group-by"
-    | "count";
-
-export interface InferredSequenceType {
-    sequenceType: string;
-}
-
-export interface InferredFunctionType {
-    parameters: Array<{
-        name: string;
-        sequenceType: string;
-    }>;
-    returnType: string;
-}
-
-export type InferredType = InferredSequenceType | InferredFunctionType;
-
-export interface InferredVariableTypeEntry extends InferredSequenceType {
-    kind: "variable";
-    variableKind: WrapperVariableKind;
-    position: Position;
-    name: string;
-}
-
-export interface InferredFunctionTypeEntry extends InferredFunctionType {
-    kind: "function";
-    position: Position;
-    name: string;
-}
-
-export type InferredTypeEntry = InferredVariableTypeEntry | InferredFunctionTypeEntry;
-
-export interface WrapperTypeError {
-    code: string;
-    message: string;
-    location: string;
-    position: Position;
-}
-
-export interface TypeInferenceResult {
-    types: InferredTypeEntry[];
-    typeErrors: WrapperTypeError[];
-}
+import type { TypeInferenceResult } from "./types.js";
 
 export const REQUEST_TYPE_INFER_TYPES = "inferTypes" as const;
 

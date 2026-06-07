@@ -1,18 +1,10 @@
 import type { BaseDefinition } from "server/analysis/model.js";
-import type { FunctionName } from "server/parser/types/name.js";
 import { createLogger } from "server/utils/logger.js";
 
+import { type ResolvedFunctionName, resolvedFunctionNameToString } from "../analysis/names.js";
 import { getWrapperClient } from "./client.js";
 import type { WrapperDaemonResponse } from "./protocol.js";
-
-export interface WrapperBuiltinFunctionSignature {
-    parameterTypes: string[];
-    returnType: string;
-}
-
-export interface BuiltInFunctionListResponseBody {
-    builtinFunctions: Record<string, WrapperBuiltinFunctionSignature>;
-}
+import { type BuiltinFunctionsResponseBody, type WrapperFunctionSignature } from "./types.js";
 
 export const REQUEST_TYPE_BUILTIN_FUNCTIONS = "builtinFunctions" as const;
 
@@ -22,13 +14,13 @@ export interface BuiltinFunctionsRequestPayload {
 
 export type BuiltinFunctionListResponse = WrapperDaemonResponse<
     typeof REQUEST_TYPE_BUILTIN_FUNCTIONS,
-    BuiltInFunctionListResponseBody
+    BuiltinFunctionsResponseBody
 >;
 
 export interface BuiltinFunctionDefinition extends BaseDefinition<"builtin-function"> {
-    name: FunctionName;
+    name: ResolvedFunctionName;
     kind: "builtin-function";
-    signature: WrapperBuiltinFunctionSignature;
+    signature: WrapperFunctionSignature;
     isBuiltin: true;
 }
 
@@ -58,11 +50,12 @@ async function getBuiltinFunctionMap(): Promise<Map<string, BuiltinFunctionDefin
         const builtinDefinitionsByName = new Map<string, BuiltinFunctionDefinition>();
 
         if (response !== undefined) {
-            for (const [name, signature] of Object.entries(response.body.builtinFunctions)) {
-                builtinDefinitionsByName.set(name, {
-                    name: parseBuiltinFunctionName(name),
+            for (const builtinFunction of response.body.builtinFunctions) {
+                const name = builtinFunction.name;
+                builtinDefinitionsByName.set(resolvedFunctionNameToString(name), {
+                    name,
                     kind: "builtin-function",
-                    signature,
+                    signature: builtinFunction.signature,
                     references: [],
                     isBuiltin: true,
                 });
@@ -115,24 +108,5 @@ export async function getBuiltinFunctions(): Promise<BuiltinFunctions> {
     return {
         all: [...map.values()],
         find: (nameWithArity: string) => findBuiltinFunctionDefinition(map, nameWithArity),
-    };
-}
-
-function parseBuiltinFunctionName(nameWithArity: string): FunctionName {
-    const hashIndex = nameWithArity.lastIndexOf("#");
-    const name = hashIndex === -1 ? nameWithArity : nameWithArity.slice(0, hashIndex);
-    const arity =
-        hashIndex === -1 ? undefined : Number.parseInt(nameWithArity.slice(hashIndex + 1), 10);
-    const colonIndex = name.indexOf(":");
-
-    return {
-        qname:
-            colonIndex === -1
-                ? { localName: name }
-                : {
-                      prefix: name.slice(0, colonIndex),
-                      localName: name.slice(colonIndex + 1),
-                  },
-        ...(arity === undefined || Number.isNaN(arity) ? {} : { arity }),
     };
 }

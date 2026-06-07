@@ -4,13 +4,15 @@ import {
     type SourceParameterDefinition,
     type SourceVariableDefinition,
 } from "server/analysis/model.js";
+import { resolvedFunctionNameToString, resolvedQNameToString } from "server/analysis/names.js";
+import { toResolvedQName } from "server/wrapper/names.js";
+import { getTypeInference } from "server/wrapper/type-inference.js";
 import {
-    getTypeInference,
     type InferredFunctionType,
     type InferredSequenceType,
     type InferredType,
     type TypeInferenceResult,
-} from "server/wrapper/type-inference.js";
+} from "server/wrapper/types.js";
 import { DocumentUri, TextDocument } from "vscode-languageserver-textdocument";
 
 import { buildInferenceKey, buildInferenceKeyForDefinition, InferenceKey } from "./key.js";
@@ -31,29 +33,42 @@ function buildTypeInferenceIndex(entries: TypeInferenceResult["types"]): TypeInf
 
     for (const entry of entries) {
         if (entry.kind === "function") {
-            const {
-                name: functionName,
-                position: functionPosition,
-                returnType,
-                parameters,
-            } = entry;
-            const functionKey = buildInferenceKey("function", functionPosition, functionName);
+            const { ["function"]: functionDefinition, position: functionPosition } = entry;
+            const functionName = functionDefinition.name;
+            const functionKey = buildInferenceKey(
+                "function",
+                functionPosition,
+                resolvedFunctionNameToString(functionName),
+            );
 
-            result.set(functionKey, { returnType, parameters });
+            result.set(functionKey, entry);
 
-            for (const parameter of parameters) {
+            for (const parameter of functionDefinition.signature.parameterTypes) {
+                if (parameter.name === null) {
+                    continue;
+                }
+
                 const parameterKey = buildInferenceKey(
                     "parameter",
                     functionPosition,
-                    functionName,
-                    parameter.name,
+                    resolvedFunctionNameToString(functionName),
+                    `$${resolvedQNameToString(parameter.name.qname)}`,
                 );
-                result.set(parameterKey, { sequenceType: parameter.sequenceType });
+                result.set(parameterKey, {
+                    sequenceType: parameter.type,
+                });
             }
         } else {
-            result.set(buildInferenceKey(entry.variableKind, entry.position, entry.name), {
-                sequenceType: entry.sequenceType,
-            });
+            result.set(
+                buildInferenceKey(
+                    entry.variableKind,
+                    entry.position,
+                    `$${resolvedQNameToString(toResolvedQName(entry.qname))}`,
+                ),
+                {
+                    sequenceType: entry.sequenceType,
+                },
+            );
         }
     }
 

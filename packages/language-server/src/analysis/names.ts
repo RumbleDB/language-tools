@@ -3,7 +3,7 @@ import { type LocalName, type Prefix } from "server/parser/types/name.js";
 export type ResolvedQName = {
     localName: LocalName;
     namespaceUri?: string;
-    lexicalPrefix?: Prefix;
+    prefix?: Prefix;
 };
 
 export type ResolvedVarName = {
@@ -35,9 +35,7 @@ export type ResolvedReferenceNameByKind = {
 };
 
 export function resolvedQNameToString(qname: ResolvedQName): string {
-    return qname.lexicalPrefix === undefined
-        ? qname.localName
-        : `${qname.lexicalPrefix}:${qname.localName}`;
+    return qname.prefix === undefined ? qname.localName : `${qname.prefix}:${qname.localName}`;
 }
 
 export function expandedQNameToString(qname: ResolvedQName): string {

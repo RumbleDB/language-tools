@@ -390,7 +390,7 @@ class AnalysisBuilder {
         return {
             localName: qname.localName,
             ...(namespaceUri === undefined ? {} : { namespaceUri }),
-            ...(isPrefixedQName(qname) ? { lexicalPrefix: qname.prefix } : {}),
+            ...(isPrefixedQName(qname) ? { prefix: qname.prefix } : {}),
         };
     }
 }

@@ -98,7 +98,9 @@ export function getBuiltinFunctionDocumentation(
     // Fallback 1: Format using the daemon's parameter types
     const sig = declaration.signature;
     if (sig !== undefined) {
-        const paramsStr = sig.parameterTypes.map((t, idx) => `$arg${idx + 1} as ${t}`).join(", ");
+        const paramsStr = sig.parameterTypes
+            .map((parameter, idx) => `$arg${idx + 1} as ${parameter.type}`)
+            .join(", ");
         const returnTypeStr = sig.returnType ? ` as ${sig.returnType}` : "";
         const sigStr = `${prefix}:${localName}(${paramsStr})${returnTypeStr}`;
         return ["```jsoniq", sigStr, "```", `kind: \`builtin-function\``].join("\n");

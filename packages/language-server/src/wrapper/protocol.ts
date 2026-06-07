@@ -1,7 +1,6 @@
 import { Position } from "vscode-languageserver";
 
 import type {
-    BuiltInFunctionListResponseBody,
     BuiltinFunctionsRequestPayload,
     REQUEST_TYPE_BUILTIN_FUNCTIONS,
 } from "./builtin-functions.js";
@@ -10,11 +9,8 @@ import type {
     HandshakeResponseBody,
     REQUEST_TYPE_HANDSHAKE,
 } from "./handshake.js";
-import type {
-    InferTypesRequestPayload,
-    REQUEST_TYPE_INFER_TYPES,
-    TypeInferenceResult,
-} from "./type-inference.js";
+import type { InferTypesRequestPayload, REQUEST_TYPE_INFER_TYPES } from "./type-inference.js";
+import type { BuiltinFunctionsResponseBody, TypeInferenceResult } from "./types.js";
 
 export type WrapperRequestPayloadByType = {
     [REQUEST_TYPE_INFER_TYPES]: InferTypesRequestPayload;
@@ -48,6 +44,6 @@ export type WrapperDaemonResponse<ResponseType extends WrapperRequestType, Respo
 
 export type WrapperResponseBodyByType = {
     [REQUEST_TYPE_INFER_TYPES]: TypeInferenceResult;
-    [REQUEST_TYPE_BUILTIN_FUNCTIONS]: BuiltInFunctionListResponseBody;
+    [REQUEST_TYPE_BUILTIN_FUNCTIONS]: BuiltinFunctionsResponseBody;
     [REQUEST_TYPE_HANDSHAKE]: HandshakeResponseBody;
 };

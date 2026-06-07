@@ -1,7 +1,7 @@
 import { getW3Catalog } from "server/function-catalog/loader.js";
 import type { FunctionEntry } from "server/function-catalog/types.js";
 import type { ArgumentAstNode, FunctionCallAstNode } from "server/parser/types/ast.js";
-import { qnameToString } from "server/parser/types/name.js";
+import { isPrefixedQName, lexicalQNameToString } from "server/parser/types/name.js";
 import { sameRange } from "server/utils/range.js";
 
 import {
@@ -10,9 +10,10 @@ import {
     type JsoniqAnalysis,
     type SourceFunctionDefinition,
 } from "../analysis/model.js";
+import { sameResolvedQName, type ResolvedQName } from "../analysis/names.js";
 
 export function getFunctionCallName(call: FunctionCallAstNode): string {
-    return qnameToString(call.name.qname);
+    return lexicalQNameToString(call.name.qname);
 }
 
 export function getFunctionCallArgumentNodes(call: FunctionCallAstNode): ArgumentAstNode[] {
@@ -57,10 +58,11 @@ export function findResolvedFunctionDeclaration(
         return resolvedDeclaration;
     }
 
-    const functionName = getFunctionCallName(call);
+    const functionQName = normalizeQName(call.name.qname, analysis);
     return analysis.definitions.find(
         (definition) =>
-            definition.kind === "function" && qnameToString(definition.name.qname) === functionName,
+            definition.kind === "function" &&
+            sameResolvedQName(definition.name.qname, functionQName),
     );
 }
 
@@ -81,4 +83,19 @@ export function getCatalogEntryByFunctionName(functionName: string): FunctionEnt
         ? functionName.split(":", 2)
         : [undefined, functionName];
     return getW3Catalog()[`${prefix}:${localName}`];
+}
+
+function normalizeQName(
+    qname: FunctionCallAstNode["name"]["qname"],
+    analysis: JsoniqAnalysis,
+): ResolvedQName {
+    const namespaceUri = isPrefixedQName(qname)
+        ? analysis.namespaces.get(qname.prefix)?.namespaceUri
+        : undefined;
+
+    return {
+        localName: qname.localName,
+        ...(namespaceUri === undefined ? {} : { namespaceUri }),
+        ...(isPrefixedQName(qname) ? { prefix: qname.prefix } : {}),
+    };
 }
