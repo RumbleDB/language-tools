@@ -1,15 +1,15 @@
-import {
-    type DeclarationNameByKind,
-    type FunctionName,
-    Prefix,
-    type ReferenceNameByKind,
-    functionNameToString,
-    qnameToString,
-    varNameToString,
-} from "server/parser/types/name.js";
+import { Prefix } from "server/parser/types/name.js";
 import type { BuiltinFunctionDefinition } from "server/wrapper/builtin-functions.js";
 import type { Diagnostic, Range } from "vscode-languageserver";
 
+import {
+    type ResolvedDeclarationNameByKind,
+    type ResolvedFunctionName,
+    type ResolvedReferenceNameByKind,
+    resolvedFunctionNameToString,
+    resolvedQNameToString,
+    resolvedVarNameToString,
+} from "./names.js";
 import type { Scope } from "./scope.js";
 
 export type VariableKind =
@@ -25,8 +25,8 @@ export type DeclarationKind = VariableKind | "namespace" | "type" | "parameter" 
 
 export type DefinitionKind = DeclarationKind | "builtin-function";
 
-export type DefinitionNameByKind = DeclarationNameByKind & {
-    "builtin-function": FunctionName;
+export type DefinitionNameByKind = ResolvedDeclarationNameByKind & {
+    "builtin-function": ResolvedFunctionName;
 };
 
 interface AbstractDefinition<K extends DefinitionKind> {
@@ -86,17 +86,19 @@ export type SourceDefinition =
 
 export type Definition = SourceDefinition | BuiltinFunctionDefinition;
 
-export interface Reference<K extends keyof ReferenceNameByKind> {
-    name: ReferenceNameByKind[K];
+export interface Reference<K extends keyof ResolvedReferenceNameByKind> {
+    name: ResolvedReferenceNameByKind[K];
     kind: K;
     range: Range;
 }
 
-export type AnyReference<K extends keyof ReferenceNameByKind = keyof ReferenceNameByKind> =
-    K extends keyof ReferenceNameByKind ? Reference<K> : never;
+export type AnyReference<
+    K extends keyof ResolvedReferenceNameByKind = keyof ResolvedReferenceNameByKind,
+> = K extends keyof ResolvedReferenceNameByKind ? Reference<K> : never;
 
-export type ResolvedReference<K extends keyof ReferenceNameByKind = keyof ReferenceNameByKind> =
-    AnyReference<K> & { declaration: Definition };
+export type ResolvedReference<
+    K extends keyof ResolvedReferenceNameByKind = keyof ResolvedReferenceNameByKind,
+> = AnyReference<K> & { declaration: Definition };
 
 export interface SymbolIndexEntry {
     range: Range;
@@ -162,9 +164,9 @@ export function definitionNameToString(definition: BaseDefinition): string {
             return definition.name.prefix;
         case "function":
         case "builtin-function":
-            return functionNameToString(definition.name);
+            return resolvedFunctionNameToString(definition.name);
         case "type":
-            return qnameToString(definition.name.qname);
+            return resolvedQNameToString(definition.name.qname);
         case "parameter":
         case "declare-variable":
         case "let":
@@ -173,7 +175,7 @@ export function definitionNameToString(definition: BaseDefinition): string {
         case "group-by":
         case "count":
         case "catch-variable":
-            return varNameToString(definition.name);
+            return resolvedVarNameToString(definition.name);
         default:
             throw definition satisfies never;
     }

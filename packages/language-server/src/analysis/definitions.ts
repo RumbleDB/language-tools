@@ -1,4 +1,3 @@
-import type { FunctionName, QName, VarName } from "server/parser/types/name.js";
 import type { Range } from "vscode-languageserver";
 import { TextDocument } from "vscode-languageserver-textdocument";
 
@@ -11,6 +10,7 @@ import type {
     SourceVariableDefinition,
     VariableKind,
 } from "./model.js";
+import type { ResolvedFunctionName, ResolvedQName, ResolvedVarName } from "./names.js";
 
 interface DefinitionBaseInput {
     range: Range;
@@ -31,7 +31,7 @@ function createBaseDefinition(document: TextDocument, input: DefinitionBaseInput
 export function createVariableDefinition(
     document: TextDocument,
     kind: VariableKind,
-    name: VarName,
+    name: ResolvedVarName,
     range: Range,
     selectionRange: Range,
     visibleFrom?: number,
@@ -49,7 +49,7 @@ export function createVariableDefinition(
 
 export function createFunctionDefinition(
     document: TextDocument,
-    name: FunctionName,
+    name: ResolvedFunctionName,
     range: Range,
     selectionRange: Range,
 ): SourceFunctionDefinition {
@@ -67,7 +67,7 @@ export function createFunctionDefinition(
 
 export function createParameterDefinition(
     document: TextDocument,
-    name: VarName,
+    name: ResolvedVarName,
     range: Range,
     selectionRange: Range,
     containingFunction: SourceFunctionDefinition,
@@ -97,7 +97,7 @@ export function createNamespaceDefinition(
 
 export function createTypeDefinition(
     document: TextDocument,
-    name: { qname: QName },
+    name: { qname: ResolvedQName },
     range: Range,
     selectionRange: Range,
 ): Extract<SourceDefinition, { kind: "type" }> {

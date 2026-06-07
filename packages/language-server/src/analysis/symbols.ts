@@ -1,6 +1,6 @@
 import { parseDocument } from "server/parser/index.js";
 import type { AstNode } from "server/parser/types/ast.js";
-import { qnameToString, varNameToString } from "server/parser/types/name.js";
+import { lexicalQNameToString, varNameToString } from "server/parser/types/name.js";
 import { comparePositions } from "server/utils/position.js";
 import { DocumentSymbol, SymbolKind, type Range } from "vscode-languageserver";
 import { TextDocument } from "vscode-languageserver-textdocument";
@@ -43,7 +43,7 @@ export class DocumentSymbolsBuilder {
                 break;
             case "type-declaration":
                 this.addSymbol(
-                    qnameToString(node.name.qname),
+                    lexicalQNameToString(node.name.qname),
                     SymbolKind.Struct,
                     node.range,
                     node.selectionRange,
@@ -51,7 +51,7 @@ export class DocumentSymbolsBuilder {
                 break;
             case "function-declaration": {
                 this.addSymbol(
-                    qnameToString(node.name.qname),
+                    lexicalQNameToString(node.name.qname),
                     SymbolKind.Function,
                     node.range,
                     node.nameRange,

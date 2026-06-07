@@ -1,10 +1,4 @@
-import {
-    type FunctionName,
-    type Prefix,
-    type QName,
-    type ReferenceNameByKind,
-    type VarName,
-} from "server/parser/types/name.js";
+import { type Prefix } from "server/parser/types/name.js";
 import { getDocumentText } from "server/parser/utils.js";
 import { TextDocument } from "vscode-languageserver-textdocument";
 
@@ -13,6 +7,12 @@ import {
     type SourceDefinition,
     type SourceNamespaceDefinition,
 } from "./model.js";
+import {
+    expandedQNameToString,
+    type ResolvedFunctionName,
+    type ResolvedReferenceNameByKind,
+    type ResolvedVarName,
+} from "./names.js";
 
 export class Scope {
     private readonly definitionByName = new Map<string, SourceDefinition[]>();
@@ -48,9 +48,9 @@ export class Scope {
         definitionsWithSameName.push(newDefinition);
     }
 
-    public resolve<K extends keyof ReferenceNameByKind>(
+    public resolve<K extends keyof ResolvedReferenceNameByKind>(
         kind: K,
-        name: ReferenceNameByKind[K],
+        name: ResolvedReferenceNameByKind[K],
     ): SourceDefinition | undefined {
         const declarations = this.definitionByName.get(this.referenceLookupKey(name, kind));
         const declaration = declarations?.at(-1);
@@ -117,23 +117,12 @@ export class Scope {
         return visible;
     }
 
-    private qnameLookupKey(qname: QName): string {
-        if (qname.prefix === undefined) {
-            return qname.localName;
-        }
-
-        const namespaceUri = this.namespaces.get(qname.prefix)?.namespaceUri;
-        return namespaceUri === undefined
-            ? `${qname.prefix}:${qname.localName}`
-            : `Q{${namespaceUri}}${qname.localName}`;
+    private variableLookupKey(name: ResolvedVarName): string {
+        return `$${expandedQNameToString(name.qname)}`;
     }
 
-    private variableLookupKey(name: VarName): string {
-        return `$${this.qnameLookupKey(name.qname)}`;
-    }
-
-    private functionLookupKey(name: FunctionName): string {
-        return `${this.qnameLookupKey(name.qname)}#${name.arity ?? "?"}`;
+    private functionLookupKey(name: ResolvedFunctionName): string {
+        return `${expandedQNameToString(name.qname)}#${name.arity ?? "?"}`;
     }
 
     private definitionLookupKey(definition: BaseDefinition): string {
@@ -144,7 +133,7 @@ export class Scope {
             case "builtin-function":
                 return this.functionLookupKey(definition.name);
             case "type":
-                return this.qnameLookupKey(definition.name.qname);
+                return expandedQNameToString(definition.name.qname);
             case "parameter":
             case "declare-variable":
             case "let":
@@ -159,15 +148,15 @@ export class Scope {
         }
     }
 
-    private referenceLookupKey<K extends keyof ReferenceNameByKind>(
-        name: ReferenceNameByKind[K],
+    private referenceLookupKey<K extends keyof ResolvedReferenceNameByKind>(
+        name: ResolvedReferenceNameByKind[K],
         kind: K,
     ): string {
         switch (kind) {
             case "function":
-                return this.functionLookupKey(name as FunctionName);
+                return this.functionLookupKey(name as ResolvedFunctionName);
             case "variable":
-                return this.variableLookupKey(name as VarName);
+                return this.variableLookupKey(name as ResolvedVarName);
             default:
                 throw kind satisfies never;
         }
