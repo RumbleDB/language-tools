@@ -4,7 +4,6 @@ import {
     type SourceParameterDefinition,
     type SourceVariableDefinition,
 } from "server/analysis/model.js";
-import { resolvedFunctionNameToString, resolvedQNameToString } from "server/analysis/names.js";
 import { toResolvedQName } from "server/wrapper/names.js";
 import { getTypeInference } from "server/wrapper/type-inference.js";
 import {
@@ -15,7 +14,13 @@ import {
 } from "server/wrapper/types.js";
 import { DocumentUri, TextDocument } from "vscode-languageserver-textdocument";
 
-import { buildInferenceKey, buildInferenceKeyForDefinition, InferenceKey } from "./key.js";
+import {
+    buildInferenceKeyForDefinition,
+    buildInferenceKeyForFunction,
+    buildInferenceKeyForParameter,
+    buildInferenceKeyForVariable,
+    InferenceKey,
+} from "./key.js";
 
 export interface TypeInferenceIndex {
     get(definition: SourceFunctionDefinition): InferredFunctionType | undefined;
@@ -35,11 +40,7 @@ function buildTypeInferenceIndex(entries: TypeInferenceResult["types"]): TypeInf
         if (entry.kind === "function") {
             const { ["function"]: functionDefinition, position: functionPosition } = entry;
             const functionName = functionDefinition.name;
-            const functionKey = buildInferenceKey(
-                "function",
-                functionPosition,
-                resolvedFunctionNameToString(functionName),
-            );
+            const functionKey = buildInferenceKeyForFunction(functionPosition, functionName);
 
             result.set(functionKey, entry);
 
@@ -48,23 +49,18 @@ function buildTypeInferenceIndex(entries: TypeInferenceResult["types"]): TypeInf
                     continue;
                 }
 
-                const parameterKey = buildInferenceKey(
-                    "parameter",
-                    functionPosition,
-                    resolvedFunctionNameToString(functionName),
-                    `$${resolvedQNameToString(parameter.name.qname)}`,
-                );
+                const parameterKey = buildInferenceKeyForParameter(functionPosition, functionName, {
+                    qname: parameter.name.qname,
+                });
                 result.set(parameterKey, {
                     sequenceType: parameter.type,
                 });
             }
         } else {
             result.set(
-                buildInferenceKey(
-                    entry.variableKind,
-                    entry.position,
-                    `$${resolvedQNameToString(toResolvedQName(entry.qname))}`,
-                ),
+                buildInferenceKeyForVariable(entry.variableKind, entry.position, {
+                    qname: toResolvedQName(entry.qname),
+                }),
                 {
                     sequenceType: entry.sequenceType,
                 },
@@ -76,8 +72,7 @@ function buildTypeInferenceIndex(entries: TypeInferenceResult["types"]): TypeInf
     function get(definition: SourceParameterDefinition): InferredSequenceType | undefined;
     function get(definition: SourceVariableDefinition): InferredSequenceType | undefined;
     function get(definition: SourceDefinition): InferredType | undefined {
-        const key = buildInferenceKeyForDefinition(definition);
-        return result.get(key);
+        return result.get(buildInferenceKeyForDefinition(definition));
     }
 
     return { get };

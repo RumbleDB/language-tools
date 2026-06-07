@@ -56,5 +56,6 @@ function formatOptionalInferredType(
     declaration: SourceDefinition,
 ): string {
     const inferredType = typeInference.get(declaration);
+
     return inferredType === undefined ? "unknown" : formatInferredType(inferredType);
 }
