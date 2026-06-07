@@ -15,7 +15,7 @@ import {
 } from "server/parser/types/name.js";
 import { comparePositions } from "server/utils/position.js";
 import { BuiltinFunctions } from "server/wrapper/builtin-functions.js";
-import { DiagnosticSeverity, Position } from "vscode-languageserver";
+import { DiagnosticSeverity, Position, Range } from "vscode-languageserver";
 import { TextDocument } from "vscode-languageserver-textdocument";
 
 import {
@@ -129,7 +129,7 @@ class AnalysisBuilder {
                     createVariableDefinition(
                         this.document,
                         "declare-variable",
-                        this.normalizeVarName(node.name),
+                        this.normalizeVarName(node.name, node.selectionRange),
                         node.range,
                         node.selectionRange,
                     ),
@@ -139,7 +139,7 @@ class AnalysisBuilder {
                 this.recordDefinition(
                     createTypeDefinition(
                         this.document,
-                        { qname: this.normalizeQName(node.name.qname) },
+                        { qname: this.normalizeQName(node.name.qname, node.selectionRange) },
                         node.range,
                         node.selectionRange,
                     ),
@@ -152,7 +152,7 @@ class AnalysisBuilder {
                 const variableDefinition = createVariableDefinition(
                     this.document,
                     "declare-variable",
-                    this.normalizeVarName(node.binding.name),
+                    this.normalizeVarName(node.binding.name, node.binding.selectionRange),
                     node.binding.range,
                     node.binding.selectionRange,
                     node.completed
@@ -231,7 +231,7 @@ class AnalysisBuilder {
     private visitFunctionDeclaration(node: FunctionDeclarationAstNode) {
         const definition = createFunctionDefinition(
             this.document,
-            this.normalizeFunctionName(node.name),
+            this.normalizeFunctionName(node.name, node.nameRange),
             node.range,
             node.nameRange,
         );
@@ -249,7 +249,7 @@ class AnalysisBuilder {
                 createVariableDefinition(
                     this.document,
                     "catch-variable",
-                    this.normalizeVarName(name),
+                    this.normalizeVarName(name, node.range),
                     node.range,
                     node.range,
                     /// Catch variables are visible inmediate after the catch clause starts
@@ -308,8 +308,8 @@ class AnalysisBuilder {
     private recordReference(reference: LexicalReference) {
         const name =
             reference.kind === "function"
-                ? this.normalizeFunctionName(reference.name)
-                : this.normalizeVarName(reference.name);
+                ? this.normalizeFunctionName(reference.name, reference.range)
+                : this.normalizeVarName(reference.name, reference.range);
         const lookupName = resolvedReferenceNameToString(name, reference.kind);
         const declaration = this.resolve(reference.kind, name);
         if (declaration === undefined) {
@@ -347,7 +347,7 @@ class AnalysisBuilder {
         for (const parameter of parameters) {
             const parameterDefinition = createParameterDefinition(
                 this.document,
-                this.normalizeVarName(parameter.name),
+                this.normalizeVarName(parameter.name, parameter.selectionRange),
                 parameter.range,
                 parameter.selectionRange,
                 definition,
@@ -361,31 +361,40 @@ class AnalysisBuilder {
         return createVariableDefinition(
             this.document,
             kind,
-            this.normalizeVarName(binding.name),
+            this.normalizeVarName(binding.name, binding.selectionRange),
             binding.range,
             binding.selectionRange,
             this.document.offsetAt(binding.range.end),
         );
     }
 
-    private normalizeFunctionName(name: LexicalFunctionName): ResolvedFunctionName {
+    private normalizeFunctionName(name: LexicalFunctionName, range: Range): ResolvedFunctionName {
         return {
             ...name,
-            qname: this.normalizeQName(name.qname),
+            qname: this.normalizeQName(name.qname, range),
         };
     }
 
-    private normalizeVarName(name: LexicalVarName): ResolvedVarName {
+    private normalizeVarName(name: LexicalVarName, range: Range): ResolvedVarName {
         return {
             ...name,
-            qname: this.normalizeQName(name.qname),
+            qname: this.normalizeQName(name.qname, range),
         };
     }
 
-    private normalizeQName(qname: LexicalQName): ResolvedQName {
+    private normalizeQName(qname: LexicalQName, range: Range): ResolvedQName {
         const namespaceUri = isPrefixedQName(qname)
             ? this.analysis.namespaces.get(qname.prefix)?.namespaceUri
             : undefined;
+
+        if (namespaceUri === undefined && isPrefixedQName(qname)) {
+            this.analysis.diagnostics.push({
+                severity: DiagnosticSeverity.Warning,
+                message: `Undefined namespace prefix '${qname.prefix}'`,
+                range,
+                code: "undefined-namespace-prefix",
+            });
+        }
 
         return {
             localName: qname.localName,
