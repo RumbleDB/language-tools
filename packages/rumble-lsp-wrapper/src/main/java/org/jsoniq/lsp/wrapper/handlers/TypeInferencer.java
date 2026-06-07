@@ -3,6 +3,8 @@ package org.jsoniq.lsp.wrapper.handlers;
 import org.jsoniq.lsp.wrapper.Position;
 import org.jsoniq.lsp.wrapper.messages.Request;
 import org.jsoniq.lsp.wrapper.messages.ResponseBody;
+import org.jsoniq.lsp.wrapper.types.FunctionDefinition;
+import org.jsoniq.lsp.wrapper.types.ResolvedQName;
 import org.rumbledb.compiler.VisitorHelpers;
 import org.rumbledb.config.RumbleRuntimeConfiguration;
 import org.rumbledb.context.Name;
@@ -55,7 +57,7 @@ public final class TypeInferencer implements RequestHandler {
     }
 
     public record ParameterType(
-            String name,
+            ResolvedQName name,
             String sequenceType) {
     }
 
@@ -63,37 +65,31 @@ public final class TypeInferencer implements RequestHandler {
         String kind();
 
         Position position();
-
-        String name();
     }
 
     public record VariableType(
             String kind,
             VariableKind variableKind,
             Position position,
-            String name,
+            ResolvedQName qname,
             String sequenceType) implements InferredTypeEntry {
         public VariableType(
                 VariableKind variableKind,
                 Position position,
-                String name,
+                ResolvedQName qname,
                 String sequenceType) {
-            this("variable", variableKind, position, name, sequenceType);
+            this("variable", variableKind, position, qname, sequenceType);
         }
     }
 
     public record FunctionType(
             String kind,
             Position position,
-            String name,
-            List<ParameterType> parameters,
-            String returnType) implements InferredTypeEntry {
+            FunctionDefinition function) implements InferredTypeEntry {
         public FunctionType(
                 Position position,
-                String name,
-                List<ParameterType> parameters,
-                String returnType) {
-            this("function", position, name, parameters, returnType);
+                FunctionDefinition function) {
+            this("function", position, function);
         }
     }
 
@@ -231,28 +227,24 @@ public final class TypeInferencer implements RequestHandler {
             return;
         }
 
-        List<ParameterType> parameterTypes = new ArrayList<>();
-        functionExpression.getParams().forEach((name, type) -> {
-            /// I don't add parameters to variable list because we don't have the exact
-            /// position of the parameters in the metadata (the metadata only contains the
-            /// start position of the function declaration)
-            /// But because parameter names are unique within a function, we can still
-            /// identify them first by function and then by parameter name
-            /// In our LSP, we do have exact position for parameters, so we can complete the
-            /// position information for parameters there.
-            String parameterName = name.getLocalName() == null ? name.toString() : name.getLocalName();
-            String parameterType = type == null ? "item*" : type.toString();
-            parameterTypes.add(new ParameterType("$" + parameterName, parameterType));
-        });
+        /// I don't add parameters to variable list because we don't have the exact
+        /// position of the parameters in the metadata (the metadata only contains the
+        /// start position of the function declaration)
+        /// But because parameter names are unique within a function, we can still
+        /// identify them first by function and then by parameter name
+        /// In our LSP, we do have exact position for parameters, so we can complete the
+        /// position information for parameters there.
+        FunctionDefinition.Signature signature = FunctionDefinition.Signature.fromNode(
+                functionExpression.getParams(),
+                functionExpression.getReturnType());
 
-        SequenceType returnType = functionExpression.getReturnType();
-        if (returnType == null) {
-            returnType = SequenceType.createSequenceType("item*");
-        }
+        FunctionDefinition function = new FunctionDefinition(
+                FunctionDefinition.Name.create(functionDeclaration.getFunctionIdentifier()),
+                signature);
 
         Position position = Position.fromExceptionMetadata(metadata);
-        String functionName = functionDeclaration.getFunctionIdentifier().getName().toString();
-        types.add(new FunctionType(position, functionName, parameterTypes, returnType.toString()));
+        types.add(new FunctionType(
+                position, function));
     }
 
     /**
@@ -350,7 +342,7 @@ public final class TypeInferencer implements RequestHandler {
         types.add(new VariableType(
                 VariableKind.Declare,
                 position,
-                "$" + variableName.toString(),
+                ResolvedQName.fromName(variableName),
                 variableType.toString()));
     }
 
@@ -377,7 +369,11 @@ public final class TypeInferencer implements RequestHandler {
             SequenceType variableType = context.getVariableSequenceType(variableName);
             ExceptionMetadata metadata = context.getVariableMetadata(variableName);
             Position position = Position.fromExceptionMetadata(metadata);
-            types.add(new VariableType(kind, position, "$" + variableName.toString(), variableType.toString()));
+            types.add(new VariableType(
+                    kind,
+                    position,
+                    ResolvedQName.fromName(variableName),
+                    variableType.toString()));
         } catch (Throwable ignored) {
         }
     }

@@ -35,7 +35,7 @@ class TypeInferencerTest {
 
         assertTrue(variableTypes(result)
                 .anyMatch(type -> VariableKind.Let.equals(type.variableKind())
-                        && "$x".equals(type.name())
+                        && "x".equals(type.qname().localName())
                         && "xs:integer".equals(type.sequenceType())));
     }
 
@@ -50,7 +50,7 @@ class TypeInferencerTest {
 
         assertTrue(variableTypes(result)
                 .anyMatch(type -> VariableKind.Declare.equals(type.variableKind())
-                        && "$a".equals(type.name())
+                        && "a".equals(type.qname().localName())
                         && type.sequenceType().contains("xs:integer")));
     }
 
@@ -63,13 +63,16 @@ class TypeInferencerTest {
         assertTrue(result.typeErrors().isEmpty());
 
         TypeInferencer.FunctionType functionType = functionTypes(result)
-                .filter(type -> "local:f".equals(type.name()))
+                .filter(type -> "f".equals(type.function().name().qname().localName()))
                 .findFirst()
                 .orElseThrow();
 
-        assertEquals("xs:integer", functionType.parameters().get(0).sequenceType());
-        assertEquals("item*", functionType.parameters().get(1).sequenceType());
-        assertEquals("item*", functionType.returnType());
+        assertEquals("local", functionType.function().name().qname().lexicalPrefix());
+        assertEquals("a", functionType.function().signature().parameters().get(0).name().localName());
+        assertEquals("b", functionType.function().signature().parameters().get(1).name().localName());
+        assertEquals("xs:integer", functionType.function().signature().parameters().get(0).sequenceType());
+        assertEquals("item*", functionType.function().signature().parameters().get(1).sequenceType());
+        assertEquals("item*", functionType.function().signature().returnType());
     }
 
     @Test

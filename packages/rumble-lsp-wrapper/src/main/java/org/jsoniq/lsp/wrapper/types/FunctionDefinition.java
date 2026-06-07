@@ -1,6 +1,7 @@
 package org.jsoniq.lsp.wrapper.types;
 
 import java.util.List;
+import java.util.Map;
 
 import org.rumbledb.context.BuiltinFunction;
 import org.rumbledb.context.FunctionIdentifier;
@@ -22,15 +23,31 @@ public record FunctionDefinition(
         }
     }
 
+    public record ParameterType(
+            ResolvedQName name,
+            String sequenceType) {
+    }
+
     public record Signature(
-            List<String> parameterTypes,
+            List<ParameterType> parameters,
             String returnType) {
 
-        public static Signature create(FunctionSignature signature) {
-            List<String> parameterTypes = signature
+        public static Signature fromNode(Map<org.rumbledb.context.Name, SequenceType> parameters, SequenceType returnType) {
+            List<ParameterType> parameterTypes = parameters.entrySet().stream()
+                    .map(entry -> new ParameterType(ResolvedQName.fromName(entry.getKey()), entry.getValue().toString()))
+                    .toList();
+
+            return new Signature(
+                    parameterTypes,
+                    returnType == null ? "item*" : returnType.toString());
+        }
+
+        public static Signature fromFunctionSignature(FunctionSignature signature) {
+            List<ParameterType> parameterTypes = signature
                     .getParameterTypes()
                     .stream()
                     .map(SequenceType::toString)
+                    .map(sequenceType -> new ParameterType(null, sequenceType))
                     .toList();
 
             String returnType = signature.getReturnType() == null ? "item*" : signature.getReturnType().toString();
@@ -42,9 +59,8 @@ public record FunctionDefinition(
     }
 
     public static FunctionDefinition fromBuiltinFunction(BuiltinFunction function) {
-        FunctionIdentifier identifier = function.getIdentifier();
         return new FunctionDefinition(
-                FunctionDefinition.Name.create(identifier),
-                FunctionDefinition.Signature.create(function.getSignature()));
+                Name.create(function.getIdentifier()),
+                Signature.fromFunctionSignature(function.getSignature()));
     }
 }
