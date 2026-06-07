@@ -1,9 +1,8 @@
-import { getW3Catalog } from "server/function-catalog/loader.js";
+import type { FunctionEntry } from "server/function-catalog/types.js";
 import { parseDocument } from "server/parser/index.js";
 import type { ArgumentAstNode, AstNode, FunctionCallAstNode } from "server/parser/types/ast.js";
 import { qnameToString } from "server/parser/types/name.js";
 import { getDocumentText } from "server/parser/utils.js";
-import { sameRange } from "server/utils/range.js";
 import {
     MarkupKind,
     type ParameterInformation,
@@ -13,18 +12,15 @@ import {
 } from "vscode-languageserver";
 import { TextDocument } from "vscode-languageserver-textdocument";
 
-import {
-    definitionNameToString,
-    isSourceFunctionDefinition,
-    type Definition,
-} from "./analysis/model.js";
+import { definitionNameToString, isSourceFunctionDefinition } from "./analysis/model.js";
 import { getAnalysis } from "./analysis/service.js";
-
-interface ActiveCall {
-    functionName: string;
-    activeParameter: number;
-    resolvedDeclaration?: Definition;
-}
+import {
+    chooseBestSignatureIndex,
+    findResolvedFunctionDeclaration,
+    getCatalogEntryByFunctionName,
+    getFunctionCallArgumentNodes,
+    getFunctionCallName,
+} from "./utils/function-calls.js";
 
 function stripComments(text: string): string {
     let result = text;
@@ -46,6 +42,10 @@ function stripComments(text: string): string {
 
 function hasOnlyWhitespaceAndComments(text: string): boolean {
     return /^\s*$/.test(stripComments(text));
+}
+
+function hasTrailingComma(text: string): boolean {
+    return stripComments(text).includes(",");
 }
 
 function isActiveCall(
@@ -98,10 +98,6 @@ function findInnermostActiveCall(
     return bestMatch;
 }
 
-function getArgumentNodes(call: FunctionCallAstNode): ArgumentAstNode[] {
-    return call.children.filter((child): child is ArgumentAstNode => child.kind === "argument");
-}
-
 export function getParameterIndexFromAst(
     argumentNodes: ArgumentAstNode[],
     cursorOffset: number,
@@ -135,9 +131,7 @@ export function getParameterIndexFromAst(
             continue;
         }
 
-        return stripComments(documentText.slice(endOffset, cursorOffset)).includes(",")
-            ? index + 1
-            : index;
+        return hasTrailingComma(documentText.slice(endOffset, cursorOffset)) ? index + 1 : index;
     }
 
     const lastArgumentEnd = document.offsetAt(argumentNodes[argumentNodes.length - 1]!.range.end);
@@ -145,7 +139,7 @@ export function getParameterIndexFromAst(
         return 0;
     }
 
-    return stripComments(documentText.slice(lastArgumentEnd, cursorOffset)).includes(",")
+    return hasTrailingComma(documentText.slice(lastArgumentEnd, cursorOffset))
         ? argumentNodes.length
         : argumentNodes.length - 1;
 }
@@ -208,7 +202,7 @@ function createSignatureInformation(
     return signature;
 }
 
-function getDocumentationSections(entry: ReturnType<typeof getW3Catalog>[string]): string[] {
+function getDocumentationSections(entry: FunctionEntry): string[] {
     return [
         entry.summary,
         entry.rules && `**Rules:**\n${entry.rules}`,
@@ -216,41 +210,14 @@ function getDocumentationSections(entry: ReturnType<typeof getW3Catalog>[string]
     ].filter((section): section is string => Boolean(section));
 }
 
-function chooseActiveSignature(parameterCounts: number[], activeParameter: number): number {
-    let smallestMatchingIndex: number | undefined;
-    let largestFallbackIndex = 0;
-
-    for (const [index, parameterCount] of parameterCounts.entries()) {
-        if (parameterCount > parameterCounts[largestFallbackIndex]!) {
-            largestFallbackIndex = index;
-        }
-
-        if (parameterCount <= activeParameter) {
-            continue;
-        }
-
-        if (
-            smallestMatchingIndex === undefined ||
-            parameterCount < parameterCounts[smallestMatchingIndex]!
-        ) {
-            smallestMatchingIndex = index;
-        }
-    }
-
-    return smallestMatchingIndex ?? largestFallbackIndex;
-}
-
 function resolveBuiltinSignatures(functionName: string, activeParameter: number) {
-    const [prefix = "fn", localName = functionName] = functionName.includes(":")
-        ? functionName.split(":", 2)
-        : [undefined, functionName];
-    const catalogEntry = getW3Catalog()[`${prefix}:${localName}`];
+    const catalogEntry = getCatalogEntryByFunctionName(functionName);
 
     if (!catalogEntry || catalogEntry.signatures.length === 0) {
         return null;
     }
 
-    const fullFunctionName = `${prefix}:${localName}`;
+    const fullFunctionName = functionName.includes(":") ? functionName : `fn:${functionName}`;
     const documentationSections = getDocumentationSections(catalogEntry);
     const signatures = catalogEntry.signatures.map((signature) =>
         createSignatureInformation(
@@ -274,14 +241,16 @@ function resolveBuiltinSignatures(functionName: string, activeParameter: number)
 
     return {
         signatures,
-        activeSignature: chooseActiveSignature(
+        activeSignature: chooseBestSignatureIndex(
             catalogEntry.signatures.map((signature) => signature.params.length),
-            activeParameter,
+            activeParameter + 1,
         ),
     };
 }
 
-function resolveSourceSignatures(functionDeclaration: Definition | undefined) {
+function resolveSourceSignatures(
+    functionDeclaration: ReturnType<typeof findResolvedFunctionDeclaration>,
+) {
     if (!isSourceFunctionDefinition(functionDeclaration)) {
         return null;
     }
@@ -301,10 +270,13 @@ function resolveSourceSignatures(functionDeclaration: Definition | undefined) {
 }
 
 function resolveSignatures(
-    functionName: string,
+    call: FunctionCallAstNode,
     activeParameter: number,
-    resolvedDeclaration?: Definition,
+    analysis: Awaited<ReturnType<typeof getAnalysis>>,
 ): { signatures: SignatureInformation[]; activeSignature: number } {
+    const functionName = getFunctionCallName(call);
+    const resolvedDeclaration = findResolvedFunctionDeclaration(call, analysis);
+
     return (
         resolveBuiltinSignatures(functionName, activeParameter) ??
         resolveSourceSignatures(resolvedDeclaration) ?? {
@@ -314,41 +286,13 @@ function resolveSignatures(
     );
 }
 
-function findResolvedDeclaration(
-    call: FunctionCallAstNode,
-    analysis: Awaited<ReturnType<typeof getAnalysis>>,
-): Definition | undefined {
-    return analysis.references.find(
-        (reference) => reference.kind === "function" && sameRange(reference.range, call.nameRange),
-    )?.declaration;
-}
-
 function findActiveCall(
     ast: AstNode,
     cursorOffset: number,
     document: TextDocument,
     documentText: string,
-    analysis: Awaited<ReturnType<typeof getAnalysis>>,
-): ActiveCall | null {
-    const call = findInnermostActiveCall(ast, cursorOffset, document, documentText);
-    if (!call) {
-        return null;
-    }
-
-    const activeCall: ActiveCall = {
-        functionName: qnameToString(call.name.qname),
-        activeParameter: getParameterIndexFromAst(
-            getArgumentNodes(call),
-            cursorOffset,
-            document,
-            documentText,
-        ),
-    };
-    const resolvedDeclaration = findResolvedDeclaration(call, analysis);
-    if (resolvedDeclaration) {
-        activeCall.resolvedDeclaration = resolvedDeclaration;
-    }
-    return activeCall;
+): FunctionCallAstNode | undefined {
+    return findInnermostActiveCall(ast, cursorOffset, document, documentText);
 }
 
 export async function findSignatureHelp(
@@ -359,21 +303,27 @@ export async function findSignatureHelp(
     const documentText = getDocumentText(document);
     const cursorOffset = document.offsetAt(position);
     const analysis = await getAnalysis(document);
-    const activeCall = findActiveCall(parsed.ast, cursorOffset, document, documentText, analysis);
+    const activeCall = findActiveCall(parsed.ast, cursorOffset, document, documentText);
 
     if (!activeCall) {
         return null;
     }
 
+    const activeParameter = getParameterIndexFromAst(
+        getFunctionCallArgumentNodes(activeCall),
+        cursorOffset,
+        document,
+        documentText,
+    );
     const { signatures, activeSignature } = resolveSignatures(
-        activeCall.functionName,
-        activeCall.activeParameter,
-        activeCall.resolvedDeclaration,
+        activeCall,
+        activeParameter,
+        analysis,
     );
 
     return {
         signatures,
         activeSignature,
-        activeParameter: activeCall.activeParameter,
+        activeParameter,
     };
 }

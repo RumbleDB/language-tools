@@ -11,6 +11,7 @@ import {
 import { findCompletions } from "./completion.js";
 import { findDefinitionLocation } from "./definitions.js";
 import { findHover } from "./hover.js";
+import { collectInlayHints } from "./inlay-hints.js";
 import { initializeCustomNotifications } from "./notifications/index.js";
 import { parseDocument } from "./parser/index.js";
 import { supportsDocument } from "./parser/registry.js";
@@ -58,6 +59,7 @@ connection.onInitialize(async (_params: InitializeParams): Promise<InitializeRes
             definitionProvider: true,
             referencesProvider: true,
             hoverProvider: true,
+            inlayHintProvider: true,
             signatureHelpProvider: {
                 triggerCharacters: ["(", ","],
             },
@@ -147,6 +149,16 @@ connection.onSignatureHelp((params) => {
     }
 
     return findSignatureHelp(document, params.position);
+});
+
+connection.languages.inlayHint.on((params) => {
+    const document = documents.get(params.textDocument.uri);
+
+    if (document === undefined || !supportsDocument(document)) {
+        return [];
+    }
+
+    return collectInlayHints(document, params.range);
 });
 
 connection.onCompletion((params) => {
