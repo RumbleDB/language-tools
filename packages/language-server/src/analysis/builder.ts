@@ -309,10 +309,11 @@ class AnalysisBuilder {
         kind: K,
         name: ResolvedReferenceNameByKind[K],
     ): Definition | undefined {
-        const lookupName = resolvedReferenceNameToString(name, kind);
-        const builtinDefinition = this.builtinFunctions.find(lookupName);
-        if (builtinDefinition !== undefined) {
-            return builtinDefinition;
+        if (kind === "function") {
+            const builtinDefinition = this.builtinFunctions.find(name);
+            if (builtinDefinition !== undefined) {
+                return builtinDefinition;
+            }
         }
 
         return this.currentScope.resolve(kind, name);
