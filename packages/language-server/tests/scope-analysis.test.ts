@@ -1,6 +1,7 @@
 import { buildAnalysis } from "server/analysis/builder.js";
 import { isSourceDefinition } from "server/analysis/model.js";
 import { findSymbolAtPosition, getVisibleDeclarationsAtPosition } from "server/analysis/queries.js";
+import { getAnalysis } from "server/analysis/service.js";
 import { describe, expect, it } from "vitest";
 
 import { testDocument } from "./test-utils.js";
@@ -240,6 +241,34 @@ describe("JSONiq variable scope analysis", () => {
                         prefix: "a",
                         localName: "add",
                         namespaceUri: "http://example.com/shared",
+                    },
+                },
+            },
+        });
+    });
+
+    it("resolves unprefixed builtin functions through the fn namespace", async () => {
+        const document = testDocument("scope-unprefixed-builtin", ['substring("hello", 1, 2)']);
+
+        const analysis = await getAnalysis(document);
+        const functionReference = analysis.references.find(
+            (reference) => reference.kind === "function",
+        );
+
+        expect(functionReference).toMatchObject({
+            name: {
+                arity: 3,
+                qname: {
+                    localName: "substring",
+                },
+            },
+            declaration: {
+                kind: "builtin-function",
+                name: {
+                    arity: 3,
+                    qname: {
+                        localName: "substring",
+                        namespaceUri: "http://www.w3.org/2005/xpath-functions",
                     },
                 },
             },

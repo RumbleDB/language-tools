@@ -1,4 +1,10 @@
-import { defaultNamespaces } from "server/analysis/default-namespaces.js";
+import {
+    ARRAY_NAMESPACE,
+    FN_NAMESPACE,
+    JN_NAMESPACE,
+    MAP_NAMESPACE,
+    MATH_NAMESPACE,
+} from "server/analysis/default-namespaces.js";
 import type { BaseDefinition } from "server/analysis/model.js";
 import { createLogger } from "server/utils/logger.js";
 
@@ -25,7 +31,14 @@ export interface BuiltinFunctionDefinition extends BaseDefinition<"builtin-funct
     isBuiltin: true;
 }
 
-const DEFAULT_FUNCTION_PREFIXES = ["fn", "jn", "math", "map", "array"] as const;
+const BUILTIN_FUNCTION_NAMESPACES = [
+    FN_NAMESPACE,
+    JN_NAMESPACE,
+    MATH_NAMESPACE,
+    MAP_NAMESPACE,
+    ARRAY_NAMESPACE,
+] as const;
+
 const BUILTIN_FUNCTIONS_REQUEST: BuiltinFunctionsRequestPayload = {
     requestType: REQUEST_TYPE_BUILTIN_FUNCTIONS,
 };
@@ -86,13 +99,13 @@ function findBuiltinFunctionDefinition(
         return undefined;
     }
 
-    for (const prefix of DEFAULT_FUNCTION_PREFIXES) {
+    for (const namespaceUri of BUILTIN_FUNCTION_NAMESPACES) {
         const candidate = map.get(
             getBuiltinFunctionKey({
                 ...name,
                 qname: {
                     localName: name.qname.localName,
-                    namespaceUri: defaultNamespaces.get(prefix)!,
+                    namespaceUri,
                 },
             }),
         );
