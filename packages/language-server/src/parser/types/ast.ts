@@ -59,6 +59,7 @@ export interface AstParameter {
     readonly name: LexicalVarName;
     readonly range: Range;
     readonly selectionRange: Range;
+    readonly index: number;
 }
 
 export interface AstBinding {

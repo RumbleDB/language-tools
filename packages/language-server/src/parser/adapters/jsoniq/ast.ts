@@ -317,7 +317,7 @@ class JsoniqAstBuilder extends jsoniqVisitor<AstVisitResult> {
     private parameters(node: FunctionDeclContext): AstParameter[] {
         const parameters: AstParameter[] = [];
 
-        for (const param of node.paramList()?.param() ?? []) {
+        for (const [index, param] of node.paramList()?.param().entries() ?? []) {
             const paramName = parseVarName(param.declaredVarRef().varRef());
             if (paramName === null) {
                 continue;
@@ -327,6 +327,7 @@ class JsoniqAstBuilder extends jsoniqVisitor<AstVisitResult> {
                 name: paramName,
                 range: rangeFromNode(param, this.document),
                 selectionRange: rangeFromNode(param.declaredVarRef(), this.document),
+                index,
             });
         }
 
