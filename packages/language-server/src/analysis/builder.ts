@@ -77,6 +77,7 @@ class AnalysisBuilder {
         private readonly document: TextDocument,
         private readonly builtinFunctions: BuiltinFunctions,
     ) {
+        const ast = parseDocument(document).ast;
         const namespaces = new Map<string, SourceNamespaceDefinition>(
             defaultNamespaces.entries().map((ns) => {
                 const definition = createNamespaceDefinition(
@@ -91,6 +92,7 @@ class AnalysisBuilder {
         );
 
         this.analysis = {
+            ast,
             moduleScope: Scope.module(document, namespaces),
             namespaces,
             definitions: [],
@@ -103,7 +105,7 @@ class AnalysisBuilder {
     }
 
     public build(): JsoniqAnalysis {
-        this.visitNode(parseDocument(this.document).ast);
+        this.visitNode(this.analysis.ast);
 
         this.analysis.symbolIndex.sort((left, right) => {
             const startComparison = comparePositions(left.range.start, right.range.start);

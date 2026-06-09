@@ -1,3 +1,4 @@
+import type { JsoniqAst } from "server/parser/types/ast.js";
 import { Prefix } from "server/parser/types/name.js";
 import type { BuiltinFunctionDefinition } from "server/wrapper/builtin-functions.js";
 import type { Diagnostic, Range } from "vscode-languageserver";
@@ -109,6 +110,8 @@ export interface SymbolIndexEntry {
 }
 
 export interface JsoniqAnalysis {
+    ast: JsoniqAst;
+
     moduleScope: Scope;
 
     // Namespace declarations are module-level only and do not participate in lexical scope.
