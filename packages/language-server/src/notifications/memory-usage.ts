@@ -2,8 +2,7 @@ import { getWrapperClient } from "server/wrapper/client.js";
 
 import { MEMORY_USAGE_NOTIFICATION, MemoryUsage } from "./types.js";
 
-export const MEMORY_USAGE_POLL_INTERVAL_MS = 5000;
-
+const MEMORY_USAGE_POLL_INTERVAL_MS = 5000;
 export function setMemoryUsageNotification(connection: any) {
     const client = getWrapperClient();
 

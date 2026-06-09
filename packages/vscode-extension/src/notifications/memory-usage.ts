@@ -1,7 +1,6 @@
+import { MEMORY_USAGE_NOTIFICATION, type MemoryUsage } from "jsoniq-language-server/notifications";
 import * as vscode from "vscode";
 import type { LanguageClient } from "vscode-languageclient/node.js";
-
-import { MEMORY_USAGE_NOTIFICATION, type MemoryUsage } from "./types.js";
 
 export function registerWrapperMemoryUsageNotification(client: LanguageClient): vscode.Disposable {
     const statusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 10);
