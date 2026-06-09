@@ -1,6 +1,8 @@
 import { ParserRuleContext, TerminalNode, type ParseTree } from "antlr4ng";
 import { type Range } from "vscode-languageserver";
-import { TextDocument } from "vscode-languageserver-textdocument";
+import { Position, TextDocument } from "vscode-languageserver-textdocument";
+
+import { comparePositions } from "./position.js";
 
 /**
  * Calculates the range in terms of line and character positions for a given parse tree node, which represents the position of a variable declaration or reference in the source document.
@@ -43,5 +45,11 @@ export function sameRange(left: Range, right: Range): boolean {
         left.start.character === right.start.character &&
         left.end.line === right.end.line &&
         left.end.character === right.end.character
+    );
+}
+
+export function rangeContainsPosition(range: Range, position: Position): boolean {
+    return (
+        comparePositions(range.start, position) <= 0 && comparePositions(position, range.end) <= 0
     );
 }
