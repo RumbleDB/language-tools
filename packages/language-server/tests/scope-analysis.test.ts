@@ -1,10 +1,15 @@
 import { buildAnalysis } from "server/analysis/builder.js";
 import { isSourceDefinition } from "server/analysis/model.js";
-import { findSymbolAtPosition, getVisibleDeclarationsAtPosition } from "server/analysis/queries.js";
+import {
+    findNodesThatContainPosition,
+    findNodeThatContainsPosition,
+    findSymbolAtPosition,
+    getVisibleDeclarationsAtPosition,
+} from "server/analysis/queries.js";
 import { getAnalysis } from "server/analysis/service.js";
 import { describe, expect, it } from "vitest";
 
-import { testDocument } from "./test-utils.js";
+import { positionAt, testDocument } from "./test-utils.js";
 
 describe("JSONiq variable scope analysis", () => {
     it("collects variable declarations from function params and FLWOR clauses", async () => {
@@ -567,6 +572,52 @@ describe("JSONiq variable scope analysis", () => {
         expect(occurrence?.reference).toBeDefined();
         expect(occurrence?.declaration.name).toEqual({ qname: { localName: "x" } });
         expect(occurrence?.declaration.kind).toBe("parameter");
+    });
+
+    it("finds the innermost node that contains a position", async () => {
+        const document = testDocument("scope-find-node", ["sum((1, local:add(2, 3)))"]);
+        const analysis = await buildAnalysis(document);
+
+        const containingNodes = findNodesThatContainPosition(analysis, positionAt(document, "2"));
+        const functionNode = findNodeThatContainsPosition(analysis, positionAt(document, "add"));
+        const argumentNode = findNodeThatContainsPosition(analysis, positionAt(document, "2"));
+
+        expect(containingNodes.map((node) => node.kind)).toEqual([
+            "module",
+            "function-call",
+            "argument",
+            "function-call",
+            "argument",
+        ]);
+        expect(functionNode?.kind).toBe("function-call");
+        expect(functionNode).toMatchObject({
+            name: {
+                qname: {
+                    prefix: "local",
+                    localName: "add",
+                },
+            },
+        });
+        expect(argumentNode?.kind).toBe("argument");
+    });
+
+    it("prefers nested nodes over outer nodes when positions overlap", async () => {
+        const document = testDocument("scope-find-node-nested", [
+            "sum(local:add(2, local:mul(3, 4)))",
+        ]);
+        const analysis = await buildAnalysis(document);
+
+        const node = findNodeThatContainsPosition(analysis, positionAt(document, "mul"));
+
+        expect(node?.kind).toBe("function-call");
+        expect(node).toMatchObject({
+            name: {
+                qname: {
+                    prefix: "local",
+                    localName: "mul",
+                },
+            },
+        });
     });
 
     it("resolves shadowed variables with the same name to the nearest declaration", async () => {

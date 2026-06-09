@@ -1,75 +1,26 @@
-import { parseDocument } from "server/parser/index.js";
-import type { ArgumentAstNode } from "server/parser/types/ast.js";
-import { findSignatureHelp, getParameterIndexFromAst } from "server/signature-help.js";
+import { buildAnalysis } from "server/analysis/builder.js";
+import { findSignatureHelp } from "server/signature-help.js";
+import { findCurrentArgument } from "server/utils/function-calls.js";
 import { describe, expect, it } from "vitest";
 import type { Position } from "vscode-languageserver";
 
 import { positionAt, testDocument } from "./test-utils.js";
 
 describe("JSONiq signature help", () => {
-    describe("getParameterIndexFromAst", () => {
-        it("returns parameter index from AST argument nodes", () => {
+    describe("findCurrentArgument", () => {
+        it("returns the innermost argument and its index", async () => {
             const document = testDocument("sig-ast-nodes", ['fn:substring("hello", 1, 2)']);
-            const parsed = parseDocument(document);
-            const callNode = parsed.ast.children[0]!;
-            expect(callNode.kind).toBe("function-call");
+            const analysis = await buildAnalysis(document);
 
-            const argNodes = callNode.children.filter(
-                (child): child is ArgumentAstNode => child.kind === "argument",
-            );
-            expect(argNodes.length).toBe(3);
-
-            const docText = document.getText();
-
-            // Inside "hello"
             expect(
-                getParameterIndexFromAst(
-                    argNodes,
-                    document.offsetAt(positionAt(document, '"hello"')),
-                    document,
-                    docText,
-                ),
+                findCurrentArgument(analysis, positionAt(document, '"hello"'))?.argument.index,
             ).toBe(0);
-
-            // After comma, before 1
-            expect(
-                getParameterIndexFromAst(
-                    argNodes,
-                    document.offsetAt(positionAt(document, "1")) - 1,
-                    document,
-                    docText,
-                ),
-            ).toBe(1);
-
-            // Inside 1
-            expect(
-                getParameterIndexFromAst(
-                    argNodes,
-                    document.offsetAt(positionAt(document, "1")),
-                    document,
-                    docText,
-                ),
-            ).toBe(1);
-
-            // Inside 2
-            expect(
-                getParameterIndexFromAst(
-                    argNodes,
-                    document.offsetAt(positionAt(document, "2")),
-                    document,
-                    docText,
-                ),
-            ).toBe(2);
-
-            // After 2
-            expect(
-                getParameterIndexFromAst(
-                    argNodes,
-                    document.offsetAt(positionAt(document, "2")) + 1,
-                    document,
-                    docText,
-                ),
-            ).toBe(2);
+            expect(findCurrentArgument(analysis, positionAt(document, "1"))?.argument.index).toBe(
+                1,
+            );
+            expect(findCurrentArgument(analysis, positionAt(document, "2"))?.argument.index).toBe(
+                2,
+            );
         });
     });
 

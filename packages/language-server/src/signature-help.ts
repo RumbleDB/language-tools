@@ -1,8 +1,6 @@
 import { resolvedQNameToString } from "server/analysis/names.js";
 import type { FunctionEntry } from "server/function-catalog/types.js";
-import { parseDocument } from "server/parser/index.js";
-import type { ArgumentAstNode, AstNode, FunctionCallAstNode } from "server/parser/types/ast.js";
-import { getDocumentText } from "server/parser/utils.js";
+import type { FunctionCallAstNode } from "server/parser/types/ast.js";
 import {
     MarkupKind,
     type ParameterInformation,
@@ -16,133 +14,11 @@ import { definitionNameToString, isSourceFunctionDefinition } from "./analysis/m
 import { getAnalysis } from "./analysis/service.js";
 import {
     chooseBestSignatureIndex,
+    findCurrentArgument,
     findResolvedFunctionDeclaration,
     getCatalogEntryByFunctionName,
-    getFunctionCallArgumentNodes,
     getFunctionCallName,
 } from "./utils/function-calls.js";
-
-function stripComments(text: string): string {
-    let result = text;
-
-    for (;;) {
-        const commentStart = result.indexOf("(:");
-        if (commentStart === -1) {
-            return result;
-        }
-
-        const commentEnd = result.indexOf(":)", commentStart);
-        if (commentEnd === -1) {
-            return result.slice(0, commentStart);
-        }
-
-        result = result.slice(0, commentStart) + result.slice(commentEnd + 2);
-    }
-}
-
-function hasOnlyWhitespaceAndComments(text: string): boolean {
-    return /^\s*$/.test(stripComments(text));
-}
-
-function hasTrailingComma(text: string): boolean {
-    return stripComments(text).includes(",");
-}
-
-function isActiveCall(
-    call: FunctionCallAstNode,
-    cursorOffset: number,
-    document: TextDocument,
-    documentText: string,
-): boolean {
-    const startOffset = document.offsetAt(call.range.start);
-    if (cursorOffset < startOffset) {
-        return false;
-    }
-
-    const endOffset = document.offsetAt(call.range.end);
-    const isClosed = documentText[endOffset - 1] === ")";
-
-    if (cursorOffset <= endOffset) {
-        return !isClosed || cursorOffset < endOffset;
-    }
-
-    return !isClosed && hasOnlyWhitespaceAndComments(documentText.slice(endOffset, cursorOffset));
-}
-
-function findInnermostActiveCall(
-    node: AstNode,
-    cursorOffset: number,
-    document: TextDocument,
-    documentText: string,
-): FunctionCallAstNode | undefined {
-    let bestMatch: FunctionCallAstNode | undefined;
-
-    if (node.kind === "function-call" && isActiveCall(node, cursorOffset, document, documentText)) {
-        bestMatch = node;
-    }
-
-    for (const child of node.children) {
-        const childMatch = findInnermostActiveCall(child, cursorOffset, document, documentText);
-        if (!childMatch) {
-            continue;
-        }
-
-        if (
-            bestMatch === undefined ||
-            document.offsetAt(childMatch.range.start) > document.offsetAt(bestMatch.range.start)
-        ) {
-            bestMatch = childMatch;
-        }
-    }
-
-    return bestMatch;
-}
-
-export function getParameterIndexFromAst(
-    argumentNodes: ArgumentAstNode[],
-    cursorOffset: number,
-    document: TextDocument,
-    documentText: string,
-): number {
-    if (argumentNodes.length === 0) {
-        return 0;
-    }
-
-    const firstArgumentStart = document.offsetAt(argumentNodes[0]!.range.start);
-    if (cursorOffset < firstArgumentStart) {
-        return 0;
-    }
-
-    for (const [index, argument] of argumentNodes.entries()) {
-        const startOffset = document.offsetAt(argument.range.start);
-        const endOffset = document.offsetAt(argument.range.end);
-
-        if (cursorOffset >= startOffset && cursorOffset <= endOffset) {
-            return index;
-        }
-
-        const nextArgument = argumentNodes[index + 1];
-        if (!nextArgument) {
-            continue;
-        }
-
-        const nextStartOffset = document.offsetAt(nextArgument.range.start);
-        if (cursorOffset <= endOffset || cursorOffset >= nextStartOffset) {
-            continue;
-        }
-
-        return hasTrailingComma(documentText.slice(endOffset, cursorOffset)) ? index + 1 : index;
-    }
-
-    const lastArgumentEnd = document.offsetAt(argumentNodes[argumentNodes.length - 1]!.range.end);
-    if (cursorOffset <= lastArgumentEnd) {
-        return 0;
-    }
-
-    return hasTrailingComma(documentText.slice(lastArgumentEnd, cursorOffset))
-        ? argumentNodes.length
-        : argumentNodes.length - 1;
-}
 
 function createParameterInformation(
     offset: number,
@@ -286,35 +162,19 @@ function resolveSignatures(
     );
 }
 
-function findActiveCall(
-    ast: AstNode,
-    cursorOffset: number,
-    document: TextDocument,
-    documentText: string,
-): FunctionCallAstNode | undefined {
-    return findInnermostActiveCall(ast, cursorOffset, document, documentText);
-}
-
 export async function findSignatureHelp(
     document: TextDocument,
     position: Position,
 ): Promise<SignatureHelp | null> {
-    const parsed = parseDocument(document);
-    const documentText = getDocumentText(document);
-    const cursorOffset = document.offsetAt(position);
     const analysis = await getAnalysis(document);
-    const activeCall = findActiveCall(parsed.ast, cursorOffset, document, documentText);
+    const activeArgument = findCurrentArgument(analysis, position);
 
-    if (!activeCall) {
+    if (!activeArgument) {
         return null;
     }
 
-    const activeParameter = getParameterIndexFromAst(
-        getFunctionCallArgumentNodes(activeCall),
-        cursorOffset,
-        document,
-        documentText,
-    );
+    const { call: activeCall, argument } = activeArgument;
+    const activeParameter = argument.index;
     const { signatures, activeSignature } = resolveSignatures(
         activeCall,
         activeParameter,

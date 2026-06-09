@@ -1,8 +1,8 @@
 import { getW3Catalog } from "server/function-catalog/loader.js";
 import type { FunctionEntry } from "server/function-catalog/types.js";
 import type { ArgumentAstNode, FunctionCallAstNode } from "server/parser/types/ast.js";
-import { isPrefixedQName, lexicalQNameToString } from "server/parser/types/name.js";
-import { sameRange } from "server/utils/range.js";
+import { lexicalQNameToString } from "server/parser/types/name.js";
+import type { Position } from "vscode-languageserver";
 
 import {
     isSourceFunctionDefinition,
@@ -10,7 +10,7 @@ import {
     type JsoniqAnalysis,
     type SourceFunctionDefinition,
 } from "../analysis/model.js";
-import { sameResolvedQName, type ResolvedQName } from "../analysis/names.js";
+import { findNodesThatContainPosition, findSymbolAtPosition } from "../analysis/queries.js";
 
 export function getFunctionCallName(call: FunctionCallAstNode): string {
     return lexicalQNameToString(call.name.qname);
@@ -51,19 +51,8 @@ export function findResolvedFunctionDeclaration(
     call: FunctionCallAstNode,
     analysis: JsoniqAnalysis,
 ): Definition | undefined {
-    const resolvedDeclaration = analysis.references.find(
-        (reference) => reference.kind === "function" && sameRange(reference.range, call.nameRange),
-    )?.declaration;
-    if (resolvedDeclaration) {
-        return resolvedDeclaration;
-    }
-
-    const functionQName = normalizeQName(call.name.qname, analysis);
-    return analysis.definitions.find(
-        (definition) =>
-            definition.kind === "function" &&
-            sameResolvedQName(definition.name.qname, functionQName),
-    );
+    const symbol = findSymbolAtPosition(analysis, call.nameRange.start);
+    return symbol?.reference?.kind === "function" ? symbol.reference.declaration : undefined;
 }
 
 export function findResolvedSourceFunction(
@@ -85,17 +74,24 @@ export function getCatalogEntryByFunctionName(functionName: string): FunctionEnt
     return getW3Catalog()[`${prefix}:${localName}`];
 }
 
-function normalizeQName(
-    qname: FunctionCallAstNode["name"]["qname"],
+export function findCurrentArgument(
     analysis: JsoniqAnalysis,
-): ResolvedQName {
-    const namespaceUri = isPrefixedQName(qname)
-        ? analysis.namespaces.get(qname.prefix)?.namespaceUri
-        : undefined;
+    position: Position,
+): { call: FunctionCallAstNode; argument: ArgumentAstNode } | undefined {
+    const containingNodes = findNodesThatContainPosition(analysis, position);
+    const argument = containingNodes.findLast(
+        (node): node is ArgumentAstNode => node.kind === "argument",
+    );
 
-    return {
-        localName: qname.localName,
-        ...(namespaceUri === undefined ? {} : { namespaceUri }),
-        ...(isPrefixedQName(qname) ? { prefix: qname.prefix } : {}),
-    };
+    if (argument === undefined) {
+        return undefined;
+    }
+
+    const call = argument.parent;
+
+    if (call === undefined || call.kind !== "function-call") {
+        return undefined;
+    }
+
+    return { call, argument };
 }
