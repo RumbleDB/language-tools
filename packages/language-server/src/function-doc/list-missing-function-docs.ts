@@ -1,3 +1,5 @@
+import { defaultNamespaces } from "server/analysis/default-namespaces.js";
+import { QNameToString } from "server/analysis/names.js";
 import { getBuiltinFunctions } from "server/wrapper/builtin-functions.js";
 import { getWrapperClient } from "server/wrapper/client.js";
 
@@ -28,6 +30,13 @@ function getFunctionKey(definition: BuiltinFunctionDefinition): string {
     return `${getFunctionPrefix(definition)}:${definition.name.qname.localName}`;
 }
 
+function getCatalogKey(definition: BuiltinFunctionDefinition): string {
+    const qname = definition.name.qname;
+    const prefix = getFunctionPrefix(definition);
+    const namespace = qname.namespaceUri ?? defaultNamespaces.get(prefix) ?? prefix;
+    return QNameToString({ localName: qname.localName, namespaceUri: namespace }, true);
+}
+
 function formatSignature(definition: BuiltinFunctionDefinition): string {
     const params = definition.signature.parameterTypes
         .map((parameter, index) => `$arg${index + 1} as ${parameter.type}`)
@@ -45,7 +54,8 @@ async function main(): Promise<void> {
 
         for (const definition of builtinFunctions.all) {
             const key = getFunctionKey(definition);
-            if (Object.hasOwn(catalog, key)) {
+            const catalogKey = getCatalogKey(definition);
+            if (Object.hasOwn(catalog, catalogKey)) {
                 continue;
             }
 

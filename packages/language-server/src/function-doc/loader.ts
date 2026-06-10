@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 
 import { defaultNamespaces } from "server/analysis/default-namespaces.js";
+import { QNameToString } from "server/analysis/names.js";
 import { getAssetsPath } from "server/utils/assets.js";
 
 import type { FunctionEntry } from "./types.js";
@@ -28,7 +29,7 @@ function loadW3Catalog(): void {
                 console.warn(`Unknown namespace for key: ${originalKey}`);
                 continue;
             }
-            const key = `${namespace}:${localName}`;
+            const key = QNameToString({ localName: localName!, namespaceUri: namespace }, true);
             catalog[key] = value;
         }
         isW3CatalogLoaded = true;

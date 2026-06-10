@@ -10,6 +10,7 @@ import {
 } from "./analysis/definitions.js";
 import { findSymbolAtPosition } from "./analysis/queries.js";
 import { getAnalysis } from "./analysis/service.js";
+import { formatFunctionEntry } from "./function-doc/format.js";
 import { formatInferredType } from "./type-inference/format.js";
 import { getTypeInferenceIndex, TypeInferenceIndex } from "./type-inference/service.js";
 
@@ -35,9 +36,9 @@ export async function findHover(document: TextDocument, position: Position): Pro
 
 function createHoverContent(typeInference: TypeInferenceIndex, declaration: Definition): string {
     if (declaration.kind === "builtin-function") {
-        const doc = getBuiltinFunctionDocumentation(declaration.name.qname, declaration.name.arity);
+        const doc = getBuiltinFunctionDocumentation(declaration.name.qname);
         if (doc) {
-            return doc;
+            return formatFunctionEntry(doc, declaration.name.arity);
         }
     }
 

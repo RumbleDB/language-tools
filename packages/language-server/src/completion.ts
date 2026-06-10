@@ -7,6 +7,7 @@ import {
 } from "vscode-languageserver";
 import { TextDocument } from "vscode-languageserver-textdocument";
 
+import { defaultNamespaces } from "./analysis/default-namespaces.js";
 import {
     BaseDefinition,
     definitionNameToString,
@@ -16,6 +17,7 @@ import {
 } from "./analysis/definitions.js";
 import { QNameToString } from "./analysis/names.js";
 import { getVisibleDeclarationsAtPosition } from "./analysis/queries.js";
+import { formatFunctionEntry } from "./function-doc/format.js";
 import { getBuiltinFunctionDocumentation } from "./function-doc/index.js";
 import { getFunctionDocs } from "./function-doc/loader.js";
 import { collectCompletionIntent } from "./parser/index.js";
@@ -128,7 +130,14 @@ async function getBuiltinFunctionCompletionItems(): Promise<CompletionItem[]> {
     for (const definition of (await getBuiltinFunctions()).all) {
         const { qname, arity } = definition.name;
         const functionName = QNameToString(qname, false);
-        const catalogKey = `${qname.prefix || "fn"}:${qname.localName}`;
+        const ns = qname.namespaceUri ?? defaultNamespaces.get(qname.prefix || "fn");
+        const catalogKey = QNameToString(
+            {
+                localName: qname.localName,
+                ...(ns === undefined ? {} : { namespaceUri: ns }),
+            },
+            true,
+        );
         const overloadCount = docs[catalogKey]?.signatures.length;
         const parameterTypes = definition.signature.parameterTypes
             .map((parameter) => parameter.type)
@@ -145,9 +154,12 @@ async function getBuiltinFunctionCompletionItems(): Promise<CompletionItem[]> {
                       : `${signature} / ${arity}`,
             documentation: {
                 kind: MarkupKind.Markdown,
-                value:
-                    getBuiltinFunctionDocumentation(definition.name.qname) ||
-                    "No documentation available.",
+                value: getBuiltinFunctionDocumentation(definition.name.qname)
+                    ? formatFunctionEntry(
+                          getBuiltinFunctionDocumentation(definition.name.qname)!,
+                          arity,
+                      )
+                    : "No documentation available.",
             },
         };
 

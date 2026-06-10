@@ -1,4 +1,4 @@
-import { QNameToString } from "server/analysis/names.js";
+import { FunctionName, QNameToString } from "server/analysis/names.js";
 import type { FunctionEntry } from "server/function-doc/types.js";
 import {
     MarkupKind,
@@ -12,12 +12,11 @@ import { TextDocument } from "vscode-languageserver-textdocument";
 import type { FunctionCallNode } from "./analysis/ast.js";
 import { definitionNameToString, isSourceFunctionDefinition } from "./analysis/definitions.js";
 import { getAnalysis } from "./analysis/service.js";
+import { getBuiltinFunctionDocumentation } from "./function-doc/index.js";
 import {
     chooseBestSignatureIndex,
     findCurrentArgument,
     findResolvedFunctionDeclaration,
-    getCatalogEntryByFunctionName,
-    getFunctionCallName,
 } from "./utils/function-calls.js";
 
 function createParameterInformation(
@@ -86,18 +85,17 @@ function getDocumentationSections(entry: FunctionEntry): string[] {
     ].filter((section): section is string => Boolean(section));
 }
 
-function resolveBuiltinSignatures(functionName: string, activeParameter: number) {
-    const catalogEntry = getCatalogEntryByFunctionName(functionName);
+function resolveBuiltinSignatures(functionName: FunctionName, activeParameter: number) {
+    const catalogEntry = getBuiltinFunctionDocumentation(functionName.qname);
 
     if (!catalogEntry || catalogEntry.signatures.length === 0) {
         return null;
     }
 
-    const fullFunctionName = functionName.includes(":") ? functionName : `fn:${functionName}`;
     const documentationSections = getDocumentationSections(catalogEntry);
     const signatures = catalogEntry.signatures.map((signature) =>
         createSignatureInformation(
-            fullFunctionName,
+            QNameToString(functionName.qname, false),
             signature.params.map((parameter) => {
                 const parameterInfo: { label: string; documentation?: string } = {
                     label:
@@ -149,13 +147,14 @@ function resolveSignatures(
     call: FunctionCallNode,
     activeParameter: number,
 ): { signatures: SignatureInformation[]; activeSignature: number } {
-    const functionName = getFunctionCallName(call);
     const resolvedDeclaration = findResolvedFunctionDeclaration(call);
 
     return (
-        resolveBuiltinSignatures(functionName, activeParameter) ??
+        resolveBuiltinSignatures(call.name, activeParameter) ??
         resolveSourceSignatures(resolvedDeclaration) ?? {
-            signatures: [{ label: `${functionName}(...)`, parameters: [] }],
+            signatures: [
+                { label: `${QNameToString(call.name.qname, false)}(...)`, parameters: [] },
+            ],
             activeSignature: 0,
         }
     );
