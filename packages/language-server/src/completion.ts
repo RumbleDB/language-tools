@@ -17,7 +17,7 @@ import {
 import { resolvedQNameToString } from "./analysis/names.js";
 import { getVisibleDeclarationsAtPosition } from "./analysis/queries.js";
 import { getBuiltinFunctionDocumentation } from "./function-doc/index.js";
-import { getW3Catalog } from "./function-doc/loader.js";
+import { getFunctionDocs } from "./function-doc/loader.js";
 import { collectCompletionIntent } from "./parser/index.js";
 import { getDocumentText } from "./parser/utils.js";
 import { getBuiltinFunctions } from "./wrapper/builtin-functions.js";
@@ -123,13 +123,13 @@ function toCompletionItem(declaration: BaseDefinition): CompletionItem {
 
 async function getBuiltinFunctionCompletionItems(): Promise<CompletionItem[]> {
     const itemsByName = new Map<string, CompletionItem>();
-    const catalog = getW3Catalog();
+    const docs = getFunctionDocs();
 
     for (const definition of (await getBuiltinFunctions()).all) {
         const { qname, arity } = definition.name;
         const functionName = resolvedQNameToString(qname);
         const catalogKey = `${qname.prefix || "fn"}:${qname.localName}`;
-        const overloadCount = catalog[catalogKey]?.signatures.length;
+        const overloadCount = docs[catalogKey]?.signatures.length;
         const parameterTypes = definition.signature.parameterTypes
             .map((parameter) => parameter.type)
             .join(", ");
@@ -145,9 +145,9 @@ async function getBuiltinFunctionCompletionItems(): Promise<CompletionItem[]> {
                       : `${signature} / ${arity}`,
             documentation: {
                 kind: MarkupKind.Markdown,
-                value: getBuiltinFunctionDocumentation(definition, {
-                    preferMatchingArity: false,
-                }),
+                value:
+                    getBuiltinFunctionDocumentation(definition.name.qname) ||
+                    "No documentation available.",
             },
         };
 
