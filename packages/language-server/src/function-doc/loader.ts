@@ -11,7 +11,7 @@ export function getW3Catalog(): Record<string, FunctionEntry> {
     if (w3Catalog === null) {
         try {
             const assetsPath = getAssetsPath();
-            const filePath = path.join(assetsPath, "w3-functions.json");
+            const filePath = path.join(assetsPath, "function-doc", "w3-functions.json");
             const content = fs.readFileSync(filePath, "utf-8");
             w3Catalog = JSON.parse(content);
         } catch (error) {
