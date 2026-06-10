@@ -1,6 +1,17 @@
 import { parseDocument } from "server/parser/index.js";
-import type { AstNode } from "server/parser/types/ast.js";
+import type {
+    ContextItemDeclarationAstNode,
+    CountClauseAstNode,
+    ForBindingAstNode,
+    FunctionDeclarationAstNode,
+    GroupByBindingAstNode,
+    LetBindingAstNode,
+    NamespaceDeclarationAstNode,
+    TypeDeclarationAstNode,
+    VariableDeclarationAstNode,
+} from "server/parser/types/ast.js";
 import { lexicalQNameToString, varNameToString } from "server/parser/types/name.js";
+import { AstVisitor } from "server/parser/types/visitor.js";
 import { comparePositions } from "server/utils/position.js";
 import { DocumentSymbol, SymbolKind, type Range } from "vscode-languageserver";
 import { TextDocument } from "vscode-languageserver-textdocument";
@@ -10,123 +21,114 @@ interface SymbolOwner {
     symbol: DocumentSymbol;
 }
 
-export class DocumentSymbolsBuilder {
+export class DocumentSymbolsBuilder extends AstVisitor {
     private readonly symbols: DocumentSymbol[] = [];
     private readonly owners: SymbolOwner[] = [];
 
-    public constructor(private readonly document: TextDocument) {}
+    private readonly document: TextDocument;
+
+    public constructor(document: TextDocument) {
+        super();
+        this.document = document;
+    }
 
     public build(): DocumentSymbol[] {
-        this.visitNode(parseDocument(this.document).ast);
+        this.visit(parseDocument(this.document).ast);
         return this.symbols;
     }
 
-    private visitNode(node: AstNode): void {
-        switch (node.kind) {
-            case "module":
-            case "flowr-expression":
-            case "unknown":
-            case "catch-clause":
-                this.visitChildren(node);
-                break;
-            case "namespace-declaration":
-                this.addSymbol(node.prefix, SymbolKind.Namespace, node.range, node.selectionRange);
-                break;
-            case "context-item-declaration":
-                this.addSymbol(
-                    varNameToString(node.name),
-                    SymbolKind.Variable,
-                    node.range,
-                    node.selectionRange,
-                    true,
-                );
-                break;
-            case "type-declaration":
-                this.addSymbol(
-                    lexicalQNameToString(node.name.qname),
-                    SymbolKind.Struct,
-                    node.range,
-                    node.selectionRange,
-                );
-                break;
-            case "function-declaration": {
-                this.addSymbol(
-                    lexicalQNameToString(node.name.qname),
-                    SymbolKind.Function,
-                    node.range,
-                    node.nameRange,
-                    true,
-                );
-                for (const parameter of node.parameters) {
-                    this.addSymbol(
-                        varNameToString(parameter.name),
-                        SymbolKind.Variable,
-                        parameter.range,
-                        parameter.selectionRange,
-                    );
-                }
-                this.visitChildren(node);
-                break;
-            }
-            case "variable-declaration":
-                this.addSymbol(
-                    varNameToString(node.binding.name),
-                    SymbolKind.Variable,
-                    node.binding.range,
-                    node.binding.selectionRange,
-                    true,
-                );
-                this.visitChildren(node);
-                break;
-            case "let-binding":
-            case "group-by-binding":
-                this.addSymbol(
-                    varNameToString(node.binding.name),
-                    SymbolKind.Variable,
-                    node.binding.range,
-                    node.binding.selectionRange,
-                    true,
-                );
-                this.visitChildren(node);
-                break;
-            case "count-clause":
-                this.addSymbol(
-                    varNameToString(node.binding.name),
-                    SymbolKind.Variable,
-                    node.binding.range,
-                    node.binding.selectionRange,
-                );
-                this.visitChildren(node);
-                break;
-            case "for-binding":
-                for (const binding of node.bindings) {
-                    this.addSymbol(
-                        varNameToString(binding.name),
-                        SymbolKind.Variable,
-                        binding.range,
-                        binding.selectionRange,
-                    );
-                }
-                this.visitChildren(node);
-                break;
-            case "function-call":
-            case "named-function-reference":
-            case "variable-reference":
-            case "context-item-expression":
-            case "reference":
-                break;
-            case "argument":
-                this.visitChildren(node);
-                break;
-            default:
-                throw node satisfies never;
-        }
+    protected override visitNamespaceDeclaration(node: NamespaceDeclarationAstNode): void {
+        this.addSymbol(node.prefix, SymbolKind.Namespace, node.range, node.selectionRange);
     }
 
-    private visitChildren(node: AstNode): void {
-        for (const child of node.children) {
-            this.visitNode(child);
+    protected override visitContextItemDeclaration(node: ContextItemDeclarationAstNode): void {
+        this.addSymbol(
+            varNameToString(node.name),
+            SymbolKind.Variable,
+            node.range,
+            node.selectionRange,
+            true,
+        );
+    }
+
+    protected override visitTypeDeclaration(node: TypeDeclarationAstNode): void {
+        this.addSymbol(
+            lexicalQNameToString(node.name.qname),
+            SymbolKind.Struct,
+            node.range,
+            node.selectionRange,
+        );
+    }
+
+    protected override visitFunctionDeclaration(node: FunctionDeclarationAstNode): void {
+        this.addSymbol(
+            lexicalQNameToString(node.name.qname),
+            SymbolKind.Function,
+            node.range,
+            node.nameRange,
+            true,
+        );
+        for (const parameter of node.parameters) {
+            this.addSymbol(
+                varNameToString(parameter.name),
+                SymbolKind.Variable,
+                parameter.range,
+                parameter.selectionRange,
+            );
         }
+        this.visitChildren(node);
+    }
+
+    protected override visitVariableDeclaration(node: VariableDeclarationAstNode): void {
+        this.addSymbol(
+            varNameToString(node.binding.name),
+            SymbolKind.Variable,
+            node.binding.range,
+            node.binding.selectionRange,
+            true,
+        );
+        this.visitChildren(node);
+    }
+
+    protected override visitLetBinding(node: LetBindingAstNode): void {
+        this.visitVariableBinding(node);
+    }
+
+    protected override visitGroupByBinding(node: GroupByBindingAstNode): void {
+        this.visitVariableBinding(node);
+    }
+
+    protected override visitCountClause(node: CountClauseAstNode): void {
+        this.addSymbol(
+            varNameToString(node.binding.name),
+            SymbolKind.Variable,
+            node.binding.range,
+            node.binding.selectionRange,
+        );
+        this.visitChildren(node);
+    }
+
+    protected override visitForBinding(node: ForBindingAstNode): void {
+        for (const binding of node.bindings) {
+            this.addSymbol(
+                varNameToString(binding.name),
+                SymbolKind.Variable,
+                binding.range,
+                binding.selectionRange,
+            );
+        }
+        this.visitChildren(node);
+    }
+
+    private visitVariableBinding(node: LetBindingAstNode | GroupByBindingAstNode): void {
+        this.addSymbol(
+            varNameToString(node.binding.name),
+            SymbolKind.Variable,
+            node.binding.range,
+            node.binding.selectionRange,
+            true,
+        );
+        this.visitChildren(node);
     }
 
     private addSymbol(

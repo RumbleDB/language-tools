@@ -1,10 +1,23 @@
 import { parseDocument } from "server/parser/index.js";
 import type {
     AstBinding,
-    AstNode,
     AstParameter,
     CatchClauseAstNode,
+    ContextItemDeclarationAstNode,
+    ContextItemExpressionAstNode,
+    CountClauseAstNode,
+    FlowrExpressionAstNode,
+    ForBindingAstNode,
+    FunctionCallAstNode,
     FunctionDeclarationAstNode,
+    GroupByBindingAstNode,
+    LetBindingAstNode,
+    NamespaceDeclarationAstNode,
+    NamedFunctionReferenceAstNode,
+    ReferenceAstNode,
+    TypeDeclarationAstNode,
+    VariableDeclarationAstNode,
+    VariableReferenceAstNode,
 } from "server/parser/types/ast.js";
 import {
     isPrefixedQName,
@@ -13,6 +26,7 @@ import {
     type LexicalReferenceNameByKind,
     type LexicalVarName,
 } from "server/parser/types/name.js";
+import { AstVisitor } from "server/parser/types/visitor.js";
 import { comparePositions } from "server/utils/position.js";
 import { BuiltinFunctions } from "server/wrapper/builtin-functions.js";
 import { DiagnosticSeverity, Position, Range } from "vscode-languageserver";
@@ -66,17 +80,22 @@ const CATCH_VARIABLES = [
     { qname: { kind: "prefixed-qname", prefix: "err", localName: "additional" } },
 ] as const;
 
-class AnalysisBuilder {
+class AnalysisBuilder extends AstVisitor {
     private static readonly NEVER_VISIBLE_OFFSET = Number.POSITIVE_INFINITY;
 
     private readonly analysis: JsoniqAnalysis;
 
     private currentScope: Scope;
 
-    public constructor(
-        private readonly document: TextDocument,
-        private readonly builtinFunctions: BuiltinFunctions,
-    ) {
+    private readonly document: TextDocument;
+
+    private readonly builtinFunctions: BuiltinFunctions;
+
+    public constructor(document: TextDocument, builtinFunctions: BuiltinFunctions) {
+        super();
+        this.document = document;
+        this.builtinFunctions = builtinFunctions;
+
         const ast = parseDocument(document).ast;
         const namespaces = new Map<string, SourceNamespaceDefinition>(
             defaultNamespaces.entries().map((ns) => {
@@ -105,7 +124,7 @@ class AnalysisBuilder {
     }
 
     public build(): JsoniqAnalysis {
-        this.visitNode(this.analysis.ast);
+        this.visit(this.analysis.ast);
 
         this.analysis.symbolIndex.sort((left, right) => {
             const startComparison = comparePositions(left.range.start, right.range.start);
@@ -123,127 +142,42 @@ class AnalysisBuilder {
         return this.analysis;
     }
 
-    private visitNode(node: AstNode): void {
-        switch (node.kind) {
-            case "module":
-                this.visitChildren(node);
-                break;
-            case "namespace-declaration":
-                const definition = createNamespaceDefinition(
-                    this.document,
-                    node.prefix,
-                    node.namespaceUri,
-                    node.range,
-                    node.selectionRange,
-                );
-                this.recordDefinition(definition);
-                this.analysis.namespaces.set(definition.name.prefix, definition);
-                break;
-            case "context-item-declaration":
-                this.recordDefinition(
-                    createVariableDefinition(
-                        this.document,
-                        "declare-variable",
-                        this.normalizeVarName(node.name, node.selectionRange),
-                        node.range,
-                        node.selectionRange,
-                    ),
-                );
-                break;
-            case "type-declaration":
-                this.recordDefinition(
-                    createTypeDefinition(
-                        this.document,
-                        { qname: this.normalizeQName(node.name.qname, node.selectionRange) },
-                        node.range,
-                        node.selectionRange,
-                    ),
-                );
-                break;
-            case "function-declaration":
-                this.visitFunctionDeclaration(node);
-                break;
-            case "variable-declaration": {
-                const variableDefinition = createVariableDefinition(
-                    this.document,
-                    "declare-variable",
-                    this.normalizeVarName(node.binding.name, node.binding.selectionRange),
-                    node.binding.range,
-                    node.binding.selectionRange,
-                    node.completed
-                        ? this.document.offsetAt(node.range.end)
-                        : AnalysisBuilder.NEVER_VISIBLE_OFFSET,
-                );
-                this.visitChildren(node);
-                this.recordDefinition(variableDefinition);
-                break;
-            }
-            case "let-binding":
-                this.visitChildren(node);
-                this.recordDefinition(this.variableDefinition("let", node.binding));
-                break;
-            case "group-by-binding":
-                this.visitChildren(node);
-                this.recordDefinition(this.variableDefinition("group-by", node.binding));
-                break;
-            case "count-clause":
-                this.visitChildren(node);
-                this.recordDefinition(this.variableDefinition("count", node.binding));
-                break;
-            case "for-binding":
-                this.visitChildren(node);
-                for (const binding of node.bindings) {
-                    this.recordDefinition(this.variableDefinition(binding.bindingKind, binding));
-                }
-                break;
-            case "flowr-expression":
-                this.visitScopedChildren(node);
-                break;
-            case "catch-clause":
-                this.visitCatchClause(node);
-                break;
-            case "variable-reference":
-            case "context-item-expression":
-                this.recordReference({
-                    kind: "variable",
-                    name: node.name,
-                    range: node.range,
-                });
-                break;
-            case "function-call":
-            case "named-function-reference":
-                this.recordReference({
-                    kind: "function",
-                    name: node.name,
-                    range: node.nameRange,
-                });
-                this.visitChildren(node);
-                break;
-            case "reference":
-                this.recordReference({
-                    kind: node.referenceKind,
-                    name: node.name,
-                    range: node.range,
-                });
-                break;
-            case "argument":
-                this.visitChildren(node);
-                break;
-            case "unknown":
-                this.visitChildren(node);
-                break;
-            default:
-                throw node satisfies never;
-        }
+    protected override visitNamespaceDeclaration(node: NamespaceDeclarationAstNode): void {
+        const definition = createNamespaceDefinition(
+            this.document,
+            node.prefix,
+            node.namespaceUri,
+            node.range,
+            node.selectionRange,
+        );
+        this.recordDefinition(definition);
+        this.analysis.namespaces.set(definition.name.prefix, definition);
     }
 
-    private visitChildren(node: AstNode) {
-        for (const child of node.children) {
-            this.visitNode(child);
-        }
+    protected override visitContextItemDeclaration(node: ContextItemDeclarationAstNode): void {
+        this.recordDefinition(
+            createVariableDefinition(
+                this.document,
+                "declare-variable",
+                this.normalizeVarName(node.name, node.selectionRange),
+                node.range,
+                node.selectionRange,
+            ),
+        );
     }
 
-    private visitFunctionDeclaration(node: FunctionDeclarationAstNode) {
+    protected override visitTypeDeclaration(node: TypeDeclarationAstNode): void {
+        this.recordDefinition(
+            createTypeDefinition(
+                this.document,
+                { qname: this.normalizeQName(node.name.qname, node.selectionRange) },
+                node.range,
+                node.selectionRange,
+            ),
+        );
+    }
+
+    protected override visitFunctionDeclaration(node: FunctionDeclarationAstNode): void {
         const definition = createFunctionDefinition(
             this.document,
             this.normalizeFunctionName(node.name, node.nameRange),
@@ -257,7 +191,48 @@ class AnalysisBuilder {
         this.popScope();
     }
 
-    private visitCatchClause(node: CatchClauseAstNode) {
+    protected override visitVariableDeclaration(node: VariableDeclarationAstNode): void {
+        const variableDefinition = createVariableDefinition(
+            this.document,
+            "declare-variable",
+            this.normalizeVarName(node.binding.name, node.binding.selectionRange),
+            node.binding.range,
+            node.binding.selectionRange,
+            node.completed
+                ? this.document.offsetAt(node.range.end)
+                : AnalysisBuilder.NEVER_VISIBLE_OFFSET,
+        );
+        this.visitChildren(node);
+        this.recordDefinition(variableDefinition);
+    }
+
+    protected override visitLetBinding(node: LetBindingAstNode): void {
+        this.visitChildren(node);
+        this.recordDefinition(this.variableDefinition("let", node.binding));
+    }
+
+    protected override visitGroupByBinding(node: GroupByBindingAstNode): void {
+        this.visitChildren(node);
+        this.recordDefinition(this.variableDefinition("group-by", node.binding));
+    }
+
+    protected override visitCountClause(node: CountClauseAstNode): void {
+        this.visitChildren(node);
+        this.recordDefinition(this.variableDefinition("count", node.binding));
+    }
+
+    protected override visitForBinding(node: ForBindingAstNode): void {
+        this.visitChildren(node);
+        for (const binding of node.bindings) {
+            this.recordDefinition(this.variableDefinition(binding.bindingKind, binding));
+        }
+    }
+
+    protected override visitFlowrExpression(node: FlowrExpressionAstNode): void {
+        this.visitScopedChildren(node);
+    }
+
+    protected override visitCatchClause(node: CatchClauseAstNode): void {
         this.pushScope(node.range.start, node.range.end);
         for (const name of CATCH_VARIABLES) {
             this.recordDefinition(
@@ -276,7 +251,49 @@ class AnalysisBuilder {
         this.popScope();
     }
 
-    private visitScopedChildren(node: AstNode) {
+    protected override visitVariableReference(node: VariableReferenceAstNode): void {
+        this.recordReference({
+            kind: "variable",
+            name: node.name,
+            range: node.range,
+        });
+    }
+
+    protected override visitContextItemExpression(node: ContextItemExpressionAstNode): void {
+        this.recordReference({
+            kind: "variable",
+            name: node.name,
+            range: node.range,
+        });
+    }
+
+    protected override visitFunctionCall(node: FunctionCallAstNode): void {
+        this.recordReference({
+            kind: "function",
+            name: node.name,
+            range: node.nameRange,
+        });
+        this.visitChildren(node);
+    }
+
+    protected override visitNamedFunctionReference(node: NamedFunctionReferenceAstNode): void {
+        this.recordReference({
+            kind: "function",
+            name: node.name,
+            range: node.nameRange,
+        });
+        this.visitChildren(node);
+    }
+
+    protected override visitReference(node: ReferenceAstNode): void {
+        this.recordReference({
+            kind: node.referenceKind,
+            name: node.name,
+            range: node.range,
+        });
+    }
+
+    private visitScopedChildren(node: FlowrExpressionAstNode) {
         this.pushScope(node.range.start, node.range.end);
         this.visitChildren(node);
         this.popScope();
