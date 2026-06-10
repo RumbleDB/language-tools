@@ -11,6 +11,7 @@ import {
     resolvedQNameToString,
     resolvedVarNameToString,
 } from "./names.js";
+import type { Scope } from "./scope.js";
 
 export type VariableKind =
     | "declare-variable"
@@ -102,6 +103,7 @@ export type ResolvedReference<
 
 export interface JsoniqAnalysis {
     ast: JsoniqAst;
+    scope: Scope;
     namespaces: Map<Prefix, SourceNamespaceDefinition>;
     diagnostics: Diagnostic[];
 }

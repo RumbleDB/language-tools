@@ -1,7 +1,6 @@
 import type { Range } from "vscode-languageserver";
 
 import type { ResolvedFunctionName, ResolvedReferenceNameByKind } from "./names.js";
-import type { Scope } from "./scope.js";
 import type { Definition, ResolvedReference, SourceDefinition } from "./types.js";
 
 export type AstNodeKind = "module" | "declaration" | "reference" | "function-call" | "argument";
@@ -13,9 +12,7 @@ export interface AstNodeBase<K extends AstNodeKind> {
     parent?: AstNode;
 }
 
-export interface ModuleNode extends AstNodeBase<"module"> {
-    scope: Scope;
-}
+export interface ModuleNode extends AstNodeBase<"module"> {}
 
 export interface DeclarationNode extends AstNodeBase<"declaration"> {
     declaration: SourceDefinition;

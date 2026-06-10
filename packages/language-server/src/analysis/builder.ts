@@ -126,8 +126,8 @@ class AnalysisBuilder extends AstVisitor<AstNode[]> {
                 kind: "module",
                 range: this.parserAst.range,
                 children: [],
-                scope: moduleScope,
             },
+            scope: moduleScope,
             namespaces,
             diagnostics: [],
         };

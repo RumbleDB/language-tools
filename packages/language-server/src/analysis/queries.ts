@@ -18,7 +18,7 @@ export async function getVisibleDeclarationsAtPosition(
 ): Promise<BaseDefinition[]> {
     const analysis = await getAnalysis(document);
     const positionOffset = document.offsetAt(position);
-    const scope = analysis.ast.scope.findInnermostScope(positionOffset);
+    const scope = analysis.scope.findInnermostScope(positionOffset);
     return [...scope.listVisibleDefinitions(positionOffset).values()];
 }
 
