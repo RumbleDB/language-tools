@@ -389,7 +389,7 @@ class AnalysisBuilder extends AstVisitor<AstNode[]> {
         name: ReferenceNameByKind[K],
     ): Definition | undefined {
         if (kind === "function") {
-            const builtinDefinition = this.builtinFunctions.find(name);
+            const builtinDefinition = this.builtinFunctions.find(name as FunctionName);
             if (builtinDefinition !== undefined) {
                 return builtinDefinition;
             }
