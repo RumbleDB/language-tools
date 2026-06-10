@@ -4,13 +4,7 @@ import type { ResolvedFunctionName, ResolvedReferenceNameByKind } from "./names.
 import type { Scope } from "./scope.js";
 import type { Definition, ResolvedReference, SourceDefinition } from "./types.js";
 
-export type AstNodeKind =
-    | "module"
-    | "declaration"
-    | "reference"
-    | "function-call"
-    | "argument"
-    | "unknown";
+export type AstNodeKind = "module" | "declaration" | "reference" | "function-call" | "argument";
 
 export interface AstNodeBase<K extends AstNodeKind> {
     kind: K;
@@ -46,15 +40,12 @@ export interface ArgumentNode extends AstNodeBase<"argument"> {
     index: number;
 }
 
-export interface UnknownNode extends AstNodeBase<"unknown"> {}
-
 export type AstNode =
     | ModuleNode
     | DeclarationNode
     | ReferenceNode
     | FunctionCallNode
-    | ArgumentNode
-    | UnknownNode;
+    | ArgumentNode;
 
 export type JsoniqAst = ModuleNode;
 

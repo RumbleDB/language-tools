@@ -16,7 +16,6 @@ import type {
     NamespaceDeclarationAstNode,
     ReferenceAstNode,
     TypeDeclarationAstNode,
-    UnknownAstNode,
     VariableDeclarationAstNode,
     VariableReferenceAstNode,
 } from "./ast.js";
@@ -60,8 +59,6 @@ export abstract class AstVisitor<R = void> {
                 return this.visitContextItemExpression(node);
             case "argument":
                 return this.visitArgument(node);
-            case "unknown":
-                return this.visitUnknown(node);
             default:
                 throw node satisfies never;
         }
@@ -145,10 +142,6 @@ export abstract class AstVisitor<R = void> {
     }
 
     protected visitArgument(node: ArgumentAstNode): R {
-        return this.defaultVisit(node);
-    }
-
-    protected visitUnknown(node: UnknownAstNode): R {
         return this.defaultVisit(node);
     }
 }

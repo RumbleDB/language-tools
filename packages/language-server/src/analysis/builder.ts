@@ -18,7 +18,6 @@ import type {
     NamedFunctionReferenceAstNode,
     ReferenceAstNode,
     TypeDeclarationAstNode,
-    UnknownAstNode,
     VariableDeclarationAstNode,
     VariableReferenceAstNode,
 } from "server/parser/types/ast.js";
@@ -310,19 +309,6 @@ class AnalysisBuilder extends AstVisitor<AstNode[]> {
                     range: node.range,
                     children: [],
                     index: node.index,
-                },
-                this.visitChildrenAsNodes(node),
-            ),
-        ];
-    }
-
-    protected override visitUnknown(node: UnknownAstNode): AstNode[] {
-        return [
-            this.adoptChildren(
-                {
-                    kind: "unknown",
-                    range: node.range,
-                    children: [],
                 },
                 this.visitChildrenAsNodes(node),
             ),

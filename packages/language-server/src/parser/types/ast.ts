@@ -27,8 +27,7 @@ export type AstNodeKind =
     | "named-function-reference"
     | "variable-reference"
     | "context-item-expression"
-    | "argument"
-    | "unknown";
+    | "argument";
 
 export interface AstNodeBase<K extends AstNodeKind> {
     readonly kind: K;
@@ -130,10 +129,6 @@ export interface ContextItemExpressionAstNode extends AstNodeBase<"context-item-
     readonly name: LexicalReferenceNameByKind["variable"];
 }
 
-export interface UnknownAstNode extends AstNodeBase<"unknown"> {
-    readonly reason: "unsupported-grammar" | "incomplete";
-}
-
 export interface ArgumentAstNode extends AstNodeBase<"argument"> {
     readonly index: number;
 }
@@ -156,8 +151,7 @@ export type AstNode =
     | NamedFunctionReferenceAstNode
     | VariableReferenceAstNode
     | ContextItemExpressionAstNode
-    | ArgumentAstNode
-    | UnknownAstNode;
+    | ArgumentAstNode;
 
 export type JsoniqAst = ModuleAstNode;
 
