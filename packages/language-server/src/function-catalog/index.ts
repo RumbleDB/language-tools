@@ -1,4 +1,4 @@
-import { definitionNameToString } from "server/analysis/model.js";
+import { definitionNameToString } from "server/analysis/definitions.js";
 import type { BuiltinFunctionDefinition } from "server/wrapper/builtin-functions.js";
 
 import { getW3Catalog } from "./loader.js";

@@ -6,12 +6,12 @@ import {
 } from "vscode-languageserver";
 import { TextDocument } from "vscode-languageserver-textdocument";
 
+import { JsoniqAnalysis } from "./analysis/builder.js";
 import {
     definitionNameToString,
-    type JsoniqAnalysis,
-    type SourceDefinition,
     isSourceDefinition,
-} from "./analysis/model.js";
+    SourceDefinition,
+} from "./analysis/definitions.js";
 import { findSymbolAtPosition } from "./analysis/queries.js";
 import { getAnalysis } from "./analysis/service.js";
 

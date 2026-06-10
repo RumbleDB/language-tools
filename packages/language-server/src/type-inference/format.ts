@@ -1,4 +1,4 @@
-import { resolvedQNameToString } from "server/analysis/names.js";
+import { QNameToString } from "server/analysis/names.js";
 import { type InferredType } from "server/wrapper/types.js";
 
 export function formatInferredType(type: InferredType): string {
@@ -7,7 +7,7 @@ export function formatInferredType(type: InferredType): string {
             const name =
                 parameter.name === null
                     ? `$arg${index + 1}`
-                    : `$${resolvedQNameToString(parameter.name.qname)}`;
+                    : `$${QNameToString(parameter.name.qname, false)}`;
             return `${name}: ${parameter.type}`;
         });
         return `(${parameterTypes.join(", ")}) => ${type.function.signature.returnType}`;

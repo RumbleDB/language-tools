@@ -1,4 +1,4 @@
-import type { ResolvedQName } from "../analysis/names.js";
+import type { QName } from "../analysis/names.js";
 
 export interface WrapperResolvedQName {
     localName: string;
@@ -6,7 +6,7 @@ export interface WrapperResolvedQName {
     prefix: string | null;
 }
 
-export function toResolvedQName(name: WrapperResolvedQName): ResolvedQName {
+export function toResolvedQName(name: WrapperResolvedQName): QName {
     return {
         localName: name.localName,
         ...(name.namespaceUri === null ? {} : { namespaceUri: name.namespaceUri }),

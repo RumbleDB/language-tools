@@ -9,7 +9,8 @@ import {
 import { Range } from "vscode-languageserver";
 import { TextDocument } from "vscode-languageserver-textdocument";
 
-import type { DefinitionKind } from "./analysis/model.js";
+import { DefinitionKind } from "./analysis/definitions.js";
+import { collectDefinitions, collectReferences } from "./analysis/queries.js";
 import { getAnalysis } from "./analysis/service.js";
 
 export const legend: SemanticTokensLegend = {
@@ -51,13 +52,13 @@ export async function collectSemanticTokens(document: TextDocument): Promise<Sem
     const analysis = await getAnalysis(document);
     const builder = new SemanticTokensBuilder();
 
-    for (const definition of analysis.definitions) {
+    for (const definition of collectDefinitions(analysis)) {
         const tokenType = getTokenTypeForDefinition(definition.kind);
         const tokenModifiers = getTokenModifierForDefinition(definition.kind);
         addSemanticToken(builder, definition.selectionRange, tokenType, tokenModifiers);
     }
 
-    for (const reference of analysis.references) {
+    for (const reference of collectReferences(analysis)) {
         const tokenType = getTokenTypeForDefinition(reference.declaration.kind);
         const tokenModifiers = getTokenModifierForDefinition(reference.declaration.kind);
         addSemanticToken(builder, reference.range, tokenType, tokenModifiers);

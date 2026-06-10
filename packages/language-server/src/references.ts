@@ -1,7 +1,7 @@
 import { type Location, type Position } from "vscode-languageserver";
 import { TextDocument } from "vscode-languageserver-textdocument";
 
-import { isSourceDefinition } from "./analysis/model.js";
+import { isSourceDefinition } from "./analysis/definitions.js";
 import { findSymbolAtPosition } from "./analysis/queries.js";
 import { getAnalysis } from "./analysis/service.js";
 
