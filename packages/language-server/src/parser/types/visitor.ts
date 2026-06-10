@@ -21,150 +21,134 @@ import type {
     VariableReferenceAstNode,
 } from "./ast.js";
 
-export abstract class AstVisitor {
-    public visit(node: AstNode): void {
+export abstract class AstVisitor<R = void> {
+    public visit(node: AstNode): R {
         switch (node.kind) {
             case "module":
-                this.visitModule(node);
-                break;
+                return this.visitModule(node);
             case "namespace-declaration":
-                this.visitNamespaceDeclaration(node);
-                break;
+                return this.visitNamespaceDeclaration(node);
             case "context-item-declaration":
-                this.visitContextItemDeclaration(node);
-                break;
+                return this.visitContextItemDeclaration(node);
             case "type-declaration":
-                this.visitTypeDeclaration(node);
-                break;
+                return this.visitTypeDeclaration(node);
             case "function-declaration":
-                this.visitFunctionDeclaration(node);
-                break;
+                return this.visitFunctionDeclaration(node);
             case "variable-declaration":
-                this.visitVariableDeclaration(node);
-                break;
+                return this.visitVariableDeclaration(node);
             case "for-binding":
-                this.visitForBinding(node);
-                break;
+                return this.visitForBinding(node);
             case "let-binding":
-                this.visitLetBinding(node);
-                break;
+                return this.visitLetBinding(node);
             case "group-by-binding":
-                this.visitGroupByBinding(node);
-                break;
+                return this.visitGroupByBinding(node);
             case "count-clause":
-                this.visitCountClause(node);
-                break;
+                return this.visitCountClause(node);
             case "flowr-expression":
-                this.visitFlowrExpression(node);
-                break;
+                return this.visitFlowrExpression(node);
             case "catch-clause":
-                this.visitCatchClause(node);
-                break;
+                return this.visitCatchClause(node);
             case "reference":
-                this.visitReference(node);
-                break;
+                return this.visitReference(node);
             case "function-call":
-                this.visitFunctionCall(node);
-                break;
+                return this.visitFunctionCall(node);
             case "named-function-reference":
-                this.visitNamedFunctionReference(node);
-                break;
+                return this.visitNamedFunctionReference(node);
             case "variable-reference":
-                this.visitVariableReference(node);
-                break;
+                return this.visitVariableReference(node);
             case "context-item-expression":
-                this.visitContextItemExpression(node);
-                break;
+                return this.visitContextItemExpression(node);
             case "argument":
-                this.visitArgument(node);
-                break;
+                return this.visitArgument(node);
             case "unknown":
-                this.visitUnknown(node);
-                break;
+                return this.visitUnknown(node);
             default:
                 throw node satisfies never;
         }
     }
 
-    protected visitChildren(node: AstNode): void {
-        for (const child of node.children) {
-            this.visit(child);
-        }
+    protected visitChildren(node: AstNode): R[] {
+        return node.children.map((child) => this.visit(child));
     }
 
-    protected visitModule(node: ModuleAstNode): void {
+    protected defaultVisit(node: AstNode): R {
         this.visitChildren(node);
+        return undefined as R;
     }
 
-    protected visitNamespaceDeclaration(node: NamespaceDeclarationAstNode): void {
-        this.visitChildren(node);
+    protected visitModule(node: ModuleAstNode): R {
+        return this.defaultVisit(node);
     }
 
-    protected visitContextItemDeclaration(node: ContextItemDeclarationAstNode): void {
-        this.visitChildren(node);
+    protected visitNamespaceDeclaration(node: NamespaceDeclarationAstNode): R {
+        return this.defaultVisit(node);
     }
 
-    protected visitTypeDeclaration(node: TypeDeclarationAstNode): void {
-        this.visitChildren(node);
+    protected visitContextItemDeclaration(node: ContextItemDeclarationAstNode): R {
+        return this.defaultVisit(node);
     }
 
-    protected visitFunctionDeclaration(node: FunctionDeclarationAstNode): void {
-        this.visitChildren(node);
+    protected visitTypeDeclaration(node: TypeDeclarationAstNode): R {
+        return this.defaultVisit(node);
     }
 
-    protected visitVariableDeclaration(node: VariableDeclarationAstNode): void {
-        this.visitChildren(node);
+    protected visitFunctionDeclaration(node: FunctionDeclarationAstNode): R {
+        return this.defaultVisit(node);
     }
 
-    protected visitForBinding(node: ForBindingAstNode): void {
-        this.visitChildren(node);
+    protected visitVariableDeclaration(node: VariableDeclarationAstNode): R {
+        return this.defaultVisit(node);
     }
 
-    protected visitLetBinding(node: LetBindingAstNode): void {
-        this.visitChildren(node);
+    protected visitForBinding(node: ForBindingAstNode): R {
+        return this.defaultVisit(node);
     }
 
-    protected visitGroupByBinding(node: GroupByBindingAstNode): void {
-        this.visitChildren(node);
+    protected visitLetBinding(node: LetBindingAstNode): R {
+        return this.defaultVisit(node);
     }
 
-    protected visitCountClause(node: CountClauseAstNode): void {
-        this.visitChildren(node);
+    protected visitGroupByBinding(node: GroupByBindingAstNode): R {
+        return this.defaultVisit(node);
     }
 
-    protected visitFlowrExpression(node: FlowrExpressionAstNode): void {
-        this.visitChildren(node);
+    protected visitCountClause(node: CountClauseAstNode): R {
+        return this.defaultVisit(node);
     }
 
-    protected visitCatchClause(node: CatchClauseAstNode): void {
-        this.visitChildren(node);
+    protected visitFlowrExpression(node: FlowrExpressionAstNode): R {
+        return this.defaultVisit(node);
     }
 
-    protected visitReference(node: ReferenceAstNode): void {
-        this.visitChildren(node);
+    protected visitCatchClause(node: CatchClauseAstNode): R {
+        return this.defaultVisit(node);
     }
 
-    protected visitFunctionCall(node: FunctionCallAstNode): void {
-        this.visitChildren(node);
+    protected visitReference(node: ReferenceAstNode): R {
+        return this.defaultVisit(node);
     }
 
-    protected visitNamedFunctionReference(node: NamedFunctionReferenceAstNode): void {
-        this.visitChildren(node);
+    protected visitFunctionCall(node: FunctionCallAstNode): R {
+        return this.defaultVisit(node);
     }
 
-    protected visitVariableReference(node: VariableReferenceAstNode): void {
-        this.visitChildren(node);
+    protected visitNamedFunctionReference(node: NamedFunctionReferenceAstNode): R {
+        return this.defaultVisit(node);
     }
 
-    protected visitContextItemExpression(node: ContextItemExpressionAstNode): void {
-        this.visitChildren(node);
+    protected visitVariableReference(node: VariableReferenceAstNode): R {
+        return this.defaultVisit(node);
     }
 
-    protected visitArgument(node: ArgumentAstNode): void {
-        this.visitChildren(node);
+    protected visitContextItemExpression(node: ContextItemExpressionAstNode): R {
+        return this.defaultVisit(node);
     }
 
-    protected visitUnknown(node: UnknownAstNode): void {
-        this.visitChildren(node);
+    protected visitArgument(node: ArgumentAstNode): R {
+        return this.defaultVisit(node);
+    }
+
+    protected visitUnknown(node: UnknownAstNode): R {
+        return this.defaultVisit(node);
     }
 }

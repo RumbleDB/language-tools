@@ -21,7 +21,7 @@ interface SymbolOwner {
     symbol: DocumentSymbol;
 }
 
-export class DocumentSymbolsBuilder extends AstVisitor {
+export class DocumentSymbolsBuilder extends AstVisitor<void> {
     private readonly symbols: DocumentSymbol[] = [];
     private readonly owners: SymbolOwner[] = [];
 
