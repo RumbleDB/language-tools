@@ -11,7 +11,7 @@ const W3_CATALOG_URL =
     "https://www.w3.org/TR/2017/REC-xpath-functions-31-20170321/function-catalog.xml";
 const OUTPUT_FILE_PATH = path.join(__dirname, "..", "assets", "w3-functions.json");
 
-import type { FunctionEntry, Parameter, Signature } from "../src/function-catalog/types.js";
+import type { FunctionEntry, Parameter, Signature } from "../src/function-doc/types.js";
 
 interface XmlParameter {
     name?: string;

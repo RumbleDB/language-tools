@@ -1,5 +1,5 @@
 import { resolvedQNameToString } from "server/analysis/names.js";
-import type { FunctionEntry } from "server/function-catalog/types.js";
+import type { FunctionEntry } from "server/function-doc/types.js";
 import type { FunctionCallAstNode } from "server/parser/types/ast.js";
 import {
     MarkupKind,

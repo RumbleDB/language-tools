@@ -1,4 +1,4 @@
-import { getBuiltinFunctionHover } from "server/function-catalog/index.js";
+import { getBuiltinFunctionHover } from "server/function-doc/index.js";
 import { MarkupKind, type Hover, type Position } from "vscode-languageserver";
 import { TextDocument } from "vscode-languageserver-textdocument";
 

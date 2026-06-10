@@ -1,5 +1,5 @@
-import { getW3Catalog } from "server/function-catalog/loader.js";
-import type { FunctionEntry } from "server/function-catalog/types.js";
+import { getW3Catalog } from "server/function-doc/loader.js";
+import type { FunctionEntry } from "server/function-doc/types.js";
 import type { ArgumentAstNode, FunctionCallAstNode } from "server/parser/types/ast.js";
 import { lexicalQNameToString } from "server/parser/types/name.js";
 import type { Position } from "vscode-languageserver";

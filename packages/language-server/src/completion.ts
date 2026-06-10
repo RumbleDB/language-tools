@@ -16,8 +16,8 @@ import {
 } from "./analysis/model.js";
 import { resolvedQNameToString } from "./analysis/names.js";
 import { getVisibleDeclarationsAtPosition } from "./analysis/queries.js";
-import { getBuiltinFunctionDocumentation } from "./function-catalog/index.js";
-import { getW3Catalog } from "./function-catalog/loader.js";
+import { getBuiltinFunctionDocumentation } from "./function-doc/index.js";
+import { getW3Catalog } from "./function-doc/loader.js";
 import { collectCompletionIntent } from "./parser/index.js";
 import { getDocumentText } from "./parser/utils.js";
 import { getBuiltinFunctions } from "./wrapper/builtin-functions.js";
