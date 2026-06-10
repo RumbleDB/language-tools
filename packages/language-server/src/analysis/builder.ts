@@ -16,7 +16,6 @@ import type {
     LetBindingAstNode,
     NamespaceDeclarationAstNode,
     NamedFunctionReferenceAstNode,
-    ReferenceAstNode,
     TypeDeclarationAstNode,
     VariableDeclarationAstNode,
     VariableReferenceAstNode,
@@ -292,16 +291,6 @@ class AnalysisBuilder extends AstVisitor<AstNode[]> {
 
     protected override visitNamedFunctionReference(node: NamedFunctionReferenceAstNode): AstNode[] {
         return [this.createFunctionCallNode(node)];
-    }
-
-    protected override visitReference(node: ReferenceAstNode): AstNode[] {
-        return [
-            this.recordReference({
-                kind: node.referenceKind,
-                name: node.name,
-                range: node.range,
-            }),
-        ];
     }
 
     protected override visitArgument(node: ArgumentAstNode): AstNode[] {

@@ -101,15 +101,6 @@ export interface FlowrExpressionAstNode extends AstNodeBase<"flowr-expression"> 
 
 export interface CatchClauseAstNode extends AstNodeBase<"catch-clause"> {}
 
-export type ReferenceAstNode<
-    K extends keyof LexicalReferenceNameByKind = keyof LexicalReferenceNameByKind,
-> = K extends keyof LexicalReferenceNameByKind
-    ? AstNodeBase<"reference"> & {
-          readonly name: LexicalReferenceNameByKind[K];
-          readonly referenceKind: K;
-      }
-    : never;
-
 export interface FunctionCallAstNode extends AstNodeBase<"function-call"> {
     readonly name: LexicalFunctionName;
     readonly nameRange: Range;
@@ -145,7 +136,6 @@ export type AstNode =
     | CountClauseAstNode
     | FlowrExpressionAstNode
     | CatchClauseAstNode
-    | ReferenceAstNode
     | FunctionCallAstNode
     | NamedFunctionReferenceAstNode
     | VariableReferenceAstNode

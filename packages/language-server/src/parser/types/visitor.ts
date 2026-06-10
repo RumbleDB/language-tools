@@ -14,7 +14,6 @@ import type {
     ModuleAstNode,
     NamedFunctionReferenceAstNode,
     NamespaceDeclarationAstNode,
-    ReferenceAstNode,
     TypeDeclarationAstNode,
     VariableDeclarationAstNode,
     VariableReferenceAstNode,
@@ -47,8 +46,6 @@ export abstract class AstVisitor<R = void> {
                 return this.visitFlowrExpression(node);
             case "catch-clause":
                 return this.visitCatchClause(node);
-            case "reference":
-                return this.visitReference(node);
             case "function-call":
                 return this.visitFunctionCall(node);
             case "named-function-reference":
@@ -118,10 +115,6 @@ export abstract class AstVisitor<R = void> {
     }
 
     protected visitCatchClause(node: CatchClauseAstNode): R {
-        return this.defaultVisit(node);
-    }
-
-    protected visitReference(node: ReferenceAstNode): R {
         return this.defaultVisit(node);
     }
 
