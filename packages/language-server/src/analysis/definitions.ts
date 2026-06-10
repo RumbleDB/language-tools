@@ -134,7 +134,7 @@ export function definitionNameToString(definition: BaseDefinition): string {
         case "group-by":
         case "count":
         case "catch-variable":
-            return QNameToString(definition.name);
+            return `$${QNameToString(definition.name)}`;
         default:
             throw definition satisfies never;
     }

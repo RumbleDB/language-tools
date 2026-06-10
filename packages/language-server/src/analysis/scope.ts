@@ -143,7 +143,7 @@ export class Scope {
             case "function":
                 return this.functionLookupKey(name as FunctionName);
             case "variable":
-                return QNameToString(name as QName);
+                return QNameToString(name as QName, true);
             default:
                 throw kind satisfies never;
         }
