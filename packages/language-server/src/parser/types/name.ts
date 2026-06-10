@@ -14,10 +14,6 @@ export type PrefixedQName = {
 
 export type LexicalQName = UnprefixedQName | PrefixedQName;
 
-export type LexicalVarName = {
-    qname: LexicalQName;
-};
-
 export type LexicalFunctionName = {
     qname: LexicalQName;
     arity?: number;
@@ -30,20 +26,20 @@ export type NamespaceName = {
 export type LexicalDeclarationNameByKind = {
     namespace: NamespaceName;
     function: LexicalFunctionName;
-    parameter: LexicalVarName;
-    "declare-variable": LexicalVarName;
-    let: LexicalVarName;
-    for: LexicalVarName;
-    "for-position": LexicalVarName;
-    "group-by": LexicalVarName;
-    count: LexicalVarName;
-    "catch-variable": LexicalVarName;
+    parameter: LexicalQName;
+    "declare-variable": LexicalQName;
+    let: LexicalQName;
+    for: LexicalQName;
+    "for-position": LexicalQName;
+    "group-by": LexicalQName;
+    count: LexicalQName;
+    "catch-variable": LexicalQName;
     type: { qname: LexicalQName };
 };
 
 export type LexicalReferenceNameByKind = {
     function: LexicalFunctionName;
-    variable: LexicalVarName;
+    variable: LexicalQName;
 };
 
 export function lexicalQNameToString(qname: LexicalQName): string {
@@ -52,8 +48,4 @@ export function lexicalQNameToString(qname: LexicalQName): string {
 
 export function isPrefixedQName(qname: LexicalQName): qname is PrefixedQName {
     return qname.kind === "prefixed-qname";
-}
-
-export function varNameToString(name: LexicalVarName): string {
-    return `$${lexicalQNameToString(name.qname)}`;
 }

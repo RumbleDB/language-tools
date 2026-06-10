@@ -1,9 +1,7 @@
-import { parseDocument } from "server/parser/index.js";
-import type { ArgumentAstNode, AstNode, FunctionCallAstNode } from "server/parser/types/ast.js";
 import { InlayHintKind, type InlayHint, type Range } from "vscode-languageserver";
 import { TextDocument } from "vscode-languageserver-textdocument";
 
-import { type JsoniqAnalysis } from "./analysis/model.js";
+import type { ArgumentNode, AstNode, FunctionCallNode } from "./analysis/ast.js";
 import { getAnalysis } from "./analysis/service.js";
 import {
     chooseBestSignatureIndex,
@@ -17,36 +15,29 @@ export async function collectInlayHints(
     document: TextDocument,
     range: Range,
 ): Promise<InlayHint[]> {
-    const parsed = parseDocument(document);
     const analysis = await getAnalysis(document);
-    return collectFunctionCallInlayHints(parsed.ast, range, analysis);
+    return collectFunctionCallInlayHints(analysis.ast, range);
 }
 
-function collectFunctionCallInlayHints(
-    node: AstNode,
-    range: Range,
-    analysis: JsoniqAnalysis,
-): InlayHint[] {
+function collectFunctionCallInlayHints(node: AstNode, range: Range): InlayHint[] {
     if (!rangesIntersect(node.range, range)) {
         return [];
     }
 
     return [
-        ...(node.kind === "function-call" ? createFunctionCallHints(node, analysis) : []),
-        ...node.children.flatMap((child) => collectFunctionCallInlayHints(child, range, analysis)),
+        ...(node.kind === "function-call" ? createFunctionCallHints(node) : []),
+        ...node.children.flatMap((child) => collectFunctionCallInlayHints(child, range)),
     ];
 }
 
-function createFunctionCallHints(call: FunctionCallAstNode, analysis: JsoniqAnalysis): InlayHint[] {
+function createFunctionCallHints(call: FunctionCallNode): InlayHint[] {
     return getFunctionCallArgumentNodes(call)
-        .map((argument) =>
-            createParameterHint(argument, getParameterName(call, argument, analysis)),
-        )
+        .map((argument) => createParameterHint(argument, getParameterName(call, argument)))
         .filter((hint): hint is InlayHint => hint !== null);
 }
 
 function createParameterHint(
-    argument: ArgumentAstNode,
+    argument: ArgumentNode,
     parameterName: string | undefined,
 ): InlayHint | null {
     if (parameterName === undefined) {
@@ -61,22 +52,18 @@ function createParameterHint(
     };
 }
 
-function getParameterName(
-    call: FunctionCallAstNode,
-    argument: ArgumentAstNode,
-    analysis: JsoniqAnalysis,
-): string | undefined {
-    const sourceDefinition = findResolvedSourceFunction(call, analysis);
+function getParameterName(call: FunctionCallNode, argument: ArgumentNode): string | undefined {
+    const sourceDefinition = findResolvedSourceFunction(call);
     if (sourceDefinition) {
         const parameter = sourceDefinition.parameters[argument.index];
-        return parameter === undefined ? undefined : `$${parameter.name.qname.localName}`;
+        return parameter === undefined ? undefined : `$${parameter.name.localName}`;
     }
 
     return getBuiltinParameterName(call, argument.index);
 }
 
 function getBuiltinParameterName(
-    call: FunctionCallAstNode,
+    call: FunctionCallNode,
     argumentIndex: number,
 ): string | undefined {
     const catalogEntry = getFunctionCatalogEntry(call);

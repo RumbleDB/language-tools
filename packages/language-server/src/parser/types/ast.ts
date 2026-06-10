@@ -4,7 +4,6 @@ import type {
     LexicalFunctionName,
     LexicalQName,
     LexicalReferenceNameByKind,
-    LexicalVarName,
     Prefix,
 } from "./name.js";
 
@@ -27,8 +26,7 @@ export type AstNodeKind =
     | "named-function-reference"
     | "variable-reference"
     | "context-item-expression"
-    | "argument"
-    | "unknown";
+    | "argument";
 
 export interface AstNodeBase<K extends AstNodeKind> {
     readonly kind: K;
@@ -46,7 +44,7 @@ export interface NamespaceDeclarationAstNode extends AstNodeBase<"namespace-decl
 }
 
 export interface ContextItemDeclarationAstNode extends AstNodeBase<"context-item-declaration"> {
-    readonly name: LexicalVarName;
+    readonly name: LexicalQName;
     readonly selectionRange: Range;
 }
 
@@ -56,14 +54,14 @@ export interface TypeDeclarationAstNode extends AstNodeBase<"type-declaration"> 
 }
 
 export interface AstParameter {
-    readonly name: LexicalVarName;
+    readonly name: LexicalQName;
     readonly range: Range;
     readonly selectionRange: Range;
     readonly index: number;
 }
 
 export interface AstBinding {
-    readonly name: LexicalVarName;
+    readonly name: LexicalQName;
     readonly range: Range;
     readonly selectionRange: Range;
 }
@@ -103,15 +101,6 @@ export interface FlowrExpressionAstNode extends AstNodeBase<"flowr-expression"> 
 
 export interface CatchClauseAstNode extends AstNodeBase<"catch-clause"> {}
 
-export type ReferenceAstNode<
-    K extends keyof LexicalReferenceNameByKind = keyof LexicalReferenceNameByKind,
-> = K extends keyof LexicalReferenceNameByKind
-    ? AstNodeBase<"reference"> & {
-          readonly name: LexicalReferenceNameByKind[K];
-          readonly referenceKind: K;
-      }
-    : never;
-
 export interface FunctionCallAstNode extends AstNodeBase<"function-call"> {
     readonly name: LexicalFunctionName;
     readonly nameRange: Range;
@@ -128,10 +117,6 @@ export interface VariableReferenceAstNode extends AstNodeBase<"variable-referenc
 
 export interface ContextItemExpressionAstNode extends AstNodeBase<"context-item-expression"> {
     readonly name: LexicalReferenceNameByKind["variable"];
-}
-
-export interface UnknownAstNode extends AstNodeBase<"unknown"> {
-    readonly reason: "unsupported-grammar" | "incomplete";
 }
 
 export interface ArgumentAstNode extends AstNodeBase<"argument"> {
@@ -151,13 +136,11 @@ export type AstNode =
     | CountClauseAstNode
     | FlowrExpressionAstNode
     | CatchClauseAstNode
-    | ReferenceAstNode
     | FunctionCallAstNode
     | NamedFunctionReferenceAstNode
     | VariableReferenceAstNode
     | ContextItemExpressionAstNode
-    | ArgumentAstNode
-    | UnknownAstNode;
+    | ArgumentAstNode;
 
 export type JsoniqAst = ModuleAstNode;
 

@@ -1,6 +1,5 @@
-import { resolvedQNameToString } from "server/analysis/names.js";
+import { QNameToString } from "server/analysis/names.js";
 import type { FunctionEntry } from "server/function-doc/types.js";
-import type { FunctionCallAstNode } from "server/parser/types/ast.js";
 import {
     MarkupKind,
     type ParameterInformation,
@@ -10,7 +9,8 @@ import {
 } from "vscode-languageserver";
 import { TextDocument } from "vscode-languageserver-textdocument";
 
-import { definitionNameToString, isSourceFunctionDefinition } from "./analysis/model.js";
+import type { FunctionCallNode } from "./analysis/ast.js";
+import { definitionNameToString, isSourceFunctionDefinition } from "./analysis/definitions.js";
 import { getAnalysis } from "./analysis/service.js";
 import {
     chooseBestSignatureIndex,
@@ -134,7 +134,7 @@ function resolveSourceSignatures(
     return {
         signatures: [
             createSignatureInformation(
-                resolvedQNameToString(functionDeclaration.name.qname),
+                QNameToString(functionDeclaration.name.qname, false),
                 functionDeclaration.parameters.map((parameter) => ({
                     label: definitionNameToString(parameter),
                 })),
@@ -146,12 +146,11 @@ function resolveSourceSignatures(
 }
 
 function resolveSignatures(
-    call: FunctionCallAstNode,
+    call: FunctionCallNode,
     activeParameter: number,
-    analysis: Awaited<ReturnType<typeof getAnalysis>>,
 ): { signatures: SignatureInformation[]; activeSignature: number } {
     const functionName = getFunctionCallName(call);
-    const resolvedDeclaration = findResolvedFunctionDeclaration(call, analysis);
+    const resolvedDeclaration = findResolvedFunctionDeclaration(call);
 
     return (
         resolveBuiltinSignatures(functionName, activeParameter) ??
@@ -175,11 +174,7 @@ export async function findSignatureHelp(
 
     const { call: activeCall, argument } = activeArgument;
     const activeParameter = argument.index;
-    const { signatures, activeSignature } = resolveSignatures(
-        activeCall,
-        activeParameter,
-        analysis,
-    );
+    const { signatures, activeSignature } = resolveSignatures(activeCall, activeParameter);
 
     return {
         signatures,

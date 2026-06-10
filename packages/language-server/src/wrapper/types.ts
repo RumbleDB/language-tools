@@ -1,12 +1,12 @@
 import type { Position } from "vscode-languageserver";
 
-import type { ResolvedFunctionName } from "../analysis/names.js";
+import type { FunctionName } from "../analysis/names.js";
 import type { WrapperResolvedQName } from "./names.js";
 
 export type SequenceType = string;
 
 export interface WrapperFunctionParameter {
-    name: ResolvedFunctionName | null;
+    name: FunctionName | null;
     type: SequenceType;
 }
 
@@ -16,7 +16,7 @@ export interface WrapperFunctionSignature {
 }
 
 export interface WrapperFunctionDefinition {
-    name: ResolvedFunctionName;
+    name: FunctionName;
     signature: WrapperFunctionSignature;
 }
 
