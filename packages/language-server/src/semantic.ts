@@ -9,9 +9,9 @@ import {
 import { Range } from "vscode-languageserver";
 import { TextDocument } from "vscode-languageserver-textdocument";
 
+import { DefinitionKind } from "./analysis/definitions.js";
 import { collectDefinitions, collectReferences } from "./analysis/queries.js";
 import { getAnalysis } from "./analysis/service.js";
-import type { DefinitionKind } from "./analysis/types.js";
 
 export const legend: SemanticTokensLegend = {
     tokenTypes: ["function", "parameter", "variable", "namespace", "type"],

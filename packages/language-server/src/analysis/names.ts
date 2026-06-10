@@ -1,70 +1,62 @@
 import { type LocalName, type Prefix } from "server/parser/types/name.js";
 
-export type ResolvedQName = {
+export type QName = {
     localName: LocalName;
     namespaceUri?: string;
     prefix?: Prefix;
 };
 
-export type ResolvedVarName = {
-    qname: ResolvedQName;
-};
-
-export type ResolvedFunctionName = {
-    qname: ResolvedQName;
+export type FunctionName = {
+    qname: QName;
     arity?: number;
 };
 
-export type ResolvedDeclarationNameByKind = {
+export type DeclarationNameByKind = {
     namespace: { prefix: Prefix };
-    function: ResolvedFunctionName;
-    parameter: ResolvedVarName;
-    "declare-variable": ResolvedVarName;
-    let: ResolvedVarName;
-    for: ResolvedVarName;
-    "for-position": ResolvedVarName;
-    "group-by": ResolvedVarName;
-    count: ResolvedVarName;
-    "catch-variable": ResolvedVarName;
-    type: { qname: ResolvedQName };
+    function: FunctionName;
+    parameter: QName;
+    "declare-variable": QName;
+    let: QName;
+    for: QName;
+    "for-position": QName;
+    "group-by": QName;
+    count: QName;
+    "catch-variable": QName;
+    type: QName;
 };
 
-export type ResolvedReferenceNameByKind = {
-    function: ResolvedFunctionName;
-    variable: ResolvedVarName;
+export type ReferenceNameByKind = {
+    function: FunctionName;
+    variable: QName;
 };
 
-export function resolvedQNameToString(qname: ResolvedQName): string {
+export function QNameToString(qname: QName, expanded: boolean = false): string {
+    if (expanded) {
+        return qname.namespaceUri === undefined
+            ? QNameToString(qname)
+            : `Q{${qname.namespaceUri}}${qname.localName}`;
+    }
     return qname.prefix === undefined ? qname.localName : `${qname.prefix}:${qname.localName}`;
 }
 
-export function expandedQNameToString(qname: ResolvedQName): string {
-    return qname.namespaceUri === undefined
-        ? resolvedQNameToString(qname)
-        : `Q{${qname.namespaceUri}}${qname.localName}`;
-}
-
-export function sameResolvedQName(left: ResolvedQName, right: ResolvedQName): boolean {
+export function sameQName(left: QName, right: QName): boolean {
     return left.namespaceUri === right.namespaceUri && left.localName === right.localName;
 }
 
-export function resolvedVarNameToString(name: ResolvedVarName): string {
-    return `$${resolvedQNameToString(name.qname)}`;
+export function functionNameToString(name: FunctionName, expanded: boolean = false): string {
+    return `${QNameToString(name.qname, expanded)}#${name.arity ?? "?"}`;
 }
 
-export function resolvedFunctionNameToString(name: ResolvedFunctionName): string {
-    return `${resolvedQNameToString(name.qname)}#${name.arity ?? "?"}`;
-}
-
-export function resolvedReferenceNameToString<K extends keyof ResolvedReferenceNameByKind>(
-    name: ResolvedReferenceNameByKind[K],
+export function referenceNameToString<K extends keyof ReferenceNameByKind>(
+    name: ReferenceNameByKind[K],
     kind: K,
+    expanded: boolean = false,
 ): string {
     switch (kind) {
         case "function":
-            return resolvedFunctionNameToString(name as ResolvedFunctionName);
+            return functionNameToString(name as FunctionName, expanded);
         case "variable":
-            return resolvedVarNameToString(name as ResolvedVarName);
+            return QNameToString(name as QName, expanded);
         default:
             throw kind satisfies never;
     }

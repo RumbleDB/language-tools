@@ -1,19 +1,19 @@
+import { JsoniqAnalysis } from "server/analysis/builder.js";
+import {
+    Definition,
+    isSourceFunctionDefinition,
+    SourceFunctionDefinition,
+} from "server/analysis/definitions.js";
 import { getW3Catalog } from "server/function-catalog/loader.js";
 import type { FunctionEntry } from "server/function-catalog/types.js";
 import type { Position } from "vscode-languageserver";
 
 import type { ArgumentNode, FunctionCallNode } from "../analysis/ast.js";
-import { resolvedQNameToString } from "../analysis/names.js";
+import { QNameToString } from "../analysis/names.js";
 import { findNodesThatContainPosition } from "../analysis/queries.js";
-import {
-    isSourceFunctionDefinition,
-    type Definition,
-    type JsoniqAnalysis,
-    type SourceFunctionDefinition,
-} from "../analysis/types.js";
 
 export function getFunctionCallName(call: FunctionCallNode): string {
-    return resolvedQNameToString(call.name.qname);
+    return QNameToString(call.name.qname);
 }
 
 export function getFunctionCallArgumentNodes(call: FunctionCallNode): ArgumentNode[] {

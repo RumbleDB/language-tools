@@ -1,9 +1,9 @@
 import {
-    type SourceDefinition,
-    type SourceFunctionDefinition,
-    type SourceParameterDefinition,
-    type SourceVariableDefinition,
-} from "server/analysis/types.js";
+    SourceDefinition,
+    SourceFunctionDefinition,
+    SourceParameterDefinition,
+    SourceVariableDefinition,
+} from "server/analysis/definitions.js";
 import { toResolvedQName } from "server/wrapper/names.js";
 import { getTypeInference } from "server/wrapper/type-inference.js";
 import {
@@ -49,18 +49,22 @@ function buildTypeInferenceIndex(entries: TypeInferenceResult["types"]): TypeInf
                     continue;
                 }
 
-                const parameterKey = buildInferenceKeyForParameter(functionPosition, functionName, {
-                    qname: parameter.name.qname,
-                });
+                const parameterKey = buildInferenceKeyForParameter(
+                    functionPosition,
+                    functionName,
+                    parameter.name.qname,
+                );
                 result.set(parameterKey, {
                     sequenceType: parameter.type,
                 });
             }
         } else {
             result.set(
-                buildInferenceKeyForVariable(entry.variableKind, entry.position, {
-                    qname: toResolvedQName(entry.qname),
-                }),
+                buildInferenceKeyForVariable(
+                    entry.variableKind,
+                    entry.position,
+                    toResolvedQName(entry.qname),
+                ),
                 {
                     sequenceType: entry.sequenceType,
                 },

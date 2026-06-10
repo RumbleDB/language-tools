@@ -1,9 +1,5 @@
-import {
-    expandedQNameToString,
-    type ResolvedFunctionName,
-    type ResolvedVarName,
-} from "server/analysis/names.js";
-import { SourceDefinition } from "server/analysis/types.js";
+import { SourceDefinition } from "server/analysis/definitions.js";
+import { FunctionName, functionNameToString, QName, QNameToString } from "server/analysis/names.js";
 
 const INFERENCE_KEY_SEPARATOR = "\u001F";
 
@@ -17,40 +13,32 @@ export function buildInferenceKey(
     return [kind, position.line, position.character, ...names].join(INFERENCE_KEY_SEPARATOR);
 }
 
-function formatVariableName(name: ResolvedVarName): string {
-    return `$${expandedQNameToString(name.qname)}`;
-}
-
-function formatFunctionName(name: ResolvedFunctionName): string {
-    return `${expandedQNameToString(name.qname)}#${name.arity ?? "?"}`;
-}
-
 export function buildInferenceKeyForFunction(
     position: { line: number; character: number },
-    name: ResolvedFunctionName,
+    name: FunctionName,
 ): InferenceKey {
-    return buildInferenceKey("function", position, formatFunctionName(name));
+    return buildInferenceKey("function", position, functionNameToString(name, true));
 }
 
 export function buildInferenceKeyForParameter(
     position: { line: number; character: number },
-    functionName: ResolvedFunctionName,
-    parameterName: ResolvedVarName,
+    functionName: FunctionName,
+    parameterName: QName,
 ): InferenceKey {
     return buildInferenceKey(
         "parameter",
         position,
-        formatFunctionName(functionName),
-        formatVariableName(parameterName),
+        functionNameToString(functionName, true),
+        QNameToString(parameterName),
     );
 }
 
 export function buildInferenceKeyForVariable(
     kind: string,
     position: { line: number; character: number },
-    name: ResolvedVarName,
+    name: QName,
 ): InferenceKey {
-    return buildInferenceKey(kind, position, formatVariableName(name));
+    return buildInferenceKey(kind, position, QNameToString(name));
 }
 
 export function buildInferenceKeyForDefinition(definition: SourceDefinition): InferenceKey {

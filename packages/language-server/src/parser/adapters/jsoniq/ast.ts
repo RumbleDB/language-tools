@@ -113,10 +113,8 @@ class JsoniqAstBuilder extends jsoniqVisitor<AstVisitResult> {
         {
             kind: "context-item-declaration",
             name: {
-                qname: {
-                    kind: "unprefixed-qname",
-                    localName: "$",
-                },
+                kind: "unprefixed-qname",
+                localName: "$",
             },
             range: rangeFromNode(node, this.document),
             selectionRange: {
@@ -130,7 +128,7 @@ class JsoniqAstBuilder extends jsoniqVisitor<AstVisitResult> {
     public override visitContextItemExpr = (node: ContextItemExprContext): AstVisitResult => [
         {
             kind: "context-item-expression",
-            name: { qname: { kind: "unprefixed-qname", localName: "$" } },
+            name: { kind: "unprefixed-qname", localName: "$" },
             range: rangeFromNode(node, this.document),
             children: [],
         },

@@ -1,7 +1,6 @@
 import {
     LexicalFunctionName,
     LexicalQName,
-    LexicalVarName,
     type PrefixedQName,
     type UnprefixedQName,
 } from "server/parser/types/name.js";
@@ -55,9 +54,9 @@ export function parseFunctionName(
     };
 }
 
-export function parseVarName(node: VarRefContext): LexicalVarName | null {
+export function parseVarName(node: VarRefContext): LexicalQName | null {
     const qname = node.qname();
-    return qname === null ? null : { qname: parseQname(qname) };
+    return qname === null ? null : parseQname(qname);
 }
 
 export function functionName(

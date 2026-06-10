@@ -5,10 +5,10 @@ import {
     MAP_NAMESPACE,
     MATH_NAMESPACE,
 } from "server/analysis/default-namespaces.js";
-import type { BaseDefinition } from "server/analysis/types.js";
+import { BaseDefinition } from "server/analysis/definitions.js";
 import { createLogger } from "server/utils/logger.js";
 
-import { expandedQNameToString, type ResolvedFunctionName } from "../analysis/names.js";
+import { functionNameToString, type FunctionName } from "../analysis/names.js";
 import { getWrapperClient } from "./client.js";
 import type { WrapperDaemonResponse } from "./protocol.js";
 import { type BuiltinFunctionsResponseBody, type WrapperFunctionSignature } from "./types.js";
@@ -25,7 +25,7 @@ export type BuiltinFunctionListResponse = WrapperDaemonResponse<
 >;
 
 export interface BuiltinFunctionDefinition extends BaseDefinition<"builtin-function"> {
-    name: ResolvedFunctionName;
+    name: FunctionName;
     kind: "builtin-function";
     signature: WrapperFunctionSignature;
     isBuiltin: true;
@@ -45,10 +45,6 @@ const BUILTIN_FUNCTIONS_REQUEST: BuiltinFunctionsRequestPayload = {
 
 let builtinDefinitionsPromise: Promise<Map<string, BuiltinFunctionDefinition>> | null = null;
 const logger = createLogger("wrapper:builtin-functions");
-
-function getBuiltinFunctionKey(name: ResolvedFunctionName): string {
-    return `${expandedQNameToString(name.qname)}#${name.arity ?? "?"}`;
-}
 
 async function getBuiltinFunctionMap(): Promise<Map<string, BuiltinFunctionDefinition>> {
     if (builtinDefinitionsPromise !== null) {
@@ -70,7 +66,7 @@ async function getBuiltinFunctionMap(): Promise<Map<string, BuiltinFunctionDefin
         if (response !== undefined) {
             for (const builtinFunction of response.body.builtinFunctions) {
                 const name = builtinFunction.name;
-                builtinDefinitionsByName.set(getBuiltinFunctionKey(name), {
+                builtinDefinitionsByName.set(functionNameToString(name), {
                     name,
                     kind: "builtin-function",
                     signature: builtinFunction.signature,
@@ -88,9 +84,9 @@ async function getBuiltinFunctionMap(): Promise<Map<string, BuiltinFunctionDefin
 
 function findBuiltinFunctionDefinition(
     map: Map<string, BuiltinFunctionDefinition>,
-    name: ResolvedFunctionName,
+    name: FunctionName,
 ): BuiltinFunctionDefinition | undefined {
-    const direct = map.get(getBuiltinFunctionKey(name));
+    const direct = map.get(functionNameToString(name));
     if (direct !== undefined) {
         return direct;
     }
@@ -101,7 +97,7 @@ function findBuiltinFunctionDefinition(
 
     for (const namespaceUri of BUILTIN_FUNCTION_NAMESPACES) {
         const candidate = map.get(
-            getBuiltinFunctionKey({
+            functionNameToString({
                 ...name,
                 qname: {
                     localName: name.qname.localName,
@@ -119,13 +115,13 @@ function findBuiltinFunctionDefinition(
 
 export type BuiltinFunctions = {
     all: BuiltinFunctionDefinition[];
-    find: (name: ResolvedFunctionName) => BuiltinFunctionDefinition | undefined;
+    find: (name: FunctionName) => BuiltinFunctionDefinition | undefined;
 };
 
 export async function getBuiltinFunctions(): Promise<BuiltinFunctions> {
     const map = await getBuiltinFunctionMap();
     return {
         all: [...map.values()],
-        find: (name: ResolvedFunctionName) => findBuiltinFunctionDefinition(map, name),
+        find: (name: FunctionName) => findBuiltinFunctionDefinition(map, name),
     };
 }

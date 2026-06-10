@@ -2,8 +2,7 @@ import { getBuiltinFunctions } from "server/wrapper/builtin-functions.js";
 import { DocumentUri } from "vscode-languageserver";
 import { TextDocument } from "vscode-languageserver-textdocument";
 
-import { buildAnalysis } from "./builder.js";
-import type { JsoniqAnalysis } from "./types.js";
+import { buildAnalysis, JsoniqAnalysis } from "./builder.js";
 
 interface CachedAnalysis {
     version: number;

@@ -7,15 +7,15 @@ import {
 } from "vscode-languageserver";
 import { TextDocument } from "vscode-languageserver-textdocument";
 
-import { resolvedQNameToString } from "./analysis/names.js";
-import { getVisibleDeclarationsAtPosition } from "./analysis/queries.js";
 import {
+    BaseDefinition,
     definitionNameToString,
     isSourceFunctionDefinition,
     isSourceParameterDefinition,
     isSourceVariableDefinition,
-    type BaseDefinition,
-} from "./analysis/types.js";
+} from "./analysis/definitions.js";
+import { QNameToString } from "./analysis/names.js";
+import { getVisibleDeclarationsAtPosition } from "./analysis/queries.js";
 import { getBuiltinFunctionDocumentation } from "./function-catalog/index.js";
 import { getW3Catalog } from "./function-catalog/loader.js";
 import { collectCompletionIntent } from "./parser/index.js";
@@ -93,7 +93,7 @@ export async function findCompletions(
 function toCompletionItem(declaration: BaseDefinition): CompletionItem {
     const name = definitionNameToString(declaration);
     if (isSourceFunctionDefinition(declaration)) {
-        const label = resolvedQNameToString(declaration.name.qname);
+        const label = QNameToString(declaration.name.qname);
         const signature = `${label}(${declaration.parameters
             .map((parameter) => definitionNameToString(parameter))
             .join(", ")})`;
@@ -127,7 +127,7 @@ async function getBuiltinFunctionCompletionItems(): Promise<CompletionItem[]> {
 
     for (const definition of (await getBuiltinFunctions()).all) {
         const { qname, arity } = definition.name;
-        const functionName = resolvedQNameToString(qname);
+        const functionName = QNameToString(qname);
         const catalogKey = `${qname.prefix || "fn"}:${qname.localName}`;
         const overloadCount = catalog[catalogKey]?.signatures.length;
         const parameterTypes = definition.signature.parameterTypes

@@ -2,14 +2,14 @@ import { getBuiltinFunctionHover } from "server/function-catalog/index.js";
 import { MarkupKind, type Hover, type Position } from "vscode-languageserver";
 import { TextDocument } from "vscode-languageserver-textdocument";
 
-import { findSymbolAtPosition } from "./analysis/queries.js";
-import { getAnalysis } from "./analysis/service.js";
 import {
+    Definition,
     definitionNameToString,
     isSourceDefinition,
-    type Definition,
-    type SourceDefinition,
-} from "./analysis/types.js";
+    SourceDefinition,
+} from "./analysis/definitions.js";
+import { findSymbolAtPosition } from "./analysis/queries.js";
+import { getAnalysis } from "./analysis/service.js";
 import { formatInferredType } from "./type-inference/format.js";
 import { getTypeInferenceIndex, TypeInferenceIndex } from "./type-inference/service.js";
 

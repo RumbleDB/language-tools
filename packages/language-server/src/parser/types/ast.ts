@@ -4,7 +4,6 @@ import type {
     LexicalFunctionName,
     LexicalQName,
     LexicalReferenceNameByKind,
-    LexicalVarName,
     Prefix,
 } from "./name.js";
 
@@ -45,7 +44,7 @@ export interface NamespaceDeclarationAstNode extends AstNodeBase<"namespace-decl
 }
 
 export interface ContextItemDeclarationAstNode extends AstNodeBase<"context-item-declaration"> {
-    readonly name: LexicalVarName;
+    readonly name: LexicalQName;
     readonly selectionRange: Range;
 }
 
@@ -55,14 +54,14 @@ export interface TypeDeclarationAstNode extends AstNodeBase<"type-declaration"> 
 }
 
 export interface AstParameter {
-    readonly name: LexicalVarName;
+    readonly name: LexicalQName;
     readonly range: Range;
     readonly selectionRange: Range;
     readonly index: number;
 }
 
 export interface AstBinding {
-    readonly name: LexicalVarName;
+    readonly name: LexicalQName;
     readonly range: Range;
     readonly selectionRange: Range;
 }

@@ -23,14 +23,14 @@ import type {
 } from "server/parser/types/ast.js";
 import {
     isPrefixedQName,
+    Prefix,
     type LexicalFunctionName,
     type LexicalQName,
     type LexicalReferenceNameByKind,
-    type LexicalVarName,
 } from "server/parser/types/name.js";
 import { AstVisitor } from "server/parser/types/visitor.js";
 import { BuiltinFunctions } from "server/wrapper/builtin-functions.js";
-import { DiagnosticSeverity, Position, Range } from "vscode-languageserver";
+import { Diagnostic, DiagnosticSeverity, Position, Range } from "vscode-languageserver";
 import { TextDocument } from "vscode-languageserver-textdocument";
 
 import type {
@@ -38,6 +38,7 @@ import type {
     AstNode,
     DeclarationNode,
     FunctionCallNode,
+    JsoniqAst,
     ReferenceNode,
 } from "./ast.js";
 import { defaultNamespaces } from "./default-namespaces.js";
@@ -47,26 +48,21 @@ import {
     createParameterDefinition,
     createTypeDefinition,
     createVariableDefinition,
+    Definition,
+    isSourceDefinition,
+    SourceDefinition,
+    SourceFunctionDefinition,
+    SourceNamespaceDefinition,
+    VariableKind,
 } from "./definitions.js";
 import {
-    resolvedReferenceNameToString,
-    type ResolvedFunctionName,
-    type ResolvedQName,
-    type ResolvedReferenceNameByKind,
-    type ResolvedVarName,
+    referenceNameToString,
+    type FunctionName,
+    type QName,
+    type ReferenceNameByKind,
 } from "./names.js";
+import { ResolvedReference } from "./reference.js";
 import { Scope } from "./scope.js";
-import {
-    type AnyReference,
-    type Definition,
-    type JsoniqAnalysis,
-    type ResolvedReference,
-    type SourceDefinition,
-    type SourceFunctionDefinition,
-    type SourceNamespaceDefinition,
-    type VariableKind,
-    isSourceDefinition,
-} from "./types.js";
 
 type LexicalReference<
     K extends keyof LexicalReferenceNameByKind = keyof LexicalReferenceNameByKind,
@@ -74,19 +70,26 @@ type LexicalReference<
     ? {
           kind: K;
           name: LexicalReferenceNameByKind[K];
-          range: AnyReference["range"];
+          range: Range;
       }
     : never;
 
 const CATCH_VARIABLES = [
-    { qname: { kind: "prefixed-qname", prefix: "err", localName: "code" } },
-    { qname: { kind: "prefixed-qname", prefix: "err", localName: "description" } },
-    { qname: { kind: "prefixed-qname", prefix: "err", localName: "value" } },
-    { qname: { kind: "prefixed-qname", prefix: "err", localName: "module" } },
-    { qname: { kind: "prefixed-qname", prefix: "err", localName: "line-number" } },
-    { qname: { kind: "prefixed-qname", prefix: "err", localName: "column-number" } },
-    { qname: { kind: "prefixed-qname", prefix: "err", localName: "additional" } },
+    { kind: "prefixed-qname", prefix: "err", localName: "code" },
+    { kind: "prefixed-qname", prefix: "err", localName: "description" },
+    { kind: "prefixed-qname", prefix: "err", localName: "value" },
+    { kind: "prefixed-qname", prefix: "err", localName: "module" },
+    { kind: "prefixed-qname", prefix: "err", localName: "line-number" },
+    { kind: "prefixed-qname", prefix: "err", localName: "column-number" },
+    { kind: "prefixed-qname", prefix: "err", localName: "additional" },
 ] as const;
+
+export interface JsoniqAnalysis {
+    ast: JsoniqAst;
+    scope: Scope;
+    namespaces: Map<Prefix, SourceNamespaceDefinition>;
+    diagnostics: Diagnostic[];
+}
 
 class AnalysisBuilder extends AstVisitor<AstNode[]> {
     private static readonly NEVER_VISIBLE_OFFSET = Number.POSITIVE_INFINITY;
@@ -161,7 +164,7 @@ class AnalysisBuilder extends AstVisitor<AstNode[]> {
         const definition = createVariableDefinition(
             this.document,
             "declare-variable",
-            this.normalizeVarName(node.name, node.selectionRange),
+            this.normalizeQName(node.name, node.selectionRange),
             node.range,
             node.selectionRange,
         );
@@ -172,7 +175,7 @@ class AnalysisBuilder extends AstVisitor<AstNode[]> {
     protected override visitTypeDeclaration(node: TypeDeclarationAstNode): AstNode[] {
         const definition = createTypeDefinition(
             this.document,
-            { qname: this.normalizeQName(node.name.qname, node.selectionRange) },
+            this.normalizeQName(node.name.qname, node.selectionRange),
             node.range,
             node.selectionRange,
         );
@@ -201,7 +204,7 @@ class AnalysisBuilder extends AstVisitor<AstNode[]> {
         const definition = createVariableDefinition(
             this.document,
             "declare-variable",
-            this.normalizeVarName(node.binding.name, node.binding.selectionRange),
+            this.normalizeQName(node.binding.name, node.binding.selectionRange),
             node.binding.range,
             node.binding.selectionRange,
             node.completed
@@ -251,7 +254,7 @@ class AnalysisBuilder extends AstVisitor<AstNode[]> {
                 const definition = createVariableDefinition(
                     this.document,
                     "catch-variable",
-                    this.normalizeVarName(name, node.range),
+                    this.normalizeQName(name, node.range),
                     node.range,
                     node.range,
                     this.document.offsetAt(node.range.start),
@@ -392,9 +395,9 @@ class AnalysisBuilder extends AstVisitor<AstNode[]> {
         this.currentScope.declare(definition);
     }
 
-    private resolve<K extends keyof ResolvedReferenceNameByKind>(
+    private resolve<K extends keyof ReferenceNameByKind>(
         kind: K,
-        name: ResolvedReferenceNameByKind[K],
+        name: ReferenceNameByKind[K],
     ): Definition | undefined {
         if (kind === "function") {
             const builtinDefinition = this.builtinFunctions.find(name);
@@ -410,20 +413,20 @@ class AnalysisBuilder extends AstVisitor<AstNode[]> {
         const name =
             reference.kind === "function"
                 ? this.normalizeFunctionName(reference.name as LexicalFunctionName, reference.range)
-                : this.normalizeVarName(reference.name as LexicalVarName, reference.range);
+                : this.normalizeQName(reference.name, reference.range);
         return this.recordNormalizedReference(
             reference.kind,
-            name as ResolvedReferenceNameByKind[typeof reference.kind],
+            name as ReferenceNameByKind[typeof reference.kind],
             reference.range,
         );
     }
 
-    private recordNormalizedReference<K extends keyof ResolvedReferenceNameByKind>(
+    private recordNormalizedReference<K extends keyof ReferenceNameByKind>(
         kind: K,
-        name: ResolvedReferenceNameByKind[K],
+        name: ReferenceNameByKind[K],
         range: Range,
     ): ReferenceNode<K> {
-        const lookupName = resolvedReferenceNameToString(name, kind);
+        const lookupName = referenceNameToString(name, kind);
         const declaration = this.resolve(kind, name);
         const resolvedReference =
             declaration === undefined
@@ -463,7 +466,7 @@ class AnalysisBuilder extends AstVisitor<AstNode[]> {
         return parameters.map((parameter) => {
             const parameterDefinition = createParameterDefinition(
                 this.document,
-                this.normalizeVarName(parameter.name, parameter.selectionRange),
+                this.normalizeQName(parameter.name, parameter.selectionRange),
                 parameter.range,
                 parameter.selectionRange,
                 definition,
@@ -478,28 +481,21 @@ class AnalysisBuilder extends AstVisitor<AstNode[]> {
         return createVariableDefinition(
             this.document,
             kind,
-            this.normalizeVarName(binding.name, binding.selectionRange),
+            this.normalizeQName(binding.name, binding.selectionRange),
             binding.range,
             binding.selectionRange,
             this.document.offsetAt(binding.range.end),
         );
     }
 
-    private normalizeFunctionName(name: LexicalFunctionName, range: Range): ResolvedFunctionName {
+    private normalizeFunctionName(name: LexicalFunctionName, range: Range): FunctionName {
         return {
             ...name,
             qname: this.normalizeQName(name.qname, range),
         };
     }
 
-    private normalizeVarName(name: LexicalVarName, range: Range): ResolvedVarName {
-        return {
-            ...name,
-            qname: this.normalizeQName(name.qname, range),
-        };
-    }
-
-    private normalizeQName(qname: LexicalQName, range: Range): ResolvedQName {
+    private normalizeQName(qname: LexicalQName, range: Range): QName {
         const namespaceUri = isPrefixedQName(qname)
             ? this.analysis.namespaces.get(qname.prefix)?.namespaceUri
             : undefined;

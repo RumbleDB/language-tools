@@ -1,7 +1,8 @@
 import type { Range } from "vscode-languageserver";
 
-import type { ResolvedFunctionName, ResolvedReferenceNameByKind } from "./names.js";
-import type { Definition, ResolvedReference, SourceDefinition } from "./types.js";
+import { Definition, SourceDefinition } from "./definitions.js";
+import type { FunctionName, ReferenceNameByKind } from "./names.js";
+import { ResolvedReference } from "./reference.js";
 
 export type AstNodeKind = "module" | "declaration" | "reference" | "function-call" | "argument";
 
@@ -19,15 +20,15 @@ export interface DeclarationNode extends AstNodeBase<"declaration"> {
 }
 
 export interface ReferenceNode<
-    K extends keyof ResolvedReferenceNameByKind = keyof ResolvedReferenceNameByKind,
+    K extends keyof ReferenceNameByKind = keyof ReferenceNameByKind,
 > extends AstNodeBase<"reference"> {
     referenceKind: K;
-    name: ResolvedReferenceNameByKind[K];
+    name: ReferenceNameByKind[K];
     resolution: ResolvedReference<K> | undefined;
 }
 
 export interface FunctionCallNode extends AstNodeBase<"function-call"> {
-    name: ResolvedFunctionName;
+    name: FunctionName;
     nameRange: Range;
     reference?: ReferenceNode<"function">;
     arguments: ArgumentNode[];

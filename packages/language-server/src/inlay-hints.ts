@@ -56,7 +56,7 @@ function getParameterName(call: FunctionCallNode, argument: ArgumentNode): strin
     const sourceDefinition = findResolvedSourceFunction(call);
     if (sourceDefinition) {
         const parameter = sourceDefinition.parameters[argument.index];
-        return parameter === undefined ? undefined : `$${parameter.name.qname.localName}`;
+        return parameter === undefined ? undefined : `$${parameter.name.localName}`;
     }
 
     return getBuiltinParameterName(call, argument.index);

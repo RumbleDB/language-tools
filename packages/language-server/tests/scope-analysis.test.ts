@@ -1,4 +1,5 @@
 import { buildAnalysis } from "server/analysis/builder.js";
+import { isSourceDefinition } from "server/analysis/definitions.js";
 import {
     findNodesThatContainPosition,
     findNodeThatContainsPosition,
@@ -8,7 +9,6 @@ import {
     getVisibleDeclarationsAtPosition,
 } from "server/analysis/queries.js";
 import { getAnalysis } from "server/analysis/service.js";
-import { isSourceDefinition } from "server/analysis/types.js";
 import { describe, expect, it } from "vitest";
 
 import { positionAt, testDocument } from "./test-utils.js";
@@ -531,8 +531,7 @@ describe("JSONiq variable scope analysis", () => {
 
         const analysis = await buildAnalysis(document);
         const parameter = collectDefinitions(analysis).find(
-            (declaration) =>
-                declaration.kind === "parameter" && declaration.name.qname.localName === "x",
+            (declaration) => declaration.kind === "parameter" && declaration.name.localName === "x",
         );
 
         expect(parameter).toBeDefined();
@@ -559,8 +558,7 @@ describe("JSONiq variable scope analysis", () => {
 
         const analysis = await buildAnalysis(document);
         const parameter = collectDefinitions(analysis).find(
-            (declaration) =>
-                declaration.kind === "parameter" && declaration.name.qname.localName === "x",
+            (declaration) => declaration.kind === "parameter" && declaration.name.localName === "x",
         );
 
         expect(parameter).toBeDefined();
@@ -635,15 +633,14 @@ describe("JSONiq variable scope analysis", () => {
 
         const analysis = await buildAnalysis(document);
         const xDeclarations = collectDefinitions(analysis).filter(
-            (declaration) => declaration.kind === "let" && declaration.name.qname.localName === "x",
+            (declaration) => declaration.kind === "let" && declaration.name.localName === "x",
         );
 
         expect(xDeclarations).toHaveLength(2);
 
         const references = collectReferences(analysis)
             .filter(
-                (reference) =>
-                    reference.kind === "variable" && reference.name.qname.localName === "x",
+                (reference) => reference.kind === "variable" && reference.name.localName === "x",
             )
             .map((reference) => {
                 if (isSourceDefinition(reference.declaration)) {
@@ -672,7 +669,7 @@ describe("JSONiq variable scope analysis", () => {
         expect(
             visibleDeclarations
                 .filter((d) => d.kind === "declare-variable")
-                .map((declaration) => declaration.name.qname.localName),
+                .map((declaration) => declaration.name.localName),
         ).not.toContain("$a");
     });
 

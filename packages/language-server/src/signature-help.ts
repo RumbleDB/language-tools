@@ -1,4 +1,4 @@
-import { resolvedQNameToString } from "server/analysis/names.js";
+import { QNameToString } from "server/analysis/names.js";
 import type { FunctionEntry } from "server/function-catalog/types.js";
 import {
     MarkupKind,
@@ -10,8 +10,8 @@ import {
 import { TextDocument } from "vscode-languageserver-textdocument";
 
 import type { FunctionCallNode } from "./analysis/ast.js";
+import { definitionNameToString, isSourceFunctionDefinition } from "./analysis/definitions.js";
 import { getAnalysis } from "./analysis/service.js";
-import { definitionNameToString, isSourceFunctionDefinition } from "./analysis/types.js";
 import {
     chooseBestSignatureIndex,
     findCurrentArgument,
@@ -134,7 +134,7 @@ function resolveSourceSignatures(
     return {
         signatures: [
             createSignatureInformation(
-                resolvedQNameToString(functionDeclaration.name.qname),
+                QNameToString(functionDeclaration.name.qname),
                 functionDeclaration.parameters.map((parameter) => ({
                     label: definitionNameToString(parameter),
                 })),

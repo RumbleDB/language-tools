@@ -10,11 +10,13 @@ import type {
     TypeDeclarationAstNode,
     VariableDeclarationAstNode,
 } from "server/parser/types/ast.js";
-import { lexicalQNameToString, varNameToString } from "server/parser/types/name.js";
+import { lexicalQNameToString } from "server/parser/types/name.js";
 import { AstVisitor } from "server/parser/types/visitor.js";
 import { comparePositions } from "server/utils/position.js";
 import { DocumentSymbol, SymbolKind, type Range } from "vscode-languageserver";
 import { TextDocument } from "vscode-languageserver-textdocument";
+
+import { QNameToString } from "./names.js";
 
 interface SymbolOwner {
     range: Range;
@@ -43,7 +45,7 @@ export class DocumentSymbolsBuilder extends AstVisitor<void> {
 
     protected override visitContextItemDeclaration(node: ContextItemDeclarationAstNode): void {
         this.addSymbol(
-            varNameToString(node.name),
+            QNameToString(node.name),
             SymbolKind.Variable,
             node.range,
             node.selectionRange,
@@ -70,7 +72,7 @@ export class DocumentSymbolsBuilder extends AstVisitor<void> {
         );
         for (const parameter of node.parameters) {
             this.addSymbol(
-                varNameToString(parameter.name),
+                QNameToString(parameter.name),
                 SymbolKind.Variable,
                 parameter.range,
                 parameter.selectionRange,
@@ -81,7 +83,7 @@ export class DocumentSymbolsBuilder extends AstVisitor<void> {
 
     protected override visitVariableDeclaration(node: VariableDeclarationAstNode): void {
         this.addSymbol(
-            varNameToString(node.binding.name),
+            QNameToString(node.binding.name),
             SymbolKind.Variable,
             node.binding.range,
             node.binding.selectionRange,
@@ -100,7 +102,7 @@ export class DocumentSymbolsBuilder extends AstVisitor<void> {
 
     protected override visitCountClause(node: CountClauseAstNode): void {
         this.addSymbol(
-            varNameToString(node.binding.name),
+            QNameToString(node.binding.name),
             SymbolKind.Variable,
             node.binding.range,
             node.binding.selectionRange,
@@ -111,7 +113,7 @@ export class DocumentSymbolsBuilder extends AstVisitor<void> {
     protected override visitForBinding(node: ForBindingAstNode): void {
         for (const binding of node.bindings) {
             this.addSymbol(
-                varNameToString(binding.name),
+                QNameToString(binding.name),
                 SymbolKind.Variable,
                 binding.range,
                 binding.selectionRange,
@@ -122,7 +124,7 @@ export class DocumentSymbolsBuilder extends AstVisitor<void> {
 
     private visitVariableBinding(node: LetBindingAstNode | GroupByBindingAstNode): void {
         this.addSymbol(
-            varNameToString(node.binding.name),
+            QNameToString(node.binding.name),
             SymbolKind.Variable,
             node.binding.range,
             node.binding.selectionRange,
