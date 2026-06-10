@@ -93,7 +93,7 @@ export async function findCompletions(
 function toCompletionItem(declaration: BaseDefinition): CompletionItem {
     const name = definitionNameToString(declaration);
     if (isSourceFunctionDefinition(declaration)) {
-        const label = QNameToString(declaration.name.qname, true);
+        const label = QNameToString(declaration.name.qname, false);
         const signature = `${label}(${declaration.parameters
             .map((parameter) => definitionNameToString(parameter))
             .join(", ")})`;
@@ -127,7 +127,7 @@ async function getBuiltinFunctionCompletionItems(): Promise<CompletionItem[]> {
 
     for (const definition of (await getBuiltinFunctions()).all) {
         const { qname, arity } = definition.name;
-        const functionName = QNameToString(qname, true);
+        const functionName = QNameToString(qname, false);
         const catalogKey = `${qname.prefix || "fn"}:${qname.localName}`;
         const overloadCount = catalog[catalogKey]?.signatures.length;
         const parameterTypes = definition.signature.parameterTypes
