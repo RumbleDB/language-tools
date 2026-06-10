@@ -25,7 +25,6 @@ import {
     Prefix,
     type LexicalFunctionName,
     type LexicalQName,
-    type LexicalReferenceNameByKind,
 } from "server/parser/types/name.js";
 import { AstVisitor } from "server/parser/types/visitor.js";
 import { BuiltinFunctions } from "server/wrapper/builtin-functions.js";
@@ -62,16 +61,6 @@ import {
 } from "./names.js";
 import { ResolvedReference } from "./reference.js";
 import { Scope } from "./scope.js";
-
-type LexicalReference<
-    K extends keyof LexicalReferenceNameByKind = keyof LexicalReferenceNameByKind,
-> = K extends keyof LexicalReferenceNameByKind
-    ? {
-          kind: K;
-          name: LexicalReferenceNameByKind[K];
-          range: Range;
-      }
-    : never;
 
 const CATCH_VARIABLES = [
     { kind: "prefixed-qname", prefix: "err", localName: "code" },
@@ -163,7 +152,7 @@ class AnalysisBuilder extends AstVisitor<AstNode[]> {
         const definition = createVariableDefinition(
             this.document,
             "declare-variable",
-            this.normalizeQName(node.name, node.selectionRange),
+            this.resolveQName(node.name, node.selectionRange),
             node.range,
             node.selectionRange,
         );
@@ -174,7 +163,7 @@ class AnalysisBuilder extends AstVisitor<AstNode[]> {
     protected override visitTypeDeclaration(node: TypeDeclarationAstNode): AstNode[] {
         const definition = createTypeDefinition(
             this.document,
-            this.normalizeQName(node.name.qname, node.selectionRange),
+            this.resolveQName(node.name.qname, node.selectionRange),
             node.range,
             node.selectionRange,
         );
@@ -203,7 +192,7 @@ class AnalysisBuilder extends AstVisitor<AstNode[]> {
         const definition = createVariableDefinition(
             this.document,
             "declare-variable",
-            this.normalizeQName(node.binding.name, node.binding.selectionRange),
+            this.resolveQName(node.binding.name, node.binding.selectionRange),
             node.binding.range,
             node.binding.selectionRange,
             node.completed
@@ -253,7 +242,7 @@ class AnalysisBuilder extends AstVisitor<AstNode[]> {
                 const definition = createVariableDefinition(
                     this.document,
                     "catch-variable",
-                    this.normalizeQName(name, node.range),
+                    this.resolveQName(name, node.range),
                     node.range,
                     node.range,
                     this.document.offsetAt(node.range.start),
@@ -267,21 +256,13 @@ class AnalysisBuilder extends AstVisitor<AstNode[]> {
 
     protected override visitVariableReference(node: VariableReferenceAstNode): AstNode[] {
         return [
-            this.recordReference({
-                kind: "variable",
-                name: node.name,
-                range: node.range,
-            }),
+            this.createReference("variable", this.resolveQName(node.name, node.range), node.range),
         ];
     }
 
     protected override visitContextItemExpression(node: ContextItemExpressionAstNode): AstNode[] {
         return [
-            this.recordReference({
-                kind: "variable",
-                name: node.name,
-                range: node.range,
-            }),
+            this.createReference("variable", this.resolveQName(node.name, node.range), node.range),
         ];
     }
 
@@ -326,7 +307,7 @@ class AnalysisBuilder extends AstVisitor<AstNode[]> {
         node: FunctionCallAstNode | NamedFunctionReferenceAstNode,
     ): FunctionCallNode {
         const name = this.normalizeFunctionName(node.name, node.nameRange);
-        const reference = this.recordNormalizedReference("function", name, node.nameRange);
+        const reference = this.createReference("function", name, node.nameRange);
         const children = [reference, ...this.visitChildrenAsNodes(node)];
         return this.adoptChildren<FunctionCallNode>(
             {
@@ -398,19 +379,7 @@ class AnalysisBuilder extends AstVisitor<AstNode[]> {
         return this.currentScope.resolve(kind, name);
     }
 
-    private recordReference(reference: LexicalReference): ReferenceNode {
-        const name =
-            reference.kind === "function"
-                ? this.normalizeFunctionName(reference.name as LexicalFunctionName, reference.range)
-                : this.normalizeQName(reference.name, reference.range);
-        return this.recordNormalizedReference(
-            reference.kind,
-            name as ReferenceNameByKind[typeof reference.kind],
-            reference.range,
-        );
-    }
-
-    private recordNormalizedReference<K extends keyof ReferenceNameByKind>(
+    private createReference<K extends keyof ReferenceNameByKind>(
         kind: K,
         name: ReferenceNameByKind[K],
         range: Range,
@@ -455,7 +424,7 @@ class AnalysisBuilder extends AstVisitor<AstNode[]> {
         return parameters.map((parameter) => {
             const parameterDefinition = createParameterDefinition(
                 this.document,
-                this.normalizeQName(parameter.name, parameter.selectionRange),
+                this.resolveQName(parameter.name, parameter.selectionRange),
                 parameter.range,
                 parameter.selectionRange,
                 definition,
@@ -470,7 +439,7 @@ class AnalysisBuilder extends AstVisitor<AstNode[]> {
         return createVariableDefinition(
             this.document,
             kind,
-            this.normalizeQName(binding.name, binding.selectionRange),
+            this.resolveQName(binding.name, binding.selectionRange),
             binding.range,
             binding.selectionRange,
             this.document.offsetAt(binding.range.end),
@@ -480,11 +449,11 @@ class AnalysisBuilder extends AstVisitor<AstNode[]> {
     private normalizeFunctionName(name: LexicalFunctionName, range: Range): FunctionName {
         return {
             ...name,
-            qname: this.normalizeQName(name.qname, range),
+            qname: this.resolveQName(name.qname, range),
         };
     }
 
-    private normalizeQName(qname: LexicalQName, range: Range): QName {
+    private resolveQName(qname: LexicalQName, range: Range): QName {
         const namespaceUri = isPrefixedQName(qname)
             ? this.analysis.namespaces.get(qname.prefix)?.namespaceUri
             : undefined;
