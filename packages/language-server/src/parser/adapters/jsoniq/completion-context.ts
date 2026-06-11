@@ -9,7 +9,11 @@ import {
     KEYWORD_COMPLETIONS,
     PREFERRED_COMPLETION_RULES,
 } from "./completion-data.js";
-import { jsoniqParser } from "./grammar/jsoniqParser.js";
+import {
+    getCompletionTokenContext,
+    type CompletionTokenContext,
+} from "./completion-token-context.js";
+import { JsoniqParser } from "./grammar/JsoniqParser.js";
 import type { JsoniqParsedDocument } from "./parse.js";
 
 export function getCompletionIntent(
@@ -24,6 +28,7 @@ const logger = createLogger("completion-context");
 interface JSONiqCompletionCandidates {
     tokenTypes: Set<number>;
     ruleIndices: Set<number>;
+    tokenContext: CompletionTokenContext;
 }
 
 function collectCompletionCandidates(
@@ -38,20 +43,25 @@ function collectCompletionCandidates(
             [...candidates.tokens.keys()].filter((tokenType) => tokenType !== Token.EOF),
         ),
         ruleIndices: new Set(candidates.rules.keys()),
+        tokenContext: getCompletionTokenContext(parsed.tokens, cursorOffset),
     };
 }
 
 function toCompletionIntent(candidates: JSONiqCompletionCandidates): CompletionIntent {
-    const allowFunctions = isFunctionReferenceContext(candidates);
-    const allowVariables = isVariableReferenceContext(candidates);
-    const allowVariableDeclarations = isVariableDeclarationContext(candidates);
+    const allowVariableDeclarations = candidates.tokenContext.allowVariableDeclarations;
+    const allowFunctions =
+        candidates.tokenContext.allowReferences &&
+        hasCandidateRule(candidates, JsoniqParser.RULE_functionCall);
+    const allowVariables =
+        candidates.tokenContext.allowReferences &&
+        hasCandidateRule(candidates, JsoniqParser.RULE_varRef);
     const keywords = keywordCompletions(candidates);
 
     const expectedTokens = [...candidates.tokenTypes].map(
-        (tokenType) => jsoniqParser.symbolicNames[tokenType] ?? tokenType,
+        (tokenType) => JsoniqParser.symbolicNames[tokenType] ?? tokenType,
     );
     const expectedRules = [...candidates.ruleIndices].map(
-        (ruleIndex) => jsoniqParser.ruleNames[ruleIndex] ?? ruleIndex,
+        (ruleIndex) => JsoniqParser.ruleNames[ruleIndex] ?? ruleIndex,
     );
 
     logger.debug("Completion candidates:", {
@@ -61,6 +71,7 @@ function toCompletionIntent(candidates: JSONiqCompletionCandidates): CompletionI
         keywords,
         expectedTokens,
         expectedRules,
+        tokenContext: candidates.tokenContext,
     });
 
     return {
@@ -79,7 +90,7 @@ function hasCandidateToken(candidates: JSONiqCompletionCandidates, tokenType: nu
     return candidates.tokenTypes.has(tokenType);
 }
 
-function getCompletionCandidates(parser: jsoniqParser, caretTokenIndex: number) {
+function getCompletionCandidates(parser: JsoniqParser, caretTokenIndex: number) {
     const core = new CodeCompletionCore(parser);
     core.ignoredTokens = IGNORED_COMPLETION_TOKENS;
     core.preferredRules = PREFERRED_COMPLETION_RULES;
@@ -87,27 +98,15 @@ function getCompletionCandidates(parser: jsoniqParser, caretTokenIndex: number) 
     return core.collectCandidates(caretTokenIndex);
 }
 
-function isFunctionReferenceContext(candidates: JSONiqCompletionCandidates): boolean {
-    return (
-        hasCandidateRule(candidates, jsoniqParser.RULE_functionCall) &&
-        !hasCandidateRule(candidates, jsoniqParser.RULE_declaredVarRef)
-    );
-}
-
-function isVariableReferenceContext(candidates: JSONiqCompletionCandidates): boolean {
-    return (
-        hasCandidateRule(candidates, jsoniqParser.RULE_varRef) &&
-        !hasCandidateRule(candidates, jsoniqParser.RULE_declaredVarRef)
-    );
-}
-
-function isVariableDeclarationContext(candidates: JSONiqCompletionCandidates): boolean {
-    return hasCandidateRule(candidates, jsoniqParser.RULE_declaredVarRef);
-}
-
 function keywordCompletions(candidates: JSONiqCompletionCandidates): ParserKeywordCompletion[] {
-    return KEYWORD_COMPLETIONS.filter((completion) =>
-        hasCandidateToken(candidates, completion.tokenType),
+    if (!candidates.tokenContext.allowKeywords) {
+        return [];
+    }
+
+    return KEYWORD_COMPLETIONS.filter(
+        (completion) =>
+            hasCandidateToken(candidates, completion.tokenType) &&
+            (!completion.prologOnly || candidates.tokenContext.allowPrologKeywords),
     ).map(({ label, insertText }) => ({
         label,
         ...(insertText === undefined ? {} : { insertText }),

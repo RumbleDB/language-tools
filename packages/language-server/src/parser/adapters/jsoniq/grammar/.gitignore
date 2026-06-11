@@ -1,4 +1,4 @@
 *
 !.gitignore
-!jsoniq.g4
+!*.g4
 !README.md

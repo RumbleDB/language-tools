@@ -1,4 +1,4 @@
-import type { ParseTree } from "antlr4ng";
+import { Token, type ParseTree } from "antlr4ng";
 import {
     attachParents,
     type AstNode,
@@ -24,12 +24,14 @@ import { TextDocument } from "vscode-languageserver-textdocument";
 import {
     CatchCaseStatementContext,
     CatchClauseContext,
+    CaseClauseContext,
+    CaseStatementContext,
     ContextItemDeclContext,
     ContextItemExprContext,
     CountClauseContext,
-    DeclaredVarRefContext,
-    FlowrExprContext,
-    FlowrStatementContext,
+    CopyDeclContext,
+    FlworExprContext,
+    FlworStatementContext,
     ForVarContext,
     FunctionCallContext,
     FunctionDeclContext,
@@ -37,17 +39,28 @@ import {
     LetVarContext,
     NamedFunctionRefContext,
     NamespaceDeclContext,
+    ParamContext,
+    PositionalVarContext,
+    QuantifiedExprVarContext,
+    SlidingWindowClauseContext,
+    TumblingWindowClauseContext,
     TypeDeclContext,
+    TypeSwitchStatementContext,
+    TypeswitchExprContext,
     VarDeclContext,
+    VarDeclForStatementContext,
     VarRefContext,
+    WindowVarsContext,
     ArgumentContext,
     type ModuleAndThisIsItContext,
     ArgumentListContext,
-} from "./grammar/jsoniqParser.js";
-import { jsoniqVisitor } from "./grammar/jsoniqVisitor.js";
+    JsoniqParser,
+} from "./grammar/JsoniqParser.js";
+import { JsoniqParserVisitor } from "./grammar/JsoniqParserVisitor.js";
 import { parseFunctionName, parseQname, parseVarName } from "./name.js";
 
 type AstVisitResult = AstNode[];
+type NextDefaultToken = (token: Token | null | undefined) => Token | null;
 
 function unquoteStringLiteral(text: string): string {
     return text.length >= 2 &&
@@ -57,8 +70,11 @@ function unquoteStringLiteral(text: string): string {
         : text;
 }
 
-class JsoniqAstBuilder extends jsoniqVisitor<AstVisitResult> {
-    public constructor(private readonly document: TextDocument) {
+class JsoniqAstBuilder extends JsoniqParserVisitor<AstVisitResult> {
+    public constructor(
+        private readonly document: TextDocument,
+        private readonly nextDefaultToken: NextDefaultToken,
+    ) {
         super();
     }
 
@@ -82,7 +98,7 @@ class JsoniqAstBuilder extends jsoniqVisitor<AstVisitResult> {
     ];
 
     public override visitNamespaceDecl = (node: NamespaceDeclContext): AstVisitResult => {
-        const nameNode = node.NCName();
+        const nameNode = node.ncName();
         if (nameNode === null) {
             return [];
         }
@@ -118,8 +134,8 @@ class JsoniqAstBuilder extends jsoniqVisitor<AstVisitResult> {
             },
             range: rangeFromNode(node, this.document),
             selectionRange: {
-                start: rangeFromNode(node.Kcontext(), this.document).start,
-                end: rangeFromNode(node.Kitem(), this.document).end,
+                start: rangeFromNode(node.KW_CONTEXT(), this.document).start,
+                end: rangeFromNode(node.KW_ITEM(), this.document).end,
             },
             children: [],
         } satisfies ContextItemDeclarationAstNode,
@@ -135,7 +151,11 @@ class JsoniqAstBuilder extends jsoniqVisitor<AstVisitResult> {
     ];
 
     public override visitTypeDecl = (node: TypeDeclContext): AstVisitResult => {
-        const nameNode = node.declaredQName().qname();
+        const nameNode = node.qname();
+        if (nameNode === undefined) {
+            return [];
+        }
+
         return [
             {
                 kind: "type-declaration",
@@ -152,15 +172,14 @@ class JsoniqAstBuilder extends jsoniqVisitor<AstVisitResult> {
             kind: "function-declaration",
             range: rangeFromNode(node, this.document),
             name: parseFunctionName(node),
-            nameRange: rangeFromNode(node.declaredQName(), this.document),
+            nameRange: rangeFromNode(node.functionName(), this.document),
             parameters: this.parameters(node),
             children: this.visitChildrenAsNodes(node),
         } satisfies FunctionDeclarationAstNode,
     ];
 
     public override visitVarDecl = (node: VarDeclContext): AstVisitResult => {
-        const binding = this.binding(node, node.declaredVarRef());
-        const semicolon = node.Ksemicolon();
+        const binding = this.binding(node, node.varRef());
 
         return binding === null
             ? []
@@ -168,7 +187,7 @@ class JsoniqAstBuilder extends jsoniqVisitor<AstVisitResult> {
                   {
                       kind: "variable-declaration",
                       binding,
-                      completed: semicolon !== null && semicolon.symbol.start >= 0,
+                      completed: this.nextDefaultToken(node.stop)?.type === JsoniqParser.SEMICOLON,
                       range: rangeFromNode(node, this.document),
                       children: this.visitChildrenAsNodes(node),
                   } satisfies VariableDeclarationAstNode,
@@ -177,8 +196,12 @@ class JsoniqAstBuilder extends jsoniqVisitor<AstVisitResult> {
 
     public override visitForVar = (node: ForVarContext): AstVisitResult => {
         const bindings: ForBindingAstNode["bindings"] = [];
-        for (const [index, declaredVarRef] of node.declaredVarRef().entries()) {
-            const binding = this.binding(node, declaredVarRef);
+        for (const [index, varRef] of [node._var_ref, node._at].entries()) {
+            if (varRef === undefined) {
+                continue;
+            }
+
+            const binding = this.binding(node, varRef);
             if (binding !== null) {
                 bindings.push({
                     ...binding,
@@ -200,7 +223,7 @@ class JsoniqAstBuilder extends jsoniqVisitor<AstVisitResult> {
     };
 
     public override visitLetVar = (node: LetVarContext): AstVisitResult => {
-        const binding = this.binding(node, node.declaredVarRef());
+        const binding = this.binding(node, node._var_ref);
         return binding === null
             ? []
             : [
@@ -214,7 +237,7 @@ class JsoniqAstBuilder extends jsoniqVisitor<AstVisitResult> {
     };
 
     public override visitGroupByVar = (node: GroupByVarContext): AstVisitResult => {
-        const binding = this.binding(node, node.declaredVarRef());
+        const binding = this.binding(node, node._var_ref);
         return binding === null
             ? []
             : [
@@ -228,7 +251,7 @@ class JsoniqAstBuilder extends jsoniqVisitor<AstVisitResult> {
     };
 
     public override visitCountClause = (node: CountClauseContext): AstVisitResult => {
-        const binding = this.binding(node, node.declaredVarRef());
+        const binding = this.binding(node, node.varRef());
         return binding === null
             ? []
             : [
@@ -241,7 +264,7 @@ class JsoniqAstBuilder extends jsoniqVisitor<AstVisitResult> {
               ];
     };
 
-    public override visitFlowrExpr = (node: FlowrExprContext): AstVisitResult => [
+    public override visitFlworExpr = (node: FlworExprContext): AstVisitResult => [
         {
             kind: "flowr-expression",
             range: rangeFromNode(node, this.document),
@@ -249,7 +272,7 @@ class JsoniqAstBuilder extends jsoniqVisitor<AstVisitResult> {
         },
     ];
 
-    public override visitFlowrStatement = (node: FlowrStatementContext): AstVisitResult => [
+    public override visitFlworStatement = (node: FlworStatementContext): AstVisitResult => [
         {
             kind: "flowr-expression",
             range: rangeFromNode(node, this.document),
@@ -258,7 +281,7 @@ class JsoniqAstBuilder extends jsoniqVisitor<AstVisitResult> {
     ];
 
     public override visitVarRef = (node: VarRefContext): AstVisitResult => {
-        if (node.parent instanceof DeclaredVarRefContext) {
+        if (this.isVariableDeclarationReference(node)) {
             return [];
         }
 
@@ -305,15 +328,19 @@ class JsoniqAstBuilder extends jsoniqVisitor<AstVisitResult> {
 
     private binding(
         declarationNode: ParseTree,
-        declaredVarRef: DeclaredVarRefContext,
+        varRef: VarRefContext | null | undefined,
     ): AstBinding | null {
-        const name = parseVarName(declaredVarRef.varRef());
+        if (varRef === undefined || varRef === null) {
+            return null;
+        }
+
+        const name = parseVarName(varRef);
         return name === null
             ? null
             : {
                   name,
                   range: rangeFromNode(declarationNode, this.document),
-                  selectionRange: rangeFromNode(declaredVarRef.varRef(), this.document),
+                  selectionRange: rangeFromNode(varRef, this.document),
               };
     }
 
@@ -321,15 +348,25 @@ class JsoniqAstBuilder extends jsoniqVisitor<AstVisitResult> {
         const parameters: AstParameter[] = [];
 
         for (const [index, param] of node.paramList()?.param().entries() ?? []) {
-            const paramName = parseVarName(param.declaredVarRef().varRef());
+            const nameNode = param._name;
+            if (nameNode === undefined) {
+                continue;
+            }
+
+            const paramName = parseQname(nameNode);
             if (paramName === null) {
                 continue;
             }
 
+            const dollarRange = rangeFromNode(param.DOLLAR(), this.document);
+            const nameRange = rangeFromNode(nameNode, this.document);
             parameters.push({
                 name: paramName,
                 range: rangeFromNode(param, this.document),
-                selectionRange: rangeFromNode(param.declaredVarRef(), this.document),
+                selectionRange: {
+                    start: dollarRange.start,
+                    end: nameRange.end,
+                },
                 index,
             });
         }
@@ -337,38 +374,36 @@ class JsoniqAstBuilder extends jsoniqVisitor<AstVisitResult> {
         return parameters;
     }
 
+    private isVariableDeclarationReference(node: VarRefContext): boolean {
+        return (
+            node.parent instanceof ParamContext ||
+            node.parent instanceof VarDeclContext ||
+            node.parent instanceof ForVarContext ||
+            node.parent instanceof PositionalVarContext ||
+            node.parent instanceof LetVarContext ||
+            node.parent instanceof GroupByVarContext ||
+            node.parent instanceof CountClauseContext ||
+            node.parent instanceof QuantifiedExprVarContext ||
+            node.parent instanceof TypeswitchExprContext ||
+            node.parent instanceof CaseClauseContext ||
+            node.parent instanceof TumblingWindowClauseContext ||
+            node.parent instanceof SlidingWindowClauseContext ||
+            node.parent instanceof WindowVarsContext ||
+            node.parent instanceof TypeSwitchStatementContext ||
+            node.parent instanceof CaseStatementContext ||
+            node.parent instanceof VarDeclForStatementContext ||
+            node.parent instanceof CopyDeclContext
+        );
+    }
+
     private functionCall(node: FunctionCallContext): AstVisitResult {
-        const nameNode = node.qname();
+        const nameNode = node._fn_name;
         const name = parseFunctionName(node);
-        if (name === null || nameNode === null) {
+        if (nameNode === undefined) {
             return [];
         }
 
         const children = this.visitChildrenAsNodes(node);
-        const argumentList = node.argumentList();
-
-        if (argumentList._trailingComma != null) {
-            const commaEndOffset = argumentList._trailingComma.start + 1;
-            const rparen = argumentList.Krparen();
-            const boundaryOffset =
-                rparen?.symbol.start ??
-                (argumentList.stop?.stop != null ? argumentList.stop.stop + 1 : commaEndOffset);
-
-            const anchorOffset = Math.min(commaEndOffset, boundaryOffset);
-            const anchor = this.document.positionAt(anchorOffset);
-
-            const range = {
-                start: this.document.positionAt(commaEndOffset),
-                end: anchor,
-            };
-
-            children.push({
-                kind: "argument",
-                range,
-                children: [],
-                index: argumentList.argument().length,
-            } satisfies ArgumentAstNode);
-        }
 
         return [
             {
@@ -382,9 +417,9 @@ class JsoniqAstBuilder extends jsoniqVisitor<AstVisitResult> {
     }
 
     private namedFunctionReference(node: NamedFunctionRefContext): AstVisitResult {
-        const nameNode = node.qname();
+        const nameNode = node._fn_name;
         const name = parseFunctionName(node);
-        return name !== null && nameNode !== null
+        return nameNode !== undefined
             ? [
                   {
                       kind: "named-function-reference",
@@ -408,8 +443,12 @@ class JsoniqAstBuilder extends jsoniqVisitor<AstVisitResult> {
     }
 }
 
-export function buildJsoniqAst(tree: ModuleAndThisIsItContext, document: TextDocument): JsoniqAst {
-    const ast = new JsoniqAstBuilder(document).visitModuleAndThisIsIt(tree)[0];
+export function buildJsoniqAst(
+    tree: ModuleAndThisIsItContext,
+    document: TextDocument,
+    nextDefaultToken: NextDefaultToken,
+): JsoniqAst {
+    const ast = new JsoniqAstBuilder(document, nextDefaultToken).visitModuleAndThisIsIt(tree)[0];
     if (ast === undefined || ast.kind !== "module") {
         throw new Error("Expected module AST root.");
     }

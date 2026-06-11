@@ -11,18 +11,32 @@ import {
     NamedFunctionRefContext,
     QnameContext,
     VarRefContext,
-} from "./grammar/jsoniqParser.js";
+} from "./grammar/JsoniqParser.js";
 
 export function parseQname(qnameNode: QnameContext): LexicalQName {
-    const prefix = qnameNode._ns?.text ?? qnameNode._nskw?.getText() ?? undefined;
-    const localName = qnameNode._local_name?.text ?? qnameNode._local_namekw?.getText() ?? "";
+    return parseQNameText(qnameNode.getText());
+}
 
-    if (prefix) {
-        const qname: PrefixedQName = { kind: "prefixed-qname", prefix, localName };
+export function parseQNameText(text: string): LexicalQName {
+    if (text.startsWith("Q{")) {
+        const namespaceEnd = text.indexOf("}");
+        return {
+            kind: "unprefixed-qname",
+            localName: namespaceEnd >= 0 ? text.slice(namespaceEnd + 1) : text,
+        };
+    }
+
+    const colonIndex = text.indexOf(":");
+    if (colonIndex > 0) {
+        const qname: PrefixedQName = {
+            kind: "prefixed-qname",
+            prefix: text.slice(0, colonIndex),
+            localName: text.slice(colonIndex + 1),
+        };
         return qname;
     }
 
-    const qname: UnprefixedQName = { kind: "unprefixed-qname", localName };
+    const qname: UnprefixedQName = { kind: "unprefixed-qname", localName: text };
     return qname;
 }
 
@@ -33,11 +47,9 @@ function functionArity(
         return node.paramList()?.param().length ?? 0;
     } else if (node instanceof FunctionCallContext) {
         const argumentList = node.argumentList();
-        const argumentCount = argumentList.argument().length;
-        const hasTrailingComma = argumentList._trailingComma != null;
-        return hasTrailingComma ? argumentCount + 1 : argumentCount;
+        return argumentList.argument().length;
     } else if (node instanceof NamedFunctionRefContext) {
-        return Number.parseInt(node._arity?.text ?? node.Literal().getText(), 10);
+        return Number.parseInt(node._arity?.text ?? node.IntegerLiteral().getText(), 10);
     }
     throw new Error("Unsupported node type for function arity extraction");
 }
@@ -45,9 +57,7 @@ function functionArity(
 export function parseFunctionName(
     node: FunctionDeclContext | FunctionCallContext | NamedFunctionRefContext,
 ): LexicalFunctionName {
-    const qnameNode =
-        node instanceof FunctionDeclContext ? node.declaredQName().qname() : node.qname();
-    const qname = parseQname(qnameNode);
+    const qname = parseQNameText(node._fn_name?.getText() ?? "");
 
     const arity = functionArity(node);
 
@@ -58,8 +68,8 @@ export function parseFunctionName(
 }
 
 export function parseVarName(node: VarRefContext): LexicalQName | null {
-    const qname = node.qname();
-    return qname === null ? null : parseQname(qname);
+    const text = node._var_name?.getText() ?? "";
+    return text === "" ? null : parseQNameText(text);
 }
 
 export function functionName(

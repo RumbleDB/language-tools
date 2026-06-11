@@ -13,11 +13,11 @@ import { Diagnostic, DiagnosticSeverity, type Range } from "vscode-languageserve
 import { TextDocument } from "vscode-languageserver-textdocument";
 
 import { buildJsoniqAst } from "./ast.js";
-import { jsoniqLexer } from "./grammar/jsoniqLexer.js";
-import { jsoniqParser } from "./grammar/jsoniqParser.js";
+import { JsoniqLexer } from "./grammar/JsoniqLexer.js";
+import { JsoniqParser } from "./grammar/JsoniqParser.js";
 
 export interface JsoniqParsedDocument extends ParseResult {
-    parser: jsoniqParser;
+    parser: JsoniqParser;
     tokens: Token[];
 }
 
@@ -81,27 +81,43 @@ export function parseJsoniq(document: TextDocument): JsoniqParsedDocument {
     parser.addErrorListener(errorListener);
 
     const tree = parser.moduleAndThisIsIt();
-    const ast = buildJsoniqAst(tree, document);
-
     tokenStream.fill();
+    const tokens = tokenStream.getTokens();
+    const ast = buildJsoniqAst(tree, document, nextDefaultToken(tokenStream));
 
     return {
         parser,
-        tokens: tokenStream.getTokens(),
+        tokens,
         ast,
         diagnostics: errorListener.diagnostics,
     };
 }
 
+function nextDefaultToken(
+    tokenStream: CommonTokenStream,
+): (token: Token | null | undefined) => Token | null {
+    return (token) => {
+        if (token === null || token === undefined || token.tokenIndex < 0) {
+            return null;
+        }
+
+        const nextTokenIndex = tokenStream.nextTokenOnChannel(
+            token.tokenIndex + 1,
+            Token.DEFAULT_CHANNEL,
+        );
+        return nextTokenIndex < 0 ? null : tokenStream.get(nextTokenIndex);
+    };
+}
+
 function createParser(source: string): {
-    lexer: jsoniqLexer;
-    parser: jsoniqParser;
+    lexer: JsoniqLexer;
+    parser: JsoniqParser;
     tokenStream: CommonTokenStream;
 } {
     const input = CharStream.fromString(source);
-    const lexer = new jsoniqLexer(input);
+    const lexer = new JsoniqLexer(input);
     const tokenStream = new CommonTokenStream(lexer);
-    const parser = new jsoniqParser(tokenStream);
+    const parser = new JsoniqParser(tokenStream);
 
     return { lexer, parser, tokenStream };
 }
