@@ -1,12 +1,7 @@
+import { LanguageKeywordCompletion } from "server/parser/types/completion.js";
+
 import { XQueryLexer } from "./grammar/XQueryLexer.js";
 import { XQueryParser } from "./grammar/XQueryParser.js";
-
-interface KeywordCompletion {
-    tokenType: number;
-    label: string;
-    insertText?: string;
-    prologOnly?: boolean;
-}
 
 export const IGNORED_COMPLETION_TOKENS = new Set([
     XQueryLexer.QUESTION,
@@ -39,7 +34,7 @@ export const PREFERRED_COMPLETION_RULES = new Set([
     XQueryParser.RULE_functionCall,
 ]);
 
-export const KEYWORD_COMPLETIONS: KeywordCompletion[] = [
+export const KEYWORD_COMPLETIONS: LanguageKeywordCompletion[] = [
     ...[
         XQueryLexer.KW_COPY,
         XQueryLexer.KW_DELETE,
@@ -98,7 +93,7 @@ function keyword(
     tokenType: number,
     label = tokenLabel(tokenType),
     insertText?: string,
-): KeywordCompletion {
+): LanguageKeywordCompletion {
     return {
         tokenType,
         label,
@@ -110,7 +105,7 @@ function prologKeyword(
     tokenType: number,
     label = tokenLabel(tokenType),
     insertText?: string,
-): KeywordCompletion {
+): LanguageKeywordCompletion {
     return {
         ...keyword(tokenType, label, insertText),
         prologOnly: true,

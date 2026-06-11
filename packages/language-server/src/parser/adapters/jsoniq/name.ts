@@ -30,7 +30,6 @@ export function parseFunctionName(
     node: FunctionDeclContext | FunctionCallContext | NamedFunctionRefContext,
 ): LexicalFunctionName {
     const qname = parseQNameText(node._fn_name?.getText() ?? "");
-
     const arity = functionArity(node);
 
     return {

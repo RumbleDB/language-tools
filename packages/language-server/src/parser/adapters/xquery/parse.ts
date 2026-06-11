@@ -1,79 +1,16 @@
-import {
-    BaseErrorListener,
-    CharStream,
-    CommonTokenStream,
-    type ATNSimulator,
-    type RecognitionException,
-    type Recognizer,
-    Token,
-} from "antlr4ng";
+import { CharStream, CommonTokenStream } from "antlr4ng";
+import { ErrorListener } from "server/parser/error-listener.js";
 import type { ParseResult } from "server/parser/types/result.js";
-import { getDocumentText } from "server/parser/utils.js";
-import { Diagnostic, DiagnosticSeverity, type Range } from "vscode-languageserver";
+import { getDocumentText, nextDefaultToken } from "server/parser/utils.js";
 import { TextDocument } from "vscode-languageserver-textdocument";
 
 import { buildXQueryAst } from "./ast.js";
 import { XQueryLexer } from "./grammar/XQueryLexer.js";
 import { XQueryParser } from "./grammar/XQueryParser.js";
 
-export interface XQueryParsedDocument extends ParseResult {
-    parser: XQueryParser;
-    tokens: Token[];
-}
-
-class XQueryErrorListener extends BaseErrorListener {
-    public readonly diagnostics: Diagnostic[] = [];
-
-    public constructor(private readonly document: TextDocument) {
-        super();
-    }
-
-    public override syntaxError<S extends Token, T extends ATNSimulator>(
-        recognizer: Recognizer<T>,
-        offendingSymbol: S | null,
-        line: number,
-        column: number,
-        message: string,
-        _error: RecognitionException | null,
-    ): void {
-        const range = this.createRange(offendingSymbol, line, column);
-
-        this.diagnostics.push({
-            severity: DiagnosticSeverity.Error,
-            range,
-            message,
-            source: "xquery",
-        });
-    }
-
-    private createRange(offendingSymbol: Token | null, line: number, column: number): Range {
-        if (
-            offendingSymbol !== null &&
-            offendingSymbol.start >= 0 &&
-            offendingSymbol.stop >= offendingSymbol.start
-        ) {
-            return {
-                start: this.document.positionAt(offendingSymbol.start),
-                end: this.document.positionAt(offendingSymbol.stop + 1),
-            };
-        }
-
-        const startOffset = this.document.offsetAt({
-            line: Math.max(line - 1, 0),
-            character: Math.max(column, 0),
-        });
-        const endOffset = Math.min(startOffset + 1, getDocumentText(this.document).length);
-
-        return {
-            start: this.document.positionAt(startOffset),
-            end: this.document.positionAt(endOffset),
-        };
-    }
-}
-
-export function parseXQuery(document: TextDocument): XQueryParsedDocument {
+export function parseXQuery(document: TextDocument): ParseResult {
     const { lexer, parser, tokenStream } = createParser(getDocumentText(document));
-    const errorListener = new XQueryErrorListener(document);
+    const errorListener = new ErrorListener(document);
 
     lexer.removeErrorListeners();
     parser.removeErrorListeners();
@@ -90,22 +27,6 @@ export function parseXQuery(document: TextDocument): XQueryParsedDocument {
         tokens,
         ast,
         diagnostics: errorListener.diagnostics,
-    };
-}
-
-function nextDefaultToken(
-    tokenStream: CommonTokenStream,
-): (token: Token | null | undefined) => Token | null {
-    return (token) => {
-        if (token === null || token === undefined || token.tokenIndex < 0) {
-            return null;
-        }
-
-        const nextTokenIndex = tokenStream.nextTokenOnChannel(
-            token.tokenIndex + 1,
-            Token.DEFAULT_CHANNEL,
-        );
-        return nextTokenIndex < 0 ? null : tokenStream.get(nextTokenIndex);
     };
 }
 
