@@ -1,5 +1,6 @@
 import {
     CompletionItemKind,
+    InsertTextFormat,
     MarkupKind,
     TextEdit,
     type CompletionItem,
@@ -18,13 +19,14 @@ import {
 import { QNameToString } from "./analysis/names.js";
 import { getVisibleDeclarationsAtPosition } from "./analysis/queries.js";
 import { formatFunctionEntry } from "./function-doc/format.js";
-import { getBuiltinFunctionDocumentation } from "./function-doc/index.js";
+import { getBuiltinFunctionDocumentation, type Signature } from "./function-doc/index.js";
 import { getFunctionDocs } from "./function-doc/loader.js";
 import { collectCompletionIntent } from "./parser/index.js";
 import { getDocumentText } from "./parser/utils.js";
 import { getBuiltinFunctions } from "./wrapper/builtin-functions.js";
 
 const VARIABLE_PREFIX_PATTERN = /\$[A-Za-z0-9_.:-]*$/;
+const GENERIC_BUILTIN_PARAMETER_PREFIX = "$arg";
 
 export async function findCompletions(
     document: TextDocument,
@@ -96,14 +98,17 @@ function toCompletionItem(declaration: BaseDefinition): CompletionItem {
     const name = definitionNameToString(declaration);
     if (isSourceFunctionDefinition(declaration)) {
         const label = QNameToString(declaration.name.qname, false);
-        const signature = `${label}(${declaration.parameters
-            .map((parameter) => definitionNameToString(parameter))
-            .join(", ")})`;
+        const parameterNames = declaration.parameters.map((parameter) =>
+            definitionNameToString(parameter),
+        );
+        const signature = `${label}(${parameterNames.join(", ")})`;
 
         return {
             label,
             kind: CompletionItemKind.Function,
             detail: signature,
+            insertText: createFunctionCallSnippet(label, parameterNames),
+            insertTextFormat: InsertTextFormat.Snippet,
             documentation: {
                 kind: MarkupKind.Markdown,
                 value: [
@@ -124,7 +129,7 @@ function toCompletionItem(declaration: BaseDefinition): CompletionItem {
 }
 
 async function getBuiltinFunctionCompletionItems(): Promise<CompletionItem[]> {
-    const itemsByName = new Map<string, CompletionItem>();
+    const itemsByName = new Map<string, { item: CompletionItem; parameterCount: number }>();
     const docs = getFunctionDocs();
 
     for (const definition of (await getBuiltinFunctions()).all) {
@@ -138,7 +143,9 @@ async function getBuiltinFunctionCompletionItems(): Promise<CompletionItem[]> {
             },
             true,
         );
-        const overloadCount = docs[docsKey]?.signatures.length;
+        const docEntry = docs[docsKey];
+        const overloadCount = docEntry?.signatures.length;
+        const parameterNames = getBuiltinCompletionParameterNames(definition, docEntry?.signatures);
         const parameterTypes = definition.signature.parameterTypes
             .map((parameter) => parameter.type)
             .join(", ");
@@ -146,6 +153,8 @@ async function getBuiltinFunctionCompletionItems(): Promise<CompletionItem[]> {
         const item: CompletionItem = {
             label: functionName,
             kind: CompletionItemKind.Function,
+            insertText: createFunctionCallSnippet(functionName, parameterNames),
+            insertTextFormat: InsertTextFormat.Snippet,
             detail:
                 overloadCount !== undefined && overloadCount > 1
                     ? `${functionName}(...) • ${overloadCount} overloads`
@@ -164,12 +173,15 @@ async function getBuiltinFunctionCompletionItems(): Promise<CompletionItem[]> {
         };
 
         const existing = itemsByName.get(functionName);
-        if (existing === undefined) {
-            itemsByName.set(functionName, item);
+        if (existing === undefined || parameterNames.length < existing.parameterCount) {
+            itemsByName.set(functionName, {
+                item,
+                parameterCount: parameterNames.length,
+            });
         }
     }
 
-    return [...itemsByName.values()];
+    return [...itemsByName.values()].map(({ item }) => item);
 }
 
 function keywordCompletions(
@@ -190,4 +202,31 @@ function withSortText(items: CompletionItem[]): CompletionItem[] {
             ...item,
             sortText: `${index.toString().padStart(5, "0")}:${item.label}`,
         }));
+}
+
+function getBuiltinCompletionParameterNames(
+    definition: Awaited<ReturnType<typeof getBuiltinFunctions>>["all"][number],
+    signatures: Signature[] | undefined,
+): string[] {
+    const preferredSignature = signatures?.reduce((best, current) =>
+        current.params.length < best.params.length ? current : best,
+    );
+    if (preferredSignature !== undefined) {
+        return preferredSignature.params.map((parameter) => `$${parameter.name}`);
+    }
+
+    return definition.signature.parameterTypes.map(
+        (_parameter, index) => `${GENERIC_BUILTIN_PARAMETER_PREFIX}${index + 1}`,
+    );
+}
+
+function createFunctionCallSnippet(functionName: string, parameterNames: string[]): string {
+    const placeholders = parameterNames.map(
+        (parameterName, index) => `\${${index + 1}:${escapeSnippetText(parameterName)}}`,
+    );
+    return `${functionName}(${placeholders.join(", ")})$0`;
+}
+
+function escapeSnippetText(text: string): string {
+    return text.replaceAll("\\", "\\\\").replaceAll("$", "\\$").replaceAll("}", "\\}");
 }
