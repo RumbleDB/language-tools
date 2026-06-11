@@ -17,7 +17,9 @@
         "./bundled": "./dist/bundled/main.mjs"
     },
     "scripts": {
-        "generate:grammar": "antlr-ng -Dlanguage=TypeScript --generate-visitor true --output-directory src/parser/adapters/jsoniq/grammar src/parser/adapters/jsoniq/grammar/JsoniqLexer.g4 src/parser/adapters/jsoniq/grammar/JsoniqParser.g4",
+        "generate:jsoniq-grammar": "antlr-ng -Dlanguage=TypeScript --generate-visitor true --output-directory src/parser/adapters/jsoniq/grammar src/parser/adapters/jsoniq/grammar/JsoniqLexer.g4 src/parser/adapters/jsoniq/grammar/JsoniqParser.g4",
+        "generate:xquery-grammar": "antlr-ng -Dlanguage=TypeScript --generate-visitor true --output-directory src/parser/adapters/xquery/grammar src/parser/adapters/xquery/grammar/XQueryLexer.g4 src/parser/adapters/xquery/grammar/XQueryParser.g4",
+        "generate:grammar": "pnpm run generate:jsoniq-grammar && pnpm run generate:xquery-grammar",
         "generate:w3-docs": "node scripts/parse-w3-function-docs.ts",
         "compile:function-docs": "node scripts/compile-function-docs.ts",
         "missing-function-docs": "pnpm run build && node ./dist/function-doc/list-missing-function-docs.mjs",
