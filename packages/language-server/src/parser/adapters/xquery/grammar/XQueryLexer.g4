@@ -10,10 +10,10 @@
 
 lexer grammar XQueryLexer;
 
-@header {
-// Java header
-package org.rumbledb.parser.xquery;
-}
+// @header {
+// // Java header
+// package org.rumbledb.parser.xquery;
+// }
 
 
 // Note: string syntax depends on syntactic context, so they are
