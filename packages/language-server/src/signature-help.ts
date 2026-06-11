@@ -86,14 +86,14 @@ function getDocumentationSections(entry: FunctionEntry): string[] {
 }
 
 function resolveBuiltinSignatures(functionName: FunctionName, activeParameter: number) {
-    const catalogEntry = getBuiltinFunctionDocumentation(functionName.qname);
+    const docsEntry = getBuiltinFunctionDocumentation(functionName.qname);
 
-    if (!catalogEntry || catalogEntry.signatures.length === 0) {
+    if (!docsEntry || docsEntry.signatures.length === 0) {
         return null;
     }
 
-    const documentationSections = getDocumentationSections(catalogEntry);
-    const signatures = catalogEntry.signatures.map((signature) =>
+    const documentationSections = getDocumentationSections(docsEntry);
+    const signatures = docsEntry.signatures.map((signature) =>
         createSignatureInformation(
             QNameToString(functionName.qname, false),
             signature.params.map((parameter) => {
@@ -116,7 +116,7 @@ function resolveBuiltinSignatures(functionName: FunctionName, activeParameter: n
     return {
         signatures,
         activeSignature: chooseBestSignatureIndex(
-            catalogEntry.signatures.map((signature) => signature.params.length),
+            docsEntry.signatures.map((signature) => signature.params.length),
             activeParameter + 1,
         ),
     };

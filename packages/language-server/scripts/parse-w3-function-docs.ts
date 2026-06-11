@@ -7,7 +7,7 @@ import { XMLParser } from "fast-xml-parser";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const W3_CATALOG_URL =
+const W3_FUNCTION_DOCS_URL =
     "https://www.w3.org/TR/2017/REC-xpath-functions-31-20170321/function-catalog.xml";
 const OUTPUT_FILE_PATH = path.join(__dirname, "..", "assets", "function-doc", "w3-functions.json");
 
@@ -237,16 +237,14 @@ function parseProperties(propertiesXml: string | undefined): string[] {
 }
 
 async function main() {
-    console.log(`Fetching W3 function catalog from: ${W3_CATALOG_URL}...`);
-    const response = await fetch(W3_CATALOG_URL);
+    console.log(`Fetching W3 function docs from: ${W3_FUNCTION_DOCS_URL}...`);
+    const response = await fetch(W3_FUNCTION_DOCS_URL);
     if (!response.ok) {
-        throw new Error(
-            `Failed to fetch function catalog: ${response.status} ${response.statusText}`,
-        );
+        throw new Error(`Failed to fetch function docs: ${response.status} ${response.statusText}`);
     }
 
     const xmlText = await response.text();
-    console.log("Parsing XML catalog...");
+    console.log("Parsing W3 function docs XML...");
 
     const parser = new XMLParser({
         ignoreAttributes: false,
@@ -280,7 +278,7 @@ async function main() {
 
     console.log(`Found ${functionsList.length} function definitions. Extracting details...`);
 
-    const catalog: Record<string, FunctionEntry> = {};
+    const docs: Record<string, FunctionEntry> = {};
 
     for (const func of functionsList) {
         const name = func.name;
@@ -317,11 +315,11 @@ async function main() {
             };
         });
 
-        if (catalog[key]) {
+        if (docs[key]) {
             // Merge signatures if the function has duplicate declarations
-            catalog[key].signatures.push(...signatures);
+            docs[key].signatures.push(...signatures);
         } else {
-            catalog[key] = {
+            docs[key] = {
                 name,
                 prefix,
                 summary: cleanXmlContent(func["fos:summary"]),
@@ -329,19 +327,19 @@ async function main() {
             };
 
             const rules = cleanXmlContent(func["fos:rules"]);
-            if (rules) catalog[key].rules = rules;
+            if (rules) docs[key].rules = rules;
 
             const errors = cleanXmlContent(func["fos:errors"]);
-            if (errors) catalog[key].errors = errors;
+            if (errors) docs[key].errors = errors;
 
             const notes = cleanXmlContent(func["fos:notes"]);
-            if (notes) catalog[key].notes = notes;
+            if (notes) docs[key].notes = notes;
 
             const examples = parseExamples(func["fos:examples"]);
-            if (examples) catalog[key].examples = examples;
+            if (examples) docs[key].examples = examples;
 
             const properties = parseProperties(func["fos:properties"]);
-            if (properties && properties.length > 0) catalog[key].properties = properties;
+            if (properties && properties.length > 0) docs[key].properties = properties;
         }
     }
 
@@ -350,13 +348,11 @@ async function main() {
     await fs.mkdir(assetsDir, { recursive: true });
 
     console.log(`Writing output to ${OUTPUT_FILE_PATH}...`);
-    await fs.writeFile(OUTPUT_FILE_PATH, JSON.stringify(catalog, null, 4), "utf-8");
-    console.log(
-        `Successfully generated function catalog with ${Object.keys(catalog).length} entries!`,
-    );
+    await fs.writeFile(OUTPUT_FILE_PATH, JSON.stringify(docs, null, 4), "utf-8");
+    console.log(`Successfully generated function docs with ${Object.keys(docs).length} entries!`);
 }
 
 main().catch((err) => {
-    console.error("Error occurred while generating function catalog:", err);
+    console.error("Error occurred while generating function docs:", err);
     process.exit(1);
 });

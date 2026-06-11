@@ -30,7 +30,7 @@ function getFunctionKey(definition: BuiltinFunctionDefinition): string {
     return `${getFunctionPrefix(definition)}:${definition.name.qname.localName}`;
 }
 
-function getCatalogKey(definition: BuiltinFunctionDefinition): string {
+function getDocsKey(definition: BuiltinFunctionDefinition): string {
     const qname = definition.name.qname;
     const prefix = getFunctionPrefix(definition);
     const namespace = qname.namespaceUri ?? defaultNamespaces.get(prefix) ?? prefix;
@@ -45,7 +45,7 @@ function formatSignature(definition: BuiltinFunctionDefinition): string {
 }
 
 async function main(): Promise<void> {
-    const catalog = getFunctionDocs();
+    const docs = getFunctionDocs();
     const builtinFunctions = await getBuiltinFunctions();
     const wrapperClient = getWrapperClient();
 
@@ -54,8 +54,8 @@ async function main(): Promise<void> {
 
         for (const definition of builtinFunctions.all) {
             const key = getFunctionKey(definition);
-            const catalogKey = getCatalogKey(definition);
-            if (Object.hasOwn(catalog, catalogKey)) {
+            const docsKey = getDocsKey(definition);
+            if (Object.hasOwn(docs, docsKey)) {
                 continue;
             }
 
@@ -74,7 +74,7 @@ async function main(): Promise<void> {
         console.log(
             `Wrapper: RumbleDB ${wrapperClient.getRumbleVersion() ?? "unknown"} (${wrapperClient.getRumbleCommitShort() ?? "unknown"}, ${wrapperClient.getRumbleRef() ?? "unknown"})`,
         );
-        console.log(`W3 catalog entries: ${Object.keys(catalog).length}`);
+        console.log(`Function doc entries: ${Object.keys(docs).length}`);
         console.log(`Builtin overloads discovered: ${builtinFunctions.all.length}`);
         console.log(`Functions missing documentation: ${sortedEntries.length}`);
 

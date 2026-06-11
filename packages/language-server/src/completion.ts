@@ -131,14 +131,14 @@ async function getBuiltinFunctionCompletionItems(): Promise<CompletionItem[]> {
         const { qname, arity } = definition.name;
         const functionName = QNameToString(qname, false);
         const ns = qname.namespaceUri ?? defaultNamespaces.get(qname.prefix || "fn");
-        const catalogKey = QNameToString(
+        const docsKey = QNameToString(
             {
                 localName: qname.localName,
                 ...(ns === undefined ? {} : { namespaceUri: ns }),
             },
             true,
         );
-        const overloadCount = docs[catalogKey]?.signatures.length;
+        const overloadCount = docs[docsKey]?.signatures.length;
         const parameterTypes = definition.signature.parameterTypes
             .map((parameter) => parameter.type)
             .join(", ");

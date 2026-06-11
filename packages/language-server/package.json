@@ -18,7 +18,7 @@
     },
     "scripts": {
         "generate:grammar": "antlr-ng -Dlanguage=TypeScript --generate-visitor true --output-directory src/parser/adapters/jsoniq/grammar src/parser/adapters/jsoniq/grammar/jsoniq.g4",
-        "generate:w3-catalog": "node scripts/parse-w3-catalog.ts",
+        "generate:w3-docs": "node scripts/parse-w3-function-docs.ts",
         "compile:function-docs": "node scripts/compile-function-docs.ts",
         "missing-function-docs": "pnpm run build && node ./dist/function-doc/list-missing-function-docs.mjs",
         "typecheck": "tsc --noEmit -p tsconfig.json",

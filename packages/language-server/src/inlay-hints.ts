@@ -62,16 +62,16 @@ function getBuiltinParameterName(
     call: FunctionCallNode,
     argumentIndex: number,
 ): string | undefined {
-    const catalogEntry = getBuiltinFunctionDocumentation(call.name.qname);
+    const docsEntry = getBuiltinFunctionDocumentation(call.name.qname);
 
-    if (!catalogEntry || catalogEntry.signatures.length === 0) {
+    if (!docsEntry || docsEntry.signatures.length === 0) {
         return undefined;
     }
 
     const signature =
-        catalogEntry.signatures[
+        docsEntry.signatures[
             chooseBestSignatureIndex(
-                catalogEntry.signatures.map((candidate) => candidate.params.length),
+                docsEntry.signatures.map((candidate) => candidate.params.length),
                 call.arguments.length,
             )
         ]!;

@@ -9,26 +9,26 @@ import type { FunctionEntry } from "./types.js";
 
 type FunctionKey = string; // We will use format "namespace:localName" as key
 
-const catalog: Record<FunctionKey, FunctionEntry> = {};
+const docs: Record<FunctionKey, FunctionEntry> = {};
 
 const filesToLoad = ["w3-functions.json", "custom-functions.json"];
 
-let catalogLoaded = false;
-function loadCatalog(): void {
+let docsLoaded = false;
+function loadFunctionDocs(): void {
     try {
         const assetsPath = getAssetsPath();
-        const catalogDir = path.join(assetsPath, "function-doc");
+        const docsDir = path.join(assetsPath, "function-doc");
 
         for (const fileName of filesToLoad) {
-            const filePath = path.join(catalogDir, fileName);
+            const filePath = path.join(docsDir, fileName);
             if (!fs.existsSync(filePath)) {
                 continue;
             }
 
             const content = fs.readFileSync(filePath, "utf-8");
-            const fileCatalog = JSON.parse(content) as Record<string, FunctionEntry>;
+            const fileDocs = JSON.parse(content) as Record<string, FunctionEntry>;
 
-            for (const [originalKey, value] of Object.entries(fileCatalog)) {
+            for (const [originalKey, value] of Object.entries(fileDocs)) {
                 /// The original key is in prefix:localName format
                 /// We need to expand it to full namespace:localName format to match the keys used in the codebase
                 const [prefix, localName] = originalKey.split(":");
@@ -39,18 +39,18 @@ function loadCatalog(): void {
                     continue;
                 }
                 const key = QNameToString({ localName: localName!, namespaceUri: namespace }, true);
-                catalog[key] = value;
+                docs[key] = value;
             }
         }
-        catalogLoaded = true;
+        docsLoaded = true;
     } catch (error) {
-        console.error("Failed to load function catalogs:", error);
+        console.error("Failed to load function docs:", error);
     }
 }
 
 export function getFunctionDocs(): Record<string, FunctionEntry> {
-    if (!catalogLoaded) {
-        loadCatalog();
+    if (!docsLoaded) {
+        loadFunctionDocs();
     }
-    return catalog;
+    return docs;
 }

@@ -10,7 +10,13 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const DOCS_DIR = path.join(__dirname, "..", "docs", "functions");
-const OUTPUT_FILE_PATH = path.join(__dirname, "..", "assets", "function-doc", "custom.json");
+const OUTPUT_FILE_PATH = path.join(
+    __dirname,
+    "..",
+    "assets",
+    "function-doc",
+    "custom-functions.json",
+);
 
 function getMarkdownFiles(dir: string): string[] {
     if (!fs.existsSync(dir)) {
@@ -32,11 +38,11 @@ function getMarkdownFiles(dir: string): string[] {
 function main() {
     console.log(`Compiling function docs from ${DOCS_DIR}...`);
 
-    const catalog: Record<string, FunctionEntry> = {};
+    const docs: Record<string, FunctionEntry> = {};
     const files = getMarkdownFiles(DOCS_DIR);
 
     if (files.length === 0) {
-        console.log("No custom markdown files found. Writing empty custom catalog.");
+        console.log("No custom markdown files found. Writing empty custom function docs.");
     }
 
     for (const file of files) {
@@ -70,17 +76,17 @@ function main() {
             if (data.examples) entry.examples = String(data.examples);
             if (Array.isArray(data.properties)) entry.properties = data.properties.map(String);
 
-            if (catalog[key]) {
+            if (docs[key]) {
                 console.warn("Found duplicated entries: ", key);
-                catalog[key].signatures.push(...entry.signatures);
-                if (entry.summary && !catalog[key].summary) {
-                    catalog[key].summary = entry.summary;
+                docs[key].signatures.push(...entry.signatures);
+                if (entry.summary && !docs[key].summary) {
+                    docs[key].summary = entry.summary;
                 }
                 if (entry.rules) {
-                    catalog[key].rules = (catalog[key].rules || "") + "\n\n" + entry.rules;
+                    docs[key].rules = (docs[key].rules || "") + "\n\n" + entry.rules;
                 }
             } else {
-                catalog[key] = entry;
+                docs[key] = entry;
             }
         } catch (err) {
             console.error(`Failed to parse ${file}:`, err);
@@ -92,10 +98,10 @@ function main() {
         fs.mkdirSync(assetsDir, { recursive: true });
     }
 
-    fs.writeFileSync(OUTPUT_FILE_PATH, JSON.stringify(catalog, null, 4), "utf-8");
+    fs.writeFileSync(OUTPUT_FILE_PATH, JSON.stringify(docs, null, 4), "utf-8");
 
     console.log(
-        `Successfully compiled ${Object.keys(catalog).length} custom function entries to ${OUTPUT_FILE_PATH}`,
+        `Successfully compiled ${Object.keys(docs).length} custom function entries to ${OUTPUT_FILE_PATH}`,
     );
 }
 
