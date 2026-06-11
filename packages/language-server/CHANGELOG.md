@@ -1,5 +1,39 @@
 # jsoniq-language-server
 
+## 2.3.0
+
+### Minor Changes
+
+- [`fedc643`](https://github.com/RumbleDB/jsoniq-lsp/commit/fedc643229b0e4dc668c11174dc4d0353b171567) - refactor: create a AstVisitor class in parser module and refactor analysis builder and symbols with visitor pattern
+
+- [#16](https://github.com/RumbleDB/jsoniq-lsp/pull/16) [`a8c707e`](https://github.com/RumbleDB/jsoniq-lsp/commit/a8c707e9feba1cbf7bcbbced7a513753ef78506b) - add trailing comma to grammar so incomplete function call can still get inline hint
+
+- [#13](https://github.com/RumbleDB/jsoniq-lsp/pull/13) [`bc8676e`](https://github.com/RumbleDB/jsoniq-lsp/commit/bc8676e6fd04239f86d20bc458741f7dac0f71e6) - Refactor the analysis module to introduce an intermediate AST structure, migrate the analysis builder to use the visitor pattern, organize the module into separate types and query files, and streamline references and queries across the language server.
+
+- [#17](https://github.com/RumbleDB/jsoniq-lsp/pull/17) [`a368611`](https://github.com/RumbleDB/jsoniq-lsp/commit/a36861112ab4b01482975ee6addadc07e70edf97) - Migrate to the latest version of JSONiq grammar file
+
+- [#12](https://github.com/RumbleDB/jsoniq-lsp/pull/12) [`f205855`](https://github.com/RumbleDB/jsoniq-lsp/commit/f205855c963c13a8a237eaa3fbd838ed96400d88) - add QName support to language server
+
+  Previously, the language server resolved names based on the prefix and local name, which could lead to incorrect resolutions in cases where the same local name was used with different prefixes. With the addition of QName support, the language server can now correctly resolve names based on the full qualified name, ensuring accurate name resolution even in cases where multiple prefixes are used. For example:
+
+  ```jsoniq
+  declare namespace aliasfn = "http://www.w3.org/2005/xpath-functions";
+  let $a := aliasfn:local-name-from-QName(aliasfn:QName('https://example.com', 'test'))
+  return $a
+  ```
+
+- [#15](https://github.com/RumbleDB/jsoniq-lsp/pull/15) [`51f1800`](https://github.com/RumbleDB/jsoniq-lsp/commit/51f18005769f32b92453385d8d352c452d1231ed) - add documentation for functions that are not part of W3 catalog. For example `jn:json-lines`.
+
+- [`874a846`](https://github.com/RumbleDB/jsoniq-lsp/commit/874a8466addb07c5aa136409bf6672712e2cc25a) - Inserts the full function call when performing function item completion.
+
+  Previously, only the function name was inserted into the document. Now, it will insert the function signature with the fewest arguments.
+
+- [#14](https://github.com/RumbleDB/jsoniq-lsp/pull/14) [`560fc0a`](https://github.com/RumbleDB/jsoniq-lsp/commit/560fc0a21312822da0fa56d75dea4e42c3e9fd7e) - Added a build script and runtime loader to compile custom function documentation from Markdown files with YAML frontmatter, stored in `docs/functions` folder.
+
+### Patch Changes
+
+- [`cae3951`](https://github.com/RumbleDB/jsoniq-lsp/commit/cae395175e6ffe0d25e94292418d0766e59586dd) - refactor: use SemanticTokenTypes and SemanticTokenModifiers types from language server
+
 ## 2.2.0
 
 ### Minor Changes

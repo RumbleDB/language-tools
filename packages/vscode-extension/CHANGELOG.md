@@ -1,5 +1,18 @@
 # jsoniq-vscode
 
+## 1.2.0
+
+### Minor Changes
+
+- [`3304720`](https://github.com/RumbleDB/jsoniq-lsp/commit/3304720852ad11cbc11d2284f7889d75d4c48183) - add function-calls rule to TextMate highlight
+
+  Now all function calls should be highlighted in the editor inmediately, without the need to wait for the language server to respond.
+
+### Patch Changes
+
+- Updated dependencies [[`fedc643`](https://github.com/RumbleDB/jsoniq-lsp/commit/fedc643229b0e4dc668c11174dc4d0353b171567), [`cae3951`](https://github.com/RumbleDB/jsoniq-lsp/commit/cae395175e6ffe0d25e94292418d0766e59586dd), [`a8c707e`](https://github.com/RumbleDB/jsoniq-lsp/commit/a8c707e9feba1cbf7bcbbced7a513753ef78506b), [`bc8676e`](https://github.com/RumbleDB/jsoniq-lsp/commit/bc8676e6fd04239f86d20bc458741f7dac0f71e6), [`a368611`](https://github.com/RumbleDB/jsoniq-lsp/commit/a36861112ab4b01482975ee6addadc07e70edf97), [`f205855`](https://github.com/RumbleDB/jsoniq-lsp/commit/f205855c963c13a8a237eaa3fbd838ed96400d88), [`51f1800`](https://github.com/RumbleDB/jsoniq-lsp/commit/51f18005769f32b92453385d8d352c452d1231ed), [`874a846`](https://github.com/RumbleDB/jsoniq-lsp/commit/874a8466addb07c5aa136409bf6672712e2cc25a), [`560fc0a`](https://github.com/RumbleDB/jsoniq-lsp/commit/560fc0a21312822da0fa56d75dea4e42c3e9fd7e)]:
+  - jsoniq-language-server@2.3.0
+
 ## 1.1.1
 
 ### Patch Changes
