@@ -340,17 +340,45 @@ class JsoniqAstBuilder extends jsoniqVisitor<AstVisitResult> {
     private functionCall(node: FunctionCallContext): AstVisitResult {
         const nameNode = node.qname();
         const name = parseFunctionName(node);
-        return name !== null && nameNode !== null
-            ? [
-                  {
-                      kind: "function-call",
-                      name,
-                      nameRange: rangeFromNode(nameNode, this.document),
-                      range: rangeFromNode(node, this.document),
-                      children: this.visitChildrenAsNodes(node),
-                  } satisfies FunctionCallAstNode,
-              ]
-            : [];
+        if (name === null || nameNode === null) {
+            return [];
+        }
+
+        const children = this.visitChildrenAsNodes(node);
+        const argumentList = node.argumentList();
+
+        if (argumentList._trailingComma != null) {
+            const commaEndOffset = argumentList._trailingComma.start + 1;
+            const rparen = argumentList.Krparen();
+            const boundaryOffset =
+                rparen?.symbol.start ??
+                (argumentList.stop?.stop != null ? argumentList.stop.stop + 1 : commaEndOffset);
+
+            const anchorOffset = Math.min(commaEndOffset, boundaryOffset);
+            const anchor = this.document.positionAt(anchorOffset);
+
+            const range = {
+                start: this.document.positionAt(commaEndOffset),
+                end: anchor,
+            };
+
+            children.push({
+                kind: "argument",
+                range,
+                children: [],
+                index: argumentList.argument().length,
+            } satisfies ArgumentAstNode);
+        }
+
+        return [
+            {
+                kind: "function-call",
+                name,
+                nameRange: rangeFromNode(nameNode, this.document),
+                range: rangeFromNode(node, this.document),
+                children,
+            } satisfies FunctionCallAstNode,
+        ];
     }
 
     private namedFunctionReference(node: NamedFunctionRefContext): AstVisitResult {

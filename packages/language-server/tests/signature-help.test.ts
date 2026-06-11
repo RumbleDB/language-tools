@@ -30,13 +30,32 @@ describe("JSONiq signature help", () => {
             expect(activeSig?.parameters?.length).toBe(3);
         });
 
-        it("returns null for incomplete calls without an AST function-call node", async () => {
-            const document = testDocument("sig-incomplete", ['fn:substring("hello", ']);
+        it("returns signature help for builtin calls with trailing commas", async () => {
+            const document = testDocument("sig-incomplete", ['fn:substring("hello", )']);
 
             const pos: Position = { line: 0, character: 'fn:substring("hello", '.length };
             const help = await findSignatureHelp(document, pos);
 
-            expect(help).toBeNull();
+            expect(help).not.toBeNull();
+            expect(help?.activeParameter).toBe(1);
+            expect(help?.signatures[help.activeSignature ?? 0]?.label).toContain("fn:substring");
+        });
+
+        it("returns signature help for incomplete source calls with trailing commas", async () => {
+            const document = testDocument("sig-incomplete-source", [
+                "declare function local:f($a as xs:string, $b) {",
+                "  $a",
+                "};",
+                "",
+                "local:f('test', )",
+            ]);
+
+            const pos: Position = { line: 4, character: "local:f('test', ".length };
+            const help = await findSignatureHelp(document, pos);
+
+            expect(help).not.toBeNull();
+            expect(help?.activeParameter).toBe(1);
+            expect(help?.signatures[0]?.label).toBe("local:f($a, $b)");
         });
 
         it("returns signature help for custom/source functions", async () => {

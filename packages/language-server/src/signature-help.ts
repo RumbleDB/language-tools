@@ -148,7 +148,9 @@ export async function findSignatureHelp(
 
     const activeArgumentNode = containingNodes.findLast((node) => node.kind == "argument");
     const activeParameter =
-        activeArgumentNode === undefined ? 0 : activeCall.arguments.indexOf(activeArgumentNode);
+        activeArgumentNode === undefined
+            ? 0
+            : Math.max(0, activeCall.arguments.indexOf(activeArgumentNode));
 
     const { signatures, activeSignature } = resolveSignatures(activeCall, activeParameter);
 

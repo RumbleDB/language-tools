@@ -319,7 +319,7 @@ unorderedExpr           : 'unordered' '{' expr '}';
 
 functionCall            : fn_name=qname argumentList;
 
-argumentList            : '('  (args+=argument (',' args+=argument)*)? ')';
+argumentList            : '('  (args+=argument (',' args+=argument)* (trailingComma=',')?)? ')';
 
 argument                : exprSingle | ArgumentPlaceholder;
 

@@ -32,7 +32,10 @@ function functionArity(
     if (node instanceof FunctionDeclContext) {
         return node.paramList()?.param().length ?? 0;
     } else if (node instanceof FunctionCallContext) {
-        return node.argumentList().argument().length;
+        const argumentList = node.argumentList();
+        const argumentCount = argumentList.argument().length;
+        const hasTrailingComma = argumentList._trailingComma != null;
+        return hasTrailingComma ? argumentCount + 1 : argumentCount;
     } else if (node instanceof NamedFunctionRefContext) {
         return Number.parseInt(node._arity?.text ?? node.Literal().getText(), 10);
     }
