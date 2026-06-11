@@ -19,9 +19,10 @@
     "scripts": {
         "generate:grammar": "antlr-ng -Dlanguage=TypeScript --generate-visitor true --output-directory src/parser/adapters/jsoniq/grammar src/parser/adapters/jsoniq/grammar/jsoniq.g4",
         "generate:w3-catalog": "node scripts/parse-w3-catalog.ts",
+        "compile:function-docs": "node scripts/compile-function-docs.ts",
         "missing-function-docs": "pnpm run build && node ./dist/function-doc/list-missing-function-docs.mjs",
         "typecheck": "tsc --noEmit -p tsconfig.json",
-        "build": "pnpm run typecheck && tsdown",
+        "build": "pnpm run compile:function-docs && pnpm run typecheck && tsdown",
         "build:prod": "pnpm run build --no-sourcemap --minify",
         "watch": "tsc -w -p tsconfig.json",
         "start": "node ./dist/main.mjs",
@@ -43,6 +44,7 @@
     "devDependencies": {
         "@types/node": "^25.8.0",
         "fast-xml-parser": "^5.8.0",
+        "gray-matter": "^4.0.3",
         "oxfmt": "^0.49.0",
         "oxlint": "^1.64.0",
         "tsc-alias": "^1.8.17",
