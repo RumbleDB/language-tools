@@ -1,12 +1,12 @@
-import { JsoniqAnalysis } from "server/analysis/builder.js";
-import {
-    Definition,
-    isSourceFunctionDefinition,
-    SourceFunctionDefinition,
-} from "server/analysis/definitions.js";
 import type { Position } from "vscode-languageserver";
 
 import type { ArgumentNode, FunctionCallNode } from "../analysis/ast.js";
+import type { JsoniqAnalysis } from "../analysis/builder.js";
+import {
+    isSourceFunctionDefinition,
+    type Definition,
+    type SourceFunctionDefinition,
+} from "../analysis/definitions.js";
 import { findNodesThatContainPosition } from "../analysis/queries.js";
 
 export function chooseBestSignatureIndex(
@@ -43,8 +43,8 @@ export function findResolvedFunctionDeclaration(call: FunctionCallNode): Definit
 export function findResolvedSourceFunction(
     call: FunctionCallNode,
 ): SourceFunctionDefinition | undefined {
-    const definition = findResolvedFunctionDeclaration(call);
-    return isSourceFunctionDefinition(definition) ? definition : undefined;
+    const declaration = findResolvedFunctionDeclaration(call);
+    return isSourceFunctionDefinition(declaration) ? declaration : undefined;
 }
 
 export function findCurrentArgument(
@@ -52,17 +52,10 @@ export function findCurrentArgument(
     position: Position,
 ): { call: FunctionCallNode; argument: ArgumentNode } | undefined {
     const containingNodes = findNodesThatContainPosition(analysis, position);
-    const argument = containingNodes.findLast(
-        (node): node is ArgumentNode => node.kind === "argument",
-    );
+    const call = containingNodes.findLast((node) => node.kind === "function-call");
+    const argument = containingNodes.findLast((node) => node.kind === "argument");
 
-    if (argument === undefined) {
-        return undefined;
-    }
-
-    const call = argument.parent;
-
-    if (call === undefined || call.kind !== "function-call") {
+    if (!call || !argument) {
         return undefined;
     }
 

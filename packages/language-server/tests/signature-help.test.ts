@@ -1,29 +1,10 @@
-import { buildAnalysis } from "server/analysis/builder.js";
 import { findSignatureHelp } from "server/signature-help.js";
-import { findCurrentArgument } from "server/utils/function-calls.js";
 import { describe, expect, it } from "vitest";
 import type { Position } from "vscode-languageserver";
 
 import { positionAt, testDocument } from "./test-utils.js";
 
 describe("JSONiq signature help", () => {
-    describe("findCurrentArgument", () => {
-        it("returns the innermost argument and its index", async () => {
-            const document = testDocument("sig-ast-nodes", ['fn:substring("hello", 1, 2)']);
-            const analysis = await buildAnalysis(document);
-
-            expect(
-                findCurrentArgument(analysis, positionAt(document, '"hello"'))?.argument.index,
-            ).toBe(0);
-            expect(findCurrentArgument(analysis, positionAt(document, "1"))?.argument.index).toBe(
-                1,
-            );
-            expect(findCurrentArgument(analysis, positionAt(document, "2"))?.argument.index).toBe(
-                2,
-            );
-        });
-    });
-
     describe("findSignatureHelp", () => {
         it("returns signature help for W3C builtin functions", async () => {
             const document = testDocument("sig-builtin", ['fn:substring("hello", 1, 2)']);

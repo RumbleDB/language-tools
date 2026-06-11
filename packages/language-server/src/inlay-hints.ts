@@ -50,6 +50,7 @@ function createParameterHint(
 
 function getParameterName(call: FunctionCallNode, argument: ArgumentNode): string | undefined {
     const sourceDefinition = findResolvedSourceFunction(call);
+
     if (sourceDefinition) {
         const parameter = sourceDefinition.parameters[argument.index];
         return parameter === undefined ? undefined : `$${parameter.name.localName}`;
