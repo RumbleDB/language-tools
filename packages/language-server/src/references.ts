@@ -13,12 +13,12 @@ import { getAnalysis } from "./analysis/service.js";
  * @param includeDeclaration Whether to include the declaration location of the variable in the results, in addition to its references
  * @returns An array of Location objects representing all reference locations for the variable at the given position, optionally including the declaration location
  */
-export async function findReferenceLocations(
+export function findReferenceLocations(
     document: TextDocument,
     position: Position,
     includeDeclaration: boolean,
-): Promise<Location[]> {
-    const analysis = await getAnalysis(document);
+): Location[] {
+    const analysis = getAnalysis(document);
     const occurrence = findSymbolAtPosition(analysis, position);
     const targetDeclaration = occurrence?.declaration;
 

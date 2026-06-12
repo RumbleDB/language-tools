@@ -7,11 +7,8 @@ import { getBuiltinFunctionDocumentation } from "./assets/function-docs.js";
 import { chooseBestSignatureIndex, findResolvedSourceFunction } from "./utils/function-calls.js";
 import { rangesIntersect } from "./utils/range.js";
 
-export async function collectInlayHints(
-    document: TextDocument,
-    range: Range,
-): Promise<InlayHint[]> {
-    const analysis = await getAnalysis(document);
+export function collectInlayHints(document: TextDocument, range: Range): InlayHint[] {
+    const analysis = getAnalysis(document);
     return collectFunctionCallInlayHints(analysis.ast, range);
 }
 

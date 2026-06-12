@@ -53,7 +53,7 @@ async function refreshDiagnostics(uri: string): Promise<void> {
 
     const syntaxDiagnostics = parseDocument(document).diagnostics;
     const semanticDiagnostics =
-        syntaxDiagnostics.length === 0 ? await collectSemanticDiagnostics(document) : [];
+        syntaxDiagnostics.length === 0 ? collectSemanticDiagnostics(document) : [];
     const typeDiagnostics =
         syntaxDiagnostics.length === 0 ? await collectTypeDiagnostics(document) : [];
 
@@ -63,7 +63,7 @@ async function refreshDiagnostics(uri: string): Promise<void> {
     });
 }
 
-connection.onInitialize(async (_params: InitializeParams): Promise<InitializeResult> => {
+connection.onInitialize((_params: InitializeParams): InitializeResult => {
     return {
         capabilities: {
             textDocumentSync: TextDocumentSyncKind.Incremental,

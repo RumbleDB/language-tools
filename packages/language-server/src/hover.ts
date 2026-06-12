@@ -14,7 +14,7 @@ import { formatInferredType } from "./type-inference/format.js";
 import { getTypeInferenceIndex, TypeInferenceIndex } from "./type-inference/service.js";
 
 export async function findHover(document: TextDocument, position: Position): Promise<Hover | null> {
-    const analysis = await getAnalysis(document);
+    const analysis = getAnalysis(document);
     const occurrence = findSymbolAtPosition(analysis, position);
 
     if (occurrence === undefined || occurrence.declaration === undefined) {

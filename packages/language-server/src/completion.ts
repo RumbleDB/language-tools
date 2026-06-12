@@ -31,10 +31,7 @@ import { getDocumentText } from "./parser/utils.js";
 const VARIABLE_PREFIX_PATTERN = /\$[A-Za-z0-9_.:-]*$/;
 const GENERIC_BUILTIN_PARAMETER_PREFIX = "$arg";
 
-export async function findCompletions(
-    document: TextDocument,
-    position: Position,
-): Promise<CompletionItem[]> {
+export function findCompletions(document: TextDocument, position: Position): CompletionItem[] {
     const source = getDocumentText(document);
     const cursorOffset = document.offsetAt(position);
     const intent = collectCompletionIntent(document, cursorOffset);
@@ -59,7 +56,7 @@ export async function findCompletions(
                   end: position,
               };
 
-    const availableSourceDeclarations = await getVisibleDeclarationsAtPosition(document, position);
+    const availableSourceDeclarations = getVisibleDeclarationsAtPosition(document, position);
     const variables = intent.allowVariableReferences
         ? availableSourceDeclarations.filter(
               (v) => isSourceVariableDefinition(v) || isSourceParameterDefinition(v),
@@ -68,7 +65,7 @@ export async function findCompletions(
     const functions = intent.allowFunctions
         ? availableSourceDeclarations.filter(isSourceFunctionDefinition)
         : [];
-    const builtinFunctions = intent.allowFunctions ? await getBuiltinFunctionCompletionItems() : [];
+    const builtinFunctions = intent.allowFunctions ? getBuiltinFunctionCompletionItems() : [];
     const keywords = keywordCompletions(intent.keywords);
 
     if (intent.allowVariableDeclarations && !typingVariablePrefix) {
@@ -131,7 +128,7 @@ function toCompletionItem(declaration: BaseDefinition): CompletionItem {
     };
 }
 
-async function getBuiltinFunctionCompletionItems(): Promise<CompletionItem[]> {
+function getBuiltinFunctionCompletionItems(): CompletionItem[] {
     const itemsByName = new Map<string, { item: CompletionItem; parameterCount: number }>();
 
     for (const definition of builtinFunctions.all) {

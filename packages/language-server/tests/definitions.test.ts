@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import { testDocument } from "./test-utils.js";
 
 describe("JSONiq go-to-definition", () => {
-    it("resolves variable reference to the nearest declaration", async () => {
+    it("resolves variable reference to the nearest declaration", () => {
         const document = testDocument("definitions-shadowing", [
             "declare variable $x := 10;",
             "declare function local:f($x) {",
@@ -14,14 +14,14 @@ describe("JSONiq go-to-definition", () => {
             "local:f($x)",
         ]);
 
-        const localReference = await findDefinitionLocation(document, { line: 3, character: 15 });
-        const globalReference = await findDefinitionLocation(document, { line: 5, character: 9 });
+        const localReference = findDefinitionLocation(document, { line: 3, character: 15 });
+        const globalReference = findDefinitionLocation(document, { line: 5, character: 9 });
 
         expect(localReference?.range.start.line).toBe(1);
         expect(globalReference?.range.start.line).toBe(0);
     });
 
-    it("returns declaration location when cursor is already on declaration", async () => {
+    it("returns declaration location when cursor is already on declaration", () => {
         const firstLine = "declare function local:f($x) {";
         const document = testDocument("definitions-on-declaration", [
             firstLine,
@@ -30,7 +30,7 @@ describe("JSONiq go-to-definition", () => {
         ]);
 
         const declarationCharacter = firstLine.indexOf("$x") + 1;
-        const location = await findDefinitionLocation(document, {
+        const location = findDefinitionLocation(document, {
             line: 0,
             character: declarationCharacter,
         });
@@ -39,7 +39,7 @@ describe("JSONiq go-to-definition", () => {
         expect(location?.range.start.line).toBe(0);
     });
 
-    it("resolves definition when cursor is on the dollar sign of a parameter", async () => {
+    it("resolves definition when cursor is on the dollar sign of a parameter", () => {
         const firstLine = "declare function local:f($x) {";
         const document = testDocument("definitions-parameter-dollar", [
             firstLine,
@@ -47,7 +47,7 @@ describe("JSONiq go-to-definition", () => {
             "};",
         ]);
 
-        const location = await findDefinitionLocation(document, {
+        const location = findDefinitionLocation(document, {
             line: 0,
             character: firstLine.indexOf("$x"),
         });
@@ -56,7 +56,7 @@ describe("JSONiq go-to-definition", () => {
         expect(location?.range.start.line).toBe(0);
     });
 
-    it("resolves function call to function declaration", async () => {
+    it("resolves function call to function declaration", () => {
         const document = testDocument("definitions-function-call", [
             "declare function local:f($x) {",
             "  $x",
@@ -64,7 +64,7 @@ describe("JSONiq go-to-definition", () => {
             "local:f(1)",
         ]);
 
-        const location = await findDefinitionLocation(document, { line: 3, character: 2 });
+        const location = findDefinitionLocation(document, { line: 3, character: 2 });
 
         expect(location).toBeDefined();
         expect(location?.range.start).toEqual({ line: 0, character: "declare function ".length });
@@ -74,10 +74,10 @@ describe("JSONiq go-to-definition", () => {
         });
     });
 
-    it("returns null when position is not on a resolvable variable", async () => {
+    it("returns null when position is not on a resolvable variable", () => {
         const document = testDocument("definitions-null", "1 + 2");
 
-        const location = await findDefinitionLocation(document, { line: 0, character: 0 });
+        const location = findDefinitionLocation(document, { line: 0, character: 0 });
 
         expect(location).toBeNull();
     });

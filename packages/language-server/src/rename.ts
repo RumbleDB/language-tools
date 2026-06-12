@@ -32,11 +32,11 @@ interface RenameValidationResult {
  * @param position The Position in the document for which to prepare the rename (e.g. the position of the cursor in the editor)
  * @returns An object containing the range of text that would be renamed and a placeholder string for the new name if a rename can be performed at the given position, or null if a rename cannot be performed at that position
  */
-export async function prepareRename(
+export function prepareRename(
     document: TextDocument,
     position: Position,
-): Promise<{ range: Range; placeholder: string } | null> {
-    const analysis = await getAnalysis(document);
+): { range: Range; placeholder: string } | null {
+    const analysis = getAnalysis(document);
     const target = findRenameTarget(analysis, position);
 
     if (target === null) {
@@ -59,17 +59,17 @@ export async function prepareRename(
  * @returns A WorkspaceEdit object representing all changes needed to rename the variable at the given position to the new name, including all references to that variable, or null if a rename cannot be performed at that position
  * @throws An error if the new name is not a valid JSONiq variable name
  */
-export async function buildRenameWorkspaceEdit(
+export function buildRenameWorkspaceEdit(
     document: TextDocument,
     position: Position,
     newName: string,
-): Promise<WorkspaceEdit | null> {
+): WorkspaceEdit | null {
     const validation = validateVariableName(newName);
     if (!validation.valid) {
         throw new Error(validation.message ?? "Invalid JSONiq variable name.");
     }
 
-    const analysis = await getAnalysis(document);
+    const analysis = getAnalysis(document);
     const target = findRenameTarget(analysis, position);
 
     if (target === null) {

@@ -10,11 +10,11 @@ interface CachedAnalysis {
 
 const analysisCache = new Map<DocumentUri, CachedAnalysis>();
 
-export async function getAnalysis(document: TextDocument): Promise<JsoniqAnalysis> {
-    return (await getCachedAnalysis(document)).analysis;
+export function getAnalysis(document: TextDocument): JsoniqAnalysis {
+    return getCachedAnalysis(document).analysis;
 }
 
-async function getCachedAnalysis(document: TextDocument): Promise<CachedAnalysis> {
+function getCachedAnalysis(document: TextDocument): CachedAnalysis {
     const cached = analysisCache.get(document.uri);
 
     if (cached !== undefined && cached.version === document.version) {

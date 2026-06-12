@@ -239,10 +239,10 @@ describe("JSONiq variable scope analysis", () => {
         });
     });
 
-    it("resolves unprefixed builtin functions through the fn namespace", async () => {
+    it("resolves unprefixed builtin functions through the fn namespace", () => {
         const document = testDocument("scope-unprefixed-builtin", ['substring("hello", 1, 2)']);
 
-        const analysis = await getAnalysis(document);
+        const analysis = getAnalysis(document);
         const functionReference = collectReferences(analysis).find(
             (reference) => reference.kind === "function",
         );

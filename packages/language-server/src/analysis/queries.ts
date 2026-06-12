@@ -9,11 +9,11 @@ import { BaseDefinition, SourceDefinition } from "./definitions.js";
 import { ResolvedReference } from "./reference.js";
 import { getAnalysis } from "./service.js";
 
-export async function getVisibleDeclarationsAtPosition(
+export function getVisibleDeclarationsAtPosition(
     document: TextDocument,
     position: Position,
-): Promise<BaseDefinition[]> {
-    const analysis = await getAnalysis(document);
+): BaseDefinition[] {
+    const analysis = getAnalysis(document);
     const positionOffset = document.offsetAt(position);
     const scope = analysis.scope.findInnermostScope(positionOffset);
     return [...scope.listVisibleDefinitions(positionOffset).values()];

@@ -18,8 +18,8 @@ export const legend: SemanticTokensLegend = {
     tokenModifiers: ["definition", "defaultLibrary"],
 };
 
-export async function collectSemanticDiagnostics(document: TextDocument): Promise<Diagnostic[]> {
-    const analysis = await getAnalysis(document);
+export function collectSemanticDiagnostics(document: TextDocument): Diagnostic[] {
+    const analysis = getAnalysis(document);
     return analysis.diagnostics;
 }
 
@@ -48,8 +48,8 @@ function addSemanticToken(
     );
 }
 
-export async function collectSemanticTokens(document: TextDocument): Promise<SemanticTokens> {
-    const analysis = await getAnalysis(document);
+export function collectSemanticTokens(document: TextDocument): SemanticTokens {
+    const analysis = getAnalysis(document);
     const builder = new SemanticTokensBuilder();
 
     for (const definition of collectDefinitions(analysis)) {
@@ -67,7 +67,7 @@ export async function collectSemanticTokens(document: TextDocument): Promise<Sem
         addSemanticToken(builder, reference.range, tokenType, tokenModifiers);
     }
 
-    const result = await builder.build();
+    const result = builder.build();
     return result;
 }
 

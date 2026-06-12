@@ -4,23 +4,20 @@ import { describe, expect, it } from "vitest";
 import { positionAt, positionAtNth, testDocument } from "./test-utils.js";
 
 describe("JSONiq rename", () => {
-    it("prepares rename over variable references and declarations", async () => {
+    it("prepares rename over variable references and declarations", () => {
         const source = ["for $x at $pos in (1, 2, 3)", "let $y := $x + 1", "return $x + $y"].join(
             "\n",
         );
         const document = testDocument("rename-prepare", source);
 
-        const prepareOnReference = await prepareRename(document, positionAtNth(document, "$x", 1));
-        const prepareOnDeclaration = await prepareRename(
-            document,
-            positionAtNth(document, "$x", 0),
-        );
+        const prepareOnReference = prepareRename(document, positionAtNth(document, "$x", 1));
+        const prepareOnDeclaration = prepareRename(document, positionAtNth(document, "$x", 0));
 
         expect(prepareOnReference?.placeholder).toBe("$x");
         expect(prepareOnDeclaration?.placeholder).toBe("$x");
     });
 
-    it("renames declaration and all references in the same scope", async () => {
+    it("renames declaration and all references in the same scope", () => {
         const source = [
             "declare variable $x := 10;",
             "declare function local:f($x) {",
@@ -31,7 +28,7 @@ describe("JSONiq rename", () => {
         ].join("\n");
         const document = testDocument("rename-shadowing", source);
 
-        const workspaceEdit = await buildRenameWorkspaceEdit(
+        const workspaceEdit = buildRenameWorkspaceEdit(
             document,
             positionAtNth(document, "$x", 2),
             "$renamed",
@@ -44,20 +41,20 @@ describe("JSONiq rename", () => {
         expect(edits.map((edit) => edit.range.start.line)).toEqual([1, 2, 3]);
     });
 
-    it("rejects invalid variable names", async () => {
+    it("rejects invalid variable names", () => {
         const source = "let $x := 1 return $x";
         const document = testDocument("rename-invalid", source);
 
-        await expect(
+        expect(() =>
             buildRenameWorkspaceEdit(document, positionAtNth(document, "$x", 1), "renamed"),
-        ).rejects.toThrow("must start with '$'");
+        ).toThrow("must start with '$'");
     });
 
-    it("returns null for non-variable cursor positions", async () => {
+    it("returns null for non-variable cursor positions", () => {
         const source = "declare function local:f($x) { $x };";
         const document = testDocument("rename-miss", source);
 
-        const workspaceEdit = await buildRenameWorkspaceEdit(
+        const workspaceEdit = buildRenameWorkspaceEdit(
             document,
             positionAt(document, "local:f"),
             "$updated",

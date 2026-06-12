@@ -6,12 +6,12 @@ import { positionAt, testDocument } from "./test-utils.js";
 
 describe("JSONiq signature help", () => {
     describe("findSignatureHelp", () => {
-        it("returns signature help for W3C builtin functions", async () => {
+        it("returns signature help for W3C builtin functions", () => {
             const document = testDocument("sig-builtin", ['fn:substring("hello", 1, 2)']);
 
             // Cursor inside first argument
             const pos0 = positionAt(document, '"hello"');
-            const help0 = await findSignatureHelp(document, pos0);
+            const help0 = findSignatureHelp(document, pos0);
 
             expect(help0).not.toBeNull();
             expect(help0?.activeParameter).toBe(0);
@@ -20,7 +20,7 @@ describe("JSONiq signature help", () => {
 
             // Cursor inside third argument
             const pos2 = positionAt(document, "2");
-            const help2 = await findSignatureHelp(document, pos2);
+            const help2 = findSignatureHelp(document, pos2);
 
             expect(help2).not.toBeNull();
             expect(help2?.activeParameter).toBe(2);
@@ -30,18 +30,18 @@ describe("JSONiq signature help", () => {
             expect(activeSig?.parameters?.length).toBe(3);
         });
 
-        it("returns signature help for builtin calls with trailing commas", async () => {
+        it("returns signature help for builtin calls with trailing commas", () => {
             const document = testDocument("sig-incomplete", ['fn:substring("hello", )']);
 
             const pos: Position = { line: 0, character: 'fn:substring("hello", '.length };
-            const help = await findSignatureHelp(document, pos);
+            const help = findSignatureHelp(document, pos);
 
             expect(help).not.toBeNull();
             expect(help?.activeParameter).toBe(1);
             expect(help?.signatures[help.activeSignature ?? 0]?.label).toContain("fn:substring");
         });
 
-        it("returns signature help for incomplete source calls with trailing commas", async () => {
+        it("returns signature help for incomplete source calls with trailing commas", () => {
             const document = testDocument("sig-incomplete-source", [
                 "declare function local:f($a as xs:string, $b) {",
                 "  $a",
@@ -51,14 +51,14 @@ describe("JSONiq signature help", () => {
             ]);
 
             const pos: Position = { line: 4, character: "local:f('test', ".length };
-            const help = await findSignatureHelp(document, pos);
+            const help = findSignatureHelp(document, pos);
 
             expect(help).not.toBeNull();
             expect(help?.activeParameter).toBe(1);
             expect(help?.signatures[0]?.label).toBe("local:f($a, $b)");
         });
 
-        it("returns signature help for custom/source functions", async () => {
+        it("returns signature help for custom/source functions", () => {
             const document = testDocument("sig-custom", [
                 "declare function local:my-add($a, $b) {",
                 "  $a + $b",
@@ -67,18 +67,18 @@ describe("JSONiq signature help", () => {
             ]);
 
             const pos = positionAt(document, "2");
-            const help = await findSignatureHelp(document, pos);
+            const help = findSignatureHelp(document, pos);
 
             expect(help).not.toBeNull();
             expect(help?.activeParameter).toBe(1);
             expect(help?.signatures[0]?.label).toBe("local:my-add($a, $b)");
         });
 
-        it("returns null when cursor is not in a function call", async () => {
+        it("returns null when cursor is not in a function call", () => {
             const document = testDocument("sig-null", ["declare variable $x := 10;"]);
 
             const pos = positionAt(document, "$x");
-            const help = await findSignatureHelp(document, pos);
+            const help = findSignatureHelp(document, pos);
 
             expect(help).toBeNull();
         });
