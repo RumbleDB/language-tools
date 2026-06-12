@@ -1,7 +1,7 @@
 import { DiagnosticSeverity, Range, type Position, type Diagnostic } from "vscode-languageserver";
 import { TextDocument } from "vscode-languageserver-textdocument";
 
-import { getTypeInference } from "./wrapper/type-inference.js";
+import { getTypeInference } from "./wrapper/type-check.js";
 import type { WrapperTypeError } from "./wrapper/types.js";
 
 export async function collectTypeDiagnostics(document: TextDocument): Promise<Diagnostic[]> {
@@ -9,7 +9,7 @@ export async function collectTypeDiagnostics(document: TextDocument): Promise<Di
 
     const diagnostics: Diagnostic[] = [];
 
-    for (const error of response.body.typeErrors) {
+    for (const error of response.body.errors) {
         diagnostics.push(toDiagnostic(document, error));
     }
 

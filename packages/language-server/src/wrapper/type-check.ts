@@ -7,16 +7,16 @@ import { getWrapperClient } from "./client.js";
 import type { WrapperDaemonResponse } from "./protocol.js";
 import type { TypeInferenceResult } from "./types.js";
 
-export const REQUEST_TYPE_INFER_TYPES = "inferTypes" as const;
+export const REQUEST_TYPE_STATIC_TYPECHECK = "static-typecheck" as const;
 
-export interface InferTypesRequestPayload {
-    requestType: typeof REQUEST_TYPE_INFER_TYPES;
+export interface StaticTypeCheckRequest {
+    requestType: typeof REQUEST_TYPE_STATIC_TYPECHECK;
     body: string;
     documentUri: string;
 }
 
 export type TypeInferenceResponse = WrapperDaemonResponse<
-    typeof REQUEST_TYPE_INFER_TYPES,
+    typeof REQUEST_TYPE_STATIC_TYPECHECK,
     TypeInferenceResult
 >;
 
@@ -51,8 +51,8 @@ export async function getTypeInference(document: TextDocument): Promise<TypeInfe
     const body = Buffer.from(getDocumentText(document), "utf8").toString("base64");
 
     const inferencePromise = getWrapperClient()
-        .sendRequest<"inferTypes">({
-            requestType: "inferTypes",
+        .sendRequest<"static-typecheck">({
+            requestType: "static-typecheck",
             body,
             documentUri: document.uri,
         })

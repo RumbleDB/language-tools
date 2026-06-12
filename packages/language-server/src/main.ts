@@ -29,7 +29,7 @@ import {
 import { findSignatureHelp } from "./signature-help.js";
 import { collectDocumentSymbols } from "./symbols.js";
 import { collectTypeDiagnostics } from "./type-diagnostics.js";
-import { clearTypeInferenceCache } from "./wrapper/type-inference.js";
+import { clearTypeInferenceCache } from "./wrapper/type-check.js";
 
 const connection = createConnection(ProposedFeatures.all);
 const documents = new TextDocuments(TextDocument);

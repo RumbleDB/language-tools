@@ -11,7 +11,7 @@ import org.rumbledb.config.RumbleRuntimeConfiguration;
 import org.rumbledb.context.Name;
 import org.rumbledb.context.StaticContext;
 import org.rumbledb.exceptions.ExceptionMetadata;
-import org.rumbledb.exceptions.UnexpectedStaticTypeException;
+import org.rumbledb.exceptions.RumbleException;
 import org.rumbledb.expressions.Node;
 import org.rumbledb.expressions.flowr.Clause;
 import org.rumbledb.expressions.flowr.CountClause;
@@ -33,7 +33,7 @@ import java.util.Base64;
 import java.util.List;
 import java.util.Objects;
 
-public final class TypeInferencer implements RequestHandler {
+public final class StaticTypeChecker implements RequestHandler {
 
     public enum VariableKind {
         Declare("declare-variable"),
@@ -56,7 +56,7 @@ public final class TypeInferencer implements RequestHandler {
         }
     }
 
-    public interface InferredTypeEntry {
+    public interface StaticTypeEntry {
         String kind();
 
         Position position();
@@ -67,7 +67,7 @@ public final class TypeInferencer implements RequestHandler {
             VariableKind variableKind,
             Position position,
             ResolvedQName qname,
-            String sequenceType) implements InferredTypeEntry {
+            String sequenceType) implements StaticTypeEntry {
         public VariableType(
                 VariableKind variableKind,
                 Position position,
@@ -80,7 +80,7 @@ public final class TypeInferencer implements RequestHandler {
     public record FunctionType(
             String kind,
             Position position,
-            FunctionDefinition function) implements InferredTypeEntry {
+            FunctionDefinition function) implements StaticTypeEntry {
         public FunctionType(
                 Position position,
                 FunctionDefinition function) {
@@ -88,7 +88,7 @@ public final class TypeInferencer implements RequestHandler {
         }
     }
 
-    public record TypeError(
+    public record StaticTypeError(
             String code,
             String message,
             String location,
@@ -96,8 +96,8 @@ public final class TypeInferencer implements RequestHandler {
     }
 
     public record Result(
-            List<InferredTypeEntry> types,
-            List<TypeError> typeErrors) implements ResponseBody {
+            List<StaticTypeEntry> types,
+            List<StaticTypeError> errors) implements ResponseBody {
     }
 
     public final static Result EMPTY_RESULT = new Result(List.of(), List.of());
@@ -105,7 +105,7 @@ public final class TypeInferencer implements RequestHandler {
     private final RumbleRuntimeConfiguration permissiveConfiguration;
     private final RumbleRuntimeConfiguration strictConfiguration;
 
-    public TypeInferencer() {
+    public StaticTypeChecker() {
         /**
          * We need two separate configuration because when static typing is enabled, the
          * parser will throw an exception as soon as it encounters a type error, which
@@ -132,8 +132,8 @@ public final class TypeInferencer implements RequestHandler {
             return EMPTY_RESULT;
         }
 
-        List<InferredTypeEntry> types = new ArrayList<>();
-        List<TypeError> typeErrors = new ArrayList<>();
+        List<StaticTypeEntry> types = new ArrayList<>();
+        List<StaticTypeError> typeErrors = new ArrayList<>();
 
         try {
             MainModule module = parseMainModule(query, documentUri, this.permissiveConfiguration);
@@ -148,7 +148,7 @@ public final class TypeInferencer implements RequestHandler {
         /// Parse with strict configuration to collect type errors, if any.
         try {
             parseMainModule(query, documentUri, this.strictConfiguration);
-        } catch (UnexpectedStaticTypeException exception) {
+        } catch (RumbleException exception) {
             typeErrors.add(toTypeError(exception));
         }
 
@@ -166,13 +166,13 @@ public final class TypeInferencer implements RequestHandler {
         return VisitorHelpers.parseMainModule(query, documentUri, configuration);
     }
 
-    private static TypeError toTypeError(UnexpectedStaticTypeException exception) {
+    private static StaticTypeError toTypeError(RumbleException exception) {
         ExceptionMetadata metadata = exception.getMetadata() == null
                 ? ExceptionMetadata.EMPTY_METADATA
                 : exception.getMetadata();
         String code = exception.getErrorCode().toString();
         String message = Objects.toString(exception.getJSONiqErrorMessage(), exception.getMessage());
-        return new TypeError(
+        return new StaticTypeError(
                 code,
                 message,
                 metadata.getLocation(),
@@ -187,7 +187,7 @@ public final class TypeInferencer implements RequestHandler {
      */
     private static void visitNodeAndCollectTypes(
             Node node,
-            List<InferredTypeEntry> types) {
+            List<StaticTypeEntry> types) {
         if (node == null) {
             return;
         }
@@ -208,7 +208,7 @@ public final class TypeInferencer implements RequestHandler {
      */
     private static void collectFunctionType(
             Node node,
-            List<InferredTypeEntry> types) {
+            List<StaticTypeEntry> types) {
         if (!(node instanceof FunctionDeclaration functionDeclaration)) {
             return;
         }
@@ -258,7 +258,7 @@ public final class TypeInferencer implements RequestHandler {
      */
     private static void collectVariableType(
             Node node,
-            List<InferredTypeEntry> types) {
+            List<StaticTypeEntry> types) {
         if (node instanceof VariableDeclaration variableDeclaration) {
             /// Global variable declaration does not Clause type, we need to handle it
             /// separately
@@ -333,7 +333,7 @@ public final class TypeInferencer implements RequestHandler {
 
     private static void addDeclaredVariableType(
             VariableDeclaration variableDeclaration,
-            List<InferredTypeEntry> types) {
+            List<StaticTypeEntry> types) {
         Name variableName = variableDeclaration.getVariableName();
         ExceptionMetadata metadata = variableDeclaration.getMetadata();
         if (variableName == null || metadata == null) {
@@ -363,7 +363,7 @@ public final class TypeInferencer implements RequestHandler {
             StaticContext context,
             Name variableName,
             VariableKind kind,
-            List<InferredTypeEntry> types) {
+            List<StaticTypeEntry> types) {
         if (context == null || variableName == null) {
             return;
         }
@@ -400,6 +400,6 @@ public final class TypeInferencer implements RequestHandler {
 
     @Override
     public String getRequestType() {
-        return "inferTypes";
+        return "static-typecheck";
     }
 }

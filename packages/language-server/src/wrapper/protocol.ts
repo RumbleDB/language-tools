@@ -9,11 +9,11 @@ import type {
     HandshakeResponseBody,
     REQUEST_TYPE_HANDSHAKE,
 } from "./handshake.js";
-import type { InferTypesRequestPayload, REQUEST_TYPE_INFER_TYPES } from "./type-inference.js";
+import type { StaticTypeCheckRequest, REQUEST_TYPE_STATIC_TYPECHECK } from "./type-check.js";
 import type { BuiltinFunctionsResponseBody, TypeInferenceResult } from "./types.js";
 
 export type WrapperRequestPayloadByType = {
-    [REQUEST_TYPE_INFER_TYPES]: InferTypesRequestPayload;
+    [REQUEST_TYPE_STATIC_TYPECHECK]: StaticTypeCheckRequest;
     [REQUEST_TYPE_BUILTIN_FUNCTIONS]: BuiltinFunctionsRequestPayload;
     [REQUEST_TYPE_HANDSHAKE]: HandshakeRequestPayload;
 };
@@ -43,7 +43,7 @@ export type WrapperDaemonResponse<ResponseType extends WrapperRequestType, Respo
 };
 
 export type WrapperResponseBodyByType = {
-    [REQUEST_TYPE_INFER_TYPES]: TypeInferenceResult;
+    [REQUEST_TYPE_STATIC_TYPECHECK]: TypeInferenceResult;
     [REQUEST_TYPE_BUILTIN_FUNCTIONS]: BuiltinFunctionsResponseBody;
     [REQUEST_TYPE_HANDSHAKE]: HandshakeResponseBody;
 };

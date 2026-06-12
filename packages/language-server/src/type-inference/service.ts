@@ -5,7 +5,7 @@ import {
     SourceVariableDefinition,
 } from "server/analysis/definitions.js";
 import { toResolvedQName } from "server/wrapper/names.js";
-import { getTypeInference } from "server/wrapper/type-inference.js";
+import { getTypeInference } from "server/wrapper/type-check.js";
 import {
     type InferredFunctionType,
     type InferredSequenceType,

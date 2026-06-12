@@ -65,5 +65,5 @@ export interface WrapperTypeError {
 
 export interface TypeInferenceResult {
     types: InferredTypeEntry[];
-    typeErrors: WrapperTypeError[];
+    errors: WrapperTypeError[];
 }
