@@ -6,23 +6,10 @@ import {
     MATH_NAMESPACE,
 } from "server/analysis/default-namespaces.js";
 import { BaseDefinition } from "server/analysis/definitions.js";
-import { createLogger } from "server/utils/logger.js";
+import { loadBuiltinFunctions } from "server/assets/loader.js";
 
 import { functionNameToString, type FunctionName } from "../analysis/names.js";
-import { getWrapperClient } from "./client.js";
-import type { WrapperDaemonResponse } from "./protocol.js";
-import { type BuiltinFunctionsResponseBody, type WrapperFunctionSignature } from "./types.js";
-
-export const REQUEST_TYPE_BUILTIN_FUNCTIONS = "builtinFunctions" as const;
-
-export interface BuiltinFunctionsRequestPayload {
-    requestType: typeof REQUEST_TYPE_BUILTIN_FUNCTIONS;
-}
-
-export type BuiltinFunctionListResponse = WrapperDaemonResponse<
-    typeof REQUEST_TYPE_BUILTIN_FUNCTIONS,
-    BuiltinFunctionsResponseBody
->;
+import { type WrapperFunctionSignature } from "./types.js";
 
 export interface BuiltinFunctionDefinition extends BaseDefinition<"builtin-function"> {
     name: FunctionName;
@@ -39,12 +26,7 @@ const BUILTIN_FUNCTION_NAMESPACES = [
     ARRAY_NAMESPACE,
 ] as const;
 
-const BUILTIN_FUNCTIONS_REQUEST: BuiltinFunctionsRequestPayload = {
-    requestType: REQUEST_TYPE_BUILTIN_FUNCTIONS,
-};
-
 let builtinDefinitionsPromise: Promise<Map<string, BuiltinFunctionDefinition>> | null = null;
-const logger = createLogger("wrapper:builtin-functions");
 
 async function getBuiltinFunctionMap(): Promise<Map<string, BuiltinFunctionDefinition>> {
     if (builtinDefinitionsPromise !== null) {
@@ -52,28 +34,18 @@ async function getBuiltinFunctionMap(): Promise<Map<string, BuiltinFunctionDefin
     }
 
     builtinDefinitionsPromise = (async () => {
-        const response = await getWrapperClient()
-            .sendRequest<typeof REQUEST_TYPE_BUILTIN_FUNCTIONS>(BUILTIN_FUNCTIONS_REQUEST)
-            .catch((error) => {
-                logger.warn(
-                    `Failed to fetch builtin function definitions from wrapper: ${String(error)}`,
-                );
-                return undefined;
-            });
-
         const builtinDefinitionsByName = new Map<string, BuiltinFunctionDefinition>();
 
-        if (response !== undefined) {
-            for (const builtinFunction of response.body.builtinFunctions) {
-                const name = builtinFunction.name;
-                builtinDefinitionsByName.set(functionNameToString(name, true), {
-                    name,
-                    kind: "builtin-function",
-                    signature: builtinFunction.signature,
-                    references: [],
-                    isBuiltin: true,
-                });
-            }
+        const builtinFunctions = loadBuiltinFunctions();
+        for (const builtinFunction of builtinFunctions) {
+            const name = builtinFunction.name;
+            builtinDefinitionsByName.set(functionNameToString(name, true), {
+                name,
+                kind: "builtin-function",
+                signature: builtinFunction.signature,
+                references: [],
+                isBuiltin: true,
+            });
         }
 
         return builtinDefinitionsByName;

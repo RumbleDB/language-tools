@@ -10,7 +10,6 @@ import java.util.Map;
 import java.util.Objects;
 
 import org.jsoniq.lsp.wrapper.handlers.BuiltinFunctions;
-import org.jsoniq.lsp.wrapper.handlers.BuiltinTypes;
 import org.jsoniq.lsp.wrapper.handlers.Handshake;
 import org.jsoniq.lsp.wrapper.handlers.RequestHandler;
 import org.jsoniq.lsp.wrapper.handlers.StaticTypeChecker;
@@ -22,25 +21,31 @@ public class Main {
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
     private static final StaticTypeChecker INFERENCER = new StaticTypeChecker();
     private static final BuiltinFunctions BUILTIN_FUNCTIONS = new BuiltinFunctions();
-    private static final BuiltinTypes BUILTIN_TYPES = new BuiltinTypes();
     private static final Handshake HANDSHAKE = new Handshake();
 
     private static final Map<String, RequestHandler> DAEMON_HANDLERS = Map.of(
             INFERENCER.getRequestType(), INFERENCER,
-            BUILTIN_FUNCTIONS.getRequestType(), BUILTIN_FUNCTIONS,
-            BUILTIN_TYPES.getRequestType(), BUILTIN_TYPES,
             HANDSHAKE.getRequestType(), HANDSHAKE);
 
     public static void main(String[] args) {
-        if (isDaemonMode(args)) {
+        if (hasArg(args, "--dump-builtin-functions")) {
+            try {
+                System.out.println(OBJECT_MAPPER.writeValueAsString(BUILTIN_FUNCTIONS.listBuiltinFunctions()));
+                System.exit(0);
+            } catch (Throwable throwable) {
+                throwable.printStackTrace(System.err);
+                System.exit(1);
+            }
+        }
+        if (hasArg(args, "--daemon")) {
             runDaemon();
             return;
         }
     }
 
-    private static boolean isDaemonMode(String[] args) {
+    private static boolean hasArg(String[] args, String target) {
         for (String argument : args) {
-            if ("--daemon".equals(argument)) {
+            if (target.equals(argument)) {
                 return true;
             }
         }
