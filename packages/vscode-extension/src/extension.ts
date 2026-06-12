@@ -6,7 +6,7 @@ import {
     TransportKind,
 } from "vscode-languageclient/node";
 
-import { JSONIQ_LANGUAGE_ID } from "./const.js";
+import { JSONIQ_LANGUAGE_ID, XQUERY_LANGUAGE_ID } from "./const.js";
 import { JUPYTER_NOTEBOOK_SELECTOR } from "./notebook/index.js";
 import { initializeCustomNotifications } from "./notifications/index.js";
 
@@ -46,6 +46,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     const clientOptions: LanguageClientOptions = {
         documentSelector: [
             { scheme: "file", language: JSONIQ_LANGUAGE_ID },
+            { scheme: "file", language: XQUERY_LANGUAGE_ID },
             JUPYTER_NOTEBOOK_SELECTOR,
         ],
     };

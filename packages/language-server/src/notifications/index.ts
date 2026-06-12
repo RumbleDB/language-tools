@@ -7,6 +7,8 @@ import {
     WRAPPER_DOWNLOAD_PROGRESS_NOTIFICATION,
     MEMORY_USAGE_NOTIFICATION,
     MemoryUsage,
+    ACTIVE_PARSER_NOTIFICATION,
+    ActiveParserNotificationPayload,
 } from "./types.js";
 
 export {
@@ -14,6 +16,8 @@ export {
     type DownloadProgress,
     MEMORY_USAGE_NOTIFICATION,
     type MemoryUsage,
+    ACTIVE_PARSER_NOTIFICATION,
+    type ActiveParserNotificationPayload,
 };
 
 export const initializeCustomNotifications = (connection: Connection): void => {

@@ -5,3 +5,10 @@ export type MemoryUsage = {
     languageServer: number;
     wrapper: number | null;
 };
+
+export const ACTIVE_PARSER_NOTIFICATION = "jsoniq/active-parser";
+
+export type ActiveParserNotificationPayload = {
+    uri: string;
+    parserId: string;
+};

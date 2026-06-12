@@ -1,6 +1,6 @@
 import { getCompletionIntent } from "server/parser/completion.js";
 import type { ParserAdapter } from "server/parser/types/adapter.js";
-import { hasJsoniqCellMagic } from "server/parser/utils.js";
+import { getActiveParserId } from "server/parser/utils.js";
 import { TextDocument } from "vscode-languageserver-textdocument";
 
 import {
@@ -12,12 +12,9 @@ import { JsoniqTokenContextAnalyzer } from "./completion-token-context.js";
 import { JsoniqParser } from "./grammar/JsoniqParser.js";
 import { parseJsoniq } from "./parse.js";
 
-const JSONIQ_LANGUAGE_ID = "jsoniq";
-
 export const jsoniqParserAdapter: ParserAdapter = {
     id: "jsoniq",
-    supports: (document: TextDocument) =>
-        document.languageId === JSONIQ_LANGUAGE_ID || hasJsoniqCellMagic(document),
+    supports: (document: TextDocument) => getActiveParserId(document) === "jsoniq",
     parse: parseJsoniq,
     getCompletionIntent: (parsed, cursorOffset) =>
         getCompletionIntent(parsed, cursorOffset, {

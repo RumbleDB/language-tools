@@ -1,5 +1,6 @@
 import { getCompletionIntent } from "server/parser/completion.js";
 import type { ParserAdapter } from "server/parser/types/adapter.js";
+import { getActiveParserId } from "server/parser/utils.js";
 import { TextDocument } from "vscode-languageserver-textdocument";
 
 import {
@@ -11,27 +12,9 @@ import { XQueryTokenContextAnalyzer } from "./completion-token-context.js";
 import { XQueryParser } from "./grammar/XQueryParser.js";
 import { parseXQuery } from "./parse.js";
 
-const XQUERY_LANGUAGE_ID = "xquery";
-
 export const xqueryParserAdapter: ParserAdapter = {
     id: "xquery",
-    supports: (document: TextDocument) => {
-        if (document.languageId === XQUERY_LANGUAGE_ID) {
-            return true;
-        }
-        const text = document.getText();
-        if (text.includes("xquery version")) {
-            return true;
-        }
-        if (text.includes("jsoniq version")) {
-            return false;
-        }
-        const uri = document.uri.toLowerCase();
-        if (uri.endsWith(".xq") || uri.endsWith(".xqy") || uri.endsWith(".xquery")) {
-            return true;
-        }
-        return false;
-    },
+    supports: (document: TextDocument) => getActiveParserId(document) === "xquery",
     parse: parseXQuery,
     getCompletionIntent: (parsed, cursorOffset) =>
         getCompletionIntent(parsed, cursorOffset, {

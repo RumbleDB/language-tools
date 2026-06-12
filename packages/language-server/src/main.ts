@@ -12,9 +12,13 @@ import { findCompletions } from "./completion.js";
 import { findDefinitionLocation } from "./definitions.js";
 import { findHover } from "./hover.js";
 import { collectInlayHints } from "./inlay-hints.js";
-import { initializeCustomNotifications } from "./notifications/index.js";
+import {
+    ACTIVE_PARSER_NOTIFICATION,
+    type ActiveParserNotificationPayload,
+    initializeCustomNotifications,
+} from "./notifications/index.js";
 import { parseDocument } from "./parser/index.js";
-import { supportsDocument } from "./parser/registry.js";
+import { getParserAdapterForDocument, supportsDocument } from "./parser/registry.js";
 import { findReferenceLocations } from "./references.js";
 import { buildRenameWorkspaceEdit, prepareRename } from "./rename.js";
 import {
@@ -37,6 +41,14 @@ async function refreshDiagnostics(uri: string): Promise<void> {
 
     if (document === undefined || !supportsDocument(document)) {
         return;
+    }
+
+    const adapter = getParserAdapterForDocument(document);
+    if (adapter !== undefined) {
+        connection.sendNotification(ACTIVE_PARSER_NOTIFICATION, {
+            uri: document.uri,
+            parserId: adapter.id,
+        } satisfies ActiveParserNotificationPayload);
     }
 
     const syntaxDiagnostics = parseDocument(document).diagnostics;

@@ -48,6 +48,18 @@
                     ".jsoniq"
                 ],
                 "configuration": "./language-configuration.json"
+            },
+            {
+                "id": "xquery",
+                "aliases": [
+                    "XQuery"
+                ],
+                "extensions": [
+                    ".xq",
+                    ".xqy",
+                    ".xquery"
+                ],
+                "configuration": "./language-configuration.json"
             }
         ],
         "grammars": [
@@ -55,6 +67,11 @@
                 "language": "jsoniq",
                 "scopeName": "source.jsoniq",
                 "path": "./syntaxes/jsoniq.tmLanguage.json"
+            },
+            {
+                "language": "xquery",
+                "scopeName": "source.xquery",
+                "path": "./syntaxes/xquery.tmLanguage.json"
             },
             {
                 "scopeName": "source.jsoniq-notebook-injection",
@@ -69,6 +86,10 @@
         ],
         "configurationDefaults": {
             "[jsoniq]": {
+                "editor.wordBasedSuggestions": "off",
+                "editor.suggest.showWords": false
+            },
+            "[xquery]": {
                 "editor.wordBasedSuggestions": "off",
                 "editor.suggest.showWords": false
             }

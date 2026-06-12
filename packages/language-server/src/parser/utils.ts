@@ -89,3 +89,31 @@ export function getDocumentText(document: TextDocument): string {
     const maskedMagicLine = magicLine.replace(/[^\r\n]/g, " ");
     return `${maskedMagicLine}${source.slice(magicLine.length)}`;
 }
+
+export function getActiveParserId(document: TextDocument): "xquery" | "jsoniq" | undefined {
+    if (hasJsoniqCellMagic(document)) {
+        return "jsoniq";
+    }
+
+    if (document.languageId !== "jsoniq" && document.languageId !== "xquery") {
+        return undefined;
+    }
+
+    const text = document.getText();
+    if (text.includes("xquery version")) {
+        return "xquery";
+    }
+    if (text.includes("jsoniq version")) {
+        return "jsoniq";
+    }
+
+    const uri = document.uri.toLowerCase();
+    if (/\.(xq|xqy|xquery)$/.test(uri)) {
+        return "xquery";
+    }
+    if (/\.(jq|jsoniq)$/.test(uri)) {
+        return "jsoniq";
+    }
+
+    return document.languageId === "xquery" ? "xquery" : "jsoniq";
+}
