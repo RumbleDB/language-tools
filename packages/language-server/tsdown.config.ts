@@ -40,7 +40,7 @@ export default defineConfig([
                 "antlr4-c3",
                 "antlr4ng",
                 "vscode-languageserver",
-                "vscode-languageserver/node.js",
+                "vscode-languageserver/node",
                 "vscode-languageserver-textdocument",
             ],
         },
