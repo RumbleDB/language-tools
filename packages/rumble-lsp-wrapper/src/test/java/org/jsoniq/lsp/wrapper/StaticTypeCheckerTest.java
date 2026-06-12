@@ -10,7 +10,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.jsoniq.lsp.wrapper.handlers.StaticTypeChecker;
 import org.jsoniq.lsp.wrapper.handlers.StaticTypeChecker.VariableKind;
 
-class TypeInferencerTest {
+class StaticTypeCheckerTest {
     private final StaticTypeChecker inferencer = new StaticTypeChecker();
 
     private StaticTypeChecker.Result inferWithoutThrow(String query) {
