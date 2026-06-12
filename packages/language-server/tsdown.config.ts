@@ -6,7 +6,6 @@ export default defineConfig([
             "src/main.ts",
             "src/notifications/index.ts",
             "src/wrapper/executable/ensure-wrapper.ts",
-            "src/function-doc/list-missing-function-docs.ts",
         ],
         root: "src",
         outDir: "dist",

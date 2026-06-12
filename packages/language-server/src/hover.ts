@@ -1,4 +1,3 @@
-import { getBuiltinFunctionDocumentation } from "server/function-doc/index.js";
 import { MarkupKind, type Hover, type Position } from "vscode-languageserver";
 import { TextDocument } from "vscode-languageserver-textdocument";
 
@@ -10,7 +9,7 @@ import {
 } from "./analysis/definitions.js";
 import { findSymbolAtPosition } from "./analysis/queries.js";
 import { getAnalysis } from "./analysis/service.js";
-import { formatFunctionEntry } from "./function-doc/format.js";
+import { formatFunctionDocEntry, getBuiltinFunctionDocumentation } from "./assets/function-docs.js";
 import { formatInferredType } from "./type-inference/format.js";
 import { getTypeInferenceIndex, TypeInferenceIndex } from "./type-inference/service.js";
 
@@ -38,7 +37,7 @@ function createHoverContent(typeInference: TypeInferenceIndex, declaration: Defi
     if (declaration.kind === "builtin-function") {
         const doc = getBuiltinFunctionDocumentation(declaration.name.qname);
         if (doc) {
-            return formatFunctionEntry(doc, declaration.name.arity);
+            return formatFunctionDocEntry(doc, declaration.name.arity);
         }
     }
 

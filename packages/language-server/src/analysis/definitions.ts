@@ -1,4 +1,4 @@
-import { BuiltinFunctionDefinition } from "server/wrapper/builtin-functions.js";
+import { BuiltinFunctionDefinition } from "server/assets/builtin-functions.js";
 import type { Range } from "vscode-languageserver";
 import { TextDocument } from "vscode-languageserver-textdocument";
 

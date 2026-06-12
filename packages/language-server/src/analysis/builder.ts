@@ -1,3 +1,4 @@
+import { builtinFunctions } from "server/assets/builtin-functions.js";
 import { parseDocument } from "server/parser/index.js";
 import type {
     ArgumentAstNode,
@@ -27,7 +28,6 @@ import {
     type LexicalQName,
 } from "server/parser/types/name.js";
 import { AstVisitor } from "server/parser/types/visitor.js";
-import { BuiltinFunctions } from "server/wrapper/builtin-functions.js";
 import { Diagnostic, DiagnosticSeverity, Position, Range } from "vscode-languageserver";
 import { TextDocument } from "vscode-languageserver-textdocument";
 
@@ -88,14 +88,11 @@ class AnalysisBuilder extends AstVisitor<AstNode[]> {
 
     private readonly document: TextDocument;
 
-    private readonly builtinFunctions: BuiltinFunctions;
-
     private readonly parserAst: ParserAstNode;
 
-    public constructor(document: TextDocument, builtinFunctions: BuiltinFunctions) {
+    public constructor(document: TextDocument) {
         super();
         this.document = document;
-        this.builtinFunctions = builtinFunctions;
 
         this.parserAst = parseDocument(document).ast;
         const namespaces = new Map<string, SourceNamespaceDefinition>(
@@ -370,7 +367,7 @@ class AnalysisBuilder extends AstVisitor<AstNode[]> {
         name: ReferenceNameByKind[K],
     ): Definition | undefined {
         if (kind === "function") {
-            const builtinDefinition = this.builtinFunctions.find(name as FunctionName);
+            const builtinDefinition = builtinFunctions.find(name as FunctionName);
             if (builtinDefinition !== undefined) {
                 return builtinDefinition;
             }
@@ -475,9 +472,6 @@ class AnalysisBuilder extends AstVisitor<AstNode[]> {
     }
 }
 
-export function buildAnalysis(
-    document: TextDocument,
-    builtinFunctions: BuiltinFunctions = { all: [], find: () => undefined },
-): JsoniqAnalysis {
-    return new AnalysisBuilder(document, builtinFunctions).build();
+export function buildAnalysis(document: TextDocument): JsoniqAnalysis {
+    return new AnalysisBuilder(document).build();
 }

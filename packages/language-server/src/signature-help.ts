@@ -1,5 +1,4 @@
 import { FunctionName, QNameToString } from "server/analysis/names.js";
-import type { FunctionEntry } from "server/function-doc/types.js";
 import {
     MarkupKind,
     type Position,
@@ -16,7 +15,7 @@ import {
 } from "./analysis/definitions.js";
 import { findNodesThatContainPosition } from "./analysis/queries.js";
 import { getAnalysis } from "./analysis/service.js";
-import { getBuiltinFunctionDocumentation } from "./function-doc/index.js";
+import { FunctionDocEntry, getBuiltinFunctionDocumentation } from "./assets/function-docs.js";
 import { chooseBestSignatureIndex } from "./utils/function-calls.js";
 
 function createSignatureInformation(
@@ -52,7 +51,7 @@ function createSignatureInformation(
     return signature;
 }
 
-function getDocumentationSections(entry: FunctionEntry): string[] {
+function getDocumentationSections(entry: FunctionDocEntry): string[] {
     return [
         entry.summary,
         entry.rules && `**Rules:**\n${entry.rules}`,

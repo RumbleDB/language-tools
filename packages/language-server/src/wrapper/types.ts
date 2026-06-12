@@ -20,10 +20,6 @@ export interface WrapperFunctionDefinition {
     signature: WrapperFunctionSignature;
 }
 
-export interface BuiltinFunctionsResponseBody {
-    builtinFunctions: WrapperFunctionDefinition[];
-}
-
 export type WrapperVariableKind =
     | "declare-variable"
     | "let"

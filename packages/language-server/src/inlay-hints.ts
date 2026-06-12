@@ -3,7 +3,7 @@ import { TextDocument } from "vscode-languageserver-textdocument";
 
 import type { ArgumentNode, AstNode, FunctionCallNode } from "./analysis/ast.js";
 import { getAnalysis } from "./analysis/service.js";
-import { getBuiltinFunctionDocumentation } from "./function-doc/index.js";
+import { getBuiltinFunctionDocumentation } from "./assets/function-docs.js";
 import { chooseBestSignatureIndex, findResolvedSourceFunction } from "./utils/function-calls.js";
 import { rangesIntersect } from "./utils/range.js";
 
