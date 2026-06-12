@@ -1,5 +1,11 @@
 # jsoniq-language-server
 
+## 2.4.1
+
+### Patch Changes
+
+- [`a88b1f2`](https://github.com/RumbleDB/jsoniq-lsp/commit/a88b1f2c080f6b89feacfb863b4f33c733d5d4b3) - Correct the module path for `vscode-languageserver/node` to avoid an import error in the bundled version. It was previously imported as `vscode-languageserver/node.js`.
+
 ## 2.4.0
 
 ### Minor Changes
