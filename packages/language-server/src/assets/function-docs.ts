@@ -1,4 +1,4 @@
-type Parameter = {
+export type Parameter = {
     name: string;
     type: string;
     default?: string;

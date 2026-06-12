@@ -11,7 +11,7 @@ const W3_FUNCTION_DOCS_URL =
     "https://www.w3.org/TR/2017/REC-xpath-functions-31-20170321/function-catalog.xml";
 const OUTPUT_FILE_PATH = path.join(__dirname, "..", "assets", "function-doc", "w3-functions.json");
 
-import type { FunctionEntry, Parameter, Signature } from "../src/function-doc/types.js";
+import type { FunctionDocEntry, Parameter, Signature } from "../src/assets/function-docs";
 
 interface XmlParameter {
     name?: string;
@@ -278,7 +278,7 @@ async function main() {
 
     console.log(`Found ${functionsList.length} function definitions. Extracting details...`);
 
-    const docs: Record<string, FunctionEntry> = {};
+    const docs: Record<string, FunctionDocEntry> = {};
 
     for (const func of functionsList) {
         const name = func.name;
