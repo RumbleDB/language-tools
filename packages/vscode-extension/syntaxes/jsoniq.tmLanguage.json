@@ -7,7 +7,25 @@
             "include": "#comments"
         },
         {
+            "include": "#pragmas"
+        },
+        {
+            "include": "#xml-comments"
+        },
+        {
+            "include": "#cdata"
+        },
+        {
+            "include": "#xml-pi"
+        },
+        {
+            "include": "#string-constructors"
+        },
+        {
             "include": "#strings"
+        },
+        {
+            "include": "#entities"
         },
         {
             "include": "#numbers"
@@ -16,16 +34,34 @@
             "include": "#declarations"
         },
         {
+            "include": "#annotations"
+        },
+        {
+            "include": "#function-references"
+        },
+        {
             "include": "#function-calls"
         },
         {
             "include": "#variables"
         },
         {
-            "include": "#keywords"
+            "include": "#braced-uri-names"
+        },
+        {
+            "include": "#axes"
         },
         {
             "include": "#types"
+        },
+        {
+            "include": "#constants"
+        },
+        {
+            "include": "#keywords"
+        },
+        {
+            "include": "#xml-elements"
         },
         {
             "include": "#operators"
@@ -37,7 +73,12 @@
                 {
                     "name": "comment.block.jsoniq",
                     "begin": "\\(:",
-                    "end": ":\\)"
+                    "end": ":\\)",
+                    "patterns": [
+                        {
+                            "include": "#comments"
+                        }
+                    ]
                 },
                 {
                     "name": "comment.line.double-dash.jsoniq",
@@ -46,37 +87,204 @@
                 }
             ]
         },
+        "pragmas": {
+            "patterns": [
+                {
+                    "name": "meta.pragma.jsoniq",
+                    "begin": "\\(#",
+                    "beginCaptures": {
+                        "0": {
+                            "name": "punctuation.definition.pragma.begin.jsoniq"
+                        }
+                    },
+                    "end": "#\\)",
+                    "endCaptures": {
+                        "0": {
+                            "name": "punctuation.definition.pragma.end.jsoniq"
+                        }
+                    },
+                    "patterns": [
+                        {
+                            "include": "#strings"
+                        },
+                        {
+                            "include": "#entities"
+                        },
+                        {
+                            "include": "#braced-uri-names"
+                        },
+                        {
+                            "name": "entity.name.tag.pragma.jsoniq",
+                            "match": "(?:[A-Za-z_][A-Za-z0-9._-]*:)?[A-Za-z_][A-Za-z0-9._-]*"
+                        }
+                    ]
+                }
+            ]
+        },
+        "xml-comments": {
+            "patterns": [
+                {
+                    "name": "comment.block.xml.jsoniq",
+                    "begin": "<!--",
+                    "end": "-->"
+                }
+            ]
+        },
+        "cdata": {
+            "patterns": [
+                {
+                    "name": "string.unquoted.cdata.xml.jsoniq",
+                    "begin": "<!\\[CDATA\\[",
+                    "end": "\\]\\]>"
+                }
+            ]
+        },
+        "xml-pi": {
+            "patterns": [
+                {
+                    "name": "meta.processing-instruction.xml.jsoniq",
+                    "begin": "<\\?([A-Za-z_][A-Za-z0-9._-]*)",
+                    "beginCaptures": {
+                        "1": {
+                            "name": "entity.name.tag.processing-instruction.xml.jsoniq"
+                        }
+                    },
+                    "end": "\\?>",
+                    "patterns": [
+                        {
+                            "include": "#strings"
+                        },
+                        {
+                            "include": "#entities"
+                        }
+                    ]
+                }
+            ]
+        },
         "strings": {
             "patterns": [
                 {
                     "name": "string.quoted.double.jsoniq",
                     "begin": "\"",
+                    "beginCaptures": {
+                        "0": {
+                            "name": "punctuation.definition.string.begin.jsoniq"
+                        }
+                    },
                     "end": "\"",
+                    "endCaptures": {
+                        "0": {
+                            "name": "punctuation.definition.string.end.jsoniq"
+                        }
+                    },
                     "patterns": [
                         {
                             "name": "constant.character.escape.jsoniq",
                             "match": "\\\\(?:[\"\\\\/bfnrt]|u[0-9A-Fa-f]{4})"
+                        },
+                        {
+                            "include": "#entities"
+                        },
+                        {
+                            "include": "#enclosed-expression"
                         }
                     ]
                 },
                 {
                     "name": "string.quoted.single.jsoniq",
                     "begin": "'",
+                    "beginCaptures": {
+                        "0": {
+                            "name": "punctuation.definition.string.begin.jsoniq"
+                        }
+                    },
                     "end": "'",
+                    "endCaptures": {
+                        "0": {
+                            "name": "punctuation.definition.string.end.jsoniq"
+                        }
+                    },
                     "patterns": [
                         {
                             "name": "constant.character.escape.jsoniq",
                             "match": "\\\\(?:['\\\\/bfnrt]|u[0-9A-Fa-f]{4})"
+                        },
+                        {
+                            "include": "#entities"
+                        },
+                        {
+                            "include": "#enclosed-expression"
                         }
                     ]
+                }
+            ]
+        },
+        "string-constructors": {
+            "patterns": [
+                {
+                    "name": "string.interpolated.backtick.jsoniq",
+                    "begin": "``\\[",
+                    "beginCaptures": {
+                        "0": {
+                            "name": "punctuation.definition.string.begin.jsoniq"
+                        }
+                    },
+                    "end": "\\]``",
+                    "endCaptures": {
+                        "0": {
+                            "name": "punctuation.definition.string.end.jsoniq"
+                        }
+                    },
+                    "patterns": [
+                        {
+                            "begin": "`\\{",
+                            "beginCaptures": {
+                                "0": {
+                                    "name": "punctuation.section.embedded.begin.jsoniq"
+                                }
+                            },
+                            "end": "\\}`",
+                            "endCaptures": {
+                                "0": {
+                                    "name": "punctuation.section.embedded.end.jsoniq"
+                                }
+                            },
+                            "name": "meta.embedded.expression.jsoniq",
+                            "patterns": [
+                                {
+                                    "include": "$self"
+                                }
+                            ]
+                        }
+                    ]
+                }
+            ]
+        },
+        "entities": {
+            "patterns": [
+                {
+                    "name": "constant.character.entity.predefined.xml.jsoniq",
+                    "match": "&(?:lt|gt|amp|quot|apos);"
+                },
+                {
+                    "name": "constant.character.entity.numeric.xml.jsoniq",
+                    "match": "&#(?:[0-9]+|x[0-9A-Fa-f]+);"
                 }
             ]
         },
         "numbers": {
             "patterns": [
                 {
-                    "name": "constant.numeric.jsoniq",
-                    "match": "\\b-?(?:0|[1-9][0-9]*)(?:\\.[0-9]+)?(?:[eE][+-]?[0-9]+)?\\b"
+                    "name": "constant.numeric.double.jsoniq",
+                    "match": "(?<![\\w.-])(?:\\.[0-9]+|[0-9]+(?:\\.[0-9]*)?)[eE][+-]?[0-9]+(?![\\w.-])"
+                },
+                {
+                    "name": "constant.numeric.decimal.jsoniq",
+                    "match": "(?<![\\w.-])(?:\\.[0-9]+|[0-9]+\\.[0-9]*)(?![\\w.-])"
+                },
+                {
+                    "name": "constant.numeric.integer.jsoniq",
+                    "match": "(?<![\\w.-])[0-9]+(?![\\w.-])"
                 }
             ]
         },
@@ -84,22 +292,55 @@
             "patterns": [
                 {
                     "name": "meta.declaration.function.jsoniq",
-                    "match": "\\b(declare)\\s+(function)\\s+((?:[A-Za-z_][A-Za-z0-9._-]*:)?[A-Za-z_][A-Za-z0-9._-]*)",
+                    "match": "\\b(declare)\\b\\s+(?:(%)(?:Q\\{[^{}&]*\\})?(?:[A-Za-z_][A-Za-z0-9._-]*:)?[A-Za-z_][A-Za-z0-9._-]*(?:\\s*\\([^)]*\\))?\\s+|\\b(updating)\\b\\s+)*\\b(function)\\b\\s+((?:Q\\{[^{}&]*\\})?(?:[A-Za-z_][A-Za-z0-9._-]*:)?[A-Za-z_][A-Za-z0-9._-]*)",
                     "captures": {
                         "1": {
                             "name": "keyword.control.declare.jsoniq"
                         },
                         "2": {
-                            "name": "keyword.control.function.jsoniq"
+                            "name": "punctuation.definition.annotation.jsoniq"
                         },
                         "3": {
+                            "name": "storage.modifier.updating.jsoniq"
+                        },
+                        "4": {
+                            "name": "keyword.control.function.jsoniq"
+                        },
+                        "5": {
                             "name": "entity.name.function.jsoniq"
                         }
                     }
                 },
                 {
+                    "name": "meta.declaration.variable.jsoniq",
+                    "match": "\\b(declare)\\b\\s+(?:(%)(?:Q\\{[^{}&]*\\})?(?:[A-Za-z_][A-Za-z0-9._-]*:)?[A-Za-z_][A-Za-z0-9._-]*(?:\\s*\\([^)]*\\))?\\s+|\\b(updating)\\b\\s+)*\\b(variable)\\b\\s+(\\$)(?:(Q\\{[^{}&]*\\})?([A-Za-z_][A-Za-z0-9._-]*))",
+                    "captures": {
+                        "1": {
+                            "name": "keyword.control.declare.jsoniq"
+                        },
+                        "2": {
+                            "name": "punctuation.definition.annotation.jsoniq"
+                        },
+                        "3": {
+                            "name": "storage.modifier.updating.jsoniq"
+                        },
+                        "4": {
+                            "name": "keyword.control.variable.jsoniq"
+                        },
+                        "5": {
+                            "name": "punctuation.definition.variable.jsoniq"
+                        },
+                        "6": {
+                            "name": "support.type.uri.jsoniq"
+                        },
+                        "7": {
+                            "name": "variable.other.readwrite.jsoniq"
+                        }
+                    }
+                },
+                {
                     "name": "meta.declaration.type.jsoniq",
-                    "match": "\\b(declare)\\s+(type)\\s+((?:[A-Za-z_][A-Za-z0-9._-]*:)?[A-Za-z_][A-Za-z0-9._-]*)",
+                    "match": "\\b(declare)\\b\\s+(type)\\b\\s+((?:Q\\{[^{}&]*\\})?(?:[A-Za-z_][A-Za-z0-9._-]*:)?[A-Za-z_][A-Za-z0-9._-]*)\\s+\\b(as)\\b(?:\\s+(jsound)\\s+(compact|verbose)|\\s+(json)\\s+(schema))?",
                     "captures": {
                         "1": {
                             "name": "keyword.control.declare.jsoniq"
@@ -109,12 +350,27 @@
                         },
                         "3": {
                             "name": "entity.name.type.jsoniq"
+                        },
+                        "4": {
+                            "name": "keyword.control.as.jsoniq"
+                        },
+                        "5": {
+                            "name": "storage.type.schema-language.jsoniq"
+                        },
+                        "6": {
+                            "name": "storage.modifier.schema-format.jsoniq"
+                        },
+                        "7": {
+                            "name": "storage.type.schema-language.jsoniq"
+                        },
+                        "8": {
+                            "name": "storage.modifier.schema-format.jsoniq"
                         }
                     }
                 },
                 {
                     "name": "meta.declaration.namespace.jsoniq",
-                    "match": "\\b(declare)\\s+(namespace)\\s+([A-Za-z_][A-Za-z0-9._-]*)",
+                    "match": "\\b(declare)\\b\\s+(namespace)\\b\\s+([A-Za-z_][A-Za-z0-9._-]*)",
                     "captures": {
                         "1": {
                             "name": "keyword.control.declare.jsoniq"
@@ -126,6 +382,99 @@
                             "name": "entity.name.namespace.jsoniq"
                         }
                     }
+                },
+                {
+                    "name": "meta.declaration.default-namespace.jsoniq",
+                    "match": "\\b(declare)\\b\\s+(default)\\b\\s+(element|function)\\b\\s+(namespace)\\b",
+                    "captures": {
+                        "1": {
+                            "name": "keyword.control.declare.jsoniq"
+                        },
+                        "2": {
+                            "name": "keyword.control.default.jsoniq"
+                        },
+                        "3": {
+                            "name": "storage.type.namespace-kind.jsoniq"
+                        },
+                        "4": {
+                            "name": "keyword.control.namespace.jsoniq"
+                        }
+                    }
+                },
+                {
+                    "name": "meta.module-declaration.jsoniq",
+                    "match": "\\b(module)\\b\\s+(namespace)\\b\\s+([A-Za-z_][A-Za-z0-9._-]*)",
+                    "captures": {
+                        "1": {
+                            "name": "keyword.control.module.jsoniq"
+                        },
+                        "2": {
+                            "name": "keyword.control.namespace.jsoniq"
+                        },
+                        "3": {
+                            "name": "entity.name.namespace.jsoniq"
+                        }
+                    }
+                },
+                {
+                    "name": "meta.version-declaration.jsoniq",
+                    "match": "\\b(jsoniq)\\b\\s+(version|encoding)\\b",
+                    "captures": {
+                        "1": {
+                            "name": "keyword.control.jsoniq.jsoniq"
+                        },
+                        "2": {
+                            "name": "keyword.control.version.jsoniq"
+                        }
+                    }
+                }
+            ]
+        },
+        "annotations": {
+            "patterns": [
+                {
+                    "name": "storage.modifier.updating.jsoniq",
+                    "match": "\\bupdating\\b"
+                },
+                {
+                    "name": "meta.annotation.jsoniq",
+                    "match": "(%)(?:((?:Q\\{[^{}&]*\\})?)([A-Za-z_][A-Za-z0-9._-]*)(:))?([A-Za-z_][A-Za-z0-9._-]*)",
+                    "captures": {
+                        "1": {
+                            "name": "punctuation.definition.annotation.jsoniq"
+                        },
+                        "2": {
+                            "name": "support.type.uri.jsoniq"
+                        },
+                        "3": {
+                            "name": "entity.name.namespace.jsoniq"
+                        },
+                        "4": {
+                            "name": "punctuation.separator.namespace.jsoniq"
+                        },
+                        "5": {
+                            "name": "entity.name.tag.annotation.jsoniq"
+                        }
+                    }
+                }
+            ]
+        },
+        "function-references": {
+            "patterns": [
+                {
+                    "name": "meta.function-reference.jsoniq",
+                    "match": "((?:Q\\{[^{}&]*\\})?(?:[A-Za-z_][A-Za-z0-9._-]*:)?[A-Za-z_][A-Za-z0-9._-]*)(#)([0-9]+)",
+                    "captures": {
+                        "1": {
+                            "name": "entity.name.function.jsoniq"
+                        },
+                        "2": {
+                            "name": "punctuation.separator.hash.jsoniq"
+                        },
+                        "3": {
+                            "name": "constant.numeric.integer.arity.jsoniq"
+                        }
+                    }
                 }
             ]
         },
@@ -133,7 +482,16 @@
             "patterns": [
                 {
                     "name": "meta.function-call.jsoniq",
-                    "match": "\\b((?:[A-Za-z_][A-Za-z0-9._-]*:)?[A-Za-z_][A-Za-z0-9._-]*)(?=\\s*\\()",
+                    "match": "\\b(?!(?:array|attribute|binary|comment|document|document-node|element|empty-sequence|function|if|item|map|namespace|namespace-node|node|processing-instruction|schema-attribute|schema-element|switch|text|try|typeswitch)\\s*\\()((?:[A-Za-z_][A-Za-z0-9._-]*:)?[A-Za-z_][A-Za-z0-9._-]*)(?=\\s*\\()",
+                    "captures": {
+                        "1": {
+                            "name": "entity.name.function.jsoniq"
+                        }
+                    }
+                },
+                {
+                    "name": "meta.function-call.jsoniq",
+                    "match": "(Q\\{[^{}&]*\\}[A-Za-z_][A-Za-z0-9._-]*)(?=\\s*\\()",
                     "captures": {
                         "1": {
                             "name": "entity.name.function.jsoniq"
@@ -145,17 +503,72 @@
         "variables": {
             "patterns": [
                 {
+                    "name": "variable.language.context-item.jsoniq",
+                    "match": "\\$\\$"
+                },
+                {
                     "name": "variable.other.jsoniq",
-                    "match": "\\$(?:[A-Za-z_][A-Za-z0-9._-]*:)?[A-Za-z_][A-Za-z0-9._-]*"
+                    "match": "(\\$)(Q\\{[^{}&]*\\})?((?:[A-Za-z_][A-Za-z0-9._-]*:)?[A-Za-z_][A-Za-z0-9._-]*)",
+                    "captures": {
+                        "1": {
+                            "name": "punctuation.definition.variable.jsoniq"
+                        },
+                        "2": {
+                            "name": "support.type.uri.jsoniq"
+                        },
+                        "3": {
+                            "name": "variable.other.readwrite.jsoniq"
+                        }
+                    }
                 }
             ]
         },
-        "keywords": {
+        "braced-uri-names": {
             "patterns": [
                 {
-                    "name": "keyword.control.jsoniq",
-                    "match": "\\b(?:declare|function|variable|context|item|type|module|namespace|import|schema|as|external|let|for|at|in|allowing|empty|where|group|by|order|stable|count|return|if|then|else|switch|case|default|typeswitch|try|catch|some|every|satisfies|while|break|continue|exit|loop|returning|insert|delete|rename|replace|copy|modify|append|into|value|with|create|collection|table|deltafile|icebergtable|truncate|from|first|last|jsoniq|version|unordered|ordered|updating)\\b"
+                    "name": "entity.name.qualified.uri.jsoniq",
+                    "match": "(Q\\{[^{}&]*\\})([A-Za-z_][A-Za-z0-9._-]*|\\*)",
+                    "captures": {
+                        "1": {
+                            "name": "support.type.uri.jsoniq"
+                        },
+                        "2": {
+                            "name": "entity.name.tag.localname.jsoniq"
+                        }
+                    }
+                }
+            ]
+        },
+        "axes": {
+            "patterns": [
+                {
+                    "name": "keyword.operator.axis.jsoniq",
+                    "match": "\\b(?:ancestor|ancestor-or-self|attribute|child|descendant|descendant-or-self|following|following-sibling|parent|preceding|preceding-sibling|self)::"
+                }
+            ]
+        },
+        "types": {
+            "patterns": [
+                {
+                    "name": "storage.type.kind-test.jsoniq",
+                    "match": "\\b(?:array-node|attribute|binary|boolean-node|comment|document-node|element|empty-sequence|function|item|map|namespace-node|node|null-node|number-node|object-node|processing-instruction|schema-attribute|schema-element|text)\\b(?=\\s*\\()"
                 },
+                {
+                    "name": "storage.type.constructor.jsoniq",
+                    "match": "\\b(?:array|attribute|comment|document|element|namespace|processing-instruction|text)\\b(?=\\s*\\{)"
+                },
+                {
+                    "name": "storage.type.schema-language.jsoniq",
+                    "match": "\\b(?:jsound|compact|verbose|json\\s+schema)\\b"
+                },
+                {
+                    "name": "storage.type.primitive.jsoniq",
+                    "match": "\\b(?:xs:)?(?:anyAtomicType|anySimpleType|anyURI|base64Binary|boolean|byte|date|dateTime|dayTimeDuration|decimal|double|duration|ENTITY|float|gDay|gMonth|gMonthDay|gYear|gYearMonth|hexBinary|ID|IDREF|int|integer|language|long|Name|NCName|negativeInteger|NMTOKEN|nonNegativeInteger|nonPositiveInteger|normalizedString|null|NOTATION|positiveInteger|QName|short|string|time|token|unsignedByte|unsignedInt|unsignedLong|unsignedShort|untyped|untypedAtomic|yearMonthDuration)\\b"
+                }
+            ]
+        },
+        "constants": {
+            "patterns": [
                 {
                     "name": "constant.language.boolean.jsoniq",
                     "match": "\\b(?:true|false)\\b"
@@ -166,23 +579,161 @@
                 }
             ]
         },
-        "types": {
+        "keywords": {
             "patterns": [
                 {
-                    "name": "storage.type.jsoniq",
-                    "match": "\\b(?:item|node|object-node|array-node|string|integer|decimal|double|float|boolean|null|document-node|text|comment|binary)\\b"
+                    "name": "keyword.control.jsoniq",
+                    "match": "\\b(?:allowing|as|at|break|case|catch|context|continue|count|declare|default|else|every|exit|external|for|group|if|import|in|jsoniq|let|loop|module|namespace|only|return|returning|satisfies|schema|some|stable|start|switch|then|try|typeswitch|validate|variable|version|when|where|while|window)\\b"
+                },
+                {
+                    "name": "keyword.control.flwor.jsoniq",
+                    "match": "\\b(?:ascending|by|collation|descending|empty|end|greatest|least|next|order|previous|sliding|tumbling)\\b"
+                },
+                {
+                    "name": "keyword.control.import.jsoniq",
+                    "match": "\\b(?:base-uri|boundary-space|construction|copy-namespaces|decimal-format|encoding|inherit|lax|no-inherit|no-preserve|option|ordering|ordered|preserve|strict|strip|unordered)\\b"
+                },
+                {
+                    "name": "keyword.control.update.jsoniq",
+                    "match": "\\b(?:after|append|before|collection|copy|create|delete|delta-file|edit|first|from|iceberg-table|insert|into|json|last|modify|position|rename|replace|table|truncate|update|value|with)\\b"
+                },
+                {
+                    "name": "keyword.operator.word.jsoniq",
+                    "match": "\\b(?:and|cast|castable|div|eq|except|ge|gt|idiv|instance|intersect|is|le|lt|mod|ne|not|of|or|statically|to|treat|union)\\b"
+                },
+                {
+                    "name": "support.constant.decimal-format.jsoniq",
+                    "match": "\\b(?:NaN|decimal-separator|digit|exponent-separator|grouping-separator|infinity|minus-sign|pattern-separator|percent|per-mille|zero-digit)\\b"
+                }
+            ]
+        },
+        "xml-elements": {
+            "patterns": [
+                {
+                    "name": "meta.tag.xml.jsoniq",
+                    "begin": "(<)(?![!?/])((?:[A-Za-z_][A-Za-z0-9._-]*:)?[A-Za-z_][A-Za-z0-9._-]*)",
+                    "beginCaptures": {
+                        "1": {
+                            "name": "punctuation.definition.tag.begin.xml.jsoniq"
+                        },
+                        "2": {
+                            "name": "entity.name.tag.xml.jsoniq"
+                        }
+                    },
+                    "end": "(/?>)",
+                    "endCaptures": {
+                        "1": {
+                            "name": "punctuation.definition.tag.end.xml.jsoniq"
+                        }
+                    },
+                    "patterns": [
+                        {
+                            "include": "#comments"
+                        },
+                        {
+                            "include": "#strings"
+                        },
+                        {
+                            "include": "#entities"
+                        },
+                        {
+                            "include": "#enclosed-expression"
+                        },
+                        {
+                            "name": "entity.other.attribute-name.xml.jsoniq",
+                            "match": "(?:[A-Za-z_][A-Za-z0-9._-]*:)?[A-Za-z_][A-Za-z0-9._-]*"
+                        },
+                        {
+                            "name": "keyword.operator.assignment.xml.jsoniq",
+                            "match": "="
+                        }
+                    ]
+                },
+                {
+                    "name": "meta.tag.xml.jsoniq",
+                    "begin": "(</)((?:[A-Za-z_][A-Za-z0-9._-]*:)?[A-Za-z_][A-Za-z0-9._-]*)",
+                    "beginCaptures": {
+                        "1": {
+                            "name": "punctuation.definition.tag.begin.xml.jsoniq"
+                        },
+                        "2": {
+                            "name": "entity.name.tag.xml.jsoniq"
+                        }
+                    },
+                    "end": "(>)",
+                    "endCaptures": {
+                        "1": {
+                            "name": "punctuation.definition.tag.end.xml.jsoniq"
+                        }
+                    }
+                }
+            ]
+        },
+        "enclosed-expression": {
+            "patterns": [
+                {
+                    "name": "meta.embedded.expression.jsoniq",
+                    "begin": "(?<!\\{)\\{(?![\\{|])",
+                    "beginCaptures": {
+                        "0": {
+                            "name": "punctuation.section.embedded.begin.jsoniq"
+                        }
+                    },
+                    "end": "(?<![\\}|])\\}(?!\\})",
+                    "endCaptures": {
+                        "0": {
+                            "name": "punctuation.section.embedded.end.jsoniq"
+                        }
+                    },
+                    "patterns": [
+                        {
+                            "include": "$self"
+                        }
+                    ]
                 }
             ]
         },
         "operators": {
             "patterns": [
                 {
-                    "name": "keyword.operator.jsoniq",
-                    "match": ":=|=|!=|<=|>=|<|>|\\+|-|\\*|/|\\|\\||\\||\\band\\b|\\bor\\b|\\bnot\\b|\\beq\\b|\\bne\\b|\\blt\\b|\\ble\\b|\\bgt\\b|\\bge\\b"
+                    "name": "keyword.operator.merge.jsoniq",
+                    "match": "\\{\\||\\|\\}"
+                },
+                {
+                    "name": "keyword.operator.arrow.jsoniq",
+                    "match": "=>"
+                },
+                {
+                    "name": "keyword.operator.comparison.node.jsoniq",
+                    "match": "<<|>>"
+                },
+                {
+                    "name": "keyword.operator.range.jsoniq",
+                    "match": "\\.\\."
+                },
+                {
+                    "name": "keyword.operator.assignment.jsoniq",
+                    "match": ":="
+                },
+                {
+                    "name": "keyword.operator.comparison.jsoniq",
+                    "match": "!=|<=|>=|=|<|>"
+                },
+                {
+                    "name": "keyword.operator.lookup.jsoniq",
+                    "match": "\\[\\[|\\]\\]|\\[\\]|\\?|\\."
+                },
+                {
+                    "name": "keyword.operator.arithmetic.jsoniq",
+                    "match": "\\|\\||//|[+\\-*/|!~\\\\]"
+                },
+                {
+                    "name": "punctuation.definition.variable.jsoniq",
+                    "match": "\\$"
                 },
                 {
                     "name": "punctuation.separator.jsoniq",
-                    "match": "[,;]"
+                    "match": "[,;:]"
                 },
                 {
                     "name": "punctuation.bracket.jsoniq",
