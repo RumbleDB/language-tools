@@ -53,6 +53,9 @@ export async function collectSemanticTokens(document: TextDocument): Promise<Sem
     const builder = new SemanticTokensBuilder();
 
     for (const definition of collectDefinitions(analysis)) {
+        if (definition.kind === "catch-variable") {
+            continue;
+        }
         const tokenType = getTokenTypeForDefinition(definition.kind);
         const tokenModifiers = getTokenModifierForDefinition(definition.kind);
         addSemanticToken(builder, definition.selectionRange, tokenType, tokenModifiers);
