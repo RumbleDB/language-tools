@@ -21,7 +21,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     const serverOptions: ServerOptions = {
         run: {
             module: serverModule,
-            transport: TransportKind.stdio,
+            transport: TransportKind.ipc,
             options: {
                 env: {
                     ...process.env,
