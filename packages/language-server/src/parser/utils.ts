@@ -90,12 +90,17 @@ export function getDocumentText(document: TextDocument): string {
     return `${maskedMagicLine}${source.slice(magicLine.length)}`;
 }
 
+/**
+ * 1. If the document's language ID is neither JSONiq nor XQuery and the document is not part of a Jupyter Notebook cell, it is not supported by our language server.
+ * 2. If the document contains 'jsoniq version' or 'xquery version', use the respective parser.
+ * 3. Otherwise, fall back to the document's language ID property.
+ */
 export function getActiveParserId(document: TextDocument): "xquery" | "jsoniq" | undefined {
-    if (hasJsoniqCellMagic(document)) {
-        return "jsoniq";
-    }
-
-    if (document.languageId !== "jsoniq" && document.languageId !== "xquery") {
+    if (
+        document.languageId !== "jsoniq" &&
+        document.languageId !== "xquery" &&
+        !hasJsoniqCellMagic(document)
+    ) {
         return undefined;
     }
 
@@ -104,14 +109,6 @@ export function getActiveParserId(document: TextDocument): "xquery" | "jsoniq" |
         return "xquery";
     }
     if (text.includes("jsoniq version")) {
-        return "jsoniq";
-    }
-
-    const uri = document.uri.toLowerCase();
-    if (/\.(xq|xqy|xquery)$/.test(uri)) {
-        return "xquery";
-    }
-    if (/\.(jq|jsoniq)$/.test(uri)) {
         return "jsoniq";
     }
 

@@ -36,30 +36,4 @@ describe("XQuery parser activation", () => {
         expect(adapter).toBeDefined();
         expect(adapter?.id).toBe("jsoniq");
     });
-
-    it("activates XQuery parser if URI ends with .xq, .xqy, or .xquery", () => {
-        for (const ext of [".xq", ".xqy", ".xquery"]) {
-            const document = testDocumentFromUri(["let $x := 1 return $x"], {
-                uri: `file:///test${ext}`,
-                languageId: "jsoniq",
-            });
-
-            const adapter = getParserAdapterForDocument(document);
-            expect(adapter).toBeDefined();
-            expect(adapter?.id).toBe("xquery");
-        }
-    });
-
-    it("activates JSONiq parser if URI ends with .jq or .jsoniq", () => {
-        for (const ext of [".jq", ".jsoniq"]) {
-            const document = testDocumentFromUri(["let $x := 1 return $x"], {
-                uri: `file:///test${ext}`,
-                languageId: "jsoniq",
-            });
-
-            const adapter = getParserAdapterForDocument(document);
-            expect(adapter).toBeDefined();
-            expect(adapter?.id).toBe("jsoniq");
-        }
-    });
 });
