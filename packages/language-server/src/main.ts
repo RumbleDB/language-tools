@@ -9,6 +9,7 @@ import {
 } from "vscode-languageserver/node";
 
 import { findCompletions } from "./completion.js";
+import { InitializationOptions, mergeConfiguration } from "./config.js";
 import { findDefinitionLocation } from "./definitions.js";
 import { findHover } from "./hover.js";
 import { collectInlayHints } from "./inlay-hints.js";
@@ -32,6 +33,8 @@ import { clearStaticTypeIndexCache } from "./static-typecheck/index.js";
 import { clearStaticTypecheckCache } from "./static-typecheck/service.js";
 import { collectDocumentSymbols } from "./symbols.js";
 import { setLoggerSink } from "./utils/logger.js";
+
+export type ClientConfiguration = Partial<InitializationOptions>;
 
 const connection = createConnection(ProposedFeatures.all);
 const documents = new TextDocuments(TextDocument);
@@ -76,7 +79,10 @@ function isLatestDocument(uri: string, version: number): boolean {
     return documents.get(uri)?.version === version;
 }
 
-connection.onInitialize((_params: InitializeParams): InitializeResult => {
+connection.onInitialize((params: InitializeParams): InitializeResult => {
+    const clientConfiguration: Partial<InitializationOptions> = params.initializationOptions || {};
+    mergeConfiguration(clientConfiguration);
+
     return {
         capabilities: {
             textDocumentSync: TextDocumentSyncKind.Incremental,

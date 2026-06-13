@@ -3,6 +3,7 @@ import { promisify } from "node:util";
 
 const execFileAsync = promisify(execFile);
 
+import { config } from "server/config.js";
 import { createLogger } from "server/utils/logger.js";
 
 import { type WrapperResolutionOptions, resolveWrapperLaunchConfig } from "./executable/index.js";
@@ -43,7 +44,15 @@ class RumbleWrapperClient {
     private rumbleCommitShort: string | null = null;
     private rumbleRef: string | null = null;
 
+    public isEnabled(): boolean {
+        return config.wrapper.enabled;
+    }
+
     public async connect(): Promise<void> {
+        if (!this.isEnabled()) {
+            throw new Error("LSP wrapper is disabled.");
+        }
+
         if (this.child !== undefined && this.handshakeCompleted) {
             return;
         }
@@ -141,6 +150,10 @@ class RumbleWrapperClient {
     public async sendRequest<Spec extends AnyWrapperRequestSpec>(
         payload: Spec["request"],
     ): Promise<WrapperDaemonResponse<Spec["requestType"], Spec["response"]>> {
+        if (!this.isEnabled()) {
+            throw new Error("LSP wrapper is disabled.");
+        }
+
         await this.connect();
         return this.sendRequestInternal<Spec>(payload);
     }
