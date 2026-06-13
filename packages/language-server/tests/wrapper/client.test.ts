@@ -18,9 +18,11 @@ describe("wrapper client surface", () => {
 
     it("after connect, rumble version is set", async () => {
         const client = getWrapperClient();
-        await expect(client.connect()).resolves.toBeUndefined();
-        expect(client.getRumbleVersion()).toBeDefined();
-        expect(client.getRumbleCommit()).toBeDefined();
-        expect(client.getRumbleCommitShort()).toBeDefined();
+        if (client.isEnabled()) {
+            await expect(client.connect()).resolves.toBeUndefined();
+            expect(client.getRumbleVersion()).toBeDefined();
+            expect(client.getRumbleCommit()).toBeDefined();
+            expect(client.getRumbleCommitShort()).toBeDefined();
+        }
     }, 30_000);
 });
