@@ -9,7 +9,7 @@ import {
 } from "vscode-languageserver/node";
 
 import { findCompletions } from "./completion.js";
-import { InitializationOptions, mergeConfiguration } from "./config.js";
+import { config, InitializationOptions, mergeConfiguration } from "./config.js";
 import { findDefinitionLocation } from "./definitions.js";
 import { findHover } from "./hover.js";
 import { collectInlayHints } from "./inlay-hints.js";
@@ -82,6 +82,7 @@ function isLatestDocument(uri: string, version: number): boolean {
 connection.onInitialize((params: InitializeParams): InitializeResult => {
     const clientConfiguration: Partial<InitializationOptions> = params.initializationOptions || {};
     mergeConfiguration(clientConfiguration);
+    connection.console.log(`Language server configuration: ${JSON.stringify(config, null, 4)}`);
 
     return {
         capabilities: {
