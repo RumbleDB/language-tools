@@ -16,7 +16,7 @@ import { collectInlayHints } from "./inlay-hints.js";
 import {
     ACTIVE_PARSER_NOTIFICATION,
     type ActiveParserNotificationPayload,
-    initializeCustomNotifications,
+    initializeNotifications,
 } from "./notifications/index.js";
 import { parseDocument } from "./parser/index.js";
 import { getParserAdapterForDocument, supportsDocument } from "./parser/registry.js";
@@ -40,7 +40,9 @@ const connection = createConnection(ProposedFeatures.all);
 const documents = new TextDocuments(TextDocument);
 
 setLoggerSink(connection.console);
-initializeCustomNotifications(connection);
+initializeNotifications((method, payload) => {
+    connection.sendNotification(method, payload);
+});
 
 async function refreshDiagnostics(uri: string): Promise<void> {
     const document = documents.get(uri);
@@ -53,7 +55,7 @@ async function refreshDiagnostics(uri: string): Promise<void> {
 
     const adapter = getParserAdapterForDocument(document);
     if (adapter !== undefined) {
-        connection.sendNotification(ACTIVE_PARSER_NOTIFICATION, {
+        connection.sendNotification(ACTIVE_PARSER_NOTIFICATION.method, {
             uri: document.uri,
             parserId: adapter.id,
         } satisfies ActiveParserNotificationPayload);
