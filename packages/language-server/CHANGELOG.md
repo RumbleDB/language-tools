@@ -1,5 +1,25 @@
 # jsoniq-language-server
 
+## 2.5.0
+
+### Minor Changes
+
+- [#25](https://github.com/RumbleDB/jsoniq-lsp/pull/25) [`67dec78`](https://github.com/RumbleDB/jsoniq-lsp/commit/67dec78f5afb33a134ea542712b582063e9b0bd0) - refactor: make `getAnalysis` no longer asynchronous and remove the asynchronous mark from all caller functions
+
+- [#24](https://github.com/RumbleDB/jsoniq-lsp/pull/24) [`a784752`](https://github.com/RumbleDB/jsoniq-lsp/commit/a784752010f391277d8e39738b8e0ccf3bca2e6a) - Pre-generate builtin functions JSON file and save it to `assets` folder.
+
+  These functions are always the same for each version of the language server. Pre-generating them saves runtime and makes the wrapper solely responsible for static type checking, which is optional.
+
+- [#22](https://github.com/RumbleDB/jsoniq-lsp/pull/22) [`1b9b740`](https://github.com/RumbleDB/jsoniq-lsp/commit/1b9b74082a213f14f235bc3cdc2afaee7446cd97) - Rename `TypeInferencer` to `StaticTypeChecker` and return all static errors (`RumbleException`) in the `error` field of the body object. Previously, these errors were returned in the `error` field of the top-level response object. This made it difficult to distinguish between an exception from Java and a static type error from Rumble.
+
+### Patch Changes
+
+- [`58d8c94`](https://github.com/RumbleDB/jsoniq-lsp/commit/58d8c946202bf77324ef1c1ee517bb3f9d74733f) - fix language server being unresponsive with XQuery parser.
+
+  The problem comes from string rules in XQuery grammar file (JSONiq grammar file does not have this problem). Language server is frozen generating completion items during `antlr4-c3.collectCandidates()` call, because the latest XQuery grammar tokenizes string content one character at a time as default-channel `ContentChar`, then gives c3 ambiguous ways to consume the same run of characters.
+
+  XQuery strings are decomposed into many `ContentChar` tokens, and `ContentChar` is reachable through overlapping parser alternatives. c3 explores those alternatives while replaying the token stream up to the caret, causing **exponential** behavior.
+
 ## 2.4.1
 
 ### Patch Changes

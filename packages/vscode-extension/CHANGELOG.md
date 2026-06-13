@@ -1,5 +1,12 @@
 # jsoniq-vscode
 
+## 1.3.2
+
+### Patch Changes
+
+- Updated dependencies [[`67dec78`](https://github.com/RumbleDB/jsoniq-lsp/commit/67dec78f5afb33a134ea542712b582063e9b0bd0), [`a784752`](https://github.com/RumbleDB/jsoniq-lsp/commit/a784752010f391277d8e39738b8e0ccf3bca2e6a), [`58d8c94`](https://github.com/RumbleDB/jsoniq-lsp/commit/58d8c946202bf77324ef1c1ee517bb3f9d74733f), [`1b9b740`](https://github.com/RumbleDB/jsoniq-lsp/commit/1b9b74082a213f14f235bc3cdc2afaee7446cd97)]:
+  - jsoniq-language-server@2.5.0
+
 ## 1.3.1
 
 ### Patch Changes

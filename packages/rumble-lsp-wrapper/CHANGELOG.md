@@ -1,5 +1,15 @@
 # rumble-lsp-wrapper
 
+## 0.4.0
+
+### Minor Changes
+
+- [#24](https://github.com/RumbleDB/jsoniq-lsp/pull/24) [`a784752`](https://github.com/RumbleDB/jsoniq-lsp/commit/a784752010f391277d8e39738b8e0ccf3bca2e6a) - Pre-generate builtin functions JSON file and save it to `assets` folder.
+
+  These functions are always the same for each version of the language server. Pre-generating them saves runtime and makes the wrapper solely responsible for static type checking, which is optional.
+
+- [#22](https://github.com/RumbleDB/jsoniq-lsp/pull/22) [`1b9b740`](https://github.com/RumbleDB/jsoniq-lsp/commit/1b9b74082a213f14f235bc3cdc2afaee7446cd97) - Rename `TypeInferencer` to `StaticTypeChecker` and return all static errors (`RumbleException`) in the `error` field of the body object. Previously, these errors were returned in the `error` field of the top-level response object. This made it difficult to distinguish between an exception from Java and a static type error from Rumble.
+
 ## 0.3.0
 
 ### Minor Changes
