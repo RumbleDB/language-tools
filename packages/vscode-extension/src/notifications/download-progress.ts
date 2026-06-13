@@ -1,5 +1,5 @@
 import {
-    DownloadProgress,
+    type DownloadProgress,
     WRAPPER_DOWNLOAD_PROGRESS_NOTIFICATION,
 } from "jsoniq-language-server/notifications";
 import * as vscode from "vscode";
@@ -49,7 +49,7 @@ export function registerWrapperDownloadProgressNotification(
         );
     };
 
-    const update = (progress: DownloadProgress): void => {
+    const update = WRAPPER_DOWNLOAD_PROGRESS_NOTIFICATION.handle((progress) => {
         if (progress.stage === "verified" || progress.stage === "download-failed") {
             finish();
             return;
@@ -73,10 +73,10 @@ export function registerWrapperDownloadProgressNotification(
             increment,
             message: formatProgressMessage(progress),
         });
-    };
+    });
 
     const notificationDisposable = client.onNotification(
-        WRAPPER_DOWNLOAD_PROGRESS_NOTIFICATION,
+        WRAPPER_DOWNLOAD_PROGRESS_NOTIFICATION.method,
         update,
     );
 

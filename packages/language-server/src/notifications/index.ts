@@ -1,15 +1,20 @@
-import { setWrapperResolutionOptions } from "server/wrapper/client.js";
-import { DownloadProgress } from "server/wrapper/executable/download.js";
-import { Connection } from "vscode-languageserver/node";
+import { type DownloadProgress } from "server/wrapper/executable/download.js";
 
-import { setMemoryUsageNotification } from "./memory-usage.js";
+import {
+    ACTIVE_PARSER_NOTIFICATION,
+    initializer as activeParser,
+    type ActiveParserNotificationPayload,
+} from "./active-parser.js";
+import {
+    MEMORY_USAGE_NOTIFICATION,
+    initializer as memoryUsage,
+    type MemoryUsage,
+} from "./memory-usage.js";
+import { type Notification, type RawNotificationSender } from "./types.js";
 import {
     WRAPPER_DOWNLOAD_PROGRESS_NOTIFICATION,
-    MEMORY_USAGE_NOTIFICATION,
-    MemoryUsage,
-    ACTIVE_PARSER_NOTIFICATION,
-    ActiveParserNotificationPayload,
-} from "./types.js";
+    initializer as wrapperDownload,
+} from "./wrapper-download-progress.js";
 
 export {
     WRAPPER_DOWNLOAD_PROGRESS_NOTIFICATION,
@@ -18,17 +23,19 @@ export {
     type MemoryUsage,
     ACTIVE_PARSER_NOTIFICATION,
     type ActiveParserNotificationPayload,
+    type Notification,
 };
 
-export const initializeCustomNotifications = (connection: Connection): void => {
-    setWrapperResolutionOptions({
-        onProgress: (progress) => {
-            connection.sendNotification(
-                WRAPPER_DOWNLOAD_PROGRESS_NOTIFICATION,
-                progress satisfies DownloadProgress,
-            );
-        },
-    });
+type InitializedNotifications = readonly [
+    typeof wrapperDownload.notification,
+    typeof memoryUsage.notification,
+    typeof activeParser.notification,
+];
 
-    setMemoryUsageNotification(connection);
+export const initializeNotifications = (send: RawNotificationSender): InitializedNotifications => {
+    return [
+        wrapperDownload.initialize(send),
+        memoryUsage.initialize(send),
+        activeParser.initialize(send),
+    ];
 };
