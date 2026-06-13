@@ -1,31 +1,31 @@
 import { SourceDefinition } from "server/analysis/definitions.js";
 import { FunctionName, functionNameToString, QName, QNameToString } from "server/analysis/names.js";
 
-const INFERENCE_KEY_SEPARATOR = "\u001F";
+const STATIC_TYPE_KEY_SEPARATOR = "\u001F";
 
-export type InferenceKey = string;
+export type StaticTypeKey = string;
 
-export function buildInferenceKey(
+export function buildStaticTypeKey(
     kind: string,
     position: { line: number; character: number },
     ...names: string[]
-): InferenceKey {
-    return [kind, position.line, position.character, ...names].join(INFERENCE_KEY_SEPARATOR);
+): StaticTypeKey {
+    return [kind, position.line, position.character, ...names].join(STATIC_TYPE_KEY_SEPARATOR);
 }
 
-export function buildInferenceKeyForFunction(
+export function buildStaticTypeKeyForFunction(
     position: { line: number; character: number },
     name: FunctionName,
-): InferenceKey {
-    return buildInferenceKey("function", position, functionNameToString(name, true));
+): StaticTypeKey {
+    return buildStaticTypeKey("function", position, functionNameToString(name, true));
 }
 
-export function buildInferenceKeyForParameter(
+export function buildStaticTypeKeyForParameter(
     position: { line: number; character: number },
     functionName: FunctionName,
     parameterName: QName,
-): InferenceKey {
-    return buildInferenceKey(
+): StaticTypeKey {
+    return buildStaticTypeKey(
         "parameter",
         position,
         functionNameToString(functionName, true),
@@ -33,20 +33,20 @@ export function buildInferenceKeyForParameter(
     );
 }
 
-export function buildInferenceKeyForVariable(
+export function buildStaticTypeKeyForVariable(
     kind: string,
     position: { line: number; character: number },
     name: QName,
-): InferenceKey {
-    return buildInferenceKey(kind, position, QNameToString(name, true));
+): StaticTypeKey {
+    return buildStaticTypeKey(kind, position, QNameToString(name, true));
 }
 
-export function buildInferenceKeyForDefinition(definition: SourceDefinition): InferenceKey {
+export function buildStaticTypeKeyForDefinition(definition: SourceDefinition): StaticTypeKey {
     switch (definition.kind) {
         case "function":
-            return buildInferenceKeyForFunction(definition.range.start, definition.name);
+            return buildStaticTypeKeyForFunction(definition.range.start, definition.name);
         case "parameter":
-            return buildInferenceKeyForParameter(
+            return buildStaticTypeKeyForParameter(
                 definition.function.range.start,
                 definition.function.name,
                 definition.name,
@@ -58,14 +58,14 @@ export function buildInferenceKeyForDefinition(definition: SourceDefinition): In
         case "group-by":
         case "count":
         case "catch-variable":
-            return buildInferenceKeyForVariable(
+            return buildStaticTypeKeyForVariable(
                 definition.kind,
                 definition.range.start,
                 definition.name,
             );
         case "namespace":
         case "type":
-            return buildInferenceKey(definition.kind, definition.range.start);
+            return buildStaticTypeKey(definition.kind, definition.range.start);
         default:
             throw definition satisfies never;
     }

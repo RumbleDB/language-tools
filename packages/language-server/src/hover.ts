@@ -10,8 +10,8 @@ import {
 import { findSymbolAtPosition } from "./analysis/queries.js";
 import { getAnalysis } from "./analysis/service.js";
 import { formatFunctionDocEntry, getBuiltinFunctionDocumentation } from "./assets/function-docs.js";
-import { formatInferredType } from "./type-inference/format.js";
-import { getTypeInferenceIndex, TypeInferenceIndex } from "./type-inference/service.js";
+import { formatStaticType } from "./static-typecheck/format.js";
+import { getStaticTypeIndex, StaticTypeIndex } from "./static-typecheck/index.js";
 
 export async function findHover(document: TextDocument, position: Position): Promise<Hover | null> {
     const analysis = getAnalysis(document);
@@ -21,19 +21,19 @@ export async function findHover(document: TextDocument, position: Position): Pro
         return null;
     }
 
-    const typeInference = await getTypeInferenceIndex(document);
+    const staticTypes = await getStaticTypeIndex(document);
     const declaration = occurrence.declaration;
 
     return {
         range: occurrence.range,
         contents: {
             kind: MarkupKind.Markdown,
-            value: createHoverContent(typeInference, declaration),
+            value: createHoverContent(staticTypes, declaration),
         },
     };
 }
 
-function createHoverContent(typeInference: TypeInferenceIndex, declaration: Definition): string {
+function createHoverContent(staticTypes: StaticTypeIndex, declaration: Definition): string {
     if (declaration.kind === "builtin-function") {
         const doc = getBuiltinFunctionDocumentation(declaration.name.qname);
         if (doc) {
@@ -52,16 +52,16 @@ function createHoverContent(typeInference: TypeInferenceIndex, declaration: Defi
             ? `defined at: \`${declaration.selectionRange.start.line + 1}:${declaration.selectionRange.start.character}\``
             : undefined,
         isSourceDefinition(declaration)
-            ? `inferred type: \`${formatOptionalInferredType(typeInference, declaration)}\``
+            ? `inferred type: \`${formatOptionalStaticType(staticTypes, declaration)}\``
             : undefined,
     ].join("\n");
 }
 
-function formatOptionalInferredType(
-    typeInference: TypeInferenceIndex,
+function formatOptionalStaticType(
+    staticTypes: StaticTypeIndex,
     declaration: SourceDefinition,
 ): string {
-    const inferredType = typeInference.get(declaration);
+    const staticType = staticTypes.get(declaration);
 
-    return inferredType === undefined ? "unknown" : formatInferredType(inferredType);
+    return staticType === undefined ? "unknown" : formatStaticType(staticType);
 }

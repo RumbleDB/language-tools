@@ -1,16 +1,18 @@
 import { DiagnosticSeverity, Range, type Position, type Diagnostic } from "vscode-languageserver";
 import { TextDocument } from "vscode-languageserver-textdocument";
 
-import { getTypeInference } from "./wrapper/type-check.js";
-import type { WrapperTypeError } from "./wrapper/types.js";
+import { getStaticTypecheck } from "./service.js";
+import type { StaticTypecheckWireError } from "./types.js";
 
-export async function collectTypeDiagnostics(document: TextDocument): Promise<Diagnostic[]> {
-    const response = await getTypeInference(document);
+export async function collectStaticTypecheckDiagnostics(
+    document: TextDocument,
+): Promise<Diagnostic[]> {
+    const response = await getStaticTypecheck(document);
 
     const diagnostics: Diagnostic[] = [];
 
     for (const error of response.body.errors) {
-        diagnostics.push(toDiagnostic(document, error));
+        diagnostics.push(toDiagnostic(error));
     }
 
     if (response.error?.position) {
@@ -24,7 +26,7 @@ export async function collectTypeDiagnostics(document: TextDocument): Promise<Di
                 },
             },
             code: response.error.code,
-            source: "jsoniq-type-inference",
+            source: "jsoniq-static-typecheck",
             message: response.error.message,
         });
     }
@@ -32,8 +34,8 @@ export async function collectTypeDiagnostics(document: TextDocument): Promise<Di
     return diagnostics;
 }
 
-function toDiagnostic(document: TextDocument, error: WrapperTypeError): Diagnostic {
-    const diagnosticRange = createRangeFromStartPosition(document, error, error.position);
+function toDiagnostic(error: StaticTypecheckWireError): Diagnostic {
+    const diagnosticRange = createRangeFromStartPosition(error.position);
 
     return {
         severity: DiagnosticSeverity.Warning,
@@ -48,11 +50,7 @@ function toDiagnostic(document: TextDocument, error: WrapperTypeError): Diagnost
  * We don't have the full range of errors from the wrapper,
  * for now, we'll just return the full line as the error range
  */
-function createRangeFromStartPosition(
-    document: TextDocument,
-    error: WrapperTypeError,
-    start: Position,
-): Range {
+function createRangeFromStartPosition(start: Position): Range {
     return {
         start,
         end: {

@@ -1,4 +1,4 @@
-import type { WrapperDaemonResponse } from "./protocol.js";
+import type { WrapperDaemonResponse, WrapperRequestSpec } from "./protocol.js";
 
 export const REQUEST_TYPE_HANDSHAKE = "handshake" as const;
 
@@ -15,5 +15,11 @@ export interface HandshakeResponseBody {
 
 export type HandshakeResponse = WrapperDaemonResponse<
     typeof REQUEST_TYPE_HANDSHAKE,
+    HandshakeResponseBody
+>;
+
+export type HandshakeRequestSpec = WrapperRequestSpec<
+    typeof REQUEST_TYPE_HANDSHAKE,
+    HandshakeRequestPayload,
     HandshakeResponseBody
 >;

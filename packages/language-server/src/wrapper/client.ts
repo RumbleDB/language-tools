@@ -6,28 +6,21 @@ const execFileAsync = promisify(execFile);
 import { createLogger } from "server/utils/logger.js";
 
 import { type WrapperResolutionOptions, resolveWrapperLaunchConfig } from "./executable/index.js";
-import { REQUEST_TYPE_HANDSHAKE } from "./handshake.js";
+import { REQUEST_TYPE_HANDSHAKE, type HandshakeRequestSpec } from "./handshake.js";
 import type {
-    RequestPayloadByType,
     WrapperDaemonRequest,
     WrapperDaemonResponse,
-    WrapperRequestType,
-    WrapperResponseBodyByType,
+    WrapperRequestPayload,
+    WrapperRequestSpec,
 } from "./protocol.js";
 
-type ResponseByType = {
-    [RequestType in WrapperRequestType]: WrapperDaemonResponse<
-        RequestType,
-        WrapperResponseBodyByType[RequestType]
-    >;
-};
-
-type AnyWrapperResponse = ResponseByType[WrapperRequestType];
+type AnyWrapperRequestSpec = WrapperRequestSpec<string, WrapperRequestPayload, object>;
+type AnyWrapperResponse = WrapperDaemonResponse<string, object>;
 const logger = createLogger("wrapper:client");
 let wrapperResolutionOptions: WrapperResolutionOptions = {};
 
 interface PendingRequest {
-    expectedResponseType: WrapperRequestType;
+    expectedResponseType: string;
     resolve: (response: AnyWrapperResponse) => void;
     reject: (error: Error) => void;
     timeout: NodeJS.Timeout;
@@ -104,11 +97,9 @@ class RumbleWrapperClient {
         }
 
         try {
-            const handshakeResponse = await this.sendRequestInternal<typeof REQUEST_TYPE_HANDSHAKE>(
-                {
-                    requestType: REQUEST_TYPE_HANDSHAKE,
-                },
-            );
+            const handshakeResponse = await this.sendRequestInternal<HandshakeRequestSpec>({
+                requestType: REQUEST_TYPE_HANDSHAKE,
+            });
 
             this.rumbleVersion = handshakeResponse.body.rumbleVersion;
             this.rumbleCommit = handshakeResponse.body.rumbleCommit;
@@ -147,20 +138,20 @@ class RumbleWrapperClient {
         }
     }
 
-    public async sendRequest<RequestType extends WrapperRequestType>(
-        payload: RequestPayloadByType[RequestType],
-    ): Promise<ResponseByType[RequestType]> {
+    public async sendRequest<Spec extends AnyWrapperRequestSpec>(
+        payload: Spec["request"],
+    ): Promise<WrapperDaemonResponse<Spec["requestType"], Spec["response"]>> {
         await this.connect();
-        return this.sendRequestInternal(payload);
+        return this.sendRequestInternal<Spec>(payload);
     }
 
-    private async sendRequestInternal<RequestType extends WrapperRequestType>(
-        payload: RequestPayloadByType[RequestType],
-    ): Promise<ResponseByType[RequestType]> {
+    private async sendRequestInternal<Spec extends AnyWrapperRequestSpec>(
+        payload: Spec["request"],
+    ): Promise<WrapperDaemonResponse<Spec["requestType"], Spec["response"]>> {
         const id = this.nextRequestId;
         this.nextRequestId += 1;
 
-        const request: WrapperDaemonRequest<RequestType> = {
+        const request: WrapperDaemonRequest<Spec["request"]> = {
             id,
             ...payload,
         };
@@ -173,36 +164,38 @@ class RumbleWrapperClient {
             throw new Error("Wrapper process is not available.");
         }
 
-        return new Promise<ResponseByType[RequestType]>((resolve, reject) => {
-            const timeout = setTimeout(() => {
-                this.pending.delete(id);
-                reject(new Error("Wrapper timed out."));
-            }, 12_000);
+        return new Promise<WrapperDaemonResponse<Spec["requestType"], Spec["response"]>>(
+            (resolve, reject) => {
+                const timeout = setTimeout(() => {
+                    this.pending.delete(id);
+                    reject(new Error("Wrapper timed out."));
+                }, 12_000);
 
-            this.pending.set(id, {
-                expectedResponseType: payload.requestType,
-                resolve: resolve as unknown as (response: AnyWrapperResponse) => void,
-                reject,
-                timeout,
-            });
-
-            try {
-                child.stdin.write(`${encodedRequest}\n`, "utf8", (error) => {
-                    if (error !== undefined && error !== null) {
-                        this.rejectPending(id, error);
-                    }
+                this.pending.set(id, {
+                    expectedResponseType: payload.requestType,
+                    resolve: resolve as (response: AnyWrapperResponse) => void,
+                    reject,
+                    timeout,
                 });
-            } catch (error) {
-                logger.error(
-                    "Failed to write to wrapper stdin:",
-                    error instanceof Error ? error : String(error),
-                );
-                this.rejectPending(
-                    id,
-                    error instanceof Error ? error : new Error("Wrapper write failed."),
-                );
-            }
-        });
+
+                try {
+                    child.stdin.write(`${encodedRequest}\n`, "utf8", (error) => {
+                        if (error !== undefined && error !== null) {
+                            this.rejectPending(id, error);
+                        }
+                    });
+                } catch (error) {
+                    logger.error(
+                        "Failed to write to wrapper stdin:",
+                        error instanceof Error ? error : String(error),
+                    );
+                    this.rejectPending(
+                        id,
+                        error instanceof Error ? error : new Error("Wrapper write failed."),
+                    );
+                }
+            },
+        );
     }
 
     private handleStdoutChunk(chunk: string): void {
@@ -231,17 +224,7 @@ class RumbleWrapperClient {
     }
 
     private handleResponseLine(line: string): void {
-        let response: AnyWrapperResponse;
-        try {
-            response = JSON.parse(line) as AnyWrapperResponse;
-        } catch {
-            return;
-        }
-
-        if (typeof response.id !== "number") {
-            return;
-        }
-
+        const response = JSON.parse(line) as AnyWrapperResponse;
         const pendingRequest = this.pending.get(response.id);
         if (pendingRequest === undefined) {
             return;

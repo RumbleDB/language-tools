@@ -1,43 +1,43 @@
-import { Position } from "vscode-languageserver";
+export type JsonValue = null | boolean | number | string | JsonValue[] | JsonObject;
 
-import type {
-    HandshakeRequestPayload,
-    HandshakeResponseBody,
-    REQUEST_TYPE_HANDSHAKE,
-} from "./handshake.js";
-import type { StaticTypeCheckRequest, REQUEST_TYPE_STATIC_TYPECHECK } from "./type-check.js";
-import type { TypeInferenceResult } from "./types.js";
+export interface JsonObject {
+    [key: string]: JsonValue;
+}
 
-export type WrapperRequestPayloadByType = {
-    [REQUEST_TYPE_STATIC_TYPECHECK]: StaticTypeCheckRequest;
-    [REQUEST_TYPE_HANDSHAKE]: HandshakeRequestPayload;
+export interface WrapperPosition extends JsonObject {
+    line: number;
+    character: number;
+}
+
+export interface WrapperError extends JsonObject {
+    code: string;
+    message: string;
+    position: WrapperPosition | null;
+}
+
+export type WrapperRequestPayload<RequestType extends string = string> = {
+    requestType: RequestType;
 };
 
-export type WrapperRequestType = keyof WrapperRequestPayloadByType;
+export interface WrapperRequestSpec<
+    RequestType extends string,
+    RequestPayload extends WrapperRequestPayload<RequestType>,
+    ResponseBody,
+> {
+    requestType: RequestType;
+    request: RequestPayload;
+    response: ResponseBody;
+}
 
-export type RequestPayloadByType = {
-    [RequestType in WrapperRequestType]: WrapperRequestPayloadByType[RequestType];
-};
-
-export type WrapperRequestPayload<RequestType extends WrapperRequestType = WrapperRequestType> =
-    WrapperRequestPayloadByType[RequestType];
-
-export type WrapperDaemonRequest<RequestType extends WrapperRequestType = WrapperRequestType> = {
+export type WrapperDaemonRequest<
+    RequestPayload extends WrapperRequestPayload = WrapperRequestPayload,
+> = {
     id: number;
-} & WrapperRequestPayloadByType[RequestType];
+} & RequestPayload;
 
-export type WrapperDaemonResponse<ResponseType extends WrapperRequestType, ResponseBody> = {
+export type WrapperDaemonResponse<ResponseType extends string, ResponseBody> = {
     id: number;
     responseType: ResponseType;
     body: ResponseBody;
-    error: {
-        code: string;
-        message: string;
-        position: Position | null;
-    } | null;
-};
-
-export type WrapperResponseBodyByType = {
-    [REQUEST_TYPE_STATIC_TYPECHECK]: TypeInferenceResult;
-    [REQUEST_TYPE_HANDSHAKE]: HandshakeResponseBody;
+    error: WrapperError | null;
 };

@@ -27,9 +27,10 @@ import {
     legend as semanticLegend,
 } from "./semantic.js";
 import { findSignatureHelp } from "./signature-help.js";
+import { collectStaticTypecheckDiagnostics } from "./static-typecheck/diagnostics.js";
+import { clearStaticTypeIndexCache } from "./static-typecheck/index.js";
+import { clearStaticTypecheckCache } from "./static-typecheck/service.js";
 import { collectDocumentSymbols } from "./symbols.js";
-import { collectTypeDiagnostics } from "./type-diagnostics.js";
-import { clearTypeInferenceCache } from "./wrapper/type-check.js";
 
 const connection = createConnection(ProposedFeatures.all);
 const documents = new TextDocuments(TextDocument);
@@ -43,6 +44,8 @@ async function refreshDiagnostics(uri: string): Promise<void> {
         return;
     }
 
+    const documentVersion = document.version;
+
     const adapter = getParserAdapterForDocument(document);
     if (adapter !== undefined) {
         connection.sendNotification(ACTIVE_PARSER_NOTIFICATION, {
@@ -55,12 +58,20 @@ async function refreshDiagnostics(uri: string): Promise<void> {
     const semanticDiagnostics =
         syntaxDiagnostics.length === 0 ? collectSemanticDiagnostics(document) : [];
     const typeDiagnostics =
-        syntaxDiagnostics.length === 0 ? await collectTypeDiagnostics(document) : [];
+        syntaxDiagnostics.length === 0 ? await collectStaticTypecheckDiagnostics(document) : [];
+
+    if (!isLatestDocument(uri, documentVersion)) {
+        return;
+    }
 
     connection.sendDiagnostics({
         uri: document.uri,
         diagnostics: [...syntaxDiagnostics, ...semanticDiagnostics, ...typeDiagnostics],
     });
+}
+
+function isLatestDocument(uri: string, version: number): boolean {
+    return documents.get(uri)?.version === version;
 }
 
 connection.onInitialize((_params: InitializeParams): InitializeResult => {
@@ -202,7 +213,8 @@ documents.onDidChangeContent(async (event) => {
 });
 
 documents.onDidClose((event) => {
-    clearTypeInferenceCache(event.document.uri);
+    clearStaticTypecheckCache(event.document.uri);
+    clearStaticTypeIndexCache(event.document.uri);
     connection.sendDiagnostics({
         uri: event.document.uri,
         diagnostics: [],

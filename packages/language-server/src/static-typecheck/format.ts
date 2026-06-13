@@ -1,7 +1,8 @@
 import { QNameToString } from "server/analysis/names.js";
-import { type InferredType } from "server/wrapper/types.js";
 
-export function formatInferredType(type: InferredType): string {
+import { type StaticType } from "./types.js";
+
+export function formatStaticType(type: StaticType): string {
     if ("function" in type) {
         const parameterTypes = type.function.signature.parameterTypes.map((parameter, index) => {
             const name =
