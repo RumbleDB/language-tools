@@ -1,5 +1,26 @@
 # jsoniq-vscode
 
+## 1.4.0
+
+### Minor Changes
+
+- [`62ef882`](https://github.com/RumbleDB/jsoniq-lsp/commit/62ef88215c9bee6eec39367ddd41cabb2fa5cdb8) - feat: change transport method from stdio to ipc in serverOptions for improved communication
+
+- [#28](https://github.com/RumbleDB/jsoniq-lsp/pull/28) [`7bc3cb1`](https://github.com/RumbleDB/jsoniq-lsp/commit/7bc3cb144dacce6e832b95e003ed141e0c01eda8) - Add a configuration that can enable or disable the LSP wrapper dynamically.
+
+  Add more checks to ensure that, if the wrapper fails to start (e.g., if Java is unavailable), the language server itself can continue to work and bypass the failure.
+
+- [#29](https://github.com/RumbleDB/jsoniq-lsp/pull/29) [`a7c8267`](https://github.com/RumbleDB/jsoniq-lsp/commit/a7c82679eb3bb9458c4f45b36fb6a24227ed5421) - Refactor: Create generic types for notification senders and receivers so that clients, such as the VSCode extension, can handle notifications in a type-safe manner.
+
+### Patch Changes
+
+- [`51b770f`](https://github.com/RumbleDB/jsoniq-lsp/commit/51b770f1a8a6c77f34912ea2eb27af3cd9062372) - fix: do not switch document language automatically if it was not JSONiq or XQuery
+
+  This prevents problem with Jupyter Notebook cell, which is set to use Python language
+
+- Updated dependencies [[`9b3258b`](https://github.com/RumbleDB/jsoniq-lsp/commit/9b3258be20c0615497d1081afc29cc4e5cfc3c4d), [`55232dd`](https://github.com/RumbleDB/jsoniq-lsp/commit/55232ddbe985ac2ce4b80f0e12156574ff9a6400), [`4cab521`](https://github.com/RumbleDB/jsoniq-lsp/commit/4cab5216c3ae1afd22e615a0bb0aa1b538cad4b3), [`7bc3cb1`](https://github.com/RumbleDB/jsoniq-lsp/commit/7bc3cb144dacce6e832b95e003ed141e0c01eda8), [`9ddb197`](https://github.com/RumbleDB/jsoniq-lsp/commit/9ddb197fa1fc94f5018aeac6903b84bb1d22d657), [`a7c8267`](https://github.com/RumbleDB/jsoniq-lsp/commit/a7c82679eb3bb9458c4f45b36fb6a24227ed5421)]:
+  - jsoniq-language-server@2.6.0
+
 ## 1.3.2
 
 ### Patch Changes
