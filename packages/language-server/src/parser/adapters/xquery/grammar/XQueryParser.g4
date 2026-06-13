@@ -468,7 +468,7 @@ dirAttributeContentApos : contentChar
                         ;
 
 // helper rule to match any content character
-contentChar:              ContentChar+ ;
+contentChar:              ContentChar ;
 
 dirElemContent: directConstructor
               | commonContent
@@ -837,21 +837,19 @@ stringLiteral : stringLiteralQuot
               | stringLiteralApos
               ;
 
-stringContentQuot : ContentChar+
+stringContentQuot : ContentChar
                   | LBRACE expr? RBRACE?
                   | RBRACE
                   | DOUBLE_LBRACE
                   | DOUBLE_RBRACE
-                  | noQuotesNoBracesNoAmpNoLAng                  
                   | stringLiteralApos
                   ;
 
-stringContentApos : ContentChar+
+stringContentApos : ContentChar
                   | LBRACE expr? RBRACE?
                   | RBRACE
                   | DOUBLE_LBRACE
                   | DOUBLE_RBRACE
-                  | noQuotesNoBracesNoAmpNoLAng                  
                   | stringLiteralQuot
                   ;
 

@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { type CompletionItem, type Position } from "vscode-languageserver";
 import { type TextDocument } from "vscode-languageserver-textdocument";
 
-import { positionAtNth, testDocument } from "./test-utils.js";
+import { positionAtNth, testDocument, testDocumentFromUri } from "./test-utils.js";
 
 describe("JSONiq completion", () => {
     it("returns visible declarations in", () => {
@@ -250,6 +250,64 @@ describe("JSONiq completion", () => {
 
         expect(labelsAtCursor).toContain("declare function");
         expect(labelsAtCursor).toContain("declare variable");
+    });
+});
+
+describe("XQuery completion", () => {
+    /// This has been added because the original XQuery grammar had string rules that caused the C3 completion engine to freeze.
+    it("returns promptly after a long namespace URI before an XML element", () => {
+        const document = testDocumentFromUri(
+            [
+                'xquery version "3.1";',
+                'declare namespace xlink = "http://www.w3.org/1999/xlink";',
+                "",
+                '<Q4 xmlns:xlink="http://www.w3.org/1999/xlink">',
+                "    ",
+                "</Q4>",
+            ],
+            {
+                uri: "file:///completion-long-namespace.xq",
+                languageId: "xquery",
+            },
+        );
+
+        const start = performance.now();
+        const completions = findCompletions(document, {
+            line: 3,
+            character: 0,
+        });
+        const elapsedMs = performance.now() - start;
+
+        expect(completions).toBeDefined();
+        expect(elapsedMs).toBeLessThan(1_000);
+    });
+
+    it("returns promptly inside an XML enclosed expression after a long attribute URI", () => {
+        const document = testDocumentFromUri(
+            [
+                'declare namespace xlink = "http://www.w3.org/1999/xlink"; ',
+                '<Q4 xmlns:xlink="http://www.w3.org/1999/xlink"> ',
+                "    { ",
+                "        for $hr in //@xlink:href ",
+                "        return $hr + ",
+                "    } ",
+                "</Q4>",
+            ],
+            {
+                uri: "file:///completion-long-attribute-uri.xq",
+                languageId: "xquery",
+            },
+        );
+
+        const start = performance.now();
+        const completions = findCompletions(document, {
+            line: 4,
+            character: "        return $hr + ".length,
+        });
+        const elapsedMs = performance.now() - start;
+
+        expect(completions).toBeDefined();
+        expect(elapsedMs).toBeLessThan(1_000);
     });
 });
 
