@@ -120,6 +120,21 @@ export async function getExistingWrapperReleaseManifest(
     return manifest;
 }
 
+export function ensureLocalWrapper(wrapperPackage: PackageJson): void {
+    const classpathPath = path.join(WRAPPER_TARGET_DIR, "runtime-classpath.txt");
+    try {
+        findOneFile(WRAPPER_TARGET_DIR, `-${wrapperPackage.version}-all.jar`);
+        if (fs.existsSync(classpathPath)) {
+            console.log("Local wrapper target artifacts already exist. Skipping build.");
+            return;
+        }
+    } catch {
+        // Target artifacts not found, proceed to build
+    }
+
+    buildWrapperProductionArtifacts();
+}
+
 export async function ensureWrapperRelease(
     wrapperPackage: PackageJson,
 ): Promise<WrapperReleaseManifest> {
@@ -128,6 +143,6 @@ export async function ensureWrapperRelease(
         return manifest;
     }
 
-    buildWrapperProductionArtifacts();
+    ensureLocalWrapper(wrapperPackage);
     return await publishWrapper(wrapperPackage);
 }

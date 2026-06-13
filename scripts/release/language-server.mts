@@ -9,11 +9,16 @@ import {
     readChangelogEntry,
     run,
     type PackageJson,
+    WRAPPER_PACKAGE_DIR,
+    readPackage,
 } from "./shared.mts";
-import { type WrapperReleaseManifest } from "./wrapper.mts";
+import { ensureLocalWrapper, type WrapperReleaseManifest } from "./wrapper.mts";
 const MANIFEST_PATH = `${LANGUAGE_SERVER_PACKAGE_DIR}/assets/wrapper/release-manifest.json`;
 
 export function buildLanguageServerProductionArtifacts(): void {
+    const wrapperPackage = readPackage(WRAPPER_PACKAGE_DIR);
+    ensureLocalWrapper(wrapperPackage);
+
     run("pnpm", ["run", "generate:grammar"]);
     run("pnpm", ["run", "build:server:prod"]);
 }

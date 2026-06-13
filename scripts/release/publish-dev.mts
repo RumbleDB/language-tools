@@ -18,7 +18,7 @@ import {
     packVsCodeExtension,
     setVsCodeExtensionLanguageServerDependency,
 } from "./vscode-extension.mts";
-import { attachWrapperArtifacts, buildWrapperProductionArtifacts } from "./wrapper.mts";
+import { attachWrapperArtifacts, ensureLocalWrapper } from "./wrapper.mts";
 
 function shortSha(): string {
     let sha = process.env.GITHUB_SHA;
@@ -43,7 +43,7 @@ async function main(): Promise<void> {
     });
 
     const wrapperPackage = readPackage(WRAPPER_PACKAGE_DIR);
-    buildWrapperProductionArtifacts();
+    ensureLocalWrapper(wrapperPackage);
     const wrapperManifest = await attachWrapperArtifacts(wrapperPackage, release);
     buildLanguageServerProductionArtifacts();
     const languageServerPackagePath = await attachLanguageServerArtifacts(release, wrapperManifest);
