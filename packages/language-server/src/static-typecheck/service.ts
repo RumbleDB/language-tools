@@ -35,7 +35,25 @@ export function clearStaticTypecheckCache(uri: DocumentUri): void {
 
 const logger = createLogger("static-typecheck");
 
+function createEmptyStaticTypecheckResponse(): StaticTypecheckResponse {
+    return {
+        id: 0,
+        responseType: REQUEST_TYPE_STATIC_TYPECHECK,
+        body: {
+            types: [],
+            errors: [],
+        },
+        error: null,
+    };
+}
+
 export async function getStaticTypecheck(document: TextDocument): Promise<StaticTypecheckResponse> {
+    const client = getWrapperClient();
+
+    if (!client.isUsable()) {
+        return createEmptyStaticTypecheckResponse();
+    }
+
     const cached = staticTypecheckCache.get(document.uri);
     if (cached !== undefined && cached.version === document.version) {
         return cached.response;
@@ -49,7 +67,7 @@ export async function getStaticTypecheck(document: TextDocument): Promise<Static
     const request = createStaticTypecheckRequest(document);
     const documentVersion = document.version;
 
-    const typecheckPromise = getWrapperClient()
+    const typecheckPromise = client
         .sendRequest<StaticTypecheckRequestSpec>(request)
         .then((response) => {
             const existingCache = staticTypecheckCache.get(document.uri);
@@ -65,6 +83,12 @@ export async function getStaticTypecheck(document: TextDocument): Promise<Static
             );
             logger.debug(JSON.stringify(response, null, 2));
             return response;
+        })
+        .catch((error) => {
+            logger.warn(
+                `Static typecheck unavailable for ${document.uri}: ${error instanceof Error ? error.message : String(error)}`,
+            );
+            return createEmptyStaticTypecheckResponse();
         })
         .finally(() => {
             const pending = pendingStaticTypecheckByUri.get(document.uri);

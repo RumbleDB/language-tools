@@ -6,6 +6,14 @@ describe("wrapper client surface", () => {
         expect(getWrapperClient()).toBeDefined();
     });
 
+    it("is configured enabled by default", () => {
+        expect(getWrapperClient().isConfiguredEnabled()).toBe(true);
+    });
+
+    it("is usable by default", () => {
+        expect(getWrapperClient().isUsable()).toBe(true);
+    });
+
     it("starts with unknown rumble version", () => {
         expect(getWrapperClient().getRumbleVersion()).toBeNull();
         expect(getWrapperClient().getRumbleCommit()).toBeNull();
@@ -18,9 +26,11 @@ describe("wrapper client surface", () => {
 
     it("after connect, rumble version is set", async () => {
         const client = getWrapperClient();
-        await expect(client.connect()).resolves.toBeUndefined();
-        expect(client.getRumbleVersion()).toBeDefined();
-        expect(client.getRumbleCommit()).toBeDefined();
-        expect(client.getRumbleCommitShort()).toBeDefined();
+        if (client.isUsable()) {
+            await expect(client.connect()).resolves.toBeUndefined();
+            expect(client.getRumbleVersion()).toBeDefined();
+            expect(client.getRumbleCommit()).toBeDefined();
+            expect(client.getRumbleCommitShort()).toBeDefined();
+        }
     }, 30_000);
 });

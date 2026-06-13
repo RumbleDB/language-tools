@@ -93,6 +93,16 @@
                 "editor.wordBasedSuggestions": "off",
                 "editor.suggest.showWords": false
             }
+        },
+        "configuration": {
+            "title": "JSONiq Language Support Configuration",
+            "properties": {
+                "jsoniq.lsp.wrapper.enabled": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Enable enhanced LSP features powered by the RumbleDB Java wrapper (requires Java 17+ to be installed)."
+                }
+            }
         }
     },
     "activationEvents": [

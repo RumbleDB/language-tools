@@ -8,7 +8,7 @@ export function setMemoryUsageNotification(connection: any) {
 
     const poll = async (): Promise<void> => {
         try {
-            const wrapperUsage = await client.getMemoryUsage();
+            const wrapperUsage = client.isUsable() ? await client.getMemoryUsage() : null;
             const languageServerUsage = process.memoryUsage().rss;
 
             const usage: MemoryUsage = {

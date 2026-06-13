@@ -6,6 +6,7 @@ import {
     TransportKind,
 } from "vscode-languageclient/node";
 
+import { config } from "./config.js";
 import { JSONIQ_LANGUAGE_ID, XQUERY_LANGUAGE_ID } from "./const.js";
 import { JUPYTER_NOTEBOOK_SELECTOR } from "./notebook/index.js";
 import { initializeCustomNotifications } from "./notifications/index.js";
@@ -31,7 +32,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
         },
         debug: {
             module: serverModule,
-            transport: TransportKind.stdio,
+            transport: TransportKind.ipc,
             options: {
                 execArgv: ["--nolazy", "--inspect=6009"],
                 env: {
@@ -49,6 +50,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
             { scheme: "file", language: XQUERY_LANGUAGE_ID },
             JUPYTER_NOTEBOOK_SELECTOR,
         ],
+        initializationOptions: config,
     };
 
     client = new LanguageClient(
