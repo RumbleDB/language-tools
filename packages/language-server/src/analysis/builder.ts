@@ -27,7 +27,7 @@ import {
     type LexicalFunctionName,
     type LexicalQName,
 } from "server/parser/types/name.js";
-import { AstVisitor } from "server/parser/types/visitor.js";
+import { ParserAstVisitor } from "server/parser/types/visitor.js";
 import { Diagnostic, DiagnosticSeverity, Position, Range } from "vscode-languageserver";
 import { TextDocument } from "vscode-languageserver-textdocument";
 
@@ -79,7 +79,7 @@ export interface JsoniqAnalysis {
     diagnostics: Diagnostic[];
 }
 
-class AnalysisBuilder extends AstVisitor<AstNode[]> {
+class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
     private static readonly NEVER_VISIBLE_OFFSET = Number.POSITIVE_INFINITY;
 
     private readonly analysis: JsoniqAnalysis;

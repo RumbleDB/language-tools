@@ -1,31 +1,13 @@
-import { parseDocument } from "server/parser/index.js";
-import type {
-    ContextItemDeclarationAstNode,
-    CountClauseAstNode,
-    ForBindingAstNode,
-    FunctionDeclarationAstNode,
-    GroupByBindingAstNode,
-    LetBindingAstNode,
-    NamespaceDeclarationAstNode,
-    TypeDeclarationAstNode,
-    VariableDeclarationAstNode,
-} from "server/parser/types/ast.js";
-import { AstVisitor } from "server/parser/types/visitor.js";
-import { comparePositions } from "server/utils/position.js";
-import { DocumentSymbol, SymbolKind, type Range } from "vscode-languageserver";
+import { DocumentSymbol, SymbolKind } from "vscode-languageserver";
 import { TextDocument } from "vscode-languageserver-textdocument";
 
+import type { AstNode, DeclarationNode } from "./ast.js";
+import { definitionNameToString } from "./definitions.js";
 import { QNameToString } from "./names.js";
+import { getAnalysis } from "./service.js";
+import { AstVisitor } from "./visitor.js";
 
-interface SymbolOwner {
-    range: Range;
-    symbol: DocumentSymbol;
-}
-
-export class DocumentSymbolsBuilder extends AstVisitor<void> {
-    private readonly symbols: DocumentSymbol[] = [];
-    private readonly owners: SymbolOwner[] = [];
-
+export class DocumentSymbolsBuilder extends AstVisitor<DocumentSymbol[]> {
     private readonly document: TextDocument;
 
     public constructor(document: TextDocument) {
@@ -34,157 +16,52 @@ export class DocumentSymbolsBuilder extends AstVisitor<void> {
     }
 
     public build(): DocumentSymbol[] {
-        this.visit(parseDocument(this.document).ast);
-        return this.symbols;
+        const analysis = getAnalysis(this.document);
+        return this.visit(analysis.ast);
     }
 
-    protected override visitNamespaceDeclaration(node: NamespaceDeclarationAstNode): void {
-        this.addSymbol(node.prefix, SymbolKind.Namespace, node.range, node.selectionRange);
+    protected override defaultVisit(node: AstNode): DocumentSymbol[] {
+        return this.visitChildren(node).flat();
     }
 
-    protected override visitContextItemDeclaration(node: ContextItemDeclarationAstNode): void {
-        this.addSymbol(
-            `$${QNameToString(node.name, false)}`,
-            SymbolKind.Variable,
-            node.range,
-            node.selectionRange,
-            true,
-        );
-    }
+    protected override visitDeclaration(node: DeclarationNode): DocumentSymbol[] {
+        const declaration = node.declaration;
+        const name =
+            declaration.kind === "function"
+                ? QNameToString(declaration.name.qname, false)
+                : definitionNameToString(declaration, false);
 
-    protected override visitTypeDeclaration(node: TypeDeclarationAstNode): void {
-        this.addSymbol(
-            QNameToString(node.name.qname, false),
-            SymbolKind.Struct,
-            node.range,
-            node.selectionRange,
-        );
-    }
-
-    protected override visitFunctionDeclaration(node: FunctionDeclarationAstNode): void {
-        this.addSymbol(
-            QNameToString(node.name.qname, false),
-            SymbolKind.Function,
-            node.range,
-            node.nameRange,
-            true,
-        );
-        for (const parameter of node.parameters) {
-            this.addSymbol(
-                `$${QNameToString(parameter.name, false)}`,
-                SymbolKind.Variable,
-                parameter.range,
-                parameter.selectionRange,
-            );
-        }
-        this.visitChildren(node);
-    }
-
-    protected override visitVariableDeclaration(node: VariableDeclarationAstNode): void {
-        this.addSymbol(
-            `$${QNameToString(node.binding.name, false)}`,
-            SymbolKind.Variable,
-            node.binding.range,
-            node.binding.selectionRange,
-            true,
-        );
-        this.visitChildren(node);
-    }
-
-    protected override visitLetBinding(node: LetBindingAstNode): void {
-        this.visitVariableBinding(node);
-    }
-
-    protected override visitGroupByBinding(node: GroupByBindingAstNode): void {
-        this.visitVariableBinding(node);
-    }
-
-    protected override visitCountClause(node: CountClauseAstNode): void {
-        this.addSymbol(
-            `$${QNameToString(node.binding.name, false)}`,
-            SymbolKind.Variable,
-            node.binding.range,
-            node.binding.selectionRange,
-        );
-        this.visitChildren(node);
-    }
-
-    protected override visitForBinding(node: ForBindingAstNode): void {
-        for (const binding of node.bindings) {
-            this.addSymbol(
-                `$${QNameToString(binding.name, false)}`,
-                SymbolKind.Variable,
-                binding.range,
-                binding.selectionRange,
-            );
-        }
-        this.visitChildren(node);
-    }
-
-    private visitVariableBinding(node: LetBindingAstNode | GroupByBindingAstNode): void {
-        this.addSymbol(
-            `$${QNameToString(node.binding.name, false)}`,
-            SymbolKind.Variable,
-            node.binding.range,
-            node.binding.selectionRange,
-            true,
-        );
-        this.visitChildren(node);
-    }
-
-    private addSymbol(
-        name: string,
-        kind: SymbolKind,
-        range: Range,
-        selectionRange: Range,
-        canContainChildren = false,
-    ): void {
-        if (name.trim() === "") {
-            return;
+        if (name.trim() === "" || name === "$") {
+            return this.visitChildren(node).flat();
         }
 
-        this.leaveCompletedOwners(range);
+        let kind: SymbolKind;
+
+        switch (declaration.kind) {
+            case "namespace":
+                kind = SymbolKind.Namespace;
+                break;
+            case "type":
+                kind = SymbolKind.Struct;
+                break;
+            case "function":
+                kind = SymbolKind.Function;
+                break;
+            default: // all variable kinds, parameters, etc.
+                kind = SymbolKind.Variable;
+                break;
+        }
+
+        const childSymbols = this.visitChildren(node).flat();
 
         const symbol: DocumentSymbol = {
             name,
             kind,
-            range,
-            selectionRange,
-            children: [],
+            range: declaration.range,
+            selectionRange: declaration.selectionRange,
+            children: childSymbols,
         };
 
-        const parent = this.currentOwner()?.symbol;
-        if (parent === undefined) {
-            this.symbols.push(symbol);
-        } else {
-            parent.children ??= [];
-            parent.children.push(symbol);
-        }
-
-        if (canContainChildren) {
-            this.owners.push({ range, symbol });
-        }
-    }
-
-    private leaveCompletedOwners(range: Range): void {
-        while (!this.currentOwnerContains(range)) {
-            this.owners.pop();
-        }
-    }
-
-    private currentOwner(): SymbolOwner | undefined {
-        return this.owners[this.owners.length - 1];
-    }
-
-    private currentOwnerContains(range: Range): boolean {
-        const owner = this.currentOwner();
-        if (owner === undefined) {
-            return true;
-        }
-
-        return (
-            comparePositions(owner.range.start, range.start) <= 0 &&
-            comparePositions(range.end, owner.range.end) <= 0
-        );
+        return [symbol];
     }
 }

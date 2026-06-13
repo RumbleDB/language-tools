@@ -19,7 +19,7 @@ import type {
     VariableReferenceAstNode,
 } from "./ast.js";
 
-export abstract class AstVisitor<R = void> {
+export abstract class ParserAstVisitor<R = void> {
     public visit(node: AstNode): R {
         switch (node.kind) {
             case "module":
