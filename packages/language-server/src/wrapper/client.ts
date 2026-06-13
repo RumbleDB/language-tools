@@ -8,6 +8,7 @@ import { createLogger } from "server/utils/logger.js";
 
 import { type WrapperResolutionOptions, resolveWrapperLaunchConfig } from "./executable/index.js";
 import { REQUEST_TYPE_HANDSHAKE, type HandshakeRequestSpec } from "./handshake.js";
+import { ensureJavaAvailable } from "./java.js";
 import type {
     WrapperDaemonRequest,
     WrapperDaemonResponse,
@@ -71,6 +72,7 @@ class RumbleWrapperClient {
 
     private async startAndHandshake(): Promise<void> {
         if (this.child === undefined) {
+            await ensureJavaAvailable();
             const launchConfig = await resolveWrapperLaunchConfig(wrapperResolutionOptions);
             logger.info(`Launching wrapper with args: ${launchConfig.args.join(" ")}`);
 
