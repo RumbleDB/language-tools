@@ -31,10 +31,12 @@ import { collectStaticTypecheckDiagnostics } from "./static-typecheck/diagnostic
 import { clearStaticTypeIndexCache } from "./static-typecheck/index.js";
 import { clearStaticTypecheckCache } from "./static-typecheck/service.js";
 import { collectDocumentSymbols } from "./symbols.js";
+import { setLoggerSink } from "./utils/logger.js";
 
 const connection = createConnection(ProposedFeatures.all);
 const documents = new TextDocuments(TextDocument);
 
+setLoggerSink(connection.console);
 initializeCustomNotifications(connection);
 
 async function refreshDiagnostics(uri: string): Promise<void> {

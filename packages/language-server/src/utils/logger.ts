@@ -1,7 +1,17 @@
+import type { Connection } from "vscode-languageserver";
+
 type LogLevel = "debug" | "info" | "warn" | "error";
 
 const DEBUG_LOG_ENV = "JSONIQ_LSP_DEBUG_LOG";
 const DEBUG_ENV = "JSONIQ_LSP_DEBUG";
+
+type LoggerSink = Connection["console"];
+
+let loggerSink: LoggerSink | undefined;
+
+export function setLoggerSink(sink: LoggerSink): void {
+    loggerSink = sink;
+}
 
 function isDebugEnabled(): boolean {
     return process.env[DEBUG_LOG_ENV] === "1" || process.env[DEBUG_ENV] === "1";
@@ -30,6 +40,24 @@ function writeLog(level: LogLevel, scope: string, args: unknown[]): void {
 
     const prefix = `[jsoniq-lsp:${scope}]`;
     const payload = [prefix, ...args.map((arg) => stringifyArg(arg))].join(" ");
+    if (loggerSink !== undefined) {
+        switch (level) {
+            case "debug":
+                loggerSink.debug(payload);
+                break;
+            case "info":
+                loggerSink.info(payload);
+                break;
+            case "warn":
+                loggerSink.warn(payload);
+                break;
+            case "error":
+                loggerSink.error(payload);
+                break;
+        }
+        return;
+    }
+
     process.stderr.write(`${payload}\n`);
 }
 
