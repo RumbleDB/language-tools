@@ -9,6 +9,14 @@
             "args": ["--extensionDevelopmentPath=${workspaceFolder}/packages/vscode-extension"],
             "outFiles": ["${workspaceFolder}/packages/vscode-extension/dist/**/*.js"],
             "preLaunchTask": "npm: build"
+        },
+        {
+            "name": "Attach to Language Server",
+            "type": "node",
+            "request": "attach",
+            "port": 6009,
+            "restart": true,
+            "outFiles": ["${workspaceFolder}/packages/language-server/dist/**/*.js"]
         }
     ]
 }
