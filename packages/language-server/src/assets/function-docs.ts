@@ -68,7 +68,6 @@ export function getBuiltinFunctionDocumentation(name: QName): FunctionDocEntry |
     const entry = docs[key];
 
     if (!entry) {
-        console.warn(`No documentation found for function: ${key}`);
         return undefined;
     }
 
