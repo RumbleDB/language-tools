@@ -6,7 +6,7 @@ export type InitializationOptions = {
 
 export const config: Readonly<InitializationOptions> = {
     wrapper: {
-        enabled: false,
+        enabled: true,
     },
 };
 

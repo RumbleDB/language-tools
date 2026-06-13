@@ -50,7 +50,7 @@ function createEmptyStaticTypecheckResponse(): StaticTypecheckResponse {
 export async function getStaticTypecheck(document: TextDocument): Promise<StaticTypecheckResponse> {
     const client = getWrapperClient();
 
-    if (!client.isEnabled()) {
+    if (!client.isUsable()) {
         return createEmptyStaticTypecheckResponse();
     }
 
@@ -83,6 +83,12 @@ export async function getStaticTypecheck(document: TextDocument): Promise<Static
             );
             logger.debug(JSON.stringify(response, null, 2));
             return response;
+        })
+        .catch((error) => {
+            logger.warn(
+                `Static typecheck unavailable for ${document.uri}: ${error instanceof Error ? error.message : String(error)}`,
+            );
+            return createEmptyStaticTypecheckResponse();
         })
         .finally(() => {
             const pending = pendingStaticTypecheckByUri.get(document.uri);

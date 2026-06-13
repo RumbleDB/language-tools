@@ -44,14 +44,27 @@ class RumbleWrapperClient {
     private rumbleCommit: string | null = null;
     private rumbleCommitShort: string | null = null;
     private rumbleRef: string | null = null;
+    private unavailableError: Error | null = null;
 
-    public isEnabled(): boolean {
+    public isConfiguredEnabled(): boolean {
         return config.wrapper.enabled;
     }
 
+    public isUsable(): boolean {
+        return this.isConfiguredEnabled() && this.unavailableError === null;
+    }
+
+    public getUnavailableError(): Error | null {
+        return this.unavailableError;
+    }
+
     public async connect(): Promise<void> {
-        if (!this.isEnabled()) {
+        if (!this.isConfiguredEnabled()) {
             throw new Error("LSP wrapper is disabled.");
+        }
+
+        if (this.unavailableError !== null) {
+            throw this.unavailableError;
         }
 
         if (this.child !== undefined && this.handshakeCompleted) {
@@ -65,6 +78,10 @@ class RumbleWrapperClient {
         this.processReadyPromise = this.startAndHandshake();
         try {
             await this.processReadyPromise;
+        } catch (error) {
+            const normalizedError = error instanceof Error ? error : new Error(String(error));
+            this.markUnavailable(normalizedError);
+            throw normalizedError;
         } finally {
             this.processReadyPromise = undefined;
         }
@@ -152,12 +169,25 @@ class RumbleWrapperClient {
     public async sendRequest<Spec extends AnyWrapperRequestSpec>(
         payload: Spec["request"],
     ): Promise<WrapperDaemonResponse<Spec["requestType"], Spec["response"]>> {
-        if (!this.isEnabled()) {
+        if (!this.isConfiguredEnabled()) {
             throw new Error("LSP wrapper is disabled.");
+        }
+
+        if (this.unavailableError !== null) {
+            throw this.unavailableError;
         }
 
         await this.connect();
         return this.sendRequestInternal<Spec>(payload);
+    }
+
+    private markUnavailable(error: Error): void {
+        if (this.unavailableError !== null) {
+            return;
+        }
+
+        this.unavailableError = error;
+        logger.warn(`Disabling wrapper for this session: ${error.message}`);
     }
 
     private async sendRequestInternal<Spec extends AnyWrapperRequestSpec>(
