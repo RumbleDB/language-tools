@@ -12,7 +12,13 @@ export type PrefixedQName = {
     localName: LocalName;
 };
 
-export type LexicalQName = UnprefixedQName | PrefixedQName;
+export type UriQualifiedQName = {
+    kind: "uri-qualified-qname";
+    namespaceUri: string;
+    localName: LocalName;
+};
+
+export type LexicalQName = UnprefixedQName | PrefixedQName | UriQualifiedQName;
 
 export type LexicalFunctionName = {
     qname: LexicalQName;
@@ -43,18 +49,33 @@ export type LexicalReferenceNameByKind = {
 };
 
 export function lexicalQNameToString(qname: LexicalQName): string {
-    return qname.kind === "prefixed-qname" ? `${qname.prefix}:${qname.localName}` : qname.localName;
+    switch (qname.kind) {
+        case "prefixed-qname":
+            return `${qname.prefix}:${qname.localName}`;
+        case "uri-qualified-qname":
+            return `Q{${qname.namespaceUri}}${qname.localName}`;
+        case "unprefixed-qname":
+            return qname.localName;
+        default:
+            throw qname satisfies never;
+    }
 }
 
 export function isPrefixedQName(qname: LexicalQName): qname is PrefixedQName {
     return qname.kind === "prefixed-qname";
 }
 
+export function isUriQualifiedQName(qname: LexicalQName): qname is UriQualifiedQName {
+    return qname.kind === "uri-qualified-qname";
+}
+
 export function parseQNameText(text: string): LexicalQName {
     if (text.startsWith("Q{")) {
         const namespaceEnd = text.indexOf("}");
+        const namespaceUri = namespaceEnd >= 0 ? text.slice(2, namespaceEnd) : "";
         return {
-            kind: "unprefixed-qname",
+            kind: "uri-qualified-qname",
+            namespaceUri,
             localName: namespaceEnd >= 0 ? text.slice(namespaceEnd + 1) : text,
         };
     }

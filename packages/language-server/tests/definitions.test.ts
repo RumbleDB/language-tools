@@ -1,7 +1,7 @@
 import { findDefinitionLocation } from "server/definitions.js";
 import { describe, expect, it } from "vitest";
 
-import { testDocument } from "./test-utils.js";
+import { positionAtNth, testDocument, testDocumentFromUri } from "./test-utils.js";
 
 describe("JSONiq go-to-definition", () => {
     it("resolves variable reference to the nearest declaration", () => {
@@ -80,5 +80,32 @@ describe("JSONiq go-to-definition", () => {
         const location = findDefinitionLocation(document, { line: 0, character: 0 });
 
         expect(location).toBeNull();
+    });
+
+    it("resolves URI-qualified function calls to matching declarations", () => {
+        const document = testDocumentFromUri(
+            [
+                'xquery version "3.1";',
+                "declare function Q{https://example.com}f() {",
+                "  1",
+                "};",
+                "Q{https://example.com}f()",
+            ],
+            {
+                uri: "file:///definitions-uri-qualified.xq",
+                languageId: "xquery",
+            },
+        );
+
+        const location = findDefinitionLocation(
+            document,
+            positionAtNth(document, "Q{https://example.com}f", 1),
+        );
+
+        expect(location).toBeDefined();
+        expect(location?.range.start).toEqual({
+            line: 1,
+            character: "declare function ".length,
+        });
     });
 });

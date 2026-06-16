@@ -1,7 +1,7 @@
 import { findReferenceLocations } from "server/references.js";
 import { describe, expect, it } from "vitest";
 
-import { positionAt, positionAtNth, testDocument } from "./test-utils.js";
+import { positionAt, positionAtNth, testDocument, testDocumentFromUri } from "./test-utils.js";
 
 describe("JSONiq references", () => {
     it("finds references for a local variable without crossing shadowed scopes", () => {
@@ -92,5 +92,31 @@ describe("JSONiq references", () => {
         const locations = findReferenceLocations(document, positionAt(document, "$x"), false);
 
         expect(locations.map((location) => location.range.start.line)).toEqual([0]);
+    });
+
+    it("finds references for URI-qualified functions", () => {
+        const document = testDocumentFromUri(
+            [
+                'xquery version "3.1";',
+                "declare function Q{https://example.com}f() { 1 };",
+                "Q{https://example.com}f() + Q{https://example.com}f()",
+            ],
+            {
+                uri: "file:///references-uri-qualified.xq",
+                languageId: "xquery",
+            },
+        );
+
+        const locations = findReferenceLocations(
+            document,
+            positionAt(document, "Q{https://example.com}f"),
+            true,
+        );
+
+        expect(locations.map((location) => location.range.start)).toEqual([
+            { line: 1, character: "declare function ".length },
+            { line: 2, character: 0 },
+            { line: 2, character: "Q{https://example.com}f() + ".length },
+        ]);
     });
 });

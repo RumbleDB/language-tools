@@ -23,6 +23,7 @@ import type {
 } from "server/parser/types/ast.js";
 import {
     isPrefixedQName,
+    isUriQualifiedQName,
     Prefix,
     type LexicalFunctionName,
     type LexicalQName,
@@ -451,9 +452,11 @@ class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
     }
 
     private resolveQName(qname: LexicalQName, range: Range): QName {
-        const namespaceUri = isPrefixedQName(qname)
-            ? this.analysis.namespaces.get(qname.prefix)?.namespaceUri
-            : undefined;
+        const namespaceUri = isUriQualifiedQName(qname)
+            ? qname.namespaceUri
+            : isPrefixedQName(qname)
+              ? this.analysis.namespaces.get(qname.prefix)?.namespaceUri
+              : undefined;
 
         if (namespaceUri === undefined && isPrefixedQName(qname)) {
             this.analysis.diagnostics.push({
