@@ -1,5 +1,18 @@
 # jsoniq-vscode
 
+## 1.4.1
+
+### Patch Changes
+
+- [`9d73984`](https://github.com/RumbleDB/language-tools/commit/9d73984a7277db2d6153a01fdf22d9fc6b77529d) - Add README to packages
+
+- [`bc1de1d`](https://github.com/RumbleDB/language-tools/commit/bc1de1d13f9329d9e151066422256e23afef7fc9) - Rename the extension to "JSONiq and XQuery Language Support" and provide a new description.
+
+- [`0bba37f`](https://github.com/RumbleDB/language-tools/commit/0bba37f0154e67055bbeb7bd030ac8f0c5a7f1ff) - Add Apache 2.0 license
+
+- Updated dependencies [[`5d355aa`](https://github.com/RumbleDB/language-tools/commit/5d355aa7a6fad992d7614cbc560c627e83a8ae6b), [`9d73984`](https://github.com/RumbleDB/language-tools/commit/9d73984a7277db2d6153a01fdf22d9fc6b77529d), [`0bba37f`](https://github.com/RumbleDB/language-tools/commit/0bba37f0154e67055bbeb7bd030ac8f0c5a7f1ff)]:
+  - jsoniq-language-server@2.6.1
+
 ## 1.4.0
 
 ### Minor Changes
