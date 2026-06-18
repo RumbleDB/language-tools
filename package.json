@@ -1,6 +1,7 @@
 {
     "name": "jsoniq-lsp-workspace",
     "private": true,
+    "license": "Apache-2.0",
     "scripts": {
         "build": "run-s build:core build:client",
         "build:prod": "pnpm run clean && run-s build:core:prod build:client",

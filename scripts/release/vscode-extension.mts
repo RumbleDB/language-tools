@@ -41,7 +41,7 @@ export function installAndBuildVsCodeExtension(): void {
 }
 
 export function packVsCodeExtension(preRelease: boolean): string {
-    const args = [...vsceArgs("package"), "--skip-license"];
+    const args = [...vsceArgs("package")];
 
     if (preRelease) {
         args.push("--pre-release");
