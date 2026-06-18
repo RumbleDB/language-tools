@@ -1,5 +1,15 @@
 # rumble-lsp-wrapper
 
+## 0.4.1
+
+### Patch Changes
+
+- [`9d73984`](https://github.com/RumbleDB/language-tools/commit/9d73984a7277db2d6153a01fdf22d9fc6b77529d) - Add README to packages
+
+- [`7bb9367`](https://github.com/RumbleDB/language-tools/commit/7bb93679564750f15aa4e84191bcad69391d237f) - Update RumbleDB to the latest commit (https://github.com/RumbleDB/rumble/commit/b71e18723464414f1a2c709eacc09409832d5766) from the master branch.
+
+- [`0bba37f`](https://github.com/RumbleDB/language-tools/commit/0bba37f0154e67055bbeb7bd030ac8f0c5a7f1ff) - Add Apache 2.0 license
+
 ## 0.4.0
 
 ### Minor Changes

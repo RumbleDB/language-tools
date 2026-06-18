@@ -1,5 +1,22 @@
 # jsoniq-language-server
 
+## 2.6.1
+
+### Patch Changes
+
+- [`5d355aa`](https://github.com/RumbleDB/language-tools/commit/5d355aa7a6fad992d7614cbc560c627e83a8ae6b) - fix: add support for URI-qualified QNames and enhance related tests
+
+  Previously, URI-qualified QNames had the namespace URi removed in the parser layer. It was not resolving the following function name correctly:
+
+  ```jsoniq
+  Q{http://www.example.com}count(())                      (: Should give error but was not :)
+  Q{http://www.w3.org/2005/xpath-functions}count(())      (: Should resolve correctly :)
+  ```
+
+- [`9d73984`](https://github.com/RumbleDB/language-tools/commit/9d73984a7277db2d6153a01fdf22d9fc6b77529d) - Add README to packages
+
+- [`0bba37f`](https://github.com/RumbleDB/language-tools/commit/0bba37f0154e67055bbeb7bd030ac8f0c5a7f1ff) - Add Apache 2.0 license
+
 ## 2.6.0
 
 ### Minor Changes
