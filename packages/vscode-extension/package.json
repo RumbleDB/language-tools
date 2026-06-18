@@ -1,9 +1,9 @@
 {
     "name": "jsoniq-vscode",
-    "displayName": "JSONiq Language Support",
+    "displayName": "JSONiq and XQuery Language Support",
     "version": "1.4.0",
     "private": true,
-    "description": "JSONiq language support for Visual Studio Code, powered by the JSONiq Language Server.",
+    "description": "Rich language support for JSONiq and XQuery, featuring syntax highlighting, code completion, and diagnostics powered by RumbleDB.",
     "categories": [
         "Programming Languages"
     ],
