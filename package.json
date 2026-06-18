@@ -1,5 +1,5 @@
 {
-    "name": "jsoniq-lsp-workspace",
+    "name": "language-tools-workspace",
     "private": true,
     "license": "Apache-2.0",
     "scripts": {
