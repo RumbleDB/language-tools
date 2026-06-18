@@ -4,7 +4,7 @@
     "private": true,
     "license": "Apache-2.0",
     "repository": {
-        "url": "https://github.com/RumbleDB/jsoniq-lsp",
+        "url": "https://github.com/RumbleDB/language-tools",
         "directory": "packages/rumble-lsp-wrapper"
     },
     "scripts": {

@@ -4,100 +4,100 @@
 
 ### Minor Changes
 
-- [`62ef882`](https://github.com/RumbleDB/jsoniq-lsp/commit/62ef88215c9bee6eec39367ddd41cabb2fa5cdb8) - feat: change transport method from stdio to ipc in serverOptions for improved communication
+- [`62ef882`](https://github.com/RumbleDB/language-tools/commit/62ef88215c9bee6eec39367ddd41cabb2fa5cdb8) - feat: change transport method from stdio to ipc in serverOptions for improved communication
 
-- [#28](https://github.com/RumbleDB/jsoniq-lsp/pull/28) [`7bc3cb1`](https://github.com/RumbleDB/jsoniq-lsp/commit/7bc3cb144dacce6e832b95e003ed141e0c01eda8) - Add a configuration that can enable or disable the LSP wrapper dynamically.
+- [#28](https://github.com/RumbleDB/language-tools/pull/28) [`7bc3cb1`](https://github.com/RumbleDB/language-tools/commit/7bc3cb144dacce6e832b95e003ed141e0c01eda8) - Add a configuration that can enable or disable the LSP wrapper dynamically.
 
   Add more checks to ensure that, if the wrapper fails to start (e.g., if Java is unavailable), the language server itself can continue to work and bypass the failure.
 
-- [#29](https://github.com/RumbleDB/jsoniq-lsp/pull/29) [`a7c8267`](https://github.com/RumbleDB/jsoniq-lsp/commit/a7c82679eb3bb9458c4f45b36fb6a24227ed5421) - Refactor: Create generic types for notification senders and receivers so that clients, such as the VSCode extension, can handle notifications in a type-safe manner.
+- [#29](https://github.com/RumbleDB/language-tools/pull/29) [`a7c8267`](https://github.com/RumbleDB/language-tools/commit/a7c82679eb3bb9458c4f45b36fb6a24227ed5421) - Refactor: Create generic types for notification senders and receivers so that clients, such as the VSCode extension, can handle notifications in a type-safe manner.
 
 ### Patch Changes
 
-- [`51b770f`](https://github.com/RumbleDB/jsoniq-lsp/commit/51b770f1a8a6c77f34912ea2eb27af3cd9062372) - fix: do not switch document language automatically if it was not JSONiq or XQuery
+- [`51b770f`](https://github.com/RumbleDB/language-tools/commit/51b770f1a8a6c77f34912ea2eb27af3cd9062372) - fix: do not switch document language automatically if it was not JSONiq or XQuery
 
   This prevents problem with Jupyter Notebook cell, which is set to use Python language
 
-- Updated dependencies [[`9b3258b`](https://github.com/RumbleDB/jsoniq-lsp/commit/9b3258be20c0615497d1081afc29cc4e5cfc3c4d), [`55232dd`](https://github.com/RumbleDB/jsoniq-lsp/commit/55232ddbe985ac2ce4b80f0e12156574ff9a6400), [`4cab521`](https://github.com/RumbleDB/jsoniq-lsp/commit/4cab5216c3ae1afd22e615a0bb0aa1b538cad4b3), [`7bc3cb1`](https://github.com/RumbleDB/jsoniq-lsp/commit/7bc3cb144dacce6e832b95e003ed141e0c01eda8), [`9ddb197`](https://github.com/RumbleDB/jsoniq-lsp/commit/9ddb197fa1fc94f5018aeac6903b84bb1d22d657), [`a7c8267`](https://github.com/RumbleDB/jsoniq-lsp/commit/a7c82679eb3bb9458c4f45b36fb6a24227ed5421)]:
+- Updated dependencies [[`9b3258b`](https://github.com/RumbleDB/language-tools/commit/9b3258be20c0615497d1081afc29cc4e5cfc3c4d), [`55232dd`](https://github.com/RumbleDB/language-tools/commit/55232ddbe985ac2ce4b80f0e12156574ff9a6400), [`4cab521`](https://github.com/RumbleDB/language-tools/commit/4cab5216c3ae1afd22e615a0bb0aa1b538cad4b3), [`7bc3cb1`](https://github.com/RumbleDB/language-tools/commit/7bc3cb144dacce6e832b95e003ed141e0c01eda8), [`9ddb197`](https://github.com/RumbleDB/language-tools/commit/9ddb197fa1fc94f5018aeac6903b84bb1d22d657), [`a7c8267`](https://github.com/RumbleDB/language-tools/commit/a7c82679eb3bb9458c4f45b36fb6a24227ed5421)]:
   - jsoniq-language-server@2.6.0
 
 ## 1.3.2
 
 ### Patch Changes
 
-- Updated dependencies [[`67dec78`](https://github.com/RumbleDB/jsoniq-lsp/commit/67dec78f5afb33a134ea542712b582063e9b0bd0), [`a784752`](https://github.com/RumbleDB/jsoniq-lsp/commit/a784752010f391277d8e39738b8e0ccf3bca2e6a), [`58d8c94`](https://github.com/RumbleDB/jsoniq-lsp/commit/58d8c946202bf77324ef1c1ee517bb3f9d74733f), [`1b9b740`](https://github.com/RumbleDB/jsoniq-lsp/commit/1b9b74082a213f14f235bc3cdc2afaee7446cd97)]:
+- Updated dependencies [[`67dec78`](https://github.com/RumbleDB/language-tools/commit/67dec78f5afb33a134ea542712b582063e9b0bd0), [`a784752`](https://github.com/RumbleDB/language-tools/commit/a784752010f391277d8e39738b8e0ccf3bca2e6a), [`58d8c94`](https://github.com/RumbleDB/language-tools/commit/58d8c946202bf77324ef1c1ee517bb3f9d74733f), [`1b9b740`](https://github.com/RumbleDB/language-tools/commit/1b9b74082a213f14f235bc3cdc2afaee7446cd97)]:
   - jsoniq-language-server@2.5.0
 
 ## 1.3.1
 
 ### Patch Changes
 
-- Updated dependencies [[`a88b1f2`](https://github.com/RumbleDB/jsoniq-lsp/commit/a88b1f2c080f6b89feacfb863b4f33c733d5d4b3)]:
+- Updated dependencies [[`a88b1f2`](https://github.com/RumbleDB/language-tools/commit/a88b1f2c080f6b89feacfb863b4f33c733d5d4b3)]:
   - jsoniq-language-server@2.4.1
 
 ## 1.3.0
 
 ### Minor Changes
 
-- [#20](https://github.com/RumbleDB/jsoniq-lsp/pull/20) [`9fc6c51`](https://github.com/RumbleDB/jsoniq-lsp/commit/9fc6c5190309107af0a76d1557b6dcce0b00f308) - Add XQuery to the VSCode extension language selector. It will be selected statically based on the file extension (see the VSCode extension's `package.json`) and dynamically based on the `ACTIVE_PARSER_NOTIFICATION` sent by the language server. Therefore, it can switch if the string `xquery version` is found in the document.
+- [#20](https://github.com/RumbleDB/language-tools/pull/20) [`9fc6c51`](https://github.com/RumbleDB/language-tools/commit/9fc6c5190309107af0a76d1557b6dcce0b00f308) - Add XQuery to the VSCode extension language selector. It will be selected statically based on the file extension (see the VSCode extension's `package.json`) and dynamically based on the `ACTIVE_PARSER_NOTIFICATION` sent by the language server. Therefore, it can switch if the string `xquery version` is found in the document.
 
   Additionally, TextMate syntax has been added to enhance the syntax highlighting experience.
 
-- [`996b40e`](https://github.com/RumbleDB/jsoniq-lsp/commit/996b40e000fe7a2b2fd6acb19e982633c6ed7ab4) - Improve the JSONiq TextMate syntax to align with the latest grammar version.
+- [`996b40e`](https://github.com/RumbleDB/language-tools/commit/996b40e000fe7a2b2fd6acb19e982633c6ed7ab4) - Improve the JSONiq TextMate syntax to align with the latest grammar version.
 
-- [`f218779`](https://github.com/RumbleDB/jsoniq-lsp/commit/f2187796b2218cc46f8ea6f3546f60357fd5fe7b) - Update the dependencies, including `vscode-languageserver` and `vscode-languageclient`, to version 10 in order to support the language server protocol version [3.18](https://microsoft.github.io/language-server-protocol/specifications/lsp/3.18/specification/) (released in 06/04/2026).
+- [`f218779`](https://github.com/RumbleDB/language-tools/commit/f2187796b2218cc46f8ea6f3546f60357fd5fe7b) - Update the dependencies, including `vscode-languageserver` and `vscode-languageclient`, to version 10 in order to support the language server protocol version [3.18](https://microsoft.github.io/language-server-protocol/specifications/lsp/3.18/specification/) (released in 06/04/2026).
 
 ### Patch Changes
 
-- Updated dependencies [[`202158e`](https://github.com/RumbleDB/jsoniq-lsp/commit/202158ea6f44b6c46fb8cd9fb1510e4d17208b2e), [`9fc6c51`](https://github.com/RumbleDB/jsoniq-lsp/commit/9fc6c5190309107af0a76d1557b6dcce0b00f308), [`032ae0a`](https://github.com/RumbleDB/jsoniq-lsp/commit/032ae0a109001e0c051f08fab66d9070f6938f63), [`f218779`](https://github.com/RumbleDB/jsoniq-lsp/commit/f2187796b2218cc46f8ea6f3546f60357fd5fe7b)]:
+- Updated dependencies [[`202158e`](https://github.com/RumbleDB/language-tools/commit/202158ea6f44b6c46fb8cd9fb1510e4d17208b2e), [`9fc6c51`](https://github.com/RumbleDB/language-tools/commit/9fc6c5190309107af0a76d1557b6dcce0b00f308), [`032ae0a`](https://github.com/RumbleDB/language-tools/commit/032ae0a109001e0c051f08fab66d9070f6938f63), [`f218779`](https://github.com/RumbleDB/language-tools/commit/f2187796b2218cc46f8ea6f3546f60357fd5fe7b)]:
   - jsoniq-language-server@2.4.0
 
 ## 1.2.0
 
 ### Minor Changes
 
-- [`3304720`](https://github.com/RumbleDB/jsoniq-lsp/commit/3304720852ad11cbc11d2284f7889d75d4c48183) - add function-calls rule to TextMate highlight
+- [`3304720`](https://github.com/RumbleDB/language-tools/commit/3304720852ad11cbc11d2284f7889d75d4c48183) - add function-calls rule to TextMate highlight
 
   Now all function calls should be highlighted in the editor inmediately, without the need to wait for the language server to respond.
 
 ### Patch Changes
 
-- Updated dependencies [[`fedc643`](https://github.com/RumbleDB/jsoniq-lsp/commit/fedc643229b0e4dc668c11174dc4d0353b171567), [`cae3951`](https://github.com/RumbleDB/jsoniq-lsp/commit/cae395175e6ffe0d25e94292418d0766e59586dd), [`a8c707e`](https://github.com/RumbleDB/jsoniq-lsp/commit/a8c707e9feba1cbf7bcbbced7a513753ef78506b), [`bc8676e`](https://github.com/RumbleDB/jsoniq-lsp/commit/bc8676e6fd04239f86d20bc458741f7dac0f71e6), [`a368611`](https://github.com/RumbleDB/jsoniq-lsp/commit/a36861112ab4b01482975ee6addadc07e70edf97), [`f205855`](https://github.com/RumbleDB/jsoniq-lsp/commit/f205855c963c13a8a237eaa3fbd838ed96400d88), [`51f1800`](https://github.com/RumbleDB/jsoniq-lsp/commit/51f18005769f32b92453385d8d352c452d1231ed), [`874a846`](https://github.com/RumbleDB/jsoniq-lsp/commit/874a8466addb07c5aa136409bf6672712e2cc25a), [`560fc0a`](https://github.com/RumbleDB/jsoniq-lsp/commit/560fc0a21312822da0fa56d75dea4e42c3e9fd7e)]:
+- Updated dependencies [[`fedc643`](https://github.com/RumbleDB/language-tools/commit/fedc643229b0e4dc668c11174dc4d0353b171567), [`cae3951`](https://github.com/RumbleDB/language-tools/commit/cae395175e6ffe0d25e94292418d0766e59586dd), [`a8c707e`](https://github.com/RumbleDB/language-tools/commit/a8c707e9feba1cbf7bcbbced7a513753ef78506b), [`bc8676e`](https://github.com/RumbleDB/language-tools/commit/bc8676e6fd04239f86d20bc458741f7dac0f71e6), [`a368611`](https://github.com/RumbleDB/language-tools/commit/a36861112ab4b01482975ee6addadc07e70edf97), [`f205855`](https://github.com/RumbleDB/language-tools/commit/f205855c963c13a8a237eaa3fbd838ed96400d88), [`51f1800`](https://github.com/RumbleDB/language-tools/commit/51f18005769f32b92453385d8d352c452d1231ed), [`874a846`](https://github.com/RumbleDB/language-tools/commit/874a8466addb07c5aa136409bf6672712e2cc25a), [`560fc0a`](https://github.com/RumbleDB/language-tools/commit/560fc0a21312822da0fa56d75dea4e42c3e9fd7e)]:
   - jsoniq-language-server@2.3.0
 
 ## 1.1.1
 
 ### Patch Changes
 
-- Updated dependencies [[`38ac971`](https://github.com/RumbleDB/jsoniq-lsp/commit/38ac9710d8e741fe7b8fee0302230264b5ca68f0), [`4984596`](https://github.com/RumbleDB/jsoniq-lsp/commit/4984596d99b389fc5634ac8f9dee4cd510f275db), [`0213dc5`](https://github.com/RumbleDB/jsoniq-lsp/commit/0213dc542b283bccc6b40ceda6f91e1e5dc05a15), [`576c9ef`](https://github.com/RumbleDB/jsoniq-lsp/commit/576c9ef25dda225ebc1da7ea1a4a7af89c788a0d), [`a40fe85`](https://github.com/RumbleDB/jsoniq-lsp/commit/a40fe85e0d48db29c952761f32fea9230fce50b3)]:
+- Updated dependencies [[`38ac971`](https://github.com/RumbleDB/language-tools/commit/38ac9710d8e741fe7b8fee0302230264b5ca68f0), [`4984596`](https://github.com/RumbleDB/language-tools/commit/4984596d99b389fc5634ac8f9dee4cd510f275db), [`0213dc5`](https://github.com/RumbleDB/language-tools/commit/0213dc542b283bccc6b40ceda6f91e1e5dc05a15), [`576c9ef`](https://github.com/RumbleDB/language-tools/commit/576c9ef25dda225ebc1da7ea1a4a7af89c788a0d), [`a40fe85`](https://github.com/RumbleDB/language-tools/commit/a40fe85e0d48db29c952761f32fea9230fce50b3)]:
   - jsoniq-language-server@2.2.0
 
 ## 1.1.0
 
 ### Minor Changes
 
-- [#6](https://github.com/RumbleDB/jsoniq-lsp/pull/6) [`1b7ae6b`](https://github.com/RumbleDB/jsoniq-lsp/commit/1b7ae6b832bf1662683150083ae1249a1eb7b08b) - Save `.jar` file downloaded by the language server into `globalStoragePath` so it can persist across updates
+- [#6](https://github.com/RumbleDB/language-tools/pull/6) [`1b7ae6b`](https://github.com/RumbleDB/language-tools/commit/1b7ae6b832bf1662683150083ae1249a1eb7b08b) - Save `.jar` file downloaded by the language server into `globalStoragePath` so it can persist across updates
 
 ### Patch Changes
 
-- [`0cb4225`](https://github.com/RumbleDB/jsoniq-lsp/commit/0cb4225d1ab55a763403ffb1c4d2cb5c99afbe5f) - change the download message title to "Downloading RumbleDB wrapper"
+- [`0cb4225`](https://github.com/RumbleDB/language-tools/commit/0cb4225d1ab55a763403ffb1c4d2cb5c99afbe5f) - change the download message title to "Downloading RumbleDB wrapper"
 
-- Updated dependencies [[`157b40a`](https://github.com/RumbleDB/jsoniq-lsp/commit/157b40a6728a8ee86c24699343f6dca9fc92796c), [`3413d1b`](https://github.com/RumbleDB/jsoniq-lsp/commit/3413d1b084d78d9d07af2d532a46a7f00bcedf94)]:
+- Updated dependencies [[`157b40a`](https://github.com/RumbleDB/language-tools/commit/157b40a6728a8ee86c24699343f6dca9fc92796c), [`3413d1b`](https://github.com/RumbleDB/language-tools/commit/3413d1b084d78d9d07af2d532a46a7f00bcedf94)]:
   - jsoniq-language-server@2.1.0
 
 ## 1.0.3
 
 ### Patch Changes
 
-- [`1736f9d`](https://github.com/RumbleDB/jsoniq-lsp/commit/1736f9d7fb44da1356c3020e4f86d3738aad2873) - upgrade engines.vscode to 1.120.0 to align with @types/vscode
+- [`1736f9d`](https://github.com/RumbleDB/language-tools/commit/1736f9d7fb44da1356c3020e4f86d3738aad2873) - upgrade engines.vscode to 1.120.0 to align with @types/vscode
 
 ## 1.0.2
 
 ### Patch Changes
 
-- [`7455fec`](https://github.com/RumbleDB/jsoniq-lsp/commit/7455fecc3cce7b279eba326e87a349e4df50783f) - Upgrade dependencies
+- [`7455fec`](https://github.com/RumbleDB/language-tools/commit/7455fecc3cce7b279eba326e87a349e4df50783f) - Upgrade dependencies
 
-- Updated dependencies [[`7455fec`](https://github.com/RumbleDB/jsoniq-lsp/commit/7455fecc3cce7b279eba326e87a349e4df50783f)]:
+- Updated dependencies [[`7455fec`](https://github.com/RumbleDB/language-tools/commit/7455fecc3cce7b279eba326e87a349e4df50783f)]:
   - jsoniq-language-server@2.0.1
 
 ## 1.0.1
