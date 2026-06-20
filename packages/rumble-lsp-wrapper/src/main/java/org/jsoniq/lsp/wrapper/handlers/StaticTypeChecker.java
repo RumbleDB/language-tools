@@ -27,6 +27,7 @@ import org.rumbledb.expressions.primary.InlineFunctionExpression;
 import com.fasterxml.jackson.annotation.JsonValue;
 
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.Base64;
@@ -160,7 +161,7 @@ public final class StaticTypeChecker implements RequestHandler {
             URI documentUri,
             RumbleRuntimeConfiguration configuration) {
         if (documentUri == null) {
-            return VisitorHelpers.parseMainModuleFromQuery(query, configuration);
+            documentUri = Path.of("").toAbsolutePath().normalize().toUri();
         }
 
         return VisitorHelpers.parseMainModule(query, documentUri, configuration);
