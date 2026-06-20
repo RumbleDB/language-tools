@@ -140,5 +140,3 @@ export type AstNode =
     | VariableReferenceAstNode
     | ContextItemExpressionAstNode
     | ArgumentAstNode;
-
-export type JsoniqAst = ModuleAstNode;

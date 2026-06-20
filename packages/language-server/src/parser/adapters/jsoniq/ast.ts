@@ -9,7 +9,7 @@ import {
     type FunctionCallAstNode,
     type FunctionDeclarationAstNode,
     type GroupByBindingAstNode,
-    type JsoniqAst,
+    type ModuleAstNode,
     type LetBindingAstNode,
     type NamedFunctionReferenceAstNode,
     type NamespaceDeclarationAstNode,
@@ -446,7 +446,7 @@ export function buildJsoniqAst(
     tree: ModuleAndThisIsItContext,
     document: TextDocument,
     nextDefaultToken: NextDefaultToken,
-): JsoniqAst {
+): ModuleAstNode {
     const ast = new JsoniqAstBuilder(document, nextDefaultToken).visitModuleAndThisIsIt(tree)[0];
     if (ast === undefined || ast.kind !== "module") {
         throw new Error("Expected module AST root.");
