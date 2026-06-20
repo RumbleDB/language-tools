@@ -17,8 +17,8 @@ public record Position(int line, int character) {
      *         source code
      */
     public static Position fromExceptionMetadata(ExceptionMetadata metadata) {
-        int line = Math.max(0, metadata.getTokenLineNumber() - 1);
-        int column = Math.max(0, metadata.getTokenColumnNumber());
+        int line = Math.max(0, metadata.getStart().line() - 1);
+        int column = Math.max(0, metadata.getStart().column());
         return new Position(line, column);
     }
 }
