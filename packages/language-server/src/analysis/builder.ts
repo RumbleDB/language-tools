@@ -172,9 +172,9 @@ class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
     protected override visitFunctionDeclaration(node: FunctionDeclarationAstNode): AstNode[] {
         const definition = createFunctionDefinition(
             this.document,
-            this.resolveFunctionName(node.name, node.nameRange),
+            this.resolveFunctionName(node.name, node.selectionRange),
             node.range,
-            node.nameRange,
+            node.selectionRange,
         );
         this.declareDefinition(definition);
 
@@ -304,8 +304,8 @@ class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
     private createFunctionCallNode(
         node: FunctionCallAstNode | NamedFunctionReferenceAstNode,
     ): FunctionCallNode {
-        const name = this.resolveFunctionName(node.name, node.nameRange);
-        const reference = this.createReference("function", name, node.nameRange);
+        const name = this.resolveFunctionName(node.name, node.selectionRange);
+        const reference = this.createReference("function", name, node.selectionRange);
         const children = [reference, ...this.visitChildrenAsNodes(node)];
         return this.adoptChildren<FunctionCallNode>(
             {
@@ -313,7 +313,7 @@ class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
                 range: node.range,
                 children: [],
                 name,
-                nameRange: node.nameRange,
+                selectionRange: node.selectionRange,
                 reference,
                 arguments: children.filter(
                     (child): child is ArgumentNode => child.kind === "argument",

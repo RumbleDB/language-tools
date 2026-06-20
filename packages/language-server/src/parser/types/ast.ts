@@ -71,7 +71,7 @@ export interface ForBindingVariable extends AstBinding {
 
 export interface FunctionDeclarationAstNode extends AstNodeBase<"function-declaration"> {
     readonly name: LexicalFunctionName;
-    readonly nameRange: Range;
+    readonly selectionRange: Range;
     readonly parameters: AstParameter[];
 }
 
@@ -102,12 +102,12 @@ export interface CatchClauseAstNode extends AstNodeBase<"catch-clause"> {}
 
 export interface FunctionCallAstNode extends AstNodeBase<"function-call"> {
     readonly name: LexicalFunctionName;
-    readonly nameRange: Range;
+    readonly selectionRange: Range;
 }
 
 export interface NamedFunctionReferenceAstNode extends AstNodeBase<"named-function-reference"> {
     readonly name: LexicalFunctionName;
-    readonly nameRange: Range;
+    readonly selectionRange: Range;
 }
 
 export interface VariableReferenceAstNode extends AstNodeBase<"variable-reference"> {

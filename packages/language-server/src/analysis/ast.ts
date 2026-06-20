@@ -29,7 +29,7 @@ export interface ReferenceNode<
 
 export interface FunctionCallNode extends AstNodeBase<"function-call"> {
     name: FunctionName;
-    nameRange: Range;
+    selectionRange: Range;
     reference?: ReferenceNode<"function">;
     arguments: ArgumentNode[];
 }

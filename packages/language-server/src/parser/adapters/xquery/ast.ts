@@ -170,7 +170,7 @@ class XQueryAstBuilder extends XQueryParserVisitor<AstVisitResult> {
             kind: "function-declaration",
             range: rangeFromNode(node, this.document),
             name: parseFunctionName(node),
-            nameRange: rangeFromNode(node.functionName(), this.document),
+            selectionRange: rangeFromNode(node.functionName(), this.document),
             parameters: this.parameters(node),
             children: this.visitChildrenAsNodes(node),
         } satisfies FunctionDeclarationAstNode,
@@ -357,13 +357,13 @@ class XQueryAstBuilder extends XQueryParserVisitor<AstVisitResult> {
             }
 
             const dollarRange = rangeFromNode(param.DOLLAR(), this.document);
-            const nameRange = rangeFromNode(nameNode, this.document);
+            const selectionRange = rangeFromNode(nameNode, this.document);
             parameters.push({
                 name: paramName,
                 range: rangeFromNode(param, this.document),
                 selectionRange: {
                     start: dollarRange.start,
-                    end: nameRange.end,
+                    end: selectionRange.end,
                 },
                 index,
             });
@@ -407,7 +407,7 @@ class XQueryAstBuilder extends XQueryParserVisitor<AstVisitResult> {
             {
                 kind: "function-call",
                 name,
-                nameRange: rangeFromNode(nameNode, this.document),
+                selectionRange: rangeFromNode(nameNode, this.document),
                 range: rangeFromNode(node, this.document),
                 children,
             } satisfies FunctionCallAstNode,
@@ -422,7 +422,7 @@ class XQueryAstBuilder extends XQueryParserVisitor<AstVisitResult> {
                   {
                       kind: "named-function-reference",
                       name,
-                      nameRange: rangeFromNode(nameNode, this.document),
+                      selectionRange: rangeFromNode(nameNode, this.document),
                       range: rangeFromNode(node, this.document),
                       children: [],
                   } satisfies NamedFunctionReferenceAstNode,
