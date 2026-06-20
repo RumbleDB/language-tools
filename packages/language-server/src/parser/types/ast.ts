@@ -32,7 +32,6 @@ export interface AstNodeBase<K extends AstNodeKind> {
     readonly kind: K;
     readonly range: Range;
     readonly children: AstNode[];
-    parent?: AstNode;
 }
 
 export interface ModuleAstNode extends AstNodeBase<"module"> {}
@@ -143,13 +142,3 @@ export type AstNode =
     | ArgumentAstNode;
 
 export type JsoniqAst = ModuleAstNode;
-
-export function attachParents<T extends AstNode>(node: T, parent?: AstNode): T {
-    if (parent !== undefined) {
-        node.parent = parent;
-    }
-    for (const child of node.children) {
-        attachParents(child, node);
-    }
-    return node;
-}

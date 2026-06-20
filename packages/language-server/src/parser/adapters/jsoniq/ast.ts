@@ -1,6 +1,5 @@
 import { Token, type ParseTree } from "antlr4ng";
 import {
-    attachParents,
     type AstNode,
     type AstParameter,
     type AstBinding,
@@ -452,5 +451,5 @@ export function buildJsoniqAst(
     if (ast === undefined || ast.kind !== "module") {
         throw new Error("Expected module AST root.");
     }
-    return attachParents(ast);
+    return ast;
 }
