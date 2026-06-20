@@ -47,15 +47,15 @@
         "vscode-languageserver-textdocument": "^1.0.12"
     },
     "devDependencies": {
-        "@types/node": "^25.9.3",
-        "fast-xml-parser": "^5.8.0",
+        "@types/node": "^26.0.0",
+        "fast-xml-parser": "^5.9.3",
         "gray-matter": "^4.0.3",
-        "oxfmt": "^0.54.0",
-        "oxlint": "^1.69.0",
+        "oxfmt": "^0.55.0",
+        "oxlint": "^1.70.0",
         "tsc-alias": "^1.8.17",
-        "tsdown": "^0.22.2",
+        "tsdown": "^0.22.3",
         "tsx": "^4.22.4",
         "typescript": "^6.0.3",
-        "vitest": "^4.1.8"
+        "vitest": "^4.1.9"
     }
 }
