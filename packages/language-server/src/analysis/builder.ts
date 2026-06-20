@@ -37,7 +37,7 @@ import type {
     AstNode,
     DeclarationNode,
     FunctionCallNode,
-    JsoniqAst,
+    ModuleNode,
     ReferenceNode,
 } from "./ast.js";
 import { defaultNamespaces } from "./default-namespaces.js";
@@ -74,7 +74,7 @@ const CATCH_VARIABLES = [
 ] as const;
 
 export interface JsoniqAnalysis {
-    ast: JsoniqAst;
+    ast: ModuleNode;
     scope: Scope;
     namespaces: Map<Prefix, SourceNamespaceDefinition>;
     diagnostics: Diagnostic[];

@@ -45,8 +45,6 @@ export type AstNode =
     | FunctionCallNode
     | ArgumentNode;
 
-export type JsoniqAst = ModuleNode;
-
 export interface SymbolOccurrence {
     range: Range;
     declaration: Definition;
