@@ -30,11 +30,11 @@
         "vscode-languageclient": "^10.0.0"
     },
     "devDependencies": {
-        "@types/node": "^25.9.3",
+        "@types/node": "^26.0.0",
         "@types/vscode": "^1.120.0",
-        "oxfmt": "^0.54.0",
-        "oxlint": "^1.69.0",
-        "rolldown": "1.1.0",
+        "oxfmt": "^0.55.0",
+        "oxlint": "^1.70.0",
+        "rolldown": "1.1.2",
         "typescript": "^6.0.3"
     },
     "contributes": {
