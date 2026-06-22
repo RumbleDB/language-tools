@@ -66,7 +66,7 @@ class StaticTypeCheckerTest {
                 .findFirst()
                 .orElseThrow();
 
-        assertEquals("local", functionType.function().name().qname().lexicalPrefix());
+        assertEquals("local", functionType.function().name().qname().prefix());
         assertEquals("xs:integer", functionType.function().signature().parameterTypes().get(0).type().toString());
         assertEquals("item*", functionType.function().signature().parameterTypes().get(1).type().toString());
         assertEquals("item*", functionType.function().signature().returnType().toString());

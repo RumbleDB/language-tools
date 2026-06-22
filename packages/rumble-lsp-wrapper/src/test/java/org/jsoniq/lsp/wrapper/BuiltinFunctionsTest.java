@@ -30,7 +30,7 @@ class BuiltinFunctionsTest {
                 .findFirst();
 
         assertTrue(count.isPresent());
-        assertEquals("fn", count.get().name().qname().lexicalPrefix());
+        assertEquals("fn", count.get().name().qname().prefix());
         assertNotNull(count.get().name().qname().namespaceUri());
         assertEquals("xs:integer", count.get().signature().returnType().toString());
         assertFalse(count.get().signature().parameterTypes().isEmpty());

@@ -29,7 +29,7 @@ class BuiltInTypesTest {
                 .findFirst();
 
         assertTrue(stringType.isPresent());
-        assertEquals("xs", stringType.get().name().lexicalPrefix());
+        assertEquals("xs", stringType.get().name().prefix());
         assertNotNull(stringType.get().name().namespaceUri());
     }
 }
