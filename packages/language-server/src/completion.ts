@@ -19,6 +19,7 @@ import {
 import { QNameToString } from "./analysis/names.js";
 import { getVisibleDeclarationsAtPosition } from "./analysis/queries.js";
 import { BuiltinFunctionDefinition, builtinFunctions } from "./assets/builtin-functions.js";
+import { builtinTypes } from "./assets/builtin-types.js";
 import {
     docs,
     formatFunctionDocEntry,
@@ -66,6 +67,7 @@ export function findCompletions(document: TextDocument, position: Position): Com
         ? availableSourceDeclarations.filter(isSourceFunctionDefinition)
         : [];
     const builtinFunctions = intent.allowFunctions ? getBuiltinFunctionCompletionItems() : [];
+    const builtinTypeItems = intent.allowTypes ? getBuiltinTypeCompletionItems() : [];
     const keywords = keywordCompletions(intent.keywords);
 
     if (intent.allowVariableDeclarations && !typingVariablePrefix) {
@@ -90,6 +92,7 @@ export function findCompletions(document: TextDocument, position: Position): Com
         }),
         ...functions.map(toCompletionItem),
         ...builtinFunctions,
+        ...builtinTypeItems,
         ...keywords,
     ]);
 }
@@ -181,6 +184,30 @@ function getBuiltinFunctionCompletionItems(): CompletionItem[] {
     }
 
     return [...itemsByName.values()].map(({ item }) => item);
+}
+
+function getBuiltinTypeCompletionItems(): CompletionItem[] {
+    return builtinTypes.all.map((definition) => {
+        const label = QNameToString(definition.name, false);
+        const expandedName = QNameToString(definition.name, true);
+        const baseType =
+            definition.baseType === undefined
+                ? undefined
+                : QNameToString(definition.baseType, false);
+
+        return {
+            label,
+            kind: CompletionItemKind.Class,
+            detail: baseType === undefined ? definition.type : `${definition.type} <: ${baseType}`,
+            documentation: {
+                kind: MarkupKind.Markdown,
+                value:
+                    baseType === undefined
+                        ? `\`\`\`jsoniq\n${expandedName}\n\`\`\``
+                        : `\`\`\`jsoniq\n${expandedName}\n\`\`\`\nBase type: \`${baseType}\``,
+            },
+        } satisfies CompletionItem;
+    });
 }
 
 function keywordCompletions(

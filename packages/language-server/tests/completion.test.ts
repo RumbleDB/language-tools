@@ -232,6 +232,18 @@ describe("JSONiq completion", () => {
         expect(labelsAtCursor).not.toContain("jsoniq version");
     });
 
+    it("suggests builtin types in type annotation context", () => {
+        const document = testDocument("completion-type-annotation", ["declare variable $x as "]);
+
+        const labelsAtCursor = completionLabels(document, {
+            line: 0,
+            character: "declare variable $x as ".length,
+        });
+
+        expect(labelsAtCursor).toContain("string");
+        expect(labelsAtCursor).toContain("item");
+    });
+
     it("does not throw when completing at the end of a complete document", () => {
         const source = "1 + 2";
         const document = testDocument("completion-complete-document", source);

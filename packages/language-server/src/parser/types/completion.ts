@@ -7,12 +7,14 @@ export interface CompletionIntent {
     allowVariableReferences: boolean;
     allowVariableDeclarations: boolean;
     allowFunctions: boolean;
+    allowTypes: boolean;
     keywords: KeywordCompletion[];
 }
 
 export type CompletionTokenContextKind =
     | "default"
     | "function-name"
+    | "type-name"
     | "top-level-prolog"
     | "variable-declaration";
 
@@ -21,6 +23,7 @@ export interface CompletionTokenContext {
     allowKeywords: boolean;
     allowPrologKeywords: boolean;
     allowReferences: boolean;
+    allowTypeReferences: boolean;
     allowVariableDeclarations: boolean;
 }
 

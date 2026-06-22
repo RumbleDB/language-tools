@@ -21,6 +21,7 @@ type CompletionOptions<T extends TokenContextAnalyzer> = {
     languageKeywords: LanguageKeywordCompletion[];
     isFunctionCallRule(ruleIndex: number): boolean;
     isVariableReferenceRule(ruleIndex: number): boolean;
+    isTypeReferenceRule(ruleIndex: number): boolean;
     tokenName(tokenType: number): string | number;
     ruleName(ruleIndex: number): string | number;
 };
@@ -45,6 +46,10 @@ export function getCompletionIntent<T extends TokenContextAnalyzer>(
     const allowVariables =
         candidates.tokenContext.allowReferences &&
         hasCandidateRule(candidates, options.isVariableReferenceRule);
+    const allowTypes =
+        candidates.tokenContext.allowTypeReferences ||
+        (candidates.tokenContext.allowReferences &&
+            hasCandidateRule(candidates, options.isTypeReferenceRule));
     const keywords = keywordCompletions(candidates, options.languageKeywords);
 
     const expectedTokens = [...candidates.tokenTypes].map(options.tokenName);
@@ -53,6 +58,7 @@ export function getCompletionIntent<T extends TokenContextAnalyzer>(
     logger.debug("Completion candidates:", {
         allowFunctions,
         allowVariables,
+        allowTypes,
         allowVariableDeclarations,
         keywords,
         expectedTokens,
@@ -64,6 +70,7 @@ export function getCompletionIntent<T extends TokenContextAnalyzer>(
         allowVariableReferences: allowVariables,
         allowVariableDeclarations,
         allowFunctions,
+        allowTypes,
         keywords,
     };
 }

@@ -24,6 +24,11 @@ export const jsoniqParserAdapter: ParserAdapter = {
             languageKeywords: KEYWORD_COMPLETIONS,
             isFunctionCallRule: (ruleIndex) => ruleIndex === JsoniqParser.RULE_functionCall,
             isVariableReferenceRule: (ruleIndex) => ruleIndex === JsoniqParser.RULE_varRef,
+            isTypeReferenceRule: (ruleIndex) =>
+                ruleIndex === JsoniqParser.RULE_sequenceType ||
+                ruleIndex === JsoniqParser.RULE_itemType ||
+                ruleIndex === JsoniqParser.RULE_simpleTypeName ||
+                ruleIndex === JsoniqParser.RULE_typeName,
             tokenName: (tokenType) => JsoniqParser.symbolicNames[tokenType] ?? tokenType,
             ruleName: (ruleIndex) => JsoniqParser.ruleNames[ruleIndex] ?? ruleIndex,
         }),
