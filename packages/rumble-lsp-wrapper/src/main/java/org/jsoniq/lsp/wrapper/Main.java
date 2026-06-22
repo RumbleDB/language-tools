@@ -6,10 +6,12 @@ import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 import java.util.Map;
 import java.util.Objects;
 
-import org.jsoniq.lsp.wrapper.handlers.BuiltinFunctions;
+import org.jsoniq.lsp.wrapper.cli.CLICommand;
+import org.jsoniq.lsp.wrapper.cli.BuiltinFunctions;
 import org.jsoniq.lsp.wrapper.handlers.Handshake;
 import org.jsoniq.lsp.wrapper.handlers.RequestHandler;
 import org.jsoniq.lsp.wrapper.handlers.StaticTypeChecker;
@@ -22,24 +24,41 @@ public class Main {
     private static final StaticTypeChecker INFERENCER = new StaticTypeChecker();
     private static final BuiltinFunctions BUILTIN_FUNCTIONS = new BuiltinFunctions();
     private static final Handshake HANDSHAKE = new Handshake();
+    private static final Map<String, CLICommand> CLI_COMMANDS = Map.of(
+            BUILTIN_FUNCTIONS.flag(), BUILTIN_FUNCTIONS);
 
     private static final Map<String, RequestHandler> DAEMON_HANDLERS = Map.of(
             INFERENCER.getRequestType(), INFERENCER,
             HANDSHAKE.getRequestType(), HANDSHAKE);
 
     public static void main(String[] args) {
-        if (hasArg(args, "--dump-builtin-functions")) {
-            try {
-                System.out.println(OBJECT_MAPPER.writeValueAsString(BUILTIN_FUNCTIONS.listBuiltinFunctions()));
-                System.exit(0);
-            } catch (Throwable throwable) {
-                throwable.printStackTrace(System.err);
-                System.exit(1);
-            }
+        CLICommand cliCommand = findCliCommand(args);
+        if (cliCommand != null) {
+            runCliCommand(cliCommand);
+            return;
         }
+
         if (hasArg(args, "--daemon")) {
             runDaemon();
             return;
+        }
+    }
+
+    private static CLICommand findCliCommand(String[] args) {
+        return Arrays.stream(args)
+                .map(CLI_COMMANDS::get)
+                .filter(Objects::nonNull)
+                .findFirst()
+                .orElse(null);
+    }
+
+    private static void runCliCommand(CLICommand cliCommand) {
+        try {
+            System.out.println(OBJECT_MAPPER.writeValueAsString(cliCommand.run()));
+            System.exit(0);
+        } catch (Throwable throwable) {
+            throwable.printStackTrace(System.err);
+            System.exit(1);
         }
     }
 

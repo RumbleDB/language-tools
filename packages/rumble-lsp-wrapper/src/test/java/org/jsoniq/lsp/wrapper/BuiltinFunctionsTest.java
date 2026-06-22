@@ -1,6 +1,6 @@
 package org.jsoniq.lsp.wrapper;
 
-import org.jsoniq.lsp.wrapper.handlers.BuiltinFunctions;
+import org.jsoniq.lsp.wrapper.cli.BuiltinFunctions;
 import org.jsoniq.lsp.wrapper.types.FunctionDefinition;
 import org.junit.jupiter.api.Test;
 
