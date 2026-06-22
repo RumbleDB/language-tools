@@ -1,6 +1,7 @@
 package org.jsoniq.lsp.wrapper.handlers;
 
 import org.jsoniq.lsp.wrapper.Position;
+import org.jsoniq.lsp.wrapper.Range;
 import org.jsoniq.lsp.wrapper.messages.Request;
 import org.jsoniq.lsp.wrapper.messages.ResponseBody;
 import org.jsoniq.lsp.wrapper.types.FunctionDefinition;
@@ -92,7 +93,7 @@ public final class StaticTypeChecker implements RequestHandler {
             String code,
             String message,
             String location,
-            Position position) {
+            Range range) {
     }
 
     public record Result(
@@ -176,7 +177,7 @@ public final class StaticTypeChecker implements RequestHandler {
                 code,
                 message,
                 metadata.getLocation(),
-                Position.fromExceptionMetadata(metadata));
+                Range.fromExceptionMetadata(metadata));
     }
 
     /**
@@ -245,7 +246,7 @@ public final class StaticTypeChecker implements RequestHandler {
                         parameterTypes,
                         returnType));
 
-        Position position = Position.fromExceptionMetadata(metadata);
+        Position position = Position.fromSourcePosition(metadata.getStart());
         types.add(new FunctionType(
                 position, function));
     }
@@ -341,7 +342,7 @@ public final class StaticTypeChecker implements RequestHandler {
         }
 
         SequenceType variableType = SequenceType.fromSequenceType(variableDeclaration.getSequenceType());
-        Position position = Position.fromExceptionMetadata(metadata);
+        Position position = Position.fromSourcePosition(metadata.getStart());
         types.add(new VariableType(
                 VariableKind.Declare,
                 position,
@@ -371,7 +372,7 @@ public final class StaticTypeChecker implements RequestHandler {
         try {
             SequenceType variableType = SequenceType.fromSequenceType(context.getVariableSequenceType(variableName));
             ExceptionMetadata metadata = context.getVariableMetadata(variableName);
-            Position position = Position.fromExceptionMetadata(metadata);
+            Position position = Position.fromSourcePosition(metadata.getStart());
             types.add(new VariableType(
                     kind,
                     position,
