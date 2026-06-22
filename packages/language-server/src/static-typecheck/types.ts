@@ -1,4 +1,4 @@
-import type { Position } from "vscode-languageserver";
+import type { Position, Range } from "vscode-languageserver";
 
 import { QNameToString, type FunctionName, type QName } from "../analysis/names.js";
 
@@ -48,7 +48,7 @@ export interface StaticTypecheckWireError {
     code: string;
     message: string;
     location: string;
-    position: Position;
+    range: Range;
 }
 
 export interface StaticVariableTypeEntry {

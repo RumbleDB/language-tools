@@ -1,4 +1,4 @@
-import { DiagnosticSeverity, Range, type Position, type Diagnostic } from "vscode-languageserver";
+import { DiagnosticSeverity, type Diagnostic } from "vscode-languageserver";
 import { TextDocument } from "vscode-languageserver-textdocument";
 
 import { getStaticTypecheck } from "./service.js";
@@ -35,27 +35,11 @@ export async function collectStaticTypecheckDiagnostics(
 }
 
 function toDiagnostic(error: StaticTypecheckWireError): Diagnostic {
-    const diagnosticRange = createRangeFromStartPosition(error.position);
-
     return {
         severity: DiagnosticSeverity.Warning,
-        range: diagnosticRange,
+        range: error.range,
         code: error.code,
-        source: "jsoniq-type",
+        source: "jsoniq-static-typecheck",
         message: error.message,
-    };
-}
-
-/**
- * We don't have the full range of errors from the wrapper,
- * for now, we'll just return the full line as the error range
- */
-function createRangeFromStartPosition(start: Position): Range {
-    return {
-        start,
-        end: {
-            line: start.line + 1,
-            character: 0,
-        },
     };
 }
