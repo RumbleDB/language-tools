@@ -30,7 +30,9 @@ public class BuiltInTypes implements CLICommand {
 
         return builtInItemTypes.stream()
                 .map(TypeDefinition::fromItemType)
-                .sorted(Comparator.comparing(definition -> definition.name().localName()))
+                .sorted(Comparator.comparing(definition -> definition.name() == null
+                        ? ""
+                        : definition.name().localName()))
                 .toList();
     }
 }

@@ -9,7 +9,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.jsoniq.lsp.wrapper.handlers.StaticTypeChecker;
 import org.jsoniq.lsp.wrapper.handlers.StaticTypeChecker.VariableKind;
-
 class StaticTypeCheckerTest {
     private final StaticTypeChecker inferencer = new StaticTypeChecker();
 
@@ -87,6 +86,27 @@ class StaticTypeCheckerTest {
 
         assertTrue(variableTypes(result).anyMatch(type -> "xs:integer".equals(type.sequenceType().itemType().toString())));
         assertTrue(variableTypes(result).anyMatch(type -> "xs:string".equals(type.sequenceType().itemType().toString())));
+    }
+
+    @Test
+    void inferObjectConstructorCollectsObjectFieldStructure() {
+        String query = """
+                let $x := { "a": 1, "b": "text" }
+                return $x
+                """;
+
+        StaticTypeChecker.Result result = inferWithoutThrow(query);
+        assertTrue(result.errors().isEmpty());
+
+        StaticTypeChecker.VariableType variableType = variableTypes(result)
+                .filter(type -> VariableKind.Let.equals(type.variableKind()) && "x".equals(type.qname().localName()))
+                .findFirst()
+                .orElseThrow();
+
+        assertEquals("object", variableType.sequenceType().itemType().kind());
+        assertEquals(2, variableType.sequenceType().itemType().fields().size());
+        assertEquals("xs:integer", variableType.sequenceType().itemType().fields().get("a").toString());
+        assertEquals("xs:string", variableType.sequenceType().itemType().fields().get("b").toString());
     }
 
     @Test

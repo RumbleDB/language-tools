@@ -29,6 +29,7 @@ class BuiltInTypesTest {
                 .findFirst();
 
         assertTrue(stringType.isPresent());
+        assertEquals("named", stringType.get().kind());
         assertEquals("xs", stringType.get().name().prefix());
         assertNotNull(stringType.get().name().namespaceUri());
     }

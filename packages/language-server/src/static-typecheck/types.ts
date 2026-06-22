@@ -2,9 +2,23 @@ import type { Position, Range } from "vscode-languageserver";
 
 import { QNameToString, type FunctionName, type QName } from "../analysis/names.js";
 
-export interface TypeDefinition {
+export interface NamedTypeDefinition {
+    kind: "named";
     name?: QName;
 }
+
+export interface ObjectTypeDefinition {
+    kind: "object";
+    name?: QName;
+    fields: Record<string, TypeDefinition>;
+}
+
+export interface ArrayTypeDefinition {
+    kind: "array";
+    name?: QName;
+}
+
+export type TypeDefinition = NamedTypeDefinition | ObjectTypeDefinition | ArrayTypeDefinition;
 
 export interface SequenceType {
     itemType: TypeDefinition;
@@ -73,6 +87,13 @@ export interface StaticTypecheckWireResult {
 }
 
 export function formatTypeDefinition(type: TypeDefinition): string {
+    if (type.kind === "object") {
+        const fields = Object.entries(type.fields)
+            .map(([name, fieldType]) => `${name}: ${formatTypeDefinition(fieldType)}`)
+            .join(", ");
+        return `{ ${fields} }`;
+    }
+
     return type.name === undefined ? "anonymous type" : QNameToString(type.name, false);
 }
 
