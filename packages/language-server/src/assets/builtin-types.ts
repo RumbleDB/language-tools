@@ -5,8 +5,6 @@ import { loadJsonAsset } from "./loader.js";
 
 export interface BuiltinTypeDefinition {
     name: QName;
-    type: string;
-    baseType: QName | undefined;
     isBuiltin: true;
 }
 
@@ -22,19 +20,14 @@ const catalog =
     loadJsonAsset<
         Array<{
             name: WrapperResolvedQName;
-            type: string;
-            baseType: WrapperResolvedQName | null;
         }>
     >("builtin-types.json") || [];
 
 for (const builtinType of catalog) {
     const name = toResolvedQName(builtinType.name);
-    const baseType = builtinType.baseType ? toResolvedQName(builtinType.baseType) : undefined;
 
     map.set(QNameToString(name, true), {
         name,
-        type: builtinType.type,
-        baseType,
         isBuiltin: true,
     });
 }

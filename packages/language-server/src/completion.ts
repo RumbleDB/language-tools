@@ -215,21 +215,14 @@ function getBuiltinTypeCompletionItems(): CompletionItem[] {
     return builtinTypes.all.map((definition) => {
         const label = QNameToString(definition.name, false);
         const expandedName = QNameToString(definition.name, true);
-        const baseType =
-            definition.baseType === undefined
-                ? undefined
-                : QNameToString(definition.baseType, false);
 
         return {
             label,
             kind: CompletionItemKind.Class,
-            detail: baseType === undefined ? definition.type : `${definition.type} <: ${baseType}`,
+            detail: "Builtin JSONiq type",
             documentation: {
                 kind: MarkupKind.Markdown,
-                value:
-                    baseType === undefined
-                        ? `\`\`\`jsoniq\n${expandedName}\n\`\`\``
-                        : `\`\`\`jsoniq\n${expandedName}\n\`\`\`\nBase type: \`${baseType}\``,
+                value: `\`\`\`jsoniq\n${expandedName}\n\`\`\``,
             },
         } satisfies CompletionItem;
     });
