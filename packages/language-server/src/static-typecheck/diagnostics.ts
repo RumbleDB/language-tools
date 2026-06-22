@@ -15,22 +15,6 @@ export async function collectStaticTypecheckDiagnostics(
         diagnostics.push(toDiagnostic(error));
     }
 
-    if (response.error?.position) {
-        diagnostics.push({
-            severity: DiagnosticSeverity.Error,
-            range: {
-                start: response.error.position,
-                end: {
-                    line: response.error.position.line + 1,
-                    character: 0,
-                },
-            },
-            code: response.error.code,
-            source: "jsoniq-static-typecheck",
-            message: response.error.message,
-        });
-    }
-
     return diagnostics;
 }
 

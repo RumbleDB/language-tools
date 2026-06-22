@@ -108,7 +108,7 @@ public class Main {
             RequestHandler handler = DAEMON_HANDLERS.get(requestType);
             if (handler == null) {
                 return new Response(requestId, requestType, null,
-                        new Error("UNSUPPORTED_REQUEST_TYPE", "Unsupported requestType '" + requestType + "'.", null));
+                        new Error("UNSUPPORTED_REQUEST_TYPE", "Unsupported requestType '" + requestType + "'."));
             }
 
             return new Response(requestId, requestType,
@@ -120,7 +120,7 @@ public class Main {
             RequestHandler handler = DAEMON_HANDLERS.get(requestType);
             ResponseBody emptyResponse = handler == null ? null : handler.createEmptyResponse();
             return new Response(requestId, requestType, emptyResponse,
-                    new Error("Internal error occurred.", errorMessage, null));
+                    new Error("Internal error occurred.", errorMessage));
         }
     }
 }
