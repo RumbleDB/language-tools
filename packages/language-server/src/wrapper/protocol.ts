@@ -1,18 +1,6 @@
-export type JsonValue = null | boolean | number | string | JsonValue[] | JsonObject;
-
-export interface JsonObject {
-    [key: string]: JsonValue;
-}
-
-export interface WrapperPosition extends JsonObject {
-    line: number;
-    character: number;
-}
-
-export interface WrapperError extends JsonObject {
+export interface WrapperError {
     code: string;
     message: string;
-    position: WrapperPosition | null;
 }
 
 export type WrapperRequestPayload<RequestType extends string = string> = {
