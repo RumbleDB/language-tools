@@ -3,18 +3,8 @@ import {
     type AstNode,
     type AstParameter,
     type AstBinding,
-    type ContextItemDeclarationAstNode,
-    type CountClauseAstNode,
     type ForBindingAstNode,
-    type FunctionCallAstNode,
-    type FunctionDeclarationAstNode,
-    type GroupByBindingAstNode,
     type ModuleAstNode,
-    type LetBindingAstNode,
-    type NamedFunctionReferenceAstNode,
-    type NamespaceDeclarationAstNode,
-    type VariableDeclarationAstNode,
-    type ArgumentAstNode,
 } from "server/parser/types/ast.js";
 import { rangeFromNode } from "server/utils/range.js";
 import { TextDocument } from "vscode-languageserver-textdocument";
@@ -118,7 +108,7 @@ class XQueryAstBuilder extends XQueryParserVisitor<AstVisitResult> {
                 range: rangeFromNode(node, this.document),
                 selectionRange: rangeFromNode(nameNode, this.document),
                 children: [],
-            } satisfies NamespaceDeclarationAstNode,
+            },
         ];
     };
 
@@ -135,7 +125,7 @@ class XQueryAstBuilder extends XQueryParserVisitor<AstVisitResult> {
                 end: rangeFromNode(node.KW_ITEM(), this.document).end,
             },
             children: [],
-        } satisfies ContextItemDeclarationAstNode,
+        },
     ];
 
     public override visitContextItemExpr = (node: ContextItemExprContext): AstVisitResult => [
@@ -161,7 +151,7 @@ class XQueryAstBuilder extends XQueryParserVisitor<AstVisitResult> {
     //             range: rangeFromNode(node, this.document),
     //             selectionRange: rangeFromNode(nameNode, this.document),
     //             children: [],
-    //         } satisfies TypeDeclarationAstNode,
+    //         },
     //     ];
     // };
 
@@ -173,7 +163,7 @@ class XQueryAstBuilder extends XQueryParserVisitor<AstVisitResult> {
             selectionRange: rangeFromNode(node.functionName(), this.document),
             parameters: this.parameters(node),
             children: this.visitChildrenAsNodes(node),
-        } satisfies FunctionDeclarationAstNode,
+        },
     ];
 
     public override visitVarDecl = (node: VarDeclContext): AstVisitResult => {
@@ -188,7 +178,7 @@ class XQueryAstBuilder extends XQueryParserVisitor<AstVisitResult> {
                       completed: this.nextDefaultToken(node.stop)?.type === XQueryParser.SEMICOLON,
                       range: rangeFromNode(node, this.document),
                       children: this.visitChildrenAsNodes(node),
-                  } satisfies VariableDeclarationAstNode,
+                  },
               ];
     };
 
@@ -216,7 +206,7 @@ class XQueryAstBuilder extends XQueryParserVisitor<AstVisitResult> {
                       bindings,
                       range: rangeFromNode(node, this.document),
                       children: this.visitChildrenAsNodes(node),
-                  } satisfies ForBindingAstNode,
+                  },
               ];
     };
 
@@ -230,7 +220,7 @@ class XQueryAstBuilder extends XQueryParserVisitor<AstVisitResult> {
                       binding,
                       range: rangeFromNode(node, this.document),
                       children: this.visitChildrenAsNodes(node),
-                  } satisfies LetBindingAstNode,
+                  },
               ];
     };
 
@@ -244,7 +234,7 @@ class XQueryAstBuilder extends XQueryParserVisitor<AstVisitResult> {
                       binding,
                       range: rangeFromNode(node, this.document),
                       children: this.visitChildrenAsNodes(node),
-                  } satisfies GroupByBindingAstNode,
+                  },
               ];
     };
 
@@ -258,7 +248,7 @@ class XQueryAstBuilder extends XQueryParserVisitor<AstVisitResult> {
                       binding,
                       range: rangeFromNode(node, this.document),
                       children: this.visitChildrenAsNodes(node),
-                  } satisfies CountClauseAstNode,
+                  },
               ];
     };
 
@@ -317,7 +307,7 @@ class XQueryAstBuilder extends XQueryParserVisitor<AstVisitResult> {
                 node.parent instanceof ArgumentListContext
                     ? node.parent.argument().indexOf(node)
                     : -1,
-        } satisfies ArgumentAstNode,
+        },
     ];
 
     private visitChildrenAsNodes(node: ParseTree): AstNode[] {
@@ -410,7 +400,7 @@ class XQueryAstBuilder extends XQueryParserVisitor<AstVisitResult> {
                 selectionRange: rangeFromNode(nameNode, this.document),
                 range: rangeFromNode(node, this.document),
                 children,
-            } satisfies FunctionCallAstNode,
+            },
         ];
     }
 
@@ -425,7 +415,7 @@ class XQueryAstBuilder extends XQueryParserVisitor<AstVisitResult> {
                       selectionRange: rangeFromNode(nameNode, this.document),
                       range: rangeFromNode(node, this.document),
                       children: [],
-                  } satisfies NamedFunctionReferenceAstNode,
+                  },
               ]
             : [];
     }
