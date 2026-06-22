@@ -1,4 +1,4 @@
-import { spawnSync } from "node:child_process";
+import { spawn } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -16,7 +16,7 @@ type BuiltinDumpConfig = {
     targetFileName: "builtin-functions.json" | "builtin-types.json";
 };
 
-function main() {
+async function main() {
     console.log("Generating pregenerated builtin catalogs...");
 
     const launchConfig = resolveDevLaunchConfig();
@@ -46,34 +46,72 @@ function main() {
     ];
 
     for (const dump of dumps) {
-        const builtins = runBuiltinDump(launchConfig.args, dump);
         const targetFile = path.join(targetDir, dump.targetFileName);
-        fs.writeFileSync(targetFile, JSON.stringify(builtins, null, 4), "utf8");
+        await runBuiltinDump(launchConfig.args, dump, targetFile);
+        const builtins = JSON.parse(fs.readFileSync(targetFile, "utf8")) as unknown[];
         console.log(
             `Successfully generated ${dump.label} file at ${targetFile} (${builtins.length} entries)`,
         );
     }
 }
 
-function runBuiltinDump(launchArgs: string[], dump: BuiltinDumpConfig): unknown[] {
+function runBuiltinDump(
+    launchArgs: string[],
+    dump: BuiltinDumpConfig,
+    targetFile: string,
+): Promise<void> {
     const javaArgs = launchArgs.map((arg) => (arg === "--daemon" ? dump.cliFlag : arg));
-    const result = spawnSync("java", javaArgs, {
-        encoding: "utf8",
+    const tempFile = `${targetFile}.tmp`;
+
+    return new Promise((resolve, reject) => {
+        const output = fs.createWriteStream(tempFile, { encoding: "utf8" });
+        const child = spawn("java", javaArgs, {
+            stdio: ["ignore", "pipe", "pipe"],
+        });
+
+        let stderr = "";
+
+        child.stdout.pipe(output);
+        child.stderr.on("data", (chunk: string | Buffer) => {
+            stderr += chunk.toString();
+        });
+
+        child.on("error", (error) => {
+            output.destroy();
+            fs.rmSync(tempFile, { force: true });
+            reject(
+                new Error(
+                    `Error spawning Java wrapper to dump ${dump.label}: ${error}\nRunning command was: java ${javaArgs.join(" ")}`,
+                ),
+            );
+        });
+
+        output.on("error", (error) => {
+            child.kill();
+            fs.rmSync(tempFile, { force: true });
+            reject(error);
+        });
+
+        child.on("close", (code) => {
+            output.end(() => {
+                if (code !== 0) {
+                    fs.rmSync(tempFile, { force: true });
+                    reject(
+                        new Error(
+                            `Error running Java wrapper to dump ${dump.label}:\n${stderr}\nRunning command was: java ${javaArgs.join(" ")}`,
+                        ),
+                    );
+                    return;
+                }
+
+                fs.renameSync(tempFile, targetFile);
+                resolve();
+            });
+        });
     });
-
-    if (result.status !== 0) {
-        console.error(`Error running Java wrapper to dump ${dump.label}:`);
-        console.error(result.stderr);
-        process.exit(1);
-    }
-
-    try {
-        return JSON.parse(result.stdout.trim()) as unknown[];
-    } catch (e) {
-        console.error(`Failed to parse dumped ${dump.label} JSON:`, e);
-        console.error("Stdout was:", result.stdout);
-        process.exit(1);
-    }
 }
 
-main();
+main().catch((error) => {
+    console.error(error);
+    process.exit(1);
+});
