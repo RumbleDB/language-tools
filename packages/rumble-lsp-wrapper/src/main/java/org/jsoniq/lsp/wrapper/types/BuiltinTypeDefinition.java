@@ -5,13 +5,13 @@ import org.rumbledb.types.ItemType;
 public record BuiltinTypeDefinition(
         ResolvedQName name,
         String type,
-        String baseType) {
+        ResolvedQName baseType) {
 
     public static BuiltinTypeDefinition fromItemType(ItemType itemType) {
         ItemType baseType = itemType.getBaseType();
         return new BuiltinTypeDefinition(
                 ResolvedQName.fromName(itemType.getName()),
                 itemType.toString(),
-                baseType == null ? null : baseType.toString());
+                baseType != null && baseType.hasName() ? ResolvedQName.fromName(baseType.getName()) : null);
     }
 }

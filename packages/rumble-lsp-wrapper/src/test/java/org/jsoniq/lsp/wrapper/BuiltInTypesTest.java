@@ -32,6 +32,6 @@ class BuiltInTypesTest {
         assertEquals("xs", stringType.get().name().lexicalPrefix());
         assertNotNull(stringType.get().name().namespaceUri());
         assertEquals("xs:string", stringType.get().type());
-        assertEquals("xs:anyAtomicType", stringType.get().baseType());
+        assertEquals("anyAtomicType", stringType.get().baseType().localName());
     }
 }
