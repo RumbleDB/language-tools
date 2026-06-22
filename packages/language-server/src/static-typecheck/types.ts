@@ -44,7 +44,7 @@ export interface StaticFunctionType {
 
 export type StaticType = StaticSequenceType | StaticFunctionType;
 
-export interface StaticTypecheckWireError {
+export interface StaticTypecheckError {
     code: string;
     message: string;
     location: string;
@@ -69,7 +69,7 @@ export type StaticTypeEntry = StaticVariableTypeEntry | StaticFunctionTypeEntry;
 
 export interface StaticTypecheckWireResult {
     types: StaticTypeEntry[];
-    errors: StaticTypecheckWireError[];
+    errors: StaticTypecheckError[];
 }
 
 export function formatTypeDefinition(type: TypeDefinition): string {

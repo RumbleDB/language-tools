@@ -2,7 +2,7 @@ import { DiagnosticSeverity, type Diagnostic } from "vscode-languageserver";
 import { TextDocument } from "vscode-languageserver-textdocument";
 
 import { getStaticTypecheck } from "./service.js";
-import type { StaticTypecheckWireError } from "./types.js";
+import type { StaticTypecheckError } from "./types.js";
 
 export async function collectStaticTypecheckDiagnostics(
     document: TextDocument,
@@ -34,7 +34,7 @@ export async function collectStaticTypecheckDiagnostics(
     return diagnostics;
 }
 
-function toDiagnostic(error: StaticTypecheckWireError): Diagnostic {
+function toDiagnostic(error: StaticTypecheckError): Diagnostic {
     return {
         severity: DiagnosticSeverity.Warning,
         range: error.range,
