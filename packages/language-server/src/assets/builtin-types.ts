@@ -1,5 +1,4 @@
 import { QNameToString, type QName } from "server/analysis/names.js";
-import { type WrapperResolvedQName, toResolvedQName } from "server/wrapper/names.js";
 
 import { loadJsonAsset } from "./loader.js";
 
@@ -19,12 +18,12 @@ const map = new Map<string, BuiltinTypeDefinition>();
 const catalog =
     loadJsonAsset<
         Array<{
-            name: WrapperResolvedQName;
+            name: QName;
         }>
     >("builtin-types.json") || [];
 
 for (const builtinType of catalog) {
-    const name = toResolvedQName(builtinType.name);
+    const name = builtinType.name;
 
     map.set(QNameToString(name, true), {
         name,

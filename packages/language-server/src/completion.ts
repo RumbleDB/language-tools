@@ -29,6 +29,7 @@ import {
 } from "./assets/function-docs.js";
 import { collectCompletionIntent } from "./parser/index.js";
 import { getDocumentText } from "./parser/utils.js";
+import { formatSequenceType } from "./static-typecheck/types.js";
 
 const VARIABLE_PREFIX_PATTERN = /\$[A-Za-z0-9_.:-]*$/;
 const GENERIC_BUILTIN_PARAMETER_PREFIX = "$arg";
@@ -174,9 +175,9 @@ function getBuiltinFunctionCompletionItems(): CompletionItem[] {
         const overloadCount = docEntry?.signatures.length;
         const parameterNames = getBuiltinCompletionParameterNames(definition, docEntry?.signatures);
         const parameterTypes = definition.signature.parameterTypes
-            .map((parameter) => parameter.type)
+            .map((parameter) => formatSequenceType(parameter.type))
             .join(", ");
-        const signature = `${functionName}(${parameterTypes}) as ${definition.signature.returnType}`;
+        const signature = `${functionName}(${parameterTypes}) as ${formatSequenceType(definition.signature.returnType)}`;
         const item: CompletionItem = {
             label: functionName,
             kind: CompletionItemKind.Function,
