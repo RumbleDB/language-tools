@@ -1,7 +1,7 @@
 package org.jsoniq.lsp.wrapper;
 
 import org.jsoniq.lsp.wrapper.cli.BuiltInTypes;
-import org.jsoniq.lsp.wrapper.types.BuiltinTypeDefinition;
+import org.jsoniq.lsp.wrapper.types.TypeDefinition;
 import org.junit.jupiter.api.Test;
 
 import java.util.Optional;
@@ -22,7 +22,7 @@ class BuiltInTypesTest {
 
     @Test
     void listBuiltinTypesContainsStringType() throws ReflectiveOperationException {
-        Optional<BuiltinTypeDefinition> stringType = this.builtInTypes
+        Optional<TypeDefinition> stringType = this.builtInTypes
                 .listBuiltinTypes()
                 .stream()
                 .filter(definition -> "string".equals(definition.name().localName()))

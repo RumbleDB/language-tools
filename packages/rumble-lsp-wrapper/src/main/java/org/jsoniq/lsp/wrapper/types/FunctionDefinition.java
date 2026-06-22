@@ -24,7 +24,7 @@ public record FunctionDefinition(
     public record Parameter(
             Name name,
             SequenceType type) {
-        
+
     }
 
     public record Signature(
@@ -36,18 +36,16 @@ public record FunctionDefinition(
                     .getParameterTypes()
                     .stream()
                     .map(type -> new Parameter(
-                            null,   /// Builtin functions don't have parameter names saved
-                            new SequenceType(type)))
+                            null, /// Builtin functions don't have parameter names saved
+                            SequenceType.fromSequenceType(type)))
                     .toList();
 
-            SequenceType returnType = new SequenceType(signature.getReturnType());
+            SequenceType returnType = SequenceType.fromSequenceType(signature.getReturnType());
 
             return new Signature(
                     parameterTypes,
                     returnType);
         }
-
-
     }
 
     public static FunctionDefinition fromBuiltinFunction(BuiltinFunction function) {

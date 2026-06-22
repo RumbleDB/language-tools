@@ -17,4 +17,12 @@ public record ResolvedQName(
     private static String blankToNull(String value) {
         return value == null || value.isBlank() ? null : value;
     }
+
+    @Override
+    public String toString() {
+        if (this.lexicalPrefix() != null) {
+            return this.lexicalPrefix() + ":" + this.localName();
+        }
+        return this.localName();
+    }
 }

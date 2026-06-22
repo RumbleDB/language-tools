@@ -1,16 +1,15 @@
 package org.jsoniq.lsp.wrapper.types;
 
-import com.fasterxml.jackson.annotation.JsonValue;
-
 public record SequenceType(
-        org.rumbledb.types.SequenceType type) {
+        TypeDefinition type,
+        String arity) {
+
+    public static SequenceType fromSequenceType(org.rumbledb.types.SequenceType type) {
+        return new SequenceType(TypeDefinition.fromItemType(type.getItemType()), type.getArity().getSymbol());
+    }
 
     @Override
-    @JsonValue
     public String toString() {
-        /// Avoid infinite recursion when serializing SequenceType as part of
-        /// FunctionDefinition, since SequenceType contains FunctionSignature which
-        /// contains SequenceType again
-        return type.toString();
+        return type.toString() + arity;
     }
 }
