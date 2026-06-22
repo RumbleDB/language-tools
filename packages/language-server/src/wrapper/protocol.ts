@@ -1,9 +1,3 @@
-export type JsonValue = null | boolean | number | string | JsonValue[] | JsonObject;
-
-export interface JsonObject {
-    [key: string]: JsonValue;
-}
-
 export interface WrapperError {
     code: string;
     message: string;
