@@ -11,6 +11,7 @@ import java.util.Map;
 import java.util.Objects;
 
 import org.jsoniq.lsp.wrapper.cli.CLICommand;
+import org.jsoniq.lsp.wrapper.cli.BuiltInTypes;
 import org.jsoniq.lsp.wrapper.cli.BuiltinFunctions;
 import org.jsoniq.lsp.wrapper.handlers.Handshake;
 import org.jsoniq.lsp.wrapper.handlers.RequestHandler;
@@ -23,9 +24,11 @@ public class Main {
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
     private static final StaticTypeChecker INFERENCER = new StaticTypeChecker();
     private static final BuiltinFunctions BUILTIN_FUNCTIONS = new BuiltinFunctions();
+    private static final BuiltInTypes BUILTIN_TYPES = new BuiltInTypes();
     private static final Handshake HANDSHAKE = new Handshake();
     private static final Map<String, CLICommand> CLI_COMMANDS = Map.of(
-            BUILTIN_FUNCTIONS.flag(), BUILTIN_FUNCTIONS);
+            BUILTIN_FUNCTIONS.flag(), BUILTIN_FUNCTIONS,
+            BUILTIN_TYPES.flag(), BUILTIN_TYPES);
 
     private static final Map<String, RequestHandler> DAEMON_HANDLERS = Map.of(
             INFERENCER.getRequestType(), INFERENCER,
