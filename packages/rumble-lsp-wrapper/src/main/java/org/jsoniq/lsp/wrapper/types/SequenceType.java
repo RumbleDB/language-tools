@@ -1,7 +1,7 @@
 package org.jsoniq.lsp.wrapper.types;
 
 public record SequenceType(
-        TypeDefinition type,
+        TypeDefinition itemType,
         String arity) {
 
     public static SequenceType fromSequenceType(org.rumbledb.types.SequenceType type) {
@@ -10,6 +10,6 @@ public record SequenceType(
 
     @Override
     public String toString() {
-        return type.toString() + arity;
+        return itemType.toString() + arity;
     }
 }

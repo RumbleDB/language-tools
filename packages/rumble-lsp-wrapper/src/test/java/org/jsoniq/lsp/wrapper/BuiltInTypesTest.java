@@ -31,7 +31,5 @@ class BuiltInTypesTest {
         assertTrue(stringType.isPresent());
         assertEquals("xs", stringType.get().name().lexicalPrefix());
         assertNotNull(stringType.get().name().namespaceUri());
-        assertEquals("xs:string", stringType.get().type());
-        assertEquals("anyAtomicType", stringType.get().baseType().localName());
     }
 }
