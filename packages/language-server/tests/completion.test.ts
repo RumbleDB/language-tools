@@ -240,7 +240,7 @@ describe("JSONiq completion", () => {
             character: "declare variable $x as ".length,
         });
 
-        expect(labelsAtCursor).toContain("string");
+        expect(labelsAtCursor).toContain("xs:string");
         expect(labelsAtCursor).toContain("item");
     });
 
