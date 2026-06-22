@@ -3,19 +3,8 @@ import {
     type AstNode,
     type AstParameter,
     type AstBinding,
-    type ContextItemDeclarationAstNode,
-    type CountClauseAstNode,
     type ForBindingAstNode,
-    type FunctionCallAstNode,
-    type FunctionDeclarationAstNode,
-    type GroupByBindingAstNode,
     type ModuleAstNode,
-    type LetBindingAstNode,
-    type NamedFunctionReferenceAstNode,
-    type NamespaceDeclarationAstNode,
-    type TypeDeclarationAstNode,
-    type VariableDeclarationAstNode,
-    type ArgumentAstNode,
 } from "server/parser/types/ast.js";
 import { rangeFromNode } from "server/utils/range.js";
 import { TextDocument } from "vscode-languageserver-textdocument";
@@ -54,6 +43,7 @@ import {
     type ModuleAndThisIsItContext,
     ArgumentListContext,
     JsoniqParser,
+    SequenceTypeContext,
 } from "./grammar/JsoniqParser.js";
 import { JsoniqParserVisitor } from "./grammar/JsoniqParserVisitor.js";
 import { parseFunctionName, parseQname, parseVarName } from "./name.js";
@@ -120,7 +110,7 @@ class JsoniqAstBuilder extends JsoniqParserVisitor<AstVisitResult> {
                 range: rangeFromNode(node, this.document),
                 selectionRange: rangeFromNode(nameNode, this.document),
                 children: [],
-            } satisfies NamespaceDeclarationAstNode,
+            },
         ];
     };
 
@@ -137,7 +127,7 @@ class JsoniqAstBuilder extends JsoniqParserVisitor<AstVisitResult> {
                 end: rangeFromNode(node.KW_ITEM(), this.document).end,
             },
             children: [],
-        } satisfies ContextItemDeclarationAstNode,
+        },
     ];
 
     public override visitContextItemExpr = (node: ContextItemExprContext): AstVisitResult => [
@@ -162,7 +152,7 @@ class JsoniqAstBuilder extends JsoniqParserVisitor<AstVisitResult> {
                 range: rangeFromNode(node, this.document),
                 selectionRange: rangeFromNode(nameNode, this.document),
                 children: [],
-            } satisfies TypeDeclarationAstNode,
+            },
         ];
     };
 
@@ -174,7 +164,7 @@ class JsoniqAstBuilder extends JsoniqParserVisitor<AstVisitResult> {
             selectionRange: rangeFromNode(node.functionName(), this.document),
             parameters: this.parameters(node),
             children: this.visitChildrenAsNodes(node),
-        } satisfies FunctionDeclarationAstNode,
+        },
     ];
 
     public override visitVarDecl = (node: VarDeclContext): AstVisitResult => {
@@ -189,7 +179,7 @@ class JsoniqAstBuilder extends JsoniqParserVisitor<AstVisitResult> {
                       completed: this.nextDefaultToken(node.stop)?.type === JsoniqParser.SEMICOLON,
                       range: rangeFromNode(node, this.document),
                       children: this.visitChildrenAsNodes(node),
-                  } satisfies VariableDeclarationAstNode,
+                  },
               ];
     };
 
@@ -217,7 +207,7 @@ class JsoniqAstBuilder extends JsoniqParserVisitor<AstVisitResult> {
                       bindings,
                       range: rangeFromNode(node, this.document),
                       children: this.visitChildrenAsNodes(node),
-                  } satisfies ForBindingAstNode,
+                  },
               ];
     };
 
@@ -231,7 +221,7 @@ class JsoniqAstBuilder extends JsoniqParserVisitor<AstVisitResult> {
                       binding,
                       range: rangeFromNode(node, this.document),
                       children: this.visitChildrenAsNodes(node),
-                  } satisfies LetBindingAstNode,
+                  },
               ];
     };
 
@@ -245,7 +235,7 @@ class JsoniqAstBuilder extends JsoniqParserVisitor<AstVisitResult> {
                       binding,
                       range: rangeFromNode(node, this.document),
                       children: this.visitChildrenAsNodes(node),
-                  } satisfies GroupByBindingAstNode,
+                  },
               ];
     };
 
@@ -259,7 +249,7 @@ class JsoniqAstBuilder extends JsoniqParserVisitor<AstVisitResult> {
                       binding,
                       range: rangeFromNode(node, this.document),
                       children: this.visitChildrenAsNodes(node),
-                  } satisfies CountClauseAstNode,
+                  },
               ];
     };
 
@@ -318,8 +308,26 @@ class JsoniqAstBuilder extends JsoniqParserVisitor<AstVisitResult> {
                 node.parent instanceof ArgumentListContext
                     ? node.parent.argument().indexOf(node)
                     : -1,
-        } satisfies ArgumentAstNode,
+        },
     ];
+
+    public override visitSequenceType = (node: SequenceTypeContext): AstVisitResult => {
+        const item = node.itemType();
+        const name = item?.eqName()?.qname();
+
+        if (name === null || name === undefined) {
+            return this.visitChildren(node) ?? [];
+        }
+
+        return [
+            {
+                kind: "type-reference",
+                name: parseQname(name),
+                children: this.visitChildrenAsNodes(node),
+                range: rangeFromNode(node, this.document),
+            },
+        ];
+    };
 
     private visitChildrenAsNodes(node: ParseTree): AstNode[] {
         return this.visitChildren(node) ?? [];
@@ -411,7 +419,7 @@ class JsoniqAstBuilder extends JsoniqParserVisitor<AstVisitResult> {
                 selectionRange: rangeFromNode(nameNode, this.document),
                 range: rangeFromNode(node, this.document),
                 children,
-            } satisfies FunctionCallAstNode,
+            },
         ];
     }
 
@@ -426,7 +434,7 @@ class JsoniqAstBuilder extends JsoniqParserVisitor<AstVisitResult> {
                       selectionRange: rangeFromNode(nameNode, this.document),
                       range: rangeFromNode(node, this.document),
                       children: [],
-                  } satisfies NamedFunctionReferenceAstNode,
+                  },
               ]
             : [];
     }

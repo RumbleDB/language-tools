@@ -1,6 +1,6 @@
 package org.jsoniq.lsp.wrapper.cli;
 
-import org.jsoniq.lsp.wrapper.types.BuiltinTypeDefinition;
+import org.jsoniq.lsp.wrapper.types.TypeDefinition;
 import org.rumbledb.types.BuiltinTypesCatalogue;
 import org.rumbledb.types.ItemType;
 
@@ -19,7 +19,7 @@ public class BuiltInTypes implements CLICommand {
         return listBuiltinTypes();
     }
 
-    public List<BuiltinTypeDefinition> listBuiltinTypes() throws ReflectiveOperationException {
+    public List<TypeDefinition> listBuiltinTypes() throws ReflectiveOperationException {
         /// TODO: add a method to BuiltinTypesCatalogue to get the built-in types
         /// instead of using reflection
         Field builtInItemTypesField = BuiltinTypesCatalogue.class.getDeclaredField("builtInItemTypes");
@@ -29,7 +29,7 @@ public class BuiltInTypes implements CLICommand {
         List<ItemType> builtInItemTypes = (List<ItemType>) builtInItemTypesField.get(null);
 
         return builtInItemTypes.stream()
-                .map(BuiltinTypeDefinition::fromItemType)
+                .map(TypeDefinition::fromItemType)
                 .sorted(Comparator.comparing(definition -> definition.name().localName()))
                 .toList();
     }

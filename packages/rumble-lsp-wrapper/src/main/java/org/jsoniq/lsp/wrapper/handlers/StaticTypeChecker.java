@@ -27,7 +27,6 @@ import org.rumbledb.expressions.primary.InlineFunctionExpression;
 import com.fasterxml.jackson.annotation.JsonValue;
 
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Path;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.Base64;
@@ -68,12 +67,12 @@ public final class StaticTypeChecker implements RequestHandler {
             VariableKind variableKind,
             Position position,
             ResolvedQName qname,
-            String sequenceType) implements StaticTypeEntry {
+            SequenceType sequenceType) implements StaticTypeEntry {
         public VariableType(
                 VariableKind variableKind,
                 Position position,
                 ResolvedQName qname,
-                String sequenceType) {
+                SequenceType sequenceType) {
             this("variable", variableKind, position, qname, sequenceType);
         }
     }
@@ -161,7 +160,7 @@ public final class StaticTypeChecker implements RequestHandler {
             URI documentUri,
             RumbleRuntimeConfiguration configuration) {
         if (documentUri == null) {
-            documentUri = Path.of("").toAbsolutePath().normalize().toUri();
+            return VisitorHelpers.parseMainModuleFromQuery(query, configuration);
         }
 
         return VisitorHelpers.parseMainModule(query, documentUri, configuration);
@@ -235,10 +234,10 @@ public final class StaticTypeChecker implements RequestHandler {
                         new FunctionDefinition.Name(
                                 ResolvedQName.fromName(paramName),
                                 null),
-                        new SequenceType(functionExpression.getParams().get(paramName))))
+                        SequenceType.fromSequenceType(functionExpression.getParams().get(paramName))))
                 .toList();
 
-        SequenceType returnType = new SequenceType(functionExpression.getReturnType());
+        SequenceType returnType = SequenceType.fromSequenceType(functionExpression.getReturnType());
 
         FunctionDefinition function = new FunctionDefinition(
                 FunctionDefinition.Name.create(functionDeclaration.getFunctionIdentifier()),
@@ -341,13 +340,13 @@ public final class StaticTypeChecker implements RequestHandler {
             return;
         }
 
-        SequenceType variableType = new SequenceType(variableDeclaration.getSequenceType());
+        SequenceType variableType = SequenceType.fromSequenceType(variableDeclaration.getSequenceType());
         Position position = Position.fromExceptionMetadata(metadata);
         types.add(new VariableType(
                 VariableKind.Declare,
                 position,
                 ResolvedQName.fromName(variableName),
-                variableType.toString()));
+                variableType));
     }
 
     /**
@@ -370,14 +369,14 @@ public final class StaticTypeChecker implements RequestHandler {
         }
 
         try {
-            SequenceType variableType = new SequenceType(context.getVariableSequenceType(variableName));
+            SequenceType variableType = SequenceType.fromSequenceType(context.getVariableSequenceType(variableName));
             ExceptionMetadata metadata = context.getVariableMetadata(variableName);
             Position position = Position.fromExceptionMetadata(metadata);
             types.add(new VariableType(
                     kind,
                     position,
                     ResolvedQName.fromName(variableName),
-                    variableType.toString()));
+                    variableType));
         } catch (Throwable ignored) {
         }
     }

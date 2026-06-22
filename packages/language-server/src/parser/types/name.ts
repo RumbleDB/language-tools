@@ -40,12 +40,13 @@ export type LexicalDeclarationNameByKind = {
     "group-by": LexicalQName;
     count: LexicalQName;
     "catch-variable": LexicalQName;
-    type: { qname: LexicalQName };
+    type: LexicalQName;
 };
 
 export type LexicalReferenceNameByKind = {
     function: LexicalFunctionName;
     variable: LexicalQName;
+    type: LexicalQName;
 };
 
 export function lexicalQNameToString(qname: LexicalQName): string {

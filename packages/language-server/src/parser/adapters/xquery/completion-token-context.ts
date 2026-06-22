@@ -20,6 +20,10 @@ export class XQueryTokenContextAnalyzer extends TokenContextAnalyzer {
         );
     }
 
+    public override isAtTypeName(): boolean {
+        return this.previous?.type === XQueryLexer.KW_AS;
+    }
+
     public override isAtVariableDeclarationName(): boolean {
         if (this.previous === undefined) {
             return false;

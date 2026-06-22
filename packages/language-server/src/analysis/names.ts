@@ -28,6 +28,7 @@ export type DeclarationNameByKind = {
 export type ReferenceNameByKind = {
     function: FunctionName;
     variable: QName;
+    type: QName;
 };
 
 export function QNameToString(qname: QName, expanded: boolean): string {
@@ -56,6 +57,8 @@ export function referenceNameToString<K extends keyof ReferenceNameByKind>(
         case "function":
             return functionNameToString(name as FunctionName, expanded);
         case "variable":
+            return QNameToString(name as QName, expanded);
+        case "type":
             return QNameToString(name as QName, expanded);
         default:
             throw kind satisfies never;

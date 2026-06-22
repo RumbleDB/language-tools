@@ -20,6 +20,7 @@ import type {
     TypeDeclarationAstNode,
     VariableDeclarationAstNode,
     VariableReferenceAstNode,
+    TypeReferenceAstNode,
 } from "server/parser/types/ast.js";
 import {
     isPrefixedQName,
@@ -284,6 +285,10 @@ class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
                 this.visitChildrenAsNodes(node),
             ),
         ];
+    }
+
+    protected override visitTypeReference(node: TypeReferenceAstNode): AstNode[] {
+        return [this.createReference("type", this.resolveQName(node.name, node.range), node.range)];
     }
 
     private visitChildrenAsNodes(node: ParserAstNode): AstNode[] {

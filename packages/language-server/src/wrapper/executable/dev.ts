@@ -9,30 +9,64 @@ import { WrapperLaunchConfig } from "./index.js";
 const PACKAGE_ROOT = findPackageRoot();
 const WRAPPER_DEVELOPMENT_FOLDER = path.join(PACKAGE_ROOT, "../rumble-lsp-wrapper");
 const WRAPPER_JAR_DEVELOPMENT_FOLDER = path.join(WRAPPER_DEVELOPMENT_FOLDER, "target");
-const RUMBLE_JAR_DEVELOPMENT_FOLDER = path.join(WRAPPER_DEVELOPMENT_FOLDER, "rumbledb", "target");
+const RUMBLE_JAR_DEVELOPMENT_PATH = path.join(
+    WRAPPER_DEVELOPMENT_FOLDER,
+    "generated-resources",
+    "rumbledb-current-jar-with-dependencies.jar",
+);
+const WRAPPER_PACKAGE_JSON_PATH = path.join(WRAPPER_DEVELOPMENT_FOLDER, "package.json");
 
 const WRAPPER_RUNTIME_CLASSPATH_FILE = "runtime-classpath.txt";
 const WRAPPER_MAIN_CLASS = "org.jsoniq.lsp.wrapper.Main";
 
 export function resolveDevLaunchConfig(): WrapperLaunchConfig | undefined {
-    const localJarPath = pickLatestJarFromDirectory(WRAPPER_JAR_DEVELOPMENT_FOLDER);
+    const localJarPath = resolveWrapperJarPath();
     const classpathPath = path.join(WRAPPER_JAR_DEVELOPMENT_FOLDER, WRAPPER_RUNTIME_CLASSPATH_FILE);
-    if (localJarPath === undefined || !fs.existsSync(classpathPath)) {
+    if (
+        localJarPath === undefined ||
+        !fs.existsSync(classpathPath) ||
+        !fs.existsSync(RUMBLE_JAR_DEVELOPMENT_PATH)
+    ) {
         return undefined;
     }
 
-    const rumbleJarPath = pickLatestJarFromDirectory(RUMBLE_JAR_DEVELOPMENT_FOLDER);
     const runtimeClasspath = fs.readFileSync(classpathPath, "utf8").trim();
     const classpathEntries = [
         localJarPath,
-        rumbleJarPath,
+        RUMBLE_JAR_DEVELOPMENT_PATH,
         ...runtimeClasspath.split(path.delimiter),
-    ].filter((entry): entry is string => entry !== undefined);
+    ].filter((entry): entry is string => entry !== undefined && entry.length > 0);
     const classpath = [...new Set(classpathEntries)].join(path.delimiter);
 
     return {
         args: ["-cp", classpath, WRAPPER_MAIN_CLASS, "--daemon"],
     };
+}
+
+function resolveWrapperJarPath(): string | undefined {
+    const packageVersion = readWrapperPackageVersion();
+    if (packageVersion !== undefined) {
+        const versionedJarPath = path.join(
+            WRAPPER_JAR_DEVELOPMENT_FOLDER,
+            `rumble-lsp-wrapper-${packageVersion}.jar`,
+        );
+        if (fs.existsSync(versionedJarPath)) {
+            return versionedJarPath;
+        }
+    }
+
+    return pickLatestJarFromDirectory(WRAPPER_JAR_DEVELOPMENT_FOLDER);
+}
+
+function readWrapperPackageVersion(): string | undefined {
+    if (!fs.existsSync(WRAPPER_PACKAGE_JSON_PATH)) {
+        return undefined;
+    }
+
+    const packageJson = JSON.parse(fs.readFileSync(WRAPPER_PACKAGE_JSON_PATH, "utf8")) as {
+        version?: string;
+    };
+    return packageJson.version;
 }
 
 function pickLatestJarFromDirectory(directory: string): string | undefined {
@@ -42,7 +76,7 @@ function pickLatestJarFromDirectory(directory: string): string | undefined {
 
     const files = fs.readdirSync(directory);
     const wrapperJars = files
-        .filter((file) => file.endsWith(".jar"))
+        .filter((file) => file.endsWith(".jar") && !file.endsWith("-sources.jar"))
         .map((file) => path.join(directory, file))
         .sort((a, b) => fs.statSync(b).mtime.getTime() - fs.statSync(a).mtime.getTime());
 

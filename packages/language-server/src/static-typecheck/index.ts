@@ -10,7 +10,6 @@ import {
     type StaticType,
     type StaticTypecheckWireResult,
 } from "server/static-typecheck/types.js";
-import { toResolvedQName } from "server/wrapper/names.js";
 import { DocumentUri, TextDocument } from "vscode-languageserver-textdocument";
 
 import {
@@ -36,12 +35,18 @@ function buildStaticTypeIndex(entries: StaticTypecheckWireResult["types"]): Stat
         if (entry.kind === "function") {
             const { ["function"]: functionDefinition, position: functionPosition } = entry;
             const functionName = functionDefinition.name;
+            const signature = functionDefinition.signature;
             const functionKey = buildStaticTypeKeyForFunction(functionPosition, functionName);
 
-            result.set(functionKey, entry);
+            result.set(functionKey, {
+                function: {
+                    name: functionName,
+                    signature,
+                },
+            });
 
-            for (const parameter of functionDefinition.signature.parameterTypes) {
-                if (parameter.name === null) {
+            for (const parameter of signature.parameterTypes) {
+                if (parameter.name === undefined) {
                     continue;
                 }
 
@@ -56,11 +61,7 @@ function buildStaticTypeIndex(entries: StaticTypecheckWireResult["types"]): Stat
             }
         } else {
             result.set(
-                buildStaticTypeKeyForVariable(
-                    entry.variableKind,
-                    entry.position,
-                    toResolvedQName(entry.qname),
-                ),
+                buildStaticTypeKeyForVariable(entry.variableKind, entry.position, entry.qname),
                 {
                     sequenceType: entry.sequenceType,
                 },

@@ -117,6 +117,12 @@ export function isSourceFunctionDefinition(
     return isSourceDefinition(declaration) && declaration.kind === "function";
 }
 
+export function isSourceTypeDefinition(
+    declaration: BaseDefinition | undefined,
+): declaration is Extract<SourceDefinition, { kind: "type" }> {
+    return isSourceDefinition(declaration) && declaration.kind === "type";
+}
+
 export function definitionNameToString(
     definition: BaseDefinition,
     expanded: boolean = false,

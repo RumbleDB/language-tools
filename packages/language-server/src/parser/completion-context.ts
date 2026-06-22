@@ -7,6 +7,7 @@ const DEFAULT_CONTEXT: CompletionTokenContext = {
     allowKeywords: true,
     allowPrologKeywords: false,
     allowReferences: true,
+    allowTypeReferences: false,
     allowVariableDeclarations: false,
 };
 
@@ -15,6 +16,16 @@ const FUNCTION_NAME_CONTEXT: CompletionTokenContext = {
     allowKeywords: false,
     allowPrologKeywords: false,
     allowReferences: false,
+    allowTypeReferences: false,
+    allowVariableDeclarations: false,
+};
+
+const TYPE_NAME_CONTEXT: CompletionTokenContext = {
+    kind: "type-name",
+    allowKeywords: false,
+    allowPrologKeywords: false,
+    allowReferences: false,
+    allowTypeReferences: true,
     allowVariableDeclarations: false,
 };
 
@@ -23,6 +34,7 @@ const TOP_LEVEL_PROLOG_CONTEXT: CompletionTokenContext = {
     allowKeywords: true,
     allowPrologKeywords: true,
     allowReferences: true,
+    allowTypeReferences: false,
     allowVariableDeclarations: false,
 };
 
@@ -31,12 +43,14 @@ const VARIABLE_DECLARATION_CONTEXT: CompletionTokenContext = {
     allowKeywords: false,
     allowPrologKeywords: false,
     allowReferences: false,
+    allowTypeReferences: false,
     allowVariableDeclarations: true,
 };
 
 export {
     DEFAULT_CONTEXT,
     FUNCTION_NAME_CONTEXT,
+    TYPE_NAME_CONTEXT,
     TOP_LEVEL_PROLOG_CONTEXT,
     VARIABLE_DECLARATION_CONTEXT,
 };
@@ -54,6 +68,7 @@ export abstract class TokenContextAnalyzer {
     }
 
     public abstract isAfterDeclareFunction(): boolean;
+    public abstract isAtTypeName(): boolean;
     public abstract isAtVariableDeclarationName(): boolean;
     public abstract isAtTopLevelProlog(): boolean;
 
@@ -89,6 +104,10 @@ export function getCompletionTokenContext<T extends TokenContextAnalyzer>(
 
     if (cursor.isAfterDeclareFunction()) {
         return FUNCTION_NAME_CONTEXT;
+    }
+
+    if (cursor.isAtTypeName()) {
+        return TYPE_NAME_CONTEXT;
     }
 
     if (cursor.isAtVariableDeclarationName()) {

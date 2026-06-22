@@ -5,7 +5,7 @@ import org.rumbledb.context.Name;
 public record ResolvedQName(
         String localName,
         String namespaceUri,
-        String lexicalPrefix) {
+        String prefix) {
 
     public static ResolvedQName fromName(Name name) {
         return new ResolvedQName(
@@ -16,5 +16,13 @@ public record ResolvedQName(
 
     private static String blankToNull(String value) {
         return value == null || value.isBlank() ? null : value;
+    }
+
+    @Override
+    public String toString() {
+        if (this.prefix() != null) {
+            return this.prefix() + ":" + this.localName();
+        }
+        return this.localName();
     }
 }

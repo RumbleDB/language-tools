@@ -14,11 +14,13 @@ import {
     definitionNameToString,
     isSourceFunctionDefinition,
     isSourceParameterDefinition,
+    isSourceTypeDefinition,
     isSourceVariableDefinition,
 } from "./analysis/definitions.js";
 import { QNameToString } from "./analysis/names.js";
 import { getVisibleDeclarationsAtPosition } from "./analysis/queries.js";
 import { BuiltinFunctionDefinition, builtinFunctions } from "./assets/builtin-functions.js";
+import { builtinTypes } from "./assets/builtin-types.js";
 import {
     docs,
     formatFunctionDocEntry,
@@ -27,6 +29,7 @@ import {
 } from "./assets/function-docs.js";
 import { collectCompletionIntent } from "./parser/index.js";
 import { getDocumentText } from "./parser/utils.js";
+import { formatSequenceType } from "./static-typecheck/types.js";
 
 const VARIABLE_PREFIX_PATTERN = /\$[A-Za-z0-9_.:-]*$/;
 const GENERIC_BUILTIN_PARAMETER_PREFIX = "$arg";
@@ -65,7 +68,11 @@ export function findCompletions(document: TextDocument, position: Position): Com
     const functions = intent.allowFunctions
         ? availableSourceDeclarations.filter(isSourceFunctionDefinition)
         : [];
+    const types = intent.allowTypes
+        ? availableSourceDeclarations.filter(isSourceTypeDefinition)
+        : [];
     const builtinFunctions = intent.allowFunctions ? getBuiltinFunctionCompletionItems() : [];
+    const builtinTypeItems = intent.allowTypes ? getBuiltinTypeCompletionItems() : [];
     const keywords = keywordCompletions(intent.keywords);
 
     if (intent.allowVariableDeclarations && !typingVariablePrefix) {
@@ -89,7 +96,9 @@ export function findCompletions(document: TextDocument, position: Position): Com
             };
         }),
         ...functions.map(toCompletionItem),
+        ...types.map(toCompletionItem),
         ...builtinFunctions,
+        ...builtinTypeItems,
         ...keywords,
     ]);
 }
@@ -114,6 +123,26 @@ function toCompletionItem(declaration: BaseDefinition): CompletionItem {
                 value: [
                     "```jsoniq",
                     signature,
+                    "```",
+                    `declared at line ${declaration.selectionRange.start.line + 1}`,
+                ].join("\n"),
+            },
+        };
+    }
+
+    if (isSourceTypeDefinition(declaration)) {
+        const label = QNameToString(declaration.name, false);
+        const expandedName = QNameToString(declaration.name, true);
+
+        return {
+            label,
+            kind: CompletionItemKind.Class,
+            detail: "JSONiq schema type",
+            documentation: {
+                kind: MarkupKind.Markdown,
+                value: [
+                    "```jsoniq",
+                    expandedName,
                     "```",
                     `declared at line ${declaration.selectionRange.start.line + 1}`,
                 ].join("\n"),
@@ -146,9 +175,9 @@ function getBuiltinFunctionCompletionItems(): CompletionItem[] {
         const overloadCount = docEntry?.signatures.length;
         const parameterNames = getBuiltinCompletionParameterNames(definition, docEntry?.signatures);
         const parameterTypes = definition.signature.parameterTypes
-            .map((parameter) => parameter.type)
+            .map((parameter) => formatSequenceType(parameter.type))
             .join(", ");
-        const signature = `${functionName}(${parameterTypes}) as ${definition.signature.returnType}`;
+        const signature = `${functionName}(${parameterTypes}) as ${formatSequenceType(definition.signature.returnType)}`;
         const item: CompletionItem = {
             label: functionName,
             kind: CompletionItemKind.Function,
@@ -181,6 +210,23 @@ function getBuiltinFunctionCompletionItems(): CompletionItem[] {
     }
 
     return [...itemsByName.values()].map(({ item }) => item);
+}
+
+function getBuiltinTypeCompletionItems(): CompletionItem[] {
+    return builtinTypes.all.map((definition) => {
+        const label = QNameToString(definition.name, false);
+        const expandedName = QNameToString(definition.name, true);
+
+        return {
+            label,
+            kind: CompletionItemKind.Class,
+            detail: "Builtin JSONiq type",
+            documentation: {
+                kind: MarkupKind.Markdown,
+                value: `\`\`\`jsoniq\n${expandedName}\n\`\`\``,
+            },
+        } satisfies CompletionItem;
+    });
 }
 
 function keywordCompletions(

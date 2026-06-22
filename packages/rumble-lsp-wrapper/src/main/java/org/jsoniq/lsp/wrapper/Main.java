@@ -1,5 +1,6 @@
 package org.jsoniq.lsp.wrapper;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.io.BufferedReader;
@@ -21,7 +22,8 @@ import org.jsoniq.lsp.wrapper.messages.Response;
 import org.jsoniq.lsp.wrapper.messages.ResponseBody;
 
 public class Main {
-    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper()
+            .setSerializationInclusion(JsonInclude.Include.NON_NULL);
     private static final StaticTypeChecker INFERENCER = new StaticTypeChecker();
     private static final BuiltinFunctions BUILTIN_FUNCTIONS = new BuiltinFunctions();
     private static final BuiltInTypes BUILTIN_TYPES = new BuiltInTypes();

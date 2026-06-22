@@ -22,6 +22,7 @@ export type AstNodeKind =
     | "catch-clause"
     | "declaration"
     | "reference"
+    | "type-reference"
     | "function-call"
     | "named-function-reference"
     | "variable-reference"
@@ -114,6 +115,10 @@ export interface VariableReferenceAstNode extends AstNodeBase<"variable-referenc
     readonly name: LexicalReferenceNameByKind["variable"];
 }
 
+export interface TypeReferenceAstNode extends AstNodeBase<"type-reference"> {
+    readonly name: LexicalReferenceNameByKind["type"];
+}
+
 export interface ContextItemExpressionAstNode extends AstNodeBase<"context-item-expression"> {
     readonly name: LexicalReferenceNameByKind["variable"];
 }
@@ -136,6 +141,7 @@ export type AstNode =
     | FlowrExpressionAstNode
     | CatchClauseAstNode
     | FunctionCallAstNode
+    | TypeReferenceAstNode
     | NamedFunctionReferenceAstNode
     | VariableReferenceAstNode
     | ContextItemExpressionAstNode

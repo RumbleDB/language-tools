@@ -35,7 +35,7 @@ class StaticTypeCheckerTest {
         assertTrue(variableTypes(result)
                 .anyMatch(type -> VariableKind.Let.equals(type.variableKind())
                         && "x".equals(type.qname().localName())
-                        && "xs:integer".equals(type.sequenceType())));
+                        && "xs:integer".equals(type.sequenceType().itemType().toString())));
     }
 
     @Test
@@ -50,7 +50,7 @@ class StaticTypeCheckerTest {
         assertTrue(variableTypes(result)
                 .anyMatch(type -> VariableKind.Declare.equals(type.variableKind())
                         && "a".equals(type.qname().localName())
-                        && type.sequenceType().contains("xs:integer")));
+                        && "xs:integer".equals(type.sequenceType().itemType().toString())));
     }
 
     @Test
@@ -66,7 +66,7 @@ class StaticTypeCheckerTest {
                 .findFirst()
                 .orElseThrow();
 
-        assertEquals("local", functionType.function().name().qname().lexicalPrefix());
+        assertEquals("local", functionType.function().name().qname().prefix());
         assertEquals("xs:integer", functionType.function().signature().parameterTypes().get(0).type().toString());
         assertEquals("item*", functionType.function().signature().parameterTypes().get(1).type().toString());
         assertEquals("item*", functionType.function().signature().returnType().toString());
@@ -85,8 +85,8 @@ class StaticTypeCheckerTest {
         StaticTypeChecker.Result result = inferWithoutThrow(query);
         assertTrue(result.errors().isEmpty());
 
-        assertTrue(variableTypes(result).anyMatch(type -> "xs:integer".equals(type.sequenceType())));
-        assertTrue(variableTypes(result).anyMatch(type -> "xs:string".equals(type.sequenceType())));
+        assertTrue(variableTypes(result).anyMatch(type -> "xs:integer".equals(type.sequenceType().itemType().toString())));
+        assertTrue(variableTypes(result).anyMatch(type -> "xs:string".equals(type.sequenceType().itemType().toString())));
     }
 
     @Test
