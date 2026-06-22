@@ -14,6 +14,7 @@ import {
     definitionNameToString,
     isSourceFunctionDefinition,
     isSourceParameterDefinition,
+    isSourceTypeDefinition,
     isSourceVariableDefinition,
 } from "./analysis/definitions.js";
 import { QNameToString } from "./analysis/names.js";
@@ -66,6 +67,9 @@ export function findCompletions(document: TextDocument, position: Position): Com
     const functions = intent.allowFunctions
         ? availableSourceDeclarations.filter(isSourceFunctionDefinition)
         : [];
+    const types = intent.allowTypes
+        ? availableSourceDeclarations.filter(isSourceTypeDefinition)
+        : [];
     const builtinFunctions = intent.allowFunctions ? getBuiltinFunctionCompletionItems() : [];
     const builtinTypeItems = intent.allowTypes ? getBuiltinTypeCompletionItems() : [];
     const keywords = keywordCompletions(intent.keywords);
@@ -91,6 +95,7 @@ export function findCompletions(document: TextDocument, position: Position): Com
             };
         }),
         ...functions.map(toCompletionItem),
+        ...types.map(toCompletionItem),
         ...builtinFunctions,
         ...builtinTypeItems,
         ...keywords,
@@ -117,6 +122,26 @@ function toCompletionItem(declaration: BaseDefinition): CompletionItem {
                 value: [
                     "```jsoniq",
                     signature,
+                    "```",
+                    `declared at line ${declaration.selectionRange.start.line + 1}`,
+                ].join("\n"),
+            },
+        };
+    }
+
+    if (isSourceTypeDefinition(declaration)) {
+        const label = QNameToString(declaration.name, false);
+        const expandedName = QNameToString(declaration.name, true);
+
+        return {
+            label,
+            kind: CompletionItemKind.Class,
+            detail: "JSONiq schema type",
+            documentation: {
+                kind: MarkupKind.Markdown,
+                value: [
+                    "```jsoniq",
+                    expandedName,
                     "```",
                     `declared at line ${declaration.selectionRange.start.line + 1}`,
                 ].join("\n"),
