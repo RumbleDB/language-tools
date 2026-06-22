@@ -141,6 +141,7 @@ export type AstNode =
     | FlowrExpressionAstNode
     | CatchClauseAstNode
     | FunctionCallAstNode
+    | TypeReferenceAstNode
     | NamedFunctionReferenceAstNode
     | VariableReferenceAstNode
     | ContextItemExpressionAstNode

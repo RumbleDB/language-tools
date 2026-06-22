@@ -15,6 +15,7 @@ import type {
     NamedFunctionReferenceAstNode,
     NamespaceDeclarationAstNode,
     TypeDeclarationAstNode,
+    TypeReferenceAstNode,
     VariableDeclarationAstNode,
     VariableReferenceAstNode,
 } from "./ast.js";
@@ -56,6 +57,8 @@ export abstract class ParserAstVisitor<R = void> {
                 return this.visitContextItemExpression(node);
             case "argument":
                 return this.visitArgument(node);
+            case "type-reference":
+                return this.visitTypeReference(node);
             default:
                 throw node satisfies never;
         }
@@ -135,6 +138,10 @@ export abstract class ParserAstVisitor<R = void> {
     }
 
     protected visitArgument(node: ArgumentAstNode): R {
+        return this.defaultVisit(node);
+    }
+
+    protected visitTypeReference(node: TypeReferenceAstNode): R {
         return this.defaultVisit(node);
     }
 }
