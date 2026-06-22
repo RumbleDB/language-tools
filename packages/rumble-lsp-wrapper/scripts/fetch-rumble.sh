@@ -12,7 +12,7 @@ WRAPPER_CLASSES_DIR="$WRAPPER_TARGET_DIR/classes"
 
 WRAPPER_METADATA_FILE="$WRAPPER_GENERATED_RESOURCES_DIR/rumble-build.properties"
 WRAPPER_COMPILED_METADATA_FILE="$WRAPPER_CLASSES_DIR/rumble-build.properties"
-WRAPPER_RUMBLE_JAR_LINK="$WRAPPER_GENERATED_RESOURCES_DIR/rumbledb-current.jar"
+WRAPPER_RUMBLE_JAR_LINK="$WRAPPER_GENERATED_RESOURCES_DIR/rumbledb-current-jar-with-dependencies.jar"
 WRAPPER_BUILD_STAMP="$WRAPPER_GENERATED_RESOURCES_DIR/rumble-build.stamp"
 
 RUMBLE_REPO_URL="https://github.com/RumbleDB/rumble.git"
@@ -83,15 +83,7 @@ stamp_commit_matches_checkout() {
 }
 
 resolve_rumble_jar() {
-    jar_path=$(
-        find "$RUMBLE_TARGET_DIR" -maxdepth 1 -type f -name 'rumbledb-*.jar' \
-            ! -name '*-jar-with-dependencies.jar' \
-            ! -name '*-sources.jar' \
-            ! -name '*-javadoc.jar' \
-            ! -name '*-tests.jar' \
-            -print 2>/dev/null \
-            | head -n 1
-    )
+    jar_path=$(ls -1t "$RUMBLE_TARGET_DIR"/rumbledb-*-jar-with-dependencies.jar 2>/dev/null | head -n 1 || true)
     if [ -z "$jar_path" ]; then
         return 1
     fi
@@ -102,7 +94,7 @@ resolve_rumble_jar() {
 extract_rumble_version_from_jar() {
     jar_file=$(basename "$1")
     version=${jar_file#rumbledb-}
-    version=${version%.jar}
+    version=${version%-jar-with-dependencies.jar}
     printf '%s\n' "$version"
 }
 
@@ -127,7 +119,7 @@ fi
 
 if [ -z "$RUMBLE_JAR" ]; then
     echo "Building Rumble from source..." >&2
-    (cd "$RUMBLE_DIR" && mvn -q -DskipTests clean compile jar:jar)
+    (cd "$RUMBLE_DIR" && mvn -q -DskipTests clean compile assembly:single)
     RUMBLE_JAR=$(resolve_rumble_jar)
     CURRENT_BUILD_SIGNATURE=$(build_signature)
 elif ! stamp_commit_matches_checkout; then
