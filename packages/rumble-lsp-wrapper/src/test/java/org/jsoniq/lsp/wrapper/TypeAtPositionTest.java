@@ -49,6 +49,65 @@ class TypeAtPositionTest {
     }
 
     @Test
+    void returnsObjectLookupExpressionTypeWhenPositionIsInsideLookupKey() {
+        String query = """
+                declare variable $a := {
+                    "name": "ada",
+                    "details": {
+                        "tlf": 1233.2
+                    }
+                };
+                ($a.details.tlf)
+                """;
+        int detailsOffset = query.indexOf("details.tlf") + "det".length();
+
+        TypeAtPosition.Result result = this.typeAtPosition.findType(
+            query,
+            positionAtOffset(query, detailsOffset)
+        );
+
+        assertNotNull(result.sequenceType());
+        assertEquals("object", result.sequenceType().itemType().kind());
+        assertEquals("xs:decimal", result.sequenceType().itemType().fields().get("tlf").toString());
+        assertEquals(
+            new Range(
+                    positionAtOffset(query, query.indexOf("$a.details")),
+                    positionAtOffset(query, query.indexOf("$a.details") + "$a.details".length())
+            ),
+            result.range()
+        );
+    }
+
+    @Test
+    void returnsNestedObjectLookupExpressionTypeWhenPositionIsInsideNestedLookupKey() {
+        String query = """
+                declare variable $a := {
+                    "name": "ada",
+                    "details": {
+                        "tlf": 1233.2
+                    }
+                };
+                ($a.details.tlf)
+                """;
+        int tlfOffset = query.indexOf("tlf)") + "t".length();
+
+        TypeAtPosition.Result result = this.typeAtPosition.findType(
+            query,
+            positionAtOffset(query, tlfOffset)
+        );
+
+        assertNotNull(result.sequenceType());
+        assertEquals("xs:decimal", result.sequenceType().toString());
+        assertEquals(
+            new Range(
+                    positionAtOffset(query, query.indexOf("$a.details.tlf")),
+                    positionAtOffset(query, query.indexOf("$a.details.tlf") + "$a.details.tlf".length())
+            ),
+            result.range()
+        );
+    }
+
+    @Test
     void returnsSmallestExpressionContainingPositionWhenNothingEndsThere() {
         String query = "1 + 20";
 

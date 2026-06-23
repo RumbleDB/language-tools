@@ -15,6 +15,7 @@ import org.rumbledb.exceptions.ExceptionMetadata;
 import org.rumbledb.expressions.Expression;
 import org.rumbledb.expressions.Node;
 import org.rumbledb.expressions.module.MainModule;
+import org.rumbledb.expressions.postfix.ObjectLookupExpression;
 
 public final class TypeAtPosition implements RequestHandler {
     public static final String REQUEST_TYPE = "type-at-position";
@@ -78,6 +79,11 @@ public final class TypeAtPosition implements RequestHandler {
     }
 
     private static Expression findExpression(Node root, Position position) {
+        Candidate objectLookupKeyCandidate = findBestObjectLookupKeyCandidate(root, position, null);
+        if (objectLookupKeyCandidate != null) {
+            return objectLookupKeyCandidate.expression();
+        }
+
         Candidate bestEnding = findBestCandidate(root, position, true, null);
         if (bestEnding != null) {
             return bestEnding.expression();
@@ -85,6 +91,30 @@ public final class TypeAtPosition implements RequestHandler {
 
         Candidate bestContaining = findBestCandidate(root, position, false, null);
         return bestContaining == null ? null : bestContaining.expression();
+    }
+
+    private static Candidate findBestObjectLookupKeyCandidate(Node node, Position position, Candidate best) {
+        if (node == null) {
+            return best;
+        }
+
+        if (node instanceof ObjectLookupExpression objectLookupExpression) {
+            Expression lookupExpression = objectLookupExpression.getLookupExpression();
+            Candidate lookupCandidate = lookupExpression == null ? null : Candidate.create(lookupExpression);
+            Candidate objectLookupCandidate = Candidate.create(objectLookupExpression);
+            boolean positionIsInsideLookupKey = lookupCandidate != null
+                    && objectLookupCandidate != null
+                    && lookupCandidate.matches(position, false);
+
+            if (positionIsInsideLookupKey) {
+                best = Candidate.prefer(best, objectLookupCandidate, false);
+            }
+        }
+
+        for (Node child : node.getChildren()) {
+            best = findBestObjectLookupKeyCandidate(child, position, best);
+        }
+        return best;
     }
 
     private static Candidate findBestCandidate(
