@@ -1,4 +1,4 @@
-import { findCompletions } from "server/completion.js";
+import { findCompletions, findCompletionsWithTypeInfo } from "server/completion.js";
 import { describe, expect, it } from "vitest";
 import { type CompletionItem, type Position } from "vscode-languageserver";
 import { type TextDocument } from "vscode-languageserver-textdocument";
@@ -278,6 +278,51 @@ describe("JSONiq completion", () => {
         expect(labelsAtCursor).toContain("declare function");
         expect(labelsAtCursor).toContain("declare variable");
     });
+
+    it("suggests object fields after the dot operator using real type inference", async () => {
+        const document = testDocument("completion-dot-object", [
+            "declare variable $a := {",
+            '  "name": "Ada",',
+            '  "age": 42',
+            "};",
+            "",
+            "$a.",
+        ]);
+
+        const items = await findCompletionsWithTypeInfo(document, { line: 5, character: 3 });
+
+        expect(labels(items)).toContain("age");
+        expect(labels(items)).toContain("name");
+        expect(items.find((item) => item.label === "name")?.textEdit).toEqual({
+            range: {
+                start: { line: 5, character: 3 },
+                end: { line: 5, character: 3 },
+            },
+            newText: "name",
+        });
+    }, 45_000);
+
+    it("filters real object field completions by the prefix typed after dot", async () => {
+        const document = testDocument("completion-dot-object-prefix", [
+            "declare variable $a := {",
+            '  "name": "Ada",',
+            '  "age": 42',
+            "};",
+            "",
+            "$a.na",
+        ]);
+
+        const items = await findCompletionsWithTypeInfo(document, { line: 5, character: 5 });
+
+        expect(labels(items)).toContain("name");
+        expect(items.find((item) => item.label === "name")?.textEdit).toEqual({
+            range: {
+                start: { line: 5, character: 3 },
+                end: { line: 5, character: 5 },
+            },
+            newText: "name",
+        });
+    }, 45_000);
 });
 
 describe("XQuery completion", () => {

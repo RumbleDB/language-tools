@@ -8,6 +8,8 @@ export interface CompletionIntent {
     allowVariableDeclarations: boolean;
     allowFunctions: boolean;
     allowTypes: boolean;
+    allowObjectLookup: boolean;
+    objectLookupDotOffset?: number;
     keywords: KeywordCompletion[];
 }
 

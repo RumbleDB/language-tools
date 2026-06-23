@@ -9,6 +9,7 @@ import {
     PREFERRED_COMPLETION_RULES,
 } from "./completion-data.js";
 import { JsoniqTokenContextAnalyzer } from "./completion-token-context.js";
+import { JsoniqLexer } from "./grammar/JsoniqLexer.js";
 import { JsoniqParser } from "./grammar/JsoniqParser.js";
 import { parseJsoniq } from "./parse.js";
 
@@ -23,6 +24,8 @@ export const jsoniqParserAdapter: ParserAdapter = {
             preferredRules: PREFERRED_COMPLETION_RULES,
             languageKeywords: KEYWORD_COMPLETIONS,
             isFunctionCallRule: (ruleIndex) => ruleIndex === JsoniqParser.RULE_functionCall,
+            isObjectLookupRule: (ruleIndex) => ruleIndex === JsoniqParser.RULE_objectLookup,
+            isObjectLookupDotToken: (tokenType) => tokenType === JsoniqLexer.DOT,
             isVariableReferenceRule: (ruleIndex) => ruleIndex === JsoniqParser.RULE_varRef,
             isTypeReferenceRule: (ruleIndex) =>
                 ruleIndex === JsoniqParser.RULE_sequenceType ||

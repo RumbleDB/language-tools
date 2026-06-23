@@ -20,6 +20,8 @@ type CompletionOptions<T extends TokenContextAnalyzer> = {
     preferredRules: Set<number>;
     languageKeywords: LanguageKeywordCompletion[];
     isFunctionCallRule(ruleIndex: number): boolean;
+    isObjectLookupRule(ruleIndex: number): boolean;
+    isObjectLookupDotToken(tokenType: number): boolean;
     isVariableReferenceRule(ruleIndex: number): boolean;
     isTypeReferenceRule(ruleIndex: number): boolean;
     tokenName(tokenType: number): string | number;
@@ -46,6 +48,15 @@ export function getCompletionIntent<T extends TokenContextAnalyzer>(
     const allowVariables =
         candidates.tokenContext.allowReferences &&
         hasCandidateRule(candidates, options.isVariableReferenceRule);
+    const objectLookupDotOffset = findObjectLookupDotOffset(
+        parsed.tokens,
+        cursorOffset,
+        options.isObjectLookupDotToken,
+    );
+    const allowObjectLookup =
+        candidates.tokenContext.allowReferences &&
+        hasCandidateRule(candidates, options.isObjectLookupRule) &&
+        objectLookupDotOffset !== undefined;
     const allowTypes =
         candidates.tokenContext.allowTypeReferences ||
         (candidates.tokenContext.allowReferences &&
@@ -58,8 +69,10 @@ export function getCompletionIntent<T extends TokenContextAnalyzer>(
     logger.debug("Completion candidates:", {
         allowFunctions,
         allowVariables,
+        allowObjectLookup,
         allowTypes,
         allowVariableDeclarations,
+        objectLookupDotOffset,
         keywords,
         expectedTokens,
         expectedRules,
@@ -70,6 +83,8 @@ export function getCompletionIntent<T extends TokenContextAnalyzer>(
         allowVariableReferences: allowVariables,
         allowVariableDeclarations,
         allowFunctions,
+        allowObjectLookup,
+        ...(objectLookupDotOffset === undefined ? {} : { objectLookupDotOffset }),
         allowTypes,
         keywords,
     };
@@ -84,6 +99,28 @@ function hasCandidateRule(
 
 function hasCandidateToken(candidates: CompletionCandidates, tokenType: number): boolean {
     return candidates.tokenTypes.has(tokenType);
+}
+
+/// This is used to strip out object lookup dot tokens that are not actually part of an object lookup expression, e.g. in the following example:
+/// ```
+/// let x = 1;
+/// x. // <- cursor here
+/// ```
+/// We send only the query text up to the dot to the server so it does not give errors
+function findObjectLookupDotOffset(
+    tokens: Token[],
+    cursorOffset: number,
+    isObjectLookupDotToken: (tokenType: number) => boolean,
+): number | undefined {
+    return tokens
+        .filter(
+            (token) =>
+                token.type !== Token.EOF &&
+                isObjectLookupDotToken(token.type) &&
+                token.start < cursorOffset &&
+                token.stop < cursorOffset,
+        )
+        .at(-1)?.start;
 }
 
 function keywordCompletions(

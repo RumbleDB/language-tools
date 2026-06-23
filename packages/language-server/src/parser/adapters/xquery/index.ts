@@ -23,6 +23,8 @@ export const xqueryParserAdapter: ParserAdapter = {
             preferredRules: PREFERRED_COMPLETION_RULES,
             languageKeywords: KEYWORD_COMPLETIONS,
             isFunctionCallRule: (ruleIndex) => ruleIndex === XQueryParser.RULE_functionCall,
+            isObjectLookupRule: () => false,
+            isObjectLookupDotToken: () => false,
             isVariableReferenceRule: (ruleIndex) => ruleIndex === XQueryParser.RULE_varRef,
             isTypeReferenceRule: (ruleIndex) =>
                 ruleIndex === XQueryParser.RULE_sequenceType ||
