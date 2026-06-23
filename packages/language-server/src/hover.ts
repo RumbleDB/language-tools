@@ -40,7 +40,7 @@ async function findExpressionHover(
     position: Position,
 ): Promise<Hover | null> {
     const result = await getTypeAtPosition(document, position);
-    if (result.sequenceType === null || result.range === null) {
+    if (!result.sequenceType || !result.range) {
         return null;
     }
 

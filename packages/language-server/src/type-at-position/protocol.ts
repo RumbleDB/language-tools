@@ -13,8 +13,8 @@ export interface TypeAtPositionRequest {
 }
 
 export interface TypeAtPositionWireResult {
-    sequenceType: SequenceType | null;
-    range: Range | null;
+    sequenceType?: SequenceType;
+    range?: Range;
 }
 
 export type TypeAtPositionRequestSpec = WrapperRequestSpec<

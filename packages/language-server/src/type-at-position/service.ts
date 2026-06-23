@@ -12,10 +12,7 @@ import {
 
 const logger = createLogger("type-at-position");
 
-const EMPTY_RESULT: TypeAtPositionWireResult = {
-    sequenceType: null,
-    range: null,
-};
+const EMPTY_RESULT: TypeAtPositionWireResult = {};
 
 export async function getTypeAtPosition(
     document: TextDocument,
@@ -33,6 +30,7 @@ export async function getTypeAtPosition(
             documentUri: document.uri,
             position,
         });
+
         return response.body;
     } catch (error) {
         logger.warn(
