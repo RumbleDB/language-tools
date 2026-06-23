@@ -112,7 +112,15 @@ public class Main {
             }
 
             return new Response(requestId, requestType,
-                    handler.handle(new Request(requestId, requestType, request.body(), request.documentUri())), null);
+                    handler.handle(
+                        new Request(
+                                requestId,
+                                requestType,
+                                request.body(),
+                                request.documentUri(),
+                                request.position()
+                        )
+                    ), null);
         } catch (Throwable throwable) {
             throwable.printStackTrace(System.err);
             System.err.flush();
