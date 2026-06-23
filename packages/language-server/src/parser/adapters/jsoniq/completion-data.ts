@@ -32,6 +32,7 @@ export const PREFERRED_COMPLETION_RULES = new Set([
     JsoniqParser.RULE_varRef,
     JsoniqParser.RULE_qname,
     JsoniqParser.RULE_functionCall,
+    JsoniqParser.RULE_objectLookup,
 ]);
 
 export const KEYWORD_COMPLETIONS: LanguageKeywordCompletion[] = [

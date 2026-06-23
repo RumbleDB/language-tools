@@ -29,10 +29,22 @@ import {
 } from "./assets/function-docs.js";
 import { collectCompletionIntent } from "./parser/index.js";
 import { getDocumentText } from "./parser/utils.js";
-import { formatSequenceType } from "./static-typecheck/types.js";
+import {
+    formatSequenceType,
+    formatTypeDefinition,
+    type ObjectTypeDefinition,
+} from "./static-typecheck/types.js";
+import { getTypeAtPositionFromSource } from "./type-at-position/service.js";
 
 const VARIABLE_PREFIX_PATTERN = /\$[A-Za-z0-9_.:-]*$/;
+const OBJECT_FIELD_PREFIX_PATTERN = /[A-Za-z_][A-Za-z0-9_:-]*$/;
 const GENERIC_BUILTIN_PARAMETER_PREFIX = "$arg";
+
+interface DotCompletionContext {
+    dotOffset: number;
+    fieldPrefix: string;
+    syntheticSource: string;
+}
 
 export function findCompletions(document: TextDocument, position: Position): CompletionItem[] {
     const source = getDocumentText(document);
@@ -101,6 +113,85 @@ export function findCompletions(document: TextDocument, position: Position): Com
         ...builtinTypeItems,
         ...keywords,
     ]);
+}
+
+export async function findCompletionsWithTypeInfo(
+    document: TextDocument,
+    position: Position,
+): Promise<CompletionItem[]> {
+    const source = getDocumentText(document);
+    const cursorOffset = document.offsetAt(position);
+    const intent = collectCompletionIntent(document, cursorOffset);
+    const dotContext = getDotCompletionContext(source, cursorOffset);
+
+    if (
+        dotContext !== null &&
+        intent?.allowObjectLookup &&
+        intent.objectLookupDotOffset === dotContext.dotOffset
+    ) {
+        /// Return only dot completions because it's more relevant
+        return findDotCompletions(document, dotContext);
+    }
+
+    return findCompletions(document, position);
+}
+
+async function findDotCompletions(
+    document: TextDocument,
+    context: DotCompletionContext,
+): Promise<CompletionItem[]> {
+    const result = await getTypeAtPositionFromSource(
+        document.uri,
+        context.syntheticSource,
+        document.positionAt(context.dotOffset),
+    );
+    const objectType = result.sequenceType?.itemType;
+
+    if (objectType?.kind !== "object") {
+        return [];
+    }
+
+    const replaceRange = {
+        start: document.positionAt(context.dotOffset + 1),
+        end: document.positionAt(context.dotOffset + 1 + context.fieldPrefix.length),
+    };
+
+    return withSortText(
+        objectFieldCompletions(objectType, context.fieldPrefix).map(([fieldName, fieldType]) => ({
+            label: fieldName,
+            kind: CompletionItemKind.Field,
+            detail: formatTypeDefinition(fieldType),
+            textEdit: TextEdit.replace(replaceRange, fieldName),
+        })),
+    );
+}
+
+function objectFieldCompletions(
+    objectType: ObjectTypeDefinition,
+    fieldPrefix: string,
+): Array<[string, ObjectTypeDefinition["fields"][string]]> {
+    return Object.entries(objectType.fields).filter(([fieldName]) =>
+        fieldName.startsWith(fieldPrefix),
+    );
+}
+
+function getDotCompletionContext(
+    source: string,
+    cursorOffset: number,
+): DotCompletionContext | null {
+    const prefix = source.slice(0, cursorOffset);
+    const fieldPrefix = prefix.match(OBJECT_FIELD_PREFIX_PATTERN)?.[0] ?? "";
+    const dotOffset = cursorOffset - fieldPrefix.length - 1;
+
+    if (dotOffset < 0 || source[dotOffset] !== ".") {
+        return null;
+    }
+
+    return {
+        dotOffset,
+        fieldPrefix,
+        syntheticSource: source.slice(0, dotOffset) + source.slice(cursorOffset),
+    };
 }
 
 function toCompletionItem(declaration: BaseDefinition): CompletionItem {

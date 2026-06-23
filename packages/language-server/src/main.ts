@@ -8,7 +8,7 @@ import {
     type InitializeResult,
 } from "vscode-languageserver/node";
 
-import { findCompletions } from "./completion.js";
+import { findCompletionsWithTypeInfo } from "./completion.js";
 import { config, InitializationOptions, mergeConfiguration } from "./config.js";
 import { findDefinitionLocation } from "./definitions.js";
 import { findHover } from "./hover.js";
@@ -98,7 +98,7 @@ connection.onInitialize((params: InitializeParams): InitializeResult => {
                 triggerCharacters: ["(", ","],
             },
             completionProvider: {
-                triggerCharacters: ["$"],
+                triggerCharacters: ["$", "."],
             },
             renameProvider: {
                 prepareProvider: true,
@@ -202,7 +202,7 @@ connection.onCompletion((params) => {
         return [];
     }
 
-    return findCompletions(document, params.position);
+    return findCompletionsWithTypeInfo(document, params.position);
 });
 
 connection.languages.semanticTokens.on((params) => {

@@ -18,6 +18,14 @@ export async function getTypeAtPosition(
     document: TextDocument,
     position: Position,
 ): Promise<TypeAtPositionWireResult> {
+    return getTypeAtPositionFromSource(document.uri, getDocumentText(document), position);
+}
+
+export async function getTypeAtPositionFromSource(
+    documentUri: string,
+    source: string,
+    position: Position,
+): Promise<TypeAtPositionWireResult> {
     const client = getWrapperClient();
     if (!client.isUsable()) {
         return EMPTY_RESULT;
@@ -26,15 +34,15 @@ export async function getTypeAtPosition(
     try {
         const response = await client.sendRequest<TypeAtPositionRequestSpec>({
             requestType: REQUEST_TYPE_TYPE_AT_POSITION,
-            body: Buffer.from(getDocumentText(document), "utf8").toString("base64"),
-            documentUri: document.uri,
+            body: Buffer.from(source, "utf8").toString("base64"),
+            documentUri,
             position,
         });
 
         return response.body;
     } catch (error) {
         logger.warn(
-            `Type-at-position unavailable for ${document.uri}: ${error instanceof Error ? error.message : String(error)}`,
+            `Type-at-position unavailable for ${documentUri}: ${error instanceof Error ? error.message : String(error)}`,
         );
         return EMPTY_RESULT;
     }
