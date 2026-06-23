@@ -2,7 +2,7 @@ package org.jsoniq.lsp.wrapper;
 
 import org.rumbledb.exceptions.SourcePosition;
 
-public record Position(int line, int character) {
+public record Position(int line, int character) implements Comparable<Position> {
 
     /**
      * Creates a Position object from the given source position.
@@ -20,5 +20,11 @@ public record Position(int line, int character) {
         int line = Math.max(0, metadata.line() - 1);
         int column = Math.max(0, metadata.column());
         return new Position(line, column);
+    }
+
+    @Override
+    public int compareTo(Position other) {
+        int lineComparison = Integer.compare(this.line, other.line);
+        return lineComparison != 0 ? lineComparison : Integer.compare(this.character, other.character);
     }
 }
