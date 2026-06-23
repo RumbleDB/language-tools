@@ -17,6 +17,7 @@ import org.jsoniq.lsp.wrapper.cli.BuiltinFunctions;
 import org.jsoniq.lsp.wrapper.handlers.Handshake;
 import org.jsoniq.lsp.wrapper.handlers.RequestHandler;
 import org.jsoniq.lsp.wrapper.handlers.StaticTypeChecker;
+import org.jsoniq.lsp.wrapper.handlers.TypeAtPosition;
 import org.jsoniq.lsp.wrapper.messages.Request;
 import org.jsoniq.lsp.wrapper.messages.Response;
 import org.jsoniq.lsp.wrapper.messages.ResponseBody;
@@ -25,6 +26,7 @@ public class Main {
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper()
             .setSerializationInclusion(JsonInclude.Include.NON_NULL);
     private static final StaticTypeChecker INFERENCER = new StaticTypeChecker();
+    private static final TypeAtPosition TYPE_AT_POSITION = new TypeAtPosition();
     private static final BuiltinFunctions BUILTIN_FUNCTIONS = new BuiltinFunctions();
     private static final BuiltInTypes BUILTIN_TYPES = new BuiltInTypes();
     private static final Handshake HANDSHAKE = new Handshake();
@@ -34,6 +36,7 @@ public class Main {
 
     private static final Map<String, RequestHandler> DAEMON_HANDLERS = Map.of(
             INFERENCER.getRequestType(), INFERENCER,
+            TYPE_AT_POSITION.getRequestType(), TYPE_AT_POSITION,
             HANDSHAKE.getRequestType(), HANDSHAKE);
 
     public static void main(String[] args) {
@@ -112,7 +115,15 @@ public class Main {
             }
 
             return new Response(requestId, requestType,
-                    handler.handle(new Request(requestId, requestType, request.body(), request.documentUri())), null);
+                    handler.handle(
+                        new Request(
+                                requestId,
+                                requestType,
+                                request.body(),
+                                request.documentUri(),
+                                request.position()
+                        )
+                    ), null);
         } catch (Throwable throwable) {
             throwable.printStackTrace(System.err);
             System.err.flush();

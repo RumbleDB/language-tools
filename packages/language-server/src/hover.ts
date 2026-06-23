@@ -12,13 +12,15 @@ import { getAnalysis } from "./analysis/service.js";
 import { formatFunctionDocEntry, getBuiltinFunctionDocumentation } from "./assets/function-docs.js";
 import { formatStaticType } from "./static-typecheck/format.js";
 import { getStaticTypeIndex, StaticTypeIndex } from "./static-typecheck/index.js";
+import { formatSequenceType } from "./static-typecheck/types.js";
+import { getTypeAtPosition } from "./type-at-position/service.js";
 
 export async function findHover(document: TextDocument, position: Position): Promise<Hover | null> {
     const analysis = getAnalysis(document);
     const occurrence = findSymbolAtPosition(analysis, position);
 
     if (occurrence === undefined || occurrence.declaration === undefined) {
-        return null;
+        return findExpressionHover(document, position);
     }
 
     const staticTypes = await getStaticTypeIndex(document);
@@ -29,6 +31,29 @@ export async function findHover(document: TextDocument, position: Position): Pro
         contents: {
             kind: MarkupKind.Markdown,
             value: createHoverContent(staticTypes, declaration),
+        },
+    };
+}
+
+async function findExpressionHover(
+    document: TextDocument,
+    position: Position,
+): Promise<Hover | null> {
+    const result = await getTypeAtPosition(document, position);
+    if (!result.sequenceType || !result.range) {
+        return null;
+    }
+
+    return {
+        range: result.range,
+        contents: {
+            kind: MarkupKind.Markdown,
+            value: [
+                "```jsoniq",
+                `${document.getText(result.range)}`,
+                "```",
+                `Inferred type: \`${formatSequenceType(result.sequenceType)}\``,
+            ].join("\n"),
         },
     };
 }
