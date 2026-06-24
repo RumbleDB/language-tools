@@ -1,7 +1,7 @@
 import type { Position } from "vscode-languageserver";
 
 import type { ArgumentNode, FunctionCallNode } from "../analysis/ast.js";
-import type { JsoniqAnalysis } from "../analysis/builder.js";
+import type { AnalysisResult } from "../analysis/builder.js";
 import {
     isSourceFunctionDefinition,
     type Definition,
@@ -48,7 +48,7 @@ export function findResolvedSourceFunction(
 }
 
 export function findCurrentArgument(
-    analysis: JsoniqAnalysis,
+    analysis: AnalysisResult,
     position: Position,
 ): { call: FunctionCallNode; argument: ArgumentNode } | undefined {
     const containingNodes = findNodesThatContainPosition(analysis, position);

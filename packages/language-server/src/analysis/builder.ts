@@ -74,7 +74,7 @@ const CATCH_VARIABLES = [
     { kind: "prefixed-qname", prefix: "err", localName: "additional" },
 ] as const;
 
-export interface JsoniqAnalysis {
+export interface AnalysisResult {
     ast: ModuleNode;
     scope: Scope;
     namespaces: Map<Prefix, SourceNamespaceDefinition>;
@@ -84,7 +84,7 @@ export interface JsoniqAnalysis {
 class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
     private static readonly NEVER_VISIBLE_OFFSET = Number.POSITIVE_INFINITY;
 
-    private readonly analysis: JsoniqAnalysis;
+    private readonly result: AnalysisResult;
 
     private currentScope: Scope;
 
@@ -111,7 +111,7 @@ class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
         );
         const moduleScope = Scope.module(document, namespaces);
 
-        this.analysis = {
+        this.result = {
             ast: {
                 kind: "module",
                 range: this.parserAst.range,
@@ -125,9 +125,9 @@ class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
         this.currentScope = moduleScope;
     }
 
-    public build(): JsoniqAnalysis {
-        this.adoptChildren(this.analysis.ast, this.visitChildrenAsNodes(this.parserAst));
-        return this.analysis;
+    public build(): AnalysisResult {
+        this.adoptChildren(this.result.ast, this.visitChildrenAsNodes(this.parserAst));
+        return this.result;
     }
 
     protected override defaultVisit(node: ParserAstNode): AstNode[] {
@@ -143,7 +143,7 @@ class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
             node.selectionRange,
         );
         this.declareDefinition(definition);
-        this.analysis.namespaces.set(definition.name.prefix, definition);
+        this.result.namespaces.set(definition.name.prefix, definition);
         return [this.createDeclarationNode(definition)];
     }
 
@@ -400,7 +400,7 @@ class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
                   } as unknown as ResolvedReference<K>);
 
         if (declaration === undefined) {
-            this.analysis.diagnostics.push({
+            this.result.diagnostics.push({
                 severity: DiagnosticSeverity.Error,
                 message: `Reference to undefined ${kind} '${lookupName}'`,
                 range,
@@ -460,11 +460,11 @@ class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
         const namespaceUri = isUriQualifiedQName(qname)
             ? qname.namespaceUri
             : isPrefixedQName(qname)
-              ? this.analysis.namespaces.get(qname.prefix)?.namespaceUri
+              ? this.result.namespaces.get(qname.prefix)?.namespaceUri
               : undefined;
 
         if (namespaceUri === undefined && isPrefixedQName(qname)) {
-            this.analysis.diagnostics.push({
+            this.result.diagnostics.push({
                 severity: DiagnosticSeverity.Warning,
                 message: `Undefined namespace prefix '${qname.prefix}'`,
                 range,
@@ -480,6 +480,6 @@ class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
     }
 }
 
-export function buildAnalysis(document: TextDocument): JsoniqAnalysis {
+export function buildAnalysis(document: TextDocument): AnalysisResult {
     return new AnalysisBuilder(document).build();
 }

@@ -6,7 +6,7 @@ import {
 } from "vscode-languageserver";
 import { TextDocument } from "vscode-languageserver-textdocument";
 
-import { JsoniqAnalysis } from "./analysis/builder.js";
+import { AnalysisResult } from "./analysis/builder.js";
 import {
     definitionNameToString,
     isSourceDefinition,
@@ -103,7 +103,7 @@ export function buildRenameWorkspaceEdit(
  * @param position The position in the document for which to find the rename target
  * @returns A RenameTarget object representing the variable declaration and range to rename for the variable at the given position, or null if no valid rename target is found
  */
-function findRenameTarget(analysis: JsoniqAnalysis, position: Position): RenameTarget | null {
+function findRenameTarget(analysis: AnalysisResult, position: Position): RenameTarget | null {
     const occurrence = findSymbolAtPosition(analysis, position);
     if (occurrence === undefined) {
         return null;

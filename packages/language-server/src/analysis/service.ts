@@ -1,16 +1,16 @@
 import { DocumentUri } from "vscode-languageserver";
 import { TextDocument } from "vscode-languageserver-textdocument";
 
-import { buildAnalysis, JsoniqAnalysis } from "./builder.js";
+import { buildAnalysis, AnalysisResult } from "./builder.js";
 
 interface CachedAnalysis {
     version: number;
-    analysis: JsoniqAnalysis;
+    analysis: AnalysisResult;
 }
 
 const analysisCache = new Map<DocumentUri, CachedAnalysis>();
 
-export function getAnalysis(document: TextDocument): JsoniqAnalysis {
+export function getAnalysis(document: TextDocument): AnalysisResult {
     return getCachedAnalysis(document).analysis;
 }
 
