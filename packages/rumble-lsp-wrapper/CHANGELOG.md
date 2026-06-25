@@ -1,5 +1,35 @@
 # rumble-lsp-wrapper
 
+## 0.5.0
+
+### Minor Changes
+
+- [`1fb72df`](https://github.com/RumbleDB/language-tools/commit/1fb72df071c6a9c2dc80e7e048398779bbf53a62) - refactor: add BuiltInTypes CLI command to export builtin types as JSON
+
+- [`4b91778`](https://github.com/RumbleDB/language-tools/commit/4b91778e830dbe14991d3e0e714ed17dfca2ad18) - fix: when the cursor is on an object lookup expression, return its type instead of the type of the key
+
+- [#36](https://github.com/RumbleDB/language-tools/pull/36) [`56dcb12`](https://github.com/RumbleDB/language-tools/commit/56dcb12569f6de10276d38abf73c7e30ce659bbb) - feat: enhance TypeDefinition structure to support object and array types
+
+- [`fbf4d50`](https://github.com/RumbleDB/language-tools/commit/fbf4d50f14678abf012eea1a046cf45ed5738516) - refactor: implement CLI command structure with BuiltinFunctions and CLICommand interface
+
+- [`96ca1d9`](https://github.com/RumbleDB/language-tools/commit/96ca1d9b4c91a890c20c9951a80ae2ddd09e889b) - Simplify the LSP wrapper code by avoiding the use of reflection to access the built-in function catalogue, now that a public API is available.
+
+- [#34](https://github.com/RumbleDB/language-tools/pull/34) [`6fd4993`](https://github.com/RumbleDB/language-tools/commit/6fd4993e0efc6aa5900e25849b2ec27bc139099c) - Add type declaration and resolution support to the language server. Types are no longer treated as strings, but rather as structured objects with a QName. The LSP wrapper has been updated to reflect this change. Undo the change to the smaller .jar build in the LSP wrapper because it was causing a `ClassNotFoundException`.
+
+- [#37](https://github.com/RumbleDB/language-tools/pull/37) [`055992e`](https://github.com/RumbleDB/language-tools/commit/055992edc63cb03caee0c7eab36f650296a25abd) - Implement `type-at-position` request in the LSP wrapper, which returns the type of the **expression** at a given position in the document. The response includes the sequence type and the range of the expression.
+
+  It has been integrated into the `hover` request, so that hovering over an expression will show its type.
+
+  This change requires this pull request of RumbleDB to be merged first: https://github.com/RumbleDB/rumble/pull/1536
+
+- [#35](https://github.com/RumbleDB/language-tools/pull/35) [`545f801`](https://github.com/RumbleDB/language-tools/commit/545f8017b87c1f53e3ebb212a5ffb2341d674885) - Add a Range record to the LSP wrapper to represent ranges in source code because more precise range information is now available in RumbleDB. Previously, we only had the start position; the end position was assumed to be the start of the next line.
+
+- [`f71f8ed`](https://github.com/RumbleDB/language-tools/commit/f71f8edebe7b9834db62c7521d713235722f0144) - Update RumbleDB version to commit https://github.com/RumbleDB/rumble/commit/dab07d28011d059c5c041eecbd118f0ccce008fe
+
+### Patch Changes
+
+- [`d5a1dc8`](https://github.com/RumbleDB/language-tools/commit/d5a1dc8545a818a84f587f7b33cb234be16bddbd) - Update RumbleDB to the latest master commit (https://github.com/RumbleDB/rumble/commit/377808de4ed53b0d0f05dca949990aaff060c41a)
+
 ## 0.4.1
 
 ### Patch Changes

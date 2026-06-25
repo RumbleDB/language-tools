@@ -1,5 +1,14 @@
 # jsoniq-vscode
 
+## 1.4.2
+
+### Patch Changes
+
+- [`4e5afe2`](https://github.com/RumbleDB/language-tools/commit/4e5afe23f776f7a4721e9ad1556bc53e8b11f3ee) - chore: update dependencies
+
+- Updated dependencies [[`ec151ab`](https://github.com/RumbleDB/language-tools/commit/ec151abab04a88a1849bf8d5d364af314e20e5b3), [`f4dc01d`](https://github.com/RumbleDB/language-tools/commit/f4dc01de2f4433c35c05c873d8afab4305063ba9), [`4e5afe2`](https://github.com/RumbleDB/language-tools/commit/4e5afe23f776f7a4721e9ad1556bc53e8b11f3ee), [`56dcb12`](https://github.com/RumbleDB/language-tools/commit/56dcb12569f6de10276d38abf73c7e30ce659bbb), [`7da6f26`](https://github.com/RumbleDB/language-tools/commit/7da6f2693811857c2db77036bbb2e946b69dcb44), [`4bd1bd5`](https://github.com/RumbleDB/language-tools/commit/4bd1bd53010d48812a901bd29bc0465df977a543), [`0920e7a`](https://github.com/RumbleDB/language-tools/commit/0920e7a02eaba2d493923980a9b77c6331528ee0), [`6fd4993`](https://github.com/RumbleDB/language-tools/commit/6fd4993e0efc6aa5900e25849b2ec27bc139099c), [`883e9ee`](https://github.com/RumbleDB/language-tools/commit/883e9ee13c4ac9dc833fe6d54a2402c6a2749497), [`7735ff6`](https://github.com/RumbleDB/language-tools/commit/7735ff6d9e9fc3d73a28927aa82b85bd59404aeb), [`055992e`](https://github.com/RumbleDB/language-tools/commit/055992edc63cb03caee0c7eab36f650296a25abd), [`545f801`](https://github.com/RumbleDB/language-tools/commit/545f8017b87c1f53e3ebb212a5ffb2341d674885)]:
+  - jsoniq-language-server@2.7.0
+
 ## 1.4.1
 
 ### Patch Changes
