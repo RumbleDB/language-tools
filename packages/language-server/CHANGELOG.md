@@ -1,5 +1,39 @@
 # jsoniq-language-server
 
+## 2.7.0
+
+### Minor Changes
+
+- [`ec151ab`](https://github.com/RumbleDB/language-tools/commit/ec151abab04a88a1849bf8d5d364af314e20e5b3) - refactor: rename `JsoniqAnalysis` type to `AnalysisResult`
+
+- [`f4dc01d`](https://github.com/RumbleDB/language-tools/commit/f4dc01de2f4433c35c05c873d8afab4305063ba9) - refactor: remove unused `parent` field from `AstNodeBase`
+
+- [#36](https://github.com/RumbleDB/language-tools/pull/36) [`56dcb12`](https://github.com/RumbleDB/language-tools/commit/56dcb12569f6de10276d38abf73c7e30ce659bbb) - feat: enhance TypeDefinition structure to support object and array types
+
+- [`7da6f26`](https://github.com/RumbleDB/language-tools/commit/7da6f2693811857c2db77036bbb2e946b69dcb44) - refactor: rename `nameRange` to `selectionRange` in function-related AST nodes
+
+- [`4bd1bd5`](https://github.com/RumbleDB/language-tools/commit/4bd1bd53010d48812a901bd29bc0465df977a543) - refactor: replace `JsoniqAst` type with `ModuleAstNode` in AST-related files
+
+- [`0920e7a`](https://github.com/RumbleDB/language-tools/commit/0920e7a02eaba2d493923980a9b77c6331528ee0) - refactor: remove `JsoniqAst` type and replace with `ModuleNode` in analysis files
+
+- [#34](https://github.com/RumbleDB/language-tools/pull/34) [`6fd4993`](https://github.com/RumbleDB/language-tools/commit/6fd4993e0efc6aa5900e25849b2ec27bc139099c) - Add type declaration and resolution support to the language server. Types are no longer treated as strings, but rather as structured objects with a QName. The LSP wrapper has been updated to reflect this change. Undo the change to the smaller .jar build in the LSP wrapper because it was causing a `ClassNotFoundException`.
+
+- [#38](https://github.com/RumbleDB/language-tools/pull/38) [`883e9ee`](https://github.com/RumbleDB/language-tools/commit/883e9ee13c4ac9dc833fe6d54a2402c6a2749497) - feat: enrich completion intent with object lookup support
+
+- [`7735ff6`](https://github.com/RumbleDB/language-tools/commit/7735ff6d9e9fc3d73a28927aa82b85bd59404aeb) - feat: add script to dump builtin types into assets folder
+
+- [#37](https://github.com/RumbleDB/language-tools/pull/37) [`055992e`](https://github.com/RumbleDB/language-tools/commit/055992edc63cb03caee0c7eab36f650296a25abd) - Implement `type-at-position` request in the LSP wrapper, which returns the type of the **expression** at a given position in the document. The response includes the sequence type and the range of the expression.
+
+  It has been integrated into the `hover` request, so that hovering over an expression will show its type.
+
+  This change requires this pull request of RumbleDB to be merged first: https://github.com/RumbleDB/rumble/pull/1536
+
+- [#35](https://github.com/RumbleDB/language-tools/pull/35) [`545f801`](https://github.com/RumbleDB/language-tools/commit/545f8017b87c1f53e3ebb212a5ffb2341d674885) - Add a Range record to the LSP wrapper to represent ranges in source code because more precise range information is now available in RumbleDB. Previously, we only had the start position; the end position was assumed to be the start of the next line.
+
+### Patch Changes
+
+- [`4e5afe2`](https://github.com/RumbleDB/language-tools/commit/4e5afe23f776f7a4721e9ad1556bc53e8b11f3ee) - chore: update dependencies
+
 ## 2.6.1
 
 ### Patch Changes
