@@ -7,8 +7,9 @@ import org.jsoniq.lsp.wrapper.messages.ResponseBody;
 import org.jsoniq.lsp.wrapper.types.FunctionDefinition;
 import org.jsoniq.lsp.wrapper.types.ResolvedQName;
 import org.jsoniq.lsp.wrapper.types.SequenceType;
+import org.rumbledb.config.RumbleConfiguration;
+import org.rumbledb.bindings.ExternalBindings;
 import org.rumbledb.compiler.VisitorHelpers;
-import org.rumbledb.config.RumbleRuntimeConfiguration;
 import org.rumbledb.context.Name;
 import org.rumbledb.context.StaticContext;
 import org.rumbledb.exceptions.ExceptionMetadata;
@@ -103,8 +104,8 @@ public final class StaticTypeChecker implements RequestHandler {
 
     public final static Result EMPTY_RESULT = new Result(List.of(), List.of());
 
-    private final RumbleRuntimeConfiguration permissiveConfiguration;
-    private final RumbleRuntimeConfiguration strictConfiguration;
+    private final RumbleConfiguration permissiveConfiguration;
+    private final RumbleConfiguration strictConfiguration;
 
     public StaticTypeChecker() {
         /**
@@ -118,10 +119,8 @@ public final class StaticTypeChecker implements RequestHandler {
          * again with a strict configuration (with static typing) to collect type
          * errors.
          */
-        this.permissiveConfiguration = new RumbleRuntimeConfiguration();
-
-        String[] withStaticTyping = { "--static-typing", "yes" };
-        this.strictConfiguration = new RumbleRuntimeConfiguration(withStaticTyping);
+        this.permissiveConfiguration = RumbleConfiguration.defaultConfiguration();
+        this.strictConfiguration = RumbleConfiguration.builder().configureAnalysis(a -> a.enableStaticTyping(true)).build();
     }
 
     public Result infer(String query) {
@@ -159,12 +158,12 @@ public final class StaticTypeChecker implements RequestHandler {
     private static MainModule parseMainModule(
             String query,
             URI documentUri,
-            RumbleRuntimeConfiguration configuration) {
+            RumbleConfiguration configuration) {
         if (documentUri == null) {
-            return VisitorHelpers.parseMainModuleFromQuery(query, configuration);
+            return VisitorHelpers.parseMainModuleFromQuery(query, configuration, ExternalBindings.empty());
         }
 
-        return VisitorHelpers.parseMainModule(query, documentUri, configuration);
+        return VisitorHelpers.parseMainModule(query, documentUri, configuration, ExternalBindings.empty());
     }
 
     private static StaticTypeError toTypeError(RumbleException exception) {

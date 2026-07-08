@@ -9,8 +9,9 @@ import org.jsoniq.lsp.wrapper.Range;
 import org.jsoniq.lsp.wrapper.messages.Request;
 import org.jsoniq.lsp.wrapper.messages.ResponseBody;
 import org.jsoniq.lsp.wrapper.types.SequenceType;
+import org.rumbledb.bindings.ExternalBindings;
 import org.rumbledb.compiler.VisitorHelpers;
-import org.rumbledb.config.RumbleRuntimeConfiguration;
+import org.rumbledb.config.RumbleConfiguration;
 import org.rumbledb.exceptions.ExceptionMetadata;
 import org.rumbledb.expressions.Expression;
 import org.rumbledb.expressions.Node;
@@ -26,10 +27,10 @@ public final class TypeAtPosition implements RequestHandler {
             Range range) implements ResponseBody {
     }
 
-    private final RumbleRuntimeConfiguration configuration;
+    private final RumbleConfiguration configuration;
 
     public TypeAtPosition() {
-        this.configuration = new RumbleRuntimeConfiguration();
+        this.configuration = RumbleConfiguration.defaultConfiguration();
     }
 
     @Override
@@ -64,8 +65,8 @@ public final class TypeAtPosition implements RequestHandler {
 
         try {
             MainModule module = documentUri == null
-                    ? VisitorHelpers.parseMainModuleFromQuery(query, this.configuration)
-                    : VisitorHelpers.parseMainModule(query, documentUri, this.configuration);
+                    ? VisitorHelpers.parseMainModuleFromQuery(query, this.configuration, ExternalBindings.empty())
+                    : VisitorHelpers.parseMainModule(query, documentUri, this.configuration, ExternalBindings.empty());
             Expression expression = findExpression(module, position);
             if (expression == null || expression.getStaticSequenceType() == null) {
                 return EMPTY_RESULT;
