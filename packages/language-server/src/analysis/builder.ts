@@ -8,13 +8,9 @@ import type {
     CatchClauseAstNode,
     ContextItemDeclarationAstNode,
     ContextItemExpressionAstNode,
-    CountClauseAstNode,
     FlowrExpressionAstNode,
-    ForBindingAstNode,
     FunctionCallAstNode,
     FunctionDeclarationAstNode,
-    GroupByBindingAstNode,
-    LetBindingAstNode,
     NamespaceDeclarationAstNode,
     NamedFunctionReferenceAstNode,
     TypeDeclarationAstNode,
@@ -188,47 +184,16 @@ class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
     }
 
     protected override visitVariableDeclaration(node: VariableDeclarationAstNode): AstNode[] {
-        const definition = createVariableDefinition(
-            this.document,
-            "declare-variable",
-            this.resolveQName(node.binding.name, node.binding.selectionRange),
-            node.binding.range,
-            node.binding.selectionRange,
-            node.completed
-                ? this.document.offsetAt(node.range.end)
-                : AnalysisBuilder.NEVER_VISIBLE_OFFSET,
+        const definition = this.variableDefinition(
+            node.bindingKind,
+            node.binding,
+            node.bindingKind === "declare-variable" && node.completed === false
+                ? AnalysisBuilder.NEVER_VISIBLE_OFFSET
+                : undefined,
         );
         const children = this.visitChildrenAsNodes(node);
         this.declareDefinition(definition);
         return [this.createDeclarationNode(definition, children)];
-    }
-
-    protected override visitLetBinding(node: LetBindingAstNode): AstNode[] {
-        return this.visitBindingDeclaration("let", node.binding, () =>
-            this.visitChildrenAsNodes(node),
-        );
-    }
-
-    protected override visitGroupByBinding(node: GroupByBindingAstNode): AstNode[] {
-        return this.visitBindingDeclaration("group-by", node.binding, () =>
-            this.visitChildrenAsNodes(node),
-        );
-    }
-
-    protected override visitCountClause(node: CountClauseAstNode): AstNode[] {
-        return this.visitBindingDeclaration("count", node.binding, () =>
-            this.visitChildrenAsNodes(node),
-        );
-    }
-
-    protected override visitForBinding(node: ForBindingAstNode): AstNode[] {
-        const children = this.visitChildrenAsNodes(node);
-        const declarations = node.bindings.map((binding) => {
-            const definition = this.variableDefinition(binding.bindingKind, binding);
-            this.declareDefinition(definition);
-            return this.createDeclarationNode(definition);
-        });
-        return [...children, ...declarations];
     }
 
     protected override visitFlowrExpression(node: FlowrExpressionAstNode): AstNode[] {
@@ -293,17 +258,6 @@ class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
 
     private visitChildrenAsNodes(node: ParserAstNode): AstNode[] {
         return this.visitChildren(node).flat();
-    }
-
-    private visitBindingDeclaration(
-        kind: VariableKind,
-        binding: AstBinding,
-        visitValue: () => AstNode[],
-    ): AstNode[] {
-        const definition = this.variableDefinition(kind, binding);
-        const children = visitValue();
-        this.declareDefinition(definition);
-        return [this.createDeclarationNode(definition, children)];
     }
 
     private createFunctionCallNode(
@@ -438,14 +392,18 @@ class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
         });
     }
 
-    private variableDefinition(kind: VariableKind, binding: AstBinding): SourceDefinition {
+    private variableDefinition(
+        kind: VariableKind,
+        binding: AstBinding,
+        visibleFrom?: number,
+    ): SourceDefinition {
         return createVariableDefinition(
             this.document,
             kind,
             this.resolveQName(binding.name, binding.selectionRange),
             binding.range,
             binding.selectionRange,
-            this.document.offsetAt(binding.range.end),
+            visibleFrom ?? this.document.offsetAt(binding.range.end),
         );
     }
 

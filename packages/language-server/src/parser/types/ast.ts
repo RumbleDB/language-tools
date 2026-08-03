@@ -14,10 +14,6 @@ export type AstNodeKind =
     | "type-declaration"
     | "function-declaration"
     | "variable-declaration"
-    | "for-binding"
-    | "let-binding"
-    | "group-by-binding"
-    | "count-clause"
     | "flowr-expression"
     | "catch-clause"
     | "declaration"
@@ -66,9 +62,13 @@ export interface AstBinding {
     readonly selectionRange: Range;
 }
 
-export interface ForBindingVariable extends AstBinding {
-    readonly bindingKind: "for" | "for-position";
-}
+export type VariableBindingKind =
+    | "declare-variable"
+    | "for"
+    | "for-position"
+    | "let"
+    | "group-by"
+    | "count";
 
 export interface FunctionDeclarationAstNode extends AstNodeBase<"function-declaration"> {
     readonly name: LexicalFunctionName;
@@ -78,23 +78,8 @@ export interface FunctionDeclarationAstNode extends AstNodeBase<"function-declar
 
 export interface VariableDeclarationAstNode extends AstNodeBase<"variable-declaration"> {
     readonly binding: AstBinding;
-    readonly completed: boolean;
-}
-
-export interface ForBindingAstNode extends AstNodeBase<"for-binding"> {
-    readonly bindings: ForBindingVariable[];
-}
-
-export interface LetBindingAstNode extends AstNodeBase<"let-binding"> {
-    readonly binding: AstBinding;
-}
-
-export interface GroupByBindingAstNode extends AstNodeBase<"group-by-binding"> {
-    readonly binding: AstBinding;
-}
-
-export interface CountClauseAstNode extends AstNodeBase<"count-clause"> {
-    readonly binding: AstBinding;
+    readonly bindingKind: VariableBindingKind;
+    readonly completed?: boolean;
 }
 
 export interface FlowrExpressionAstNode extends AstNodeBase<"flowr-expression"> {}
@@ -134,10 +119,6 @@ export type AstNode =
     | TypeDeclarationAstNode
     | FunctionDeclarationAstNode
     | VariableDeclarationAstNode
-    | ForBindingAstNode
-    | LetBindingAstNode
-    | GroupByBindingAstNode
-    | CountClauseAstNode
     | FlowrExpressionAstNode
     | CatchClauseAstNode
     | FunctionCallAstNode
