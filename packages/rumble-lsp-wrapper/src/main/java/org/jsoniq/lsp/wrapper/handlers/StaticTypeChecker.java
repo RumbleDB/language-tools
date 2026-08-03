@@ -370,7 +370,7 @@ public final class StaticTypeChecker implements RequestHandler {
 
         try {
             SequenceType variableType = SequenceType.fromSequenceType(context.getVariableSequenceType(variableName));
-            ExceptionMetadata metadata = context.getVariableMetadata(variableName);
+            ExceptionMetadata metadata = context.getInScopeVariables().get(variableName).getMetadata();
             Position position = Position.fromSourcePosition(metadata.getStart());
             types.add(new VariableType(
                     kind,
