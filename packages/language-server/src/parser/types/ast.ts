@@ -1,4 +1,4 @@
-import type { Range } from "vscode-languageserver";
+import type { Position, Range } from "vscode-languageserver";
 
 import type {
     LexicalFunctionName,
@@ -66,6 +66,7 @@ export interface VariableDeclarationAstNode extends AstNodeBase<"variable-declar
     readonly name: LexicalQName;
     readonly range: Range;
     readonly selectionRange: Range;
+    readonly visibleFrom: Position;
 }
 
 export interface FlowrExpressionAstNode extends AstNodeBase<"flowr-expression"> {}

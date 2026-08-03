@@ -184,6 +184,7 @@ class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
             this.resolveQName(node.name, node.selectionRange),
             node.range,
             node.selectionRange,
+            this.document.offsetAt(node.visibleFrom),
         );
 
         const children = this.visitChildrenAsNodes(node);
