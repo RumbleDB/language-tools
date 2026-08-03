@@ -66,7 +66,7 @@ libraryModule
    // MODULE PROLOG ///////////////////////////////////////////////////////////////
    
 prolog
-   : ((defaultNamespaceDecl | setter | namespaceDecl | schemaImport | moduleImport) SEMICOLON)* (annotatedDecl SEMICOLON)*
+   : (defaultNamespaceDecl | setter | namespaceDecl | schemaImport | moduleImport)* (annotatedDecl)*
    ;
    // added to match the JSONiq grammar
    
@@ -78,7 +78,7 @@ annotatedDecl
    ;
 
 defaultNamespaceDecl
-   : KW_DECLARE KW_DEFAULT type = (KW_ELEMENT | KW_FUNCTION) KW_NAMESPACE uri = stringLiteral
+   : KW_DECLARE KW_DEFAULT type = (KW_ELEMENT | KW_FUNCTION) KW_NAMESPACE uri = stringLiteral SEMICOLON
    ;
 
 setter
@@ -93,31 +93,31 @@ setter
    ;
 
 boundarySpaceDecl
-   : KW_DECLARE KW_BOUNDARY_SPACE type = (KW_PRESERVE | KW_STRIP)
+   : KW_DECLARE KW_BOUNDARY_SPACE type = (KW_PRESERVE | KW_STRIP) SEMICOLON
    ;
 
 defaultCollationDecl
-   : KW_DECLARE KW_DEFAULT KW_COLLATION uriLiteral
+   : KW_DECLARE KW_DEFAULT KW_COLLATION uriLiteral SEMICOLON
    ;
 
 baseURIDecl
-   : KW_DECLARE KW_BASE_URI uriLiteral
+   : KW_DECLARE KW_BASE_URI uriLiteral SEMICOLON
    ;
 
 constructionDecl
-   : KW_DECLARE KW_CONSTRUCTION type = (KW_STRIP | KW_PRESERVE)
+   : KW_DECLARE KW_CONSTRUCTION type = (KW_STRIP | KW_PRESERVE) SEMICOLON
    ;
 
 orderingModeDecl
-   : KW_DECLARE KW_ORDERING type = (KW_ORDERED | KW_UNORDERED)
+   : KW_DECLARE KW_ORDERING type = (KW_ORDERED | KW_UNORDERED) SEMICOLON
    ;
 
 emptyOrderDecl
-   : KW_DECLARE KW_DEFAULT KW_ORDER KW_EMPTY emptySequenceOrder = (KW_GREATEST | KW_LEAST)
+   : KW_DECLARE KW_DEFAULT KW_ORDER KW_EMPTY emptySequenceOrder = (KW_GREATEST | KW_LEAST) SEMICOLON
    ;
 
 copyNamespacesDecl
-   : KW_DECLARE KW_COPY_NS preserveMode COMMA inheritMode
+   : KW_DECLARE KW_COPY_NS preserveMode COMMA inheritMode SEMICOLON
    ;
 
 preserveMode
@@ -131,11 +131,11 @@ inheritMode
    ;
 
 decimalFormatDecl
-   : KW_DECLARE ((KW_DECIMAL_FORMAT eqName) | (KW_DEFAULT KW_DECIMAL_FORMAT)) (DFPropertyName EQUAL stringLiteral)*
+   : KW_DECLARE ((KW_DECIMAL_FORMAT eqName) | (KW_DEFAULT KW_DECIMAL_FORMAT)) (DFPropertyName EQUAL stringLiteral)* SEMICOLON
    ;
 
 schemaImport
-   : KW_IMPORT KW_SCHEMA schemaPrefix? nsURI = uriLiteral (KW_AT locations += uriLiteral (COMMA locations += uriLiteral)*)?
+   : KW_IMPORT KW_SCHEMA schemaPrefix? nsURI = uriLiteral (KW_AT locations += uriLiteral (COMMA locations += uriLiteral)*)? SEMICOLON
    ;
 
 schemaPrefix
@@ -143,11 +143,11 @@ schemaPrefix
    ;
 
 moduleImport
-   : KW_IMPORT KW_MODULE (KW_NAMESPACE prefix = ncName EQUAL)? targetNamespace = uriLiteral (KW_AT locations += uriLiteral (COMMA locations += uriLiteral)*)?
+   : KW_IMPORT KW_MODULE (KW_NAMESPACE prefix = ncName EQUAL)? targetNamespace = uriLiteral (KW_AT locations += uriLiteral (COMMA locations += uriLiteral)*)? SEMICOLON
    ;
 
 namespaceDecl
-   : KW_DECLARE KW_NAMESPACE ncName EQUAL uriLiteral
+   : KW_DECLARE KW_NAMESPACE ncName EQUAL uriLiteral SEMICOLON
    ;
 
 varDecl
@@ -157,7 +157,7 @@ varDecl
    // replaced with the varValue production to match the JSONiq grammar
    (COLON_EQ exprSingle)
    // replaced with the varDefaultValue production to match the JSONiq grammar
-   | (external = KW_EXTERNAL (COLON_EQ exprSingle)?))
+   | (external = KW_EXTERNAL (COLON_EQ exprSingle)?)) SEMICOLON
    ;
 
 contextItemDecl
@@ -168,7 +168,7 @@ contextItemDecl
  */
    
    (KW_AS sequenceType)? // TODO: change to itemType, update expressions to use itemType, update back JSONiq grammar
-   ((COLON_EQ value = exprSingle) | (external = KW_EXTERNAL (COLON_EQ defaultValue = exprSingle)?))
+   ((COLON_EQ value = exprSingle) | (external = KW_EXTERNAL (COLON_EQ defaultValue = exprSingle)?)) SEMICOLON
    ;
 /*
  * constrains to valid function names only
@@ -181,7 +181,7 @@ functionDecl
    // replaced with the functionReturn production to match the JSONiq grammar
    (KW_AS return_type = sequenceType)?
    // replaced functionBody to match the JSONiq grammar and the XQuery Scripting Extension spec
-   (LBRACE (fn_body = statementsAndOptionalExpr) RBRACE | is_external = KW_EXTERNAL)
+   (LBRACE (fn_body = statementsAndOptionalExpr) RBRACE | is_external = KW_EXTERNAL) SEMICOLON
    ;
    // renamed from functionParams to paramList to match the JSONiq grammar
    
@@ -209,7 +209,7 @@ annotation
    ;
 
 optionDecl
-   : KW_DECLARE KW_OPTION name = eqName value = stringLiteral
+   : KW_DECLARE KW_OPTION name = eqName value = stringLiteral SEMICOLON
    ;
    // EXPRESSIONS /////////////////////////////////////////////////////////////////
    
