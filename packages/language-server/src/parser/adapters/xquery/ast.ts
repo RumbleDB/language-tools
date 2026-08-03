@@ -199,15 +199,31 @@ class XQueryAstBuilder extends XQueryParserVisitor<AstVisitResult> {
         ];
     }
 
+    private declarationWithChildren(
+        node: ParseTree,
+        declaration: VariableDeclarationAstNode | null,
+    ): AstVisitResult {
+        return declaration === null
+            ? this.visitChildrenAsNodes(node)
+            : [
+                  {
+                      ...declaration,
+                      range: rangeFromNode(node, this.document),
+                      children: this.visitChildrenAsNodes(node),
+                  },
+              ];
+    }
+
     public override visitVarDecl = (node: VarDeclContext): AstVisitResult => {
         const terminator = node.SEMICOLON();
         const visibleFrom =
             terminator === null || terminator.symbol.tokenIndex < 0
                 ? null
                 : rangeFromNode(terminator, this.document).end;
-        return this.declarationsBeforeChildren(node, [
+        return this.declarationWithChildren(
+            node,
             this.variableDeclaration(node.varBinding(), visibleFrom),
-        ]);
+        );
     };
 
     public override visitForVar = (node: ForVarContext): AstVisitResult => {
@@ -238,9 +254,10 @@ class XQueryAstBuilder extends XQueryParserVisitor<AstVisitResult> {
         const expression = node._ex;
         const visibleFrom =
             expression === undefined ? null : rangeFromNode(expression, this.document).end;
-        return this.declarationsBeforeChildren(node, [
+        return this.declarationWithChildren(
+            node,
             this.variableDeclaration(node._var_ref, visibleFrom),
-        ]);
+        );
     };
 
     public override visitTumblingWindowClause = (

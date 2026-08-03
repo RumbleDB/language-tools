@@ -186,9 +186,8 @@ class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
             node.selectionRange,
             this.document.offsetAt(node.visibleFrom),
         );
-
-        const children = this.visitChildrenAsNodes(node);
         this.declareDefinition(definition);
+        const children = this.visitChildrenAsNodes(node);
         return [this.createDeclarationNode(definition, children)];
     }
 
