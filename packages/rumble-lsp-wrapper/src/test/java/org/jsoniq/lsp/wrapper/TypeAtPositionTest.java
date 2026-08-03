@@ -27,6 +27,56 @@ class TypeAtPositionTest {
     }
 
     @Test
+    void returnsTypeAtVariableDeclarationName() {
+        String query = """
+                declare variable $a := 1;
+
+                $a
+                """;
+        int declarationOffset = query.indexOf("$a") + 1;
+
+        TypeAtPosition.Result result = this.typeAtPosition.findType(
+            query,
+            positionAtOffset(query, declarationOffset)
+        );
+
+        assertNotNull(result.sequenceType());
+        assertEquals("xs:integer", result.sequenceType().toString());
+        assertEquals(
+            new Range(
+                    positionAtOffset(query, query.indexOf("$a")),
+                    positionAtOffset(query, query.indexOf("$a") + "$a".length())
+            ),
+            result.range()
+        );
+    }
+
+    @Test
+    void returnsReturnTypeAtFunctionDeclarationName() {
+        String query = """
+                declare function local:f() {
+                    1
+                };
+                """;
+        int declarationOffset = query.indexOf("local:f") + 1;
+
+        TypeAtPosition.Result result = this.typeAtPosition.findType(
+            query,
+            positionAtOffset(query, declarationOffset)
+        );
+
+        assertNotNull(result.sequenceType());
+        assertEquals("item*", result.sequenceType().toString());
+        assertEquals(
+            new Range(
+                    positionAtOffset(query, query.indexOf("local:f")),
+                    positionAtOffset(query, query.indexOf("local:f") + "local:f".length())
+            ),
+            result.range()
+        );
+    }
+
+    @Test
     void returnsNestedObjectLookupType() {
         String query = """
                 declare variable $a := {
