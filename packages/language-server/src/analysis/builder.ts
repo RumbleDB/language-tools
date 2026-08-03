@@ -2,7 +2,6 @@ import { builtinFunctions } from "server/assets/builtin-functions.js";
 import { parseDocument } from "server/parser/index.js";
 import type {
     ArgumentAstNode,
-    AstBinding,
     AstNode as ParserAstNode,
     AstParameter,
     CatchClauseAstNode,
@@ -180,7 +179,13 @@ class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
     }
 
     protected override visitVariableDeclaration(node: VariableDeclarationAstNode): AstNode[] {
-        const definition = this.variableDefinition(node.binding, node.range.end);
+        const definition = createVariableDefinition(
+            this.document,
+            this.resolveQName(node.name, node.selectionRange),
+            node.range,
+            node.selectionRange,
+        );
+
         const children = this.visitChildrenAsNodes(node);
         this.declareDefinition(definition);
         return [this.createDeclarationNode(definition, children)];
@@ -379,16 +384,6 @@ class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
             definition.parameters.push(parameterDefinition);
             return this.createDeclarationNode(parameterDefinition);
         });
-    }
-
-    private variableDefinition(binding: AstBinding, visibleFrom?: Position): SourceDefinition {
-        return createVariableDefinition(
-            this.document,
-            this.resolveQName(binding.name, binding.selectionRange),
-            binding.range,
-            binding.selectionRange,
-            this.document.offsetAt(visibleFrom ?? binding.range.end),
-        );
     }
 
     private resolveFunctionName(name: LexicalFunctionName, range: Range): FunctionName {

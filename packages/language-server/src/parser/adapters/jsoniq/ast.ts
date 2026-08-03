@@ -1,10 +1,5 @@
 import { type ParseTree } from "antlr4ng";
-import {
-    type AstNode,
-    type AstParameter,
-    type AstBinding,
-    type ModuleAstNode,
-} from "server/parser/types/ast.js";
+import { type AstNode, type AstParameter, type ModuleAstNode } from "server/parser/types/ast.js";
 import { rangeFromNode } from "server/utils/range.js";
 import { TextDocument } from "vscode-languageserver-textdocument";
 
@@ -13,18 +8,13 @@ import {
     CatchClauseContext,
     ContextItemDeclContext,
     ContextItemExprContext,
-    CountClauseContext,
     FlworExprContext,
     FlworStatementContext,
-    ForVarContext,
     FunctionCallContext,
     FunctionDeclContext,
-    GroupByVarContext,
-    LetVarContext,
     NamedFunctionRefContext,
     NamespaceDeclContext,
     TypeDeclContext,
-    VarDeclContext,
     VarBindingContext,
     VarRefContext,
     ArgumentContext,
@@ -150,80 +140,17 @@ class JsoniqAstBuilder extends JsoniqParserVisitor<AstVisitResult> {
         },
     ];
 
-    public override visitVarDecl = (node: VarDeclContext): AstVisitResult => {
-        const binding = this.binding(node, node.varBinding());
-        const terminator = node.SEMICOLON();
+    public override visitVarBinding = (node: VarBindingContext): AstVisitResult => {
+        const name = parseVarName(node);
 
-        return binding === null || terminator === null || terminator.symbol.tokenIndex < 0
+        return name === null
             ? []
             : [
                   {
                       kind: "variable-declaration",
-                      binding,
+                      name,
                       range: rangeFromNode(node, this.document),
-                      children: this.visitChildrenAsNodes(node),
-                  },
-              ];
-    };
-
-    public override visitForVar = (node: ForVarContext): AstVisitResult => {
-        const declarations: AstNode[] = [];
-        for (const varRef of [node._var_ref, node._at]) {
-            if (varRef === undefined) {
-                continue;
-            }
-
-            const binding = this.binding(node, varRef);
-            if (binding !== null) {
-                declarations.push({
-                    kind: "variable-declaration",
-                    binding,
-                    range: rangeFromNode(node, this.document),
-                    children: [],
-                });
-            }
-        }
-
-        return [...this.visitChildrenAsNodes(node), ...declarations];
-    };
-
-    public override visitLetVar = (node: LetVarContext): AstVisitResult => {
-        const binding = this.binding(node, node._var_ref);
-        return binding === null
-            ? []
-            : [
-                  {
-                      kind: "variable-declaration",
-                      binding,
-                      range: rangeFromNode(node, this.document),
-                      children: this.visitChildrenAsNodes(node),
-                  },
-              ];
-    };
-
-    public override visitGroupByVar = (node: GroupByVarContext): AstVisitResult => {
-        const binding = this.binding(node, node._var_ref);
-        return binding === null
-            ? []
-            : [
-                  {
-                      kind: "variable-declaration",
-                      binding,
-                      range: rangeFromNode(node, this.document),
-                      children: this.visitChildrenAsNodes(node),
-                  },
-              ];
-    };
-
-    public override visitCountClause = (node: CountClauseContext): AstVisitResult => {
-        const binding = this.binding(node, node.varBinding());
-        return binding === null
-            ? []
-            : [
-                  {
-                      kind: "variable-declaration",
-                      binding,
-                      range: rangeFromNode(node, this.document),
+                      selectionRange: rangeFromNode(node, this.document),
                       children: this.visitChildrenAsNodes(node),
                   },
               ];
@@ -303,24 +230,6 @@ class JsoniqAstBuilder extends JsoniqParserVisitor<AstVisitResult> {
 
     private visitChildrenAsNodes(node: ParseTree): AstNode[] {
         return this.visitChildren(node) ?? [];
-    }
-
-    private binding(
-        declarationNode: ParseTree,
-        varRef: VarRefContext | VarBindingContext | null | undefined,
-    ): AstBinding | null {
-        if (varRef === undefined || varRef === null) {
-            return null;
-        }
-
-        const name = parseVarName(varRef);
-        return name === null
-            ? null
-            : {
-                  name,
-                  range: rangeFromNode(declarationNode, this.document),
-                  selectionRange: rangeFromNode(varRef, this.document),
-              };
     }
 
     private parameters(node: FunctionDeclContext): AstParameter[] {

@@ -56,12 +56,6 @@ export interface AstParameter {
     readonly index: number;
 }
 
-export interface AstBinding {
-    readonly name: LexicalQName;
-    readonly range: Range;
-    readonly selectionRange: Range;
-}
-
 export interface FunctionDeclarationAstNode extends AstNodeBase<"function-declaration"> {
     readonly name: LexicalFunctionName;
     readonly selectionRange: Range;
@@ -69,7 +63,9 @@ export interface FunctionDeclarationAstNode extends AstNodeBase<"function-declar
 }
 
 export interface VariableDeclarationAstNode extends AstNodeBase<"variable-declaration"> {
-    readonly binding: AstBinding;
+    readonly name: LexicalQName;
+    readonly range: Range;
+    readonly selectionRange: Range;
 }
 
 export interface FlowrExpressionAstNode extends AstNodeBase<"flowr-expression"> {}
