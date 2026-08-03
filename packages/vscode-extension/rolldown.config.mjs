@@ -4,7 +4,7 @@ export default defineConfig({
     input: "./src/extension.ts",
     output: {
         file: "./dist/extension.js",
-        format: "cjs",
+        format: "esm",
         sourcemap: process.env.BUILD !== "production",
         minify: process.env.BUILD === "production",
     },
