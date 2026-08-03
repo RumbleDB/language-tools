@@ -4,13 +4,9 @@ import type {
     CatchClauseAstNode,
     ContextItemDeclarationAstNode,
     ContextItemExpressionAstNode,
-    CountClauseAstNode,
     FlowrExpressionAstNode,
-    ForBindingAstNode,
     FunctionCallAstNode,
     FunctionDeclarationAstNode,
-    GroupByBindingAstNode,
-    LetBindingAstNode,
     ModuleAstNode,
     NamedFunctionReferenceAstNode,
     NamespaceDeclarationAstNode,
@@ -35,14 +31,6 @@ export abstract class ParserAstVisitor<R = void> {
                 return this.visitFunctionDeclaration(node);
             case "variable-declaration":
                 return this.visitVariableDeclaration(node);
-            case "for-binding":
-                return this.visitForBinding(node);
-            case "let-binding":
-                return this.visitLetBinding(node);
-            case "group-by-binding":
-                return this.visitGroupByBinding(node);
-            case "count-clause":
-                return this.visitCountClause(node);
             case "flowr-expression":
                 return this.visitFlowrExpression(node);
             case "catch-clause":
@@ -94,22 +82,6 @@ export abstract class ParserAstVisitor<R = void> {
     }
 
     protected visitVariableDeclaration(node: VariableDeclarationAstNode): R {
-        return this.defaultVisit(node);
-    }
-
-    protected visitForBinding(node: ForBindingAstNode): R {
-        return this.defaultVisit(node);
-    }
-
-    protected visitLetBinding(node: LetBindingAstNode): R {
-        return this.defaultVisit(node);
-    }
-
-    protected visitGroupByBinding(node: GroupByBindingAstNode): R {
-        return this.defaultVisit(node);
-    }
-
-    protected visitCountClause(node: CountClauseAstNode): R {
         return this.defaultVisit(node);
     }
 

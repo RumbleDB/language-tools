@@ -1,7 +1,7 @@
 import { CharStream, CommonTokenStream } from "antlr4ng";
 import { ErrorListener } from "server/parser/error-listener.js";
 import type { ParseResult } from "server/parser/types/result.js";
-import { getDocumentText, nextDefaultToken } from "server/parser/utils.js";
+import { getDocumentText } from "server/parser/utils.js";
 import { TextDocument } from "vscode-languageserver-textdocument";
 
 import { buildXQueryAst } from "./ast.js";
@@ -20,7 +20,7 @@ export function parseXQuery(document: TextDocument): ParseResult {
     const tree = parser.moduleAndThisIsIt();
     tokenStream.fill();
     const tokens = tokenStream.getTokens();
-    const ast = buildXQueryAst(tree, document, nextDefaultToken(tokenStream));
+    const ast = buildXQueryAst(tree, document);
 
     return {
         parser,

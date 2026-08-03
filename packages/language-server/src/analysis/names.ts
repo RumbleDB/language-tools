@@ -15,13 +15,7 @@ export type DeclarationNameByKind = {
     namespace: { prefix: Prefix };
     function: FunctionName;
     parameter: QName;
-    "declare-variable": QName;
-    let: QName;
-    for: QName;
-    "for-position": QName;
-    "group-by": QName;
-    count: QName;
-    "catch-variable": QName;
+    variable: QName;
     type: QName;
 };
 

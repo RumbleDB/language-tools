@@ -1,10 +1,9 @@
-import { Token, type ParseTree } from "antlr4ng";
+import { type ParseTree } from "antlr4ng";
 import {
     type AstNode,
     type AstParameter,
-    type AstBinding,
-    type ForBindingAstNode,
     type ModuleAstNode,
+    type VariableDeclarationAstNode,
 } from "server/parser/types/ast.js";
 import { rangeFromNode } from "server/utils/range.js";
 import { TextDocument } from "vscode-languageserver-textdocument";
@@ -14,40 +13,43 @@ import {
     CatchClauseContext,
     CaseClauseContext,
     CaseStatementContext,
+    CopyDeclContext,
+    CountClauseContext,
     ContextItemDeclContext,
     ContextItemExprContext,
-    CountClauseContext,
-    CopyDeclContext,
     FlworExprContext,
     FlworStatementContext,
     ForVarContext,
     FunctionCallContext,
     FunctionDeclContext,
     GroupByVarContext,
+    InlineFunctionExprContext,
     LetVarContext,
     NamedFunctionRefContext,
     NamespaceDeclContext,
-    ParamContext,
     PositionalVarContext,
     QuantifiedExprVarContext,
     SlidingWindowClauseContext,
+    TransformExprContext,
     TumblingWindowClauseContext,
     TypeSwitchStatementContext,
     TypeswitchExprContext,
     VarDeclContext,
     VarDeclForStatementContext,
+    VarDeclStatementContext,
+    VarBindingContext,
     VarRefContext,
+    WindowEndConditionContext,
+    WindowStartConditionContext,
     WindowVarsContext,
     ArgumentContext,
     type ModuleAndThisIsItContext,
     ArgumentListContext,
-    XQueryParser,
 } from "./grammar/XQueryParser.js";
 import { XQueryParserVisitor } from "./grammar/XQueryParserVisitor.js";
-import { parseFunctionName, parseQname, parseVarName } from "./name.js";
+import { parseFunctionName, parseVarName } from "./name.js";
 
 type AstVisitResult = AstNode[];
-type NextDefaultToken = (token: Token | null | undefined) => Token | null;
 
 function unquoteStringLiteral(text: string): string {
     return text.length >= 2 &&
@@ -58,10 +60,7 @@ function unquoteStringLiteral(text: string): string {
 }
 
 class XQueryAstBuilder extends XQueryParserVisitor<AstVisitResult> {
-    public constructor(
-        private readonly document: TextDocument,
-        private readonly nextDefaultToken: NextDefaultToken,
-    ) {
+    public constructor(private readonly document: TextDocument) {
         super();
     }
 
@@ -166,90 +165,220 @@ class XQueryAstBuilder extends XQueryParserVisitor<AstVisitResult> {
         },
     ];
 
-    public override visitVarDecl = (node: VarDeclContext): AstVisitResult => {
-        const binding = this.binding(node, node.varRef());
+    private variableDeclaration(
+        node: VarBindingContext | null | undefined,
+        visibleFrom: VariableDeclarationAstNode["visibleFrom"] | null,
+    ): VariableDeclarationAstNode | null {
+        if (node === null || node === undefined || visibleFrom === null) {
+            return null;
+        }
 
-        return binding === null
-            ? []
+        const name = parseVarName(node);
+
+        return name === null
+            ? null
+            : {
+                  kind: "variable-declaration",
+                  name,
+                  range: rangeFromNode(node, this.document),
+                  selectionRange: rangeFromNode(node, this.document),
+                  visibleFrom,
+                  children: [],
+              };
+    }
+
+    private declarationsBeforeChildren(
+        node: ParseTree,
+        declarations: Array<VariableDeclarationAstNode | null>,
+    ): AstVisitResult {
+        return [
+            ...declarations.filter(
+                (declaration): declaration is VariableDeclarationAstNode => declaration !== null,
+            ),
+            ...this.visitChildrenAsNodes(node),
+        ];
+    }
+
+    private declarationWithChildren(
+        node: ParseTree,
+        declaration: VariableDeclarationAstNode | null,
+    ): AstVisitResult {
+        return declaration === null
+            ? this.visitChildrenAsNodes(node)
             : [
                   {
-                      kind: "variable-declaration",
-                      binding,
-                      completed: this.nextDefaultToken(node.stop)?.type === XQueryParser.SEMICOLON,
+                      ...declaration,
                       range: rangeFromNode(node, this.document),
                       children: this.visitChildrenAsNodes(node),
                   },
               ];
+    }
+
+    public override visitVarDecl = (node: VarDeclContext): AstVisitResult => {
+        const terminator = node.SEMICOLON();
+        const visibleFrom =
+            terminator === null || terminator.symbol.tokenIndex < 0
+                ? null
+                : rangeFromNode(terminator, this.document).end;
+        return this.declarationWithChildren(
+            node,
+            this.variableDeclaration(node.varBinding(), visibleFrom),
+        );
     };
 
     public override visitForVar = (node: ForVarContext): AstVisitResult => {
-        const bindings: ForBindingAstNode["bindings"] = [];
-        for (const [index, varRef] of [node._var_ref, node._at].entries()) {
-            if (varRef === undefined) {
-                continue;
-            }
+        const expression = node._ex;
+        const visibleFrom =
+            expression === undefined ? null : rangeFromNode(expression, this.document).end;
+        return this.declarationsBeforeChildren(node, [
+            this.variableDeclaration(node._var_ref, visibleFrom),
+            this.variableDeclaration(node._at, visibleFrom),
+        ]);
+    };
 
-            const binding = this.binding(node, varRef);
-            if (binding !== null) {
-                bindings.push({
-                    ...binding,
-                    bindingKind: index === 0 ? "for" : "for-position",
-                });
-            }
-        }
-
-        return bindings.length === 0
-            ? []
-            : [
-                  {
-                      kind: "for-binding",
-                      bindings,
-                      range: rangeFromNode(node, this.document),
-                      children: this.visitChildrenAsNodes(node),
-                  },
-              ];
+    public override visitPositionalVar = (node: PositionalVarContext): AstVisitResult => {
+        const condition = node.parent?.parent;
+        const expression =
+            condition instanceof WindowStartConditionContext ||
+            condition instanceof WindowEndConditionContext
+                ? condition.exprSingle()
+                : null;
+        const visibleFrom =
+            expression === null ? null : rangeFromNode(expression, this.document).start;
+        return this.declarationsBeforeChildren(node, [
+            this.variableDeclaration(node._pvar, visibleFrom),
+        ]);
     };
 
     public override visitLetVar = (node: LetVarContext): AstVisitResult => {
-        const binding = this.binding(node, node._var_ref);
-        return binding === null
-            ? []
-            : [
-                  {
-                      kind: "let-binding",
-                      binding,
-                      range: rangeFromNode(node, this.document),
-                      children: this.visitChildrenAsNodes(node),
-                  },
-              ];
+        const expression = node._ex;
+        const visibleFrom =
+            expression === undefined ? null : rangeFromNode(expression, this.document).end;
+        return this.declarationWithChildren(
+            node,
+            this.variableDeclaration(node._var_ref, visibleFrom),
+        );
     };
+
+    public override visitTumblingWindowClause = (
+        node: TumblingWindowClauseContext,
+    ): AstVisitResult =>
+        this.declarationsBeforeChildren(node, [
+            this.variableDeclaration(node._name, rangeFromNode(node, this.document).end),
+        ]);
+
+    public override visitSlidingWindowClause = (node: SlidingWindowClauseContext): AstVisitResult =>
+        this.declarationsBeforeChildren(node, [
+            this.variableDeclaration(node._name, rangeFromNode(node, this.document).end),
+        ]);
+
+    public override visitWindowVars = (node: WindowVarsContext): AstVisitResult => {
+        const condition = node.parent;
+        const expression =
+            condition instanceof WindowStartConditionContext ||
+            condition instanceof WindowEndConditionContext
+                ? condition.exprSingle()
+                : null;
+        const visibleFrom =
+            expression === null ? null : rangeFromNode(expression, this.document).start;
+        return this.declarationsBeforeChildren(node, [
+            this.variableDeclaration(node._currentItem, visibleFrom),
+            this.variableDeclaration(node._previousItem, visibleFrom),
+            this.variableDeclaration(node._nextItem, visibleFrom),
+        ]);
+    };
+
+    public override visitCountClause = (node: CountClauseContext): AstVisitResult =>
+        this.declarationsBeforeChildren(node, [
+            this.variableDeclaration(node.varBinding(), rangeFromNode(node, this.document).end),
+        ]);
 
     public override visitGroupByVar = (node: GroupByVarContext): AstVisitResult => {
-        const binding = this.binding(node, node._var_ref);
-        return binding === null
-            ? []
-            : [
-                  {
-                      kind: "group-by-binding",
-                      binding,
-                      range: rangeFromNode(node, this.document),
-                      children: this.visitChildrenAsNodes(node),
-                  },
-              ];
+        const clause = node.parent;
+        const visibleFrom = clause === null ? null : rangeFromNode(clause, this.document).end;
+        return this.declarationsBeforeChildren(node, [
+            this.variableDeclaration(node._var_ref, visibleFrom),
+        ]);
     };
 
-    public override visitCountClause = (node: CountClauseContext): AstVisitResult => {
-        const binding = this.binding(node, node.varRef());
-        return binding === null
-            ? []
-            : [
-                  {
-                      kind: "count-clause",
-                      binding,
-                      range: rangeFromNode(node, this.document),
-                      children: this.visitChildrenAsNodes(node),
-                  },
-              ];
+    public override visitQuantifiedExprVar = (node: QuantifiedExprVarContext): AstVisitResult => {
+        const expression = node.exprSingle();
+        return this.declarationsBeforeChildren(node, [
+            this.variableDeclaration(node._var_ref, rangeFromNode(expression, this.document).end),
+        ]);
+    };
+
+    public override visitTypeswitchExpr = (node: TypeswitchExprContext): AstVisitResult =>
+        this.declarationsBeforeChildren(node, [
+            this.variableDeclaration(
+                node._var_ref,
+                node._def === undefined ? null : rangeFromNode(node._def, this.document).start,
+            ),
+        ]);
+
+    public override visitCaseClause = (node: CaseClauseContext): AstVisitResult =>
+        this.declarationsBeforeChildren(node, [
+            this.variableDeclaration(
+                node._var_ref,
+                node._ret === undefined ? null : rangeFromNode(node._ret, this.document).start,
+            ),
+        ]);
+
+    public override visitInlineFunctionExpr = (node: InlineFunctionExprContext): AstVisitResult => {
+        const bodyStart = node.LBRACE();
+        const visibleFrom = bodyStart === null ? null : rangeFromNode(bodyStart, this.document).end;
+        const declarations =
+            node
+                .paramList()
+                ?.param()
+                .map((param) => this.variableDeclaration(param._name, visibleFrom)) ?? [];
+
+        return this.declarationsBeforeChildren(node, declarations);
+    };
+
+    public override visitTypeSwitchStatement = (node: TypeSwitchStatementContext): AstVisitResult =>
+        this.declarationsBeforeChildren(node, [
+            this.variableDeclaration(
+                node._var_ref,
+                node._def === undefined ? null : rangeFromNode(node._def, this.document).start,
+            ),
+        ]);
+
+    public override visitCaseStatement = (node: CaseStatementContext): AstVisitResult =>
+        this.declarationsBeforeChildren(node, [
+            this.variableDeclaration(
+                node._var_ref,
+                node._ret === undefined ? null : rangeFromNode(node._ret, this.document).start,
+            ),
+        ]);
+
+    public override visitVarDeclForStatement = (
+        node: VarDeclForStatementContext,
+    ): AstVisitResult => {
+        const statement = node.parent;
+        const terminator =
+            statement instanceof VarDeclStatementContext ? statement.SEMICOLON() : null;
+        const visibleFrom =
+            terminator === null || terminator.symbol.tokenIndex < 0
+                ? null
+                : rangeFromNode(terminator, this.document).end;
+        return this.declarationsBeforeChildren(node, [
+            this.variableDeclaration(node._var_ref, visibleFrom),
+        ]);
+    };
+
+    public override visitCopyDecl = (node: CopyDeclContext): AstVisitResult => {
+        const transform = node.parent;
+        const modifyExpression =
+            transform instanceof TransformExprContext ? transform._mod_expr : undefined;
+        return this.declarationsBeforeChildren(node, [
+            this.variableDeclaration(
+                node._var_ref,
+                modifyExpression === undefined
+                    ? null
+                    : rangeFromNode(modifyExpression, this.document).start,
+            ),
+        ]);
     };
 
     public override visitFlworExpr = (node: FlworExprContext): AstVisitResult => [
@@ -269,10 +398,6 @@ class XQueryAstBuilder extends XQueryParserVisitor<AstVisitResult> {
     ];
 
     public override visitVarRef = (node: VarRefContext): AstVisitResult => {
-        if (this.isVariableDeclarationReference(node)) {
-            return [];
-        }
-
         const name = parseVarName(node);
         return name === null
             ? []
@@ -314,24 +439,6 @@ class XQueryAstBuilder extends XQueryParserVisitor<AstVisitResult> {
         return this.visitChildren(node) ?? [];
     }
 
-    private binding(
-        declarationNode: ParseTree,
-        varRef: VarRefContext | null | undefined,
-    ): AstBinding | null {
-        if (varRef === undefined || varRef === null) {
-            return null;
-        }
-
-        const name = parseVarName(varRef);
-        return name === null
-            ? null
-            : {
-                  name,
-                  range: rangeFromNode(declarationNode, this.document),
-                  selectionRange: rangeFromNode(varRef, this.document),
-              };
-    }
-
     private parameters(node: FunctionDeclContext): AstParameter[] {
         const parameters: AstParameter[] = [];
 
@@ -341,47 +448,21 @@ class XQueryAstBuilder extends XQueryParserVisitor<AstVisitResult> {
                 continue;
             }
 
-            const paramName = parseQname(nameNode);
+            const paramName = parseVarName(nameNode);
             if (paramName === null) {
                 continue;
             }
 
-            const dollarRange = rangeFromNode(param.DOLLAR(), this.document);
             const selectionRange = rangeFromNode(nameNode, this.document);
             parameters.push({
                 name: paramName,
                 range: rangeFromNode(param, this.document),
-                selectionRange: {
-                    start: dollarRange.start,
-                    end: selectionRange.end,
-                },
+                selectionRange,
                 index,
             });
         }
 
         return parameters;
-    }
-
-    private isVariableDeclarationReference(node: VarRefContext): boolean {
-        return (
-            node.parent instanceof ParamContext ||
-            node.parent instanceof VarDeclContext ||
-            node.parent instanceof ForVarContext ||
-            node.parent instanceof PositionalVarContext ||
-            node.parent instanceof LetVarContext ||
-            node.parent instanceof GroupByVarContext ||
-            node.parent instanceof CountClauseContext ||
-            node.parent instanceof QuantifiedExprVarContext ||
-            node.parent instanceof TypeswitchExprContext ||
-            node.parent instanceof CaseClauseContext ||
-            node.parent instanceof TumblingWindowClauseContext ||
-            node.parent instanceof SlidingWindowClauseContext ||
-            node.parent instanceof WindowVarsContext ||
-            node.parent instanceof TypeSwitchStatementContext ||
-            node.parent instanceof CaseStatementContext ||
-            node.parent instanceof VarDeclForStatementContext ||
-            node.parent instanceof CopyDeclContext
-        );
     }
 
     private functionCall(node: FunctionCallContext): AstVisitResult {
@@ -421,11 +502,21 @@ class XQueryAstBuilder extends XQueryParserVisitor<AstVisitResult> {
     }
 
     private catchClause(node: CatchCaseStatementContext | CatchClauseContext): AstVisitResult {
+        const explicitDeclaration =
+            node instanceof CatchClauseContext
+                ? this.variableDeclaration(
+                      node._catch_var,
+                      rangeFromNode(node.LBRACE(), this.document).end,
+                  )
+                : null;
         return [
             {
                 kind: "catch-clause",
                 range: rangeFromNode(node, this.document),
-                children: this.visitChildrenAsNodes(node),
+                children: [
+                    ...(explicitDeclaration === null ? [] : [explicitDeclaration]),
+                    ...this.visitChildrenAsNodes(node),
+                ],
             },
         ];
     }
@@ -434,9 +525,8 @@ class XQueryAstBuilder extends XQueryParserVisitor<AstVisitResult> {
 export function buildXQueryAst(
     tree: ModuleAndThisIsItContext,
     document: TextDocument,
-    nextDefaultToken: NextDefaultToken,
 ): ModuleAstNode {
-    const ast = new XQueryAstBuilder(document, nextDefaultToken).visitModuleAndThisIsIt(tree)[0];
+    const ast = new XQueryAstBuilder(document).visitModuleAndThisIsIt(tree)[0];
     if (ast === undefined || ast.kind !== "module") {
         throw new Error("Expected module AST root.");
     }

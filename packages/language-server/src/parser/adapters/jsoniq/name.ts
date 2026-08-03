@@ -5,6 +5,7 @@ import {
     FunctionDeclContext,
     NamedFunctionRefContext,
     QnameContext,
+    VarBindingContext,
     VarRefContext,
 } from "./grammar/JsoniqParser.js";
 
@@ -38,7 +39,7 @@ export function parseFunctionName(
     };
 }
 
-export function parseVarName(node: VarRefContext): LexicalQName | null {
+export function parseVarName(node: VarRefContext | VarBindingContext): LexicalQName | null {
     const text = node._var_name?.getText() ?? "";
     return text === "" ? null : parseQNameText(text);
 }

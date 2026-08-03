@@ -92,7 +92,7 @@ describe("JSONiq variable scope analysis", () => {
                 name: { localName: "y" },
                 line: 3,
                 resolvedTo: { localName: "y" },
-                resolvedKind: "let",
+                resolvedKind: "variable",
             },
             {
                 name: { localName: "x" },
@@ -110,7 +110,7 @@ describe("JSONiq variable scope analysis", () => {
                 resolvedTo: {
                     localName: "x",
                 },
-                resolvedKind: "declare-variable",
+                resolvedKind: "variable",
             },
         ]);
     });
@@ -334,7 +334,7 @@ describe("JSONiq variable scope analysis", () => {
                     localName: "value",
                     namespaceUri: "http://example.com/other",
                 },
-                resolvedKind: "declare-variable",
+                resolvedKind: "variable",
             },
             {
                 name: {
@@ -347,7 +347,7 @@ describe("JSONiq variable scope analysis", () => {
                     localName: "value",
                     namespaceUri: "http://example.com/local",
                 },
-                resolvedKind: "declare-variable",
+                resolvedKind: "variable",
             },
         ]);
     });
@@ -382,7 +382,7 @@ describe("JSONiq variable scope analysis", () => {
                     localName: "value",
                     namespaceUri: "http://example.com/shared",
                 },
-                resolvedKind: "declare-variable",
+                resolvedKind: "variable",
             },
         ]);
     });
@@ -397,7 +397,7 @@ describe("JSONiq variable scope analysis", () => {
 
         expect(
             collectDefinitions(analysis)
-                .filter((definition) => definition.kind === "catch-variable")
+                .filter((definition) => definition.kind === "variable")
                 .map((definition) => definition.name),
         ).toMatchObject([
             { prefix: "err", localName: "code" },
@@ -421,12 +421,12 @@ describe("JSONiq variable scope analysis", () => {
             {
                 name: { prefix: "err", localName: "code" },
                 resolvedTo: { prefix: "err", localName: "code" },
-                resolvedKind: "catch-variable",
+                resolvedKind: "variable",
             },
             {
                 name: { prefix: "err", localName: "description" },
                 resolvedTo: { prefix: "err", localName: "description" },
-                resolvedKind: "catch-variable",
+                resolvedKind: "variable",
             },
         ]);
     });
@@ -445,10 +445,10 @@ describe("JSONiq variable scope analysis", () => {
                 kind: declaration.kind,
             })),
         ).toEqual([
-            { name: { localName: "x" }, kind: "for" },
-            { name: { localName: "ix" }, kind: "for-position" },
-            { name: { localName: "y" }, kind: "for" },
-            { name: { localName: "iy" }, kind: "for-position" },
+            { name: { localName: "x" }, kind: "variable" },
+            { name: { localName: "ix" }, kind: "variable" },
+            { name: { localName: "y" }, kind: "variable" },
+            { name: { localName: "iy" }, kind: "variable" },
         ]);
 
         expect(
@@ -463,31 +463,31 @@ describe("JSONiq variable scope analysis", () => {
                 name: { localName: "x" },
                 line: 0,
                 resolvedTo: { localName: "x" },
-                resolvedKind: "for",
+                resolvedKind: "variable",
             },
             {
                 name: { localName: "x" },
                 line: 1,
                 resolvedTo: { localName: "x" },
-                resolvedKind: "for",
+                resolvedKind: "variable",
             },
             {
                 name: { localName: "ix" },
                 line: 1,
                 resolvedTo: { localName: "ix" },
-                resolvedKind: "for-position",
+                resolvedKind: "variable",
             },
             {
                 name: { localName: "y" },
                 line: 1,
                 resolvedTo: { localName: "y" },
-                resolvedKind: "for",
+                resolvedKind: "variable",
             },
             {
                 name: { localName: "iy" },
                 line: 1,
                 resolvedTo: { localName: "iy" },
-                resolvedKind: "for-position",
+                resolvedKind: "variable",
             },
         ]);
     });
@@ -604,7 +604,7 @@ describe("JSONiq variable scope analysis", () => {
 
         const analysis = await buildAnalysis(document);
         const xDeclarations = collectDefinitions(analysis).filter(
-            (declaration) => declaration.kind === "let" && declaration.name.localName === "x",
+            (declaration) => declaration.kind === "variable" && declaration.name.localName === "x",
         );
 
         expect(xDeclarations).toHaveLength(2);
@@ -639,7 +639,7 @@ describe("JSONiq variable scope analysis", () => {
 
         expect(
             visibleDeclarations
-                .filter((d) => d.kind === "declare-variable")
+                .filter((d) => d.kind === "variable")
                 .map((declaration) => declaration.name.localName),
         ).not.toContain("a");
     });

@@ -2,19 +2,14 @@ import { builtinFunctions } from "server/assets/builtin-functions.js";
 import { parseDocument } from "server/parser/index.js";
 import type {
     ArgumentAstNode,
-    AstBinding,
     AstNode as ParserAstNode,
     AstParameter,
     CatchClauseAstNode,
     ContextItemDeclarationAstNode,
     ContextItemExpressionAstNode,
-    CountClauseAstNode,
     FlowrExpressionAstNode,
-    ForBindingAstNode,
     FunctionCallAstNode,
     FunctionDeclarationAstNode,
-    GroupByBindingAstNode,
-    LetBindingAstNode,
     NamespaceDeclarationAstNode,
     NamedFunctionReferenceAstNode,
     TypeDeclarationAstNode,
@@ -53,7 +48,6 @@ import {
     SourceDefinition,
     SourceFunctionDefinition,
     SourceNamespaceDefinition,
-    VariableKind,
 } from "./definitions.js";
 import {
     referenceNameToString,
@@ -82,8 +76,6 @@ export interface AnalysisResult {
 }
 
 class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
-    private static readonly NEVER_VISIBLE_OFFSET = Number.POSITIVE_INFINITY;
-
     private readonly result: AnalysisResult;
 
     private currentScope: Scope;
@@ -150,7 +142,6 @@ class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
     protected override visitContextItemDeclaration(node: ContextItemDeclarationAstNode): AstNode[] {
         const definition = createVariableDefinition(
             this.document,
-            "declare-variable",
             this.resolveQName(node.name, node.selectionRange),
             node.range,
             node.selectionRange,
@@ -190,45 +181,14 @@ class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
     protected override visitVariableDeclaration(node: VariableDeclarationAstNode): AstNode[] {
         const definition = createVariableDefinition(
             this.document,
-            "declare-variable",
-            this.resolveQName(node.binding.name, node.binding.selectionRange),
-            node.binding.range,
-            node.binding.selectionRange,
-            node.completed
-                ? this.document.offsetAt(node.range.end)
-                : AnalysisBuilder.NEVER_VISIBLE_OFFSET,
+            this.resolveQName(node.name, node.selectionRange),
+            node.range,
+            node.selectionRange,
+            this.document.offsetAt(node.visibleFrom),
         );
-        const children = this.visitChildrenAsNodes(node);
         this.declareDefinition(definition);
-        return [this.createDeclarationNode(definition, children)];
-    }
-
-    protected override visitLetBinding(node: LetBindingAstNode): AstNode[] {
-        return this.visitBindingDeclaration("let", node.binding, () =>
-            this.visitChildrenAsNodes(node),
-        );
-    }
-
-    protected override visitGroupByBinding(node: GroupByBindingAstNode): AstNode[] {
-        return this.visitBindingDeclaration("group-by", node.binding, () =>
-            this.visitChildrenAsNodes(node),
-        );
-    }
-
-    protected override visitCountClause(node: CountClauseAstNode): AstNode[] {
-        return this.visitBindingDeclaration("count", node.binding, () =>
-            this.visitChildrenAsNodes(node),
-        );
-    }
-
-    protected override visitForBinding(node: ForBindingAstNode): AstNode[] {
         const children = this.visitChildrenAsNodes(node);
-        const declarations = node.bindings.map((binding) => {
-            const definition = this.variableDefinition(binding.bindingKind, binding);
-            this.declareDefinition(definition);
-            return this.createDeclarationNode(definition);
-        });
-        return [...children, ...declarations];
+        return [this.createDeclarationNode(definition, children)];
     }
 
     protected override visitFlowrExpression(node: FlowrExpressionAstNode): AstNode[] {
@@ -240,7 +200,6 @@ class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
             const declarations = CATCH_VARIABLES.map((name) => {
                 const definition = createVariableDefinition(
                     this.document,
-                    "catch-variable",
                     this.resolveQName(name, node.range),
                     node.range,
                     node.range,
@@ -293,17 +252,6 @@ class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
 
     private visitChildrenAsNodes(node: ParserAstNode): AstNode[] {
         return this.visitChildren(node).flat();
-    }
-
-    private visitBindingDeclaration(
-        kind: VariableKind,
-        binding: AstBinding,
-        visitValue: () => AstNode[],
-    ): AstNode[] {
-        const definition = this.variableDefinition(kind, binding);
-        const children = visitValue();
-        this.declareDefinition(definition);
-        return [this.createDeclarationNode(definition, children)];
     }
 
     private createFunctionCallNode(
@@ -371,6 +319,7 @@ class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
     private resolve<K extends keyof ReferenceNameByKind>(
         kind: K,
         name: ReferenceNameByKind[K],
+        offset: number,
     ): Definition | undefined {
         if (kind === "function") {
             const builtinDefinition = builtinFunctions.find(name as FunctionName);
@@ -379,7 +328,7 @@ class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
             }
         }
 
-        return this.currentScope.resolve(kind, name);
+        return this.currentScope.resolve(kind, name, offset);
     }
 
     private createReference<K extends keyof ReferenceNameByKind>(
@@ -388,7 +337,7 @@ class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
         range: Range,
     ): ReferenceNode<K> {
         const lookupName = referenceNameToString(name, kind, true);
-        const declaration = this.resolve(kind, name);
+        const declaration = this.resolve(kind, name, this.document.offsetAt(range.start));
         const resolvedReference =
             declaration === undefined
                 ? undefined
@@ -436,17 +385,6 @@ class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
             definition.parameters.push(parameterDefinition);
             return this.createDeclarationNode(parameterDefinition);
         });
-    }
-
-    private variableDefinition(kind: VariableKind, binding: AstBinding): SourceDefinition {
-        return createVariableDefinition(
-            this.document,
-            kind,
-            this.resolveQName(binding.name, binding.selectionRange),
-            binding.range,
-            binding.selectionRange,
-            this.document.offsetAt(binding.range.end),
-        );
     }
 
     private resolveFunctionName(name: LexicalFunctionName, range: Range): FunctionName {

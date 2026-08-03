@@ -34,11 +34,10 @@ export function buildStaticTypeKeyForParameter(
 }
 
 export function buildStaticTypeKeyForVariable(
-    kind: string,
     position: { line: number; character: number },
     name: QName,
 ): StaticTypeKey {
-    return buildStaticTypeKey(kind, position, QNameToString(name, true));
+    return buildStaticTypeKey("variable", position, QNameToString(name, true));
 }
 
 export function buildStaticTypeKeyForDefinition(definition: SourceDefinition): StaticTypeKey {
@@ -51,18 +50,8 @@ export function buildStaticTypeKeyForDefinition(definition: SourceDefinition): S
                 definition.function.name,
                 definition.name,
             );
-        case "declare-variable":
-        case "let":
-        case "for":
-        case "for-position":
-        case "group-by":
-        case "count":
-        case "catch-variable":
-            return buildStaticTypeKeyForVariable(
-                definition.kind,
-                definition.range.start,
-                definition.name,
-            );
+        case "variable":
+            return buildStaticTypeKeyForVariable(definition.range.start, definition.name);
         case "namespace":
         case "type":
             return buildStaticTypeKey(definition.kind, definition.range.start);

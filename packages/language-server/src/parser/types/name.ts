@@ -33,13 +33,7 @@ export type LexicalDeclarationNameByKind = {
     namespace: NamespaceName;
     function: LexicalFunctionName;
     parameter: LexicalQName;
-    "declare-variable": LexicalQName;
-    let: LexicalQName;
-    for: LexicalQName;
-    "for-position": LexicalQName;
-    "group-by": LexicalQName;
-    count: LexicalQName;
-    "catch-variable": LexicalQName;
+    variable: LexicalQName;
     type: LexicalQName;
 };
 

@@ -53,9 +53,6 @@ export function collectSemanticTokens(document: TextDocument): SemanticTokens {
     const builder = new SemanticTokensBuilder();
 
     for (const definition of collectDefinitions(analysis)) {
-        if (definition.kind === "catch-variable") {
-            continue;
-        }
         const tokenType = getTokenTypeForDefinition(definition.kind);
         const tokenModifiers = getTokenModifierForDefinition(definition.kind);
         addSemanticToken(builder, definition.selectionRange, tokenType, tokenModifiers);
@@ -82,13 +79,7 @@ function getTokenTypeForDefinition(kind: DefinitionKind): SemanticTokenTypes {
             return SemanticTokenTypes.namespace;
         case "type":
             return SemanticTokenTypes.type;
-        case "declare-variable":
-        case "let":
-        case "for":
-        case "for-position":
-        case "group-by":
-        case "count":
-        case "catch-variable":
+        case "variable":
             return SemanticTokenTypes.variable;
     }
 }

@@ -42,14 +42,15 @@ export class Scope {
     public resolve<K extends keyof ReferenceNameByKind>(
         kind: K,
         name: ReferenceNameByKind[K],
+        offset: number,
     ): SourceDefinition | undefined {
         const declarations = this.definitionByName.get(this.referenceLookupKey(name, kind));
-        const declaration = declarations?.at(-1);
+        const declaration = declarations?.findLast((candidate) => candidate.visibleFrom <= offset);
         if (declaration !== undefined) {
             return declaration;
         }
 
-        return this.parent?.resolve(kind, name);
+        return this.parent?.resolve(kind, name, offset);
     }
 
     /**
@@ -122,13 +123,7 @@ export class Scope {
             case "type":
                 return QNameToString(definition.name, true);
             case "parameter":
-            case "declare-variable":
-            case "let":
-            case "for":
-            case "for-position":
-            case "group-by":
-            case "count":
-            case "catch-variable":
+            case "variable":
                 return QNameToString(definition.name, true);
             default:
                 throw definition satisfies never;
