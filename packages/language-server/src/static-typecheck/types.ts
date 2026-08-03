@@ -40,14 +40,6 @@ export interface StaticFunctionDefinition {
     signature: StaticFunctionSignature;
 }
 
-export type StaticVariableKind =
-    | "declare-variable"
-    | "let"
-    | "for"
-    | "for-position"
-    | "group-by"
-    | "count";
-
 export interface StaticSequenceType {
     sequenceType: SequenceType;
 }
@@ -67,7 +59,6 @@ export interface StaticTypecheckError {
 
 export interface StaticVariableTypeEntry {
     kind: "variable";
-    variableKind: StaticVariableKind;
     position: Position;
     qname: QName;
     sequenceType: SequenceType;

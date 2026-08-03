@@ -49,7 +49,6 @@ import {
     SourceDefinition,
     SourceFunctionDefinition,
     SourceNamespaceDefinition,
-    VariableKind,
 } from "./definitions.js";
 import {
     referenceNameToString,
@@ -78,8 +77,6 @@ export interface AnalysisResult {
 }
 
 class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
-    private static readonly NEVER_VISIBLE_OFFSET = Number.POSITIVE_INFINITY;
-
     private readonly result: AnalysisResult;
 
     private currentScope: Scope;
@@ -146,7 +143,6 @@ class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
     protected override visitContextItemDeclaration(node: ContextItemDeclarationAstNode): AstNode[] {
         const definition = createVariableDefinition(
             this.document,
-            "declare-variable",
             this.resolveQName(node.name, node.selectionRange),
             node.range,
             node.selectionRange,
@@ -184,13 +180,7 @@ class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
     }
 
     protected override visitVariableDeclaration(node: VariableDeclarationAstNode): AstNode[] {
-        const definition = this.variableDefinition(
-            node.bindingKind,
-            node.binding,
-            node.bindingKind === "declare-variable" && node.completed === false
-                ? AnalysisBuilder.NEVER_VISIBLE_OFFSET
-                : undefined,
-        );
+        const definition = this.variableDefinition(node.binding, node.range.end);
         const children = this.visitChildrenAsNodes(node);
         this.declareDefinition(definition);
         return [this.createDeclarationNode(definition, children)];
@@ -205,7 +195,6 @@ class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
             const declarations = CATCH_VARIABLES.map((name) => {
                 const definition = createVariableDefinition(
                     this.document,
-                    "catch-variable",
                     this.resolveQName(name, node.range),
                     node.range,
                     node.range,
@@ -392,18 +381,13 @@ class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
         });
     }
 
-    private variableDefinition(
-        kind: VariableKind,
-        binding: AstBinding,
-        visibleFrom?: number,
-    ): SourceDefinition {
+    private variableDefinition(binding: AstBinding, visibleFrom?: Position): SourceDefinition {
         return createVariableDefinition(
             this.document,
-            kind,
             this.resolveQName(binding.name, binding.selectionRange),
             binding.range,
             binding.selectionRange,
-            visibleFrom ?? this.document.offsetAt(binding.range.end),
+            this.document.offsetAt(visibleFrom ?? binding.range.end),
         );
     }
 

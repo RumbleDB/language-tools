@@ -1,4 +1,4 @@
-import { Token, type ParseTree } from "antlr4ng";
+import { type ParseTree } from "antlr4ng";
 import {
     type AstNode,
     type AstParameter,
@@ -30,14 +30,12 @@ import {
     ArgumentContext,
     type ModuleAndThisIsItContext,
     ArgumentListContext,
-    JsoniqParser,
     SequenceTypeContext,
 } from "./grammar/JsoniqParser.js";
 import { JsoniqParserVisitor } from "./grammar/JsoniqParserVisitor.js";
 import { parseFunctionName, parseQname, parseVarName } from "./name.js";
 
 type AstVisitResult = AstNode[];
-type NextDefaultToken = (token: Token | null | undefined) => Token | null;
 
 function unquoteStringLiteral(text: string): string {
     return text.length >= 2 &&
@@ -48,10 +46,7 @@ function unquoteStringLiteral(text: string): string {
 }
 
 class JsoniqAstBuilder extends JsoniqParserVisitor<AstVisitResult> {
-    public constructor(
-        private readonly document: TextDocument,
-        private readonly nextDefaultToken: NextDefaultToken,
-    ) {
+    public constructor(private readonly document: TextDocument) {
         super();
     }
 
@@ -157,15 +152,14 @@ class JsoniqAstBuilder extends JsoniqParserVisitor<AstVisitResult> {
 
     public override visitVarDecl = (node: VarDeclContext): AstVisitResult => {
         const binding = this.binding(node, node.varBinding());
+        const terminator = node.SEMICOLON();
 
-        return binding === null
+        return binding === null || terminator === null || terminator.symbol.tokenIndex < 0
             ? []
             : [
                   {
                       kind: "variable-declaration",
                       binding,
-                      bindingKind: "declare-variable",
-                      completed: this.nextDefaultToken(node.stop)?.type === JsoniqParser.SEMICOLON,
                       range: rangeFromNode(node, this.document),
                       children: this.visitChildrenAsNodes(node),
                   },
@@ -174,7 +168,7 @@ class JsoniqAstBuilder extends JsoniqParserVisitor<AstVisitResult> {
 
     public override visitForVar = (node: ForVarContext): AstVisitResult => {
         const declarations: AstNode[] = [];
-        for (const [index, varRef] of [node._var_ref, node._at].entries()) {
+        for (const varRef of [node._var_ref, node._at]) {
             if (varRef === undefined) {
                 continue;
             }
@@ -184,7 +178,6 @@ class JsoniqAstBuilder extends JsoniqParserVisitor<AstVisitResult> {
                 declarations.push({
                     kind: "variable-declaration",
                     binding,
-                    bindingKind: index === 0 ? "for" : "for-position",
                     range: rangeFromNode(node, this.document),
                     children: [],
                 });
@@ -202,7 +195,6 @@ class JsoniqAstBuilder extends JsoniqParserVisitor<AstVisitResult> {
                   {
                       kind: "variable-declaration",
                       binding,
-                      bindingKind: "let",
                       range: rangeFromNode(node, this.document),
                       children: this.visitChildrenAsNodes(node),
                   },
@@ -217,7 +209,6 @@ class JsoniqAstBuilder extends JsoniqParserVisitor<AstVisitResult> {
                   {
                       kind: "variable-declaration",
                       binding,
-                      bindingKind: "group-by",
                       range: rangeFromNode(node, this.document),
                       children: this.visitChildrenAsNodes(node),
                   },
@@ -232,7 +223,6 @@ class JsoniqAstBuilder extends JsoniqParserVisitor<AstVisitResult> {
                   {
                       kind: "variable-declaration",
                       binding,
-                      bindingKind: "count",
                       range: rangeFromNode(node, this.document),
                       children: this.visitChildrenAsNodes(node),
                   },
@@ -409,9 +399,8 @@ class JsoniqAstBuilder extends JsoniqParserVisitor<AstVisitResult> {
 export function buildJsoniqAst(
     tree: ModuleAndThisIsItContext,
     document: TextDocument,
-    nextDefaultToken: NextDefaultToken,
 ): ModuleAstNode {
-    const ast = new JsoniqAstBuilder(document, nextDefaultToken).visitModuleAndThisIsIt(tree)[0];
+    const ast = new JsoniqAstBuilder(document).visitModuleAndThisIsIt(tree)[0];
     if (ast === undefined || ast.kind !== "module") {
         throw new Error("Expected module AST root.");
     }

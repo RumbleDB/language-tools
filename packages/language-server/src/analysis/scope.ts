@@ -122,13 +122,7 @@ export class Scope {
             case "type":
                 return QNameToString(definition.name, true);
             case "parameter":
-            case "declare-variable":
-            case "let":
-            case "for":
-            case "for-position":
-            case "group-by":
-            case "count":
-            case "catch-variable":
+            case "variable":
                 return QNameToString(definition.name, true);
             default:
                 throw definition satisfies never;

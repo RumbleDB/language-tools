@@ -60,12 +60,9 @@ function buildStaticTypeIndex(entries: StaticTypecheckWireResult["types"]): Stat
                 });
             }
         } else {
-            result.set(
-                buildStaticTypeKeyForVariable(entry.variableKind, entry.position, entry.qname),
-                {
-                    sequenceType: entry.sequenceType,
-                },
-            );
+            result.set(buildStaticTypeKeyForVariable(entry.position, entry.qname), {
+                sequenceType: entry.sequenceType,
+            });
         }
     }
 

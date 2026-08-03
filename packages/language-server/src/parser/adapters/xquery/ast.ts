@@ -1,4 +1,4 @@
-import { Token, type ParseTree } from "antlr4ng";
+import { type ParseTree } from "antlr4ng";
 import {
     type AstNode,
     type AstParameter,
@@ -29,13 +29,11 @@ import {
     ArgumentContext,
     type ModuleAndThisIsItContext,
     ArgumentListContext,
-    XQueryParser,
 } from "./grammar/XQueryParser.js";
 import { XQueryParserVisitor } from "./grammar/XQueryParserVisitor.js";
 import { parseFunctionName, parseVarName } from "./name.js";
 
 type AstVisitResult = AstNode[];
-type NextDefaultToken = (token: Token | null | undefined) => Token | null;
 
 function unquoteStringLiteral(text: string): string {
     return text.length >= 2 &&
@@ -46,10 +44,7 @@ function unquoteStringLiteral(text: string): string {
 }
 
 class XQueryAstBuilder extends XQueryParserVisitor<AstVisitResult> {
-    public constructor(
-        private readonly document: TextDocument,
-        private readonly nextDefaultToken: NextDefaultToken,
-    ) {
+    public constructor(private readonly document: TextDocument) {
         super();
     }
 
@@ -156,15 +151,14 @@ class XQueryAstBuilder extends XQueryParserVisitor<AstVisitResult> {
 
     public override visitVarDecl = (node: VarDeclContext): AstVisitResult => {
         const binding = this.binding(node, node.varBinding());
+        const terminator = node.SEMICOLON();
 
-        return binding === null
+        return binding === null || terminator === null || terminator.symbol.tokenIndex < 0
             ? []
             : [
                   {
                       kind: "variable-declaration",
                       binding,
-                      bindingKind: "declare-variable",
-                      completed: this.nextDefaultToken(node.stop)?.type === XQueryParser.SEMICOLON,
                       range: rangeFromNode(node, this.document),
                       children: this.visitChildrenAsNodes(node),
                   },
@@ -173,7 +167,7 @@ class XQueryAstBuilder extends XQueryParserVisitor<AstVisitResult> {
 
     public override visitForVar = (node: ForVarContext): AstVisitResult => {
         const declarations: AstNode[] = [];
-        for (const [index, varRef] of [node._var_ref, node._at].entries()) {
+        for (const varRef of [node._var_ref, node._at]) {
             if (varRef === undefined) {
                 continue;
             }
@@ -183,7 +177,6 @@ class XQueryAstBuilder extends XQueryParserVisitor<AstVisitResult> {
                 declarations.push({
                     kind: "variable-declaration",
                     binding,
-                    bindingKind: index === 0 ? "for" : "for-position",
                     range: rangeFromNode(node, this.document),
                     children: [],
                 });
@@ -201,7 +194,6 @@ class XQueryAstBuilder extends XQueryParserVisitor<AstVisitResult> {
                   {
                       kind: "variable-declaration",
                       binding,
-                      bindingKind: "let",
                       range: rangeFromNode(node, this.document),
                       children: this.visitChildrenAsNodes(node),
                   },
@@ -216,7 +208,6 @@ class XQueryAstBuilder extends XQueryParserVisitor<AstVisitResult> {
                   {
                       kind: "variable-declaration",
                       binding,
-                      bindingKind: "group-by",
                       range: rangeFromNode(node, this.document),
                       children: this.visitChildrenAsNodes(node),
                   },
@@ -231,7 +222,6 @@ class XQueryAstBuilder extends XQueryParserVisitor<AstVisitResult> {
                   {
                       kind: "variable-declaration",
                       binding,
-                      bindingKind: "count",
                       range: rangeFromNode(node, this.document),
                       children: this.visitChildrenAsNodes(node),
                   },
@@ -390,9 +380,8 @@ class XQueryAstBuilder extends XQueryParserVisitor<AstVisitResult> {
 export function buildXQueryAst(
     tree: ModuleAndThisIsItContext,
     document: TextDocument,
-    nextDefaultToken: NextDefaultToken,
 ): ModuleAstNode {
-    const ast = new XQueryAstBuilder(document, nextDefaultToken).visitModuleAndThisIsIt(tree)[0];
+    const ast = new XQueryAstBuilder(document).visitModuleAndThisIsIt(tree)[0];
     if (ast === undefined || ast.kind !== "module") {
         throw new Error("Expected module AST root.");
     }

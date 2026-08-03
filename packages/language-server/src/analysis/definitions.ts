@@ -11,16 +11,7 @@ import {
 } from "./names.js";
 import { ResolvedReference } from "./reference.js";
 
-export type VariableKind =
-    | "declare-variable"
-    | "let"
-    | "for"
-    | "for-position"
-    | "group-by"
-    | "count"
-    | "catch-variable";
-
-export type DeclarationKind = VariableKind | "namespace" | "type" | "parameter" | "function";
+export type DeclarationKind = "variable" | "namespace" | "type" | "parameter" | "function";
 
 export type DefinitionKind = DeclarationKind | "builtin-function";
 
@@ -57,8 +48,8 @@ export interface BaseSourceDefinition<
     isBuiltin: false;
 }
 
-export interface SourceVariableDefinition extends BaseSourceDefinition<VariableKind> {
-    kind: VariableKind;
+export interface SourceVariableDefinition extends BaseSourceDefinition<"variable"> {
+    kind: "variable";
 }
 
 export interface SourceParameterDefinition extends BaseSourceDefinition<"parameter"> {
@@ -94,15 +85,7 @@ export function isSourceDefinition(
 export function isSourceVariableDefinition(
     declaration: BaseDefinition | undefined,
 ): declaration is SourceVariableDefinition {
-    return [
-        "declare-variable",
-        "let",
-        "for",
-        "for-position",
-        "group-by",
-        "count",
-        "catch-variable",
-    ].includes(declaration?.kind ?? "");
+    return isSourceDefinition(declaration) && declaration.kind === "variable";
 }
 
 export function isSourceParameterDefinition(
@@ -136,13 +119,7 @@ export function definitionNameToString(
         case "type":
             return QNameToString(definition.name, expanded);
         case "parameter":
-        case "declare-variable":
-        case "let":
-        case "for":
-        case "for-position":
-        case "group-by":
-        case "count":
-        case "catch-variable":
+        case "variable":
             return `$${QNameToString(definition.name, expanded)}`;
         default:
             throw definition satisfies never;
@@ -167,7 +144,6 @@ function createBaseDefinition(document: TextDocument, input: DefinitionBaseInput
 
 export function createVariableDefinition(
     document: TextDocument,
-    kind: VariableKind,
     name: QName,
     range: Range,
     selectionRange: Range,
@@ -179,7 +155,7 @@ export function createVariableDefinition(
             selectionRange,
             ...(visibleFrom === undefined ? {} : { visibleFrom }),
         }),
-        kind,
+        kind: "variable",
         name,
     };
 }

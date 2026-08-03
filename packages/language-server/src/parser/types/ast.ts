@@ -62,14 +62,6 @@ export interface AstBinding {
     readonly selectionRange: Range;
 }
 
-export type VariableBindingKind =
-    | "declare-variable"
-    | "for"
-    | "for-position"
-    | "let"
-    | "group-by"
-    | "count";
-
 export interface FunctionDeclarationAstNode extends AstNodeBase<"function-declaration"> {
     readonly name: LexicalFunctionName;
     readonly selectionRange: Range;
@@ -78,8 +70,6 @@ export interface FunctionDeclarationAstNode extends AstNodeBase<"function-declar
 
 export interface VariableDeclarationAstNode extends AstNodeBase<"variable-declaration"> {
     readonly binding: AstBinding;
-    readonly bindingKind: VariableBindingKind;
-    readonly completed?: boolean;
 }
 
 export interface FlowrExpressionAstNode extends AstNodeBase<"flowr-expression"> {}
