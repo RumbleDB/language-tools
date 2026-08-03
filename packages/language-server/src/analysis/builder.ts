@@ -320,6 +320,7 @@ class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
     private resolve<K extends keyof ReferenceNameByKind>(
         kind: K,
         name: ReferenceNameByKind[K],
+        offset: number,
     ): Definition | undefined {
         if (kind === "function") {
             const builtinDefinition = builtinFunctions.find(name as FunctionName);
@@ -328,7 +329,7 @@ class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
             }
         }
 
-        return this.currentScope.resolve(kind, name);
+        return this.currentScope.resolve(kind, name, offset);
     }
 
     private createReference<K extends keyof ReferenceNameByKind>(
@@ -337,7 +338,7 @@ class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
         range: Range,
     ): ReferenceNode<K> {
         const lookupName = referenceNameToString(name, kind, true);
-        const declaration = this.resolve(kind, name);
+        const declaration = this.resolve(kind, name, this.document.offsetAt(range.start));
         const resolvedReference =
             declaration === undefined
                 ? undefined
