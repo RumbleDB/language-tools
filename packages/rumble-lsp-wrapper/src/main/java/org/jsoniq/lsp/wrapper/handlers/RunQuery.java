@@ -2,10 +2,11 @@ package org.jsoniq.lsp.wrapper.handlers;
 
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
 import java.util.Base64;
-import java.util.List;
 import java.util.Objects;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
 
 import org.jsoniq.lsp.wrapper.messages.Request;
 import org.jsoniq.lsp.wrapper.messages.ResponseBody;
@@ -34,6 +35,10 @@ public final class RunQuery implements RequestHandler {
         this.configuration = RumbleConfiguration.defaultConfiguration();
     }
 
+    public RunQuery(RumbleConfiguration configuration) {
+        this.configuration = configuration;
+    }
+
     @Override
     public String getRequestType() {
         return REQUEST_TYPE;
@@ -58,17 +63,36 @@ public final class RunQuery implements RequestHandler {
             DynamicContext context = VisitorHelpers.createDynamicContext(module, this.configuration);
             RuntimeIterator iterator = VisitorHelpers.generateRuntimeIterator(module, this.configuration);
 
-            List<String> results = new ArrayList<>();
+            ObjectMapper mapper = new ObjectMapper();
+            ArrayNode arrayNode = mapper.createArrayNode();
             iterator.open(context);
             while (iterator.hasNext()) {
                 Item item = iterator.next();
                 if (item != null) {
-                    results.add(item.serialize());
+                    try {
+                        if (item.isObject()) {
+                            arrayNode.add(mapper.readTree(item.serialize()));
+                        } else if (item.isAtomic()) {
+                            if (item.isBoolean()) {
+                                arrayNode.add(item.getBooleanValue());
+                            } else if (item.isInt() || item.isInteger()) {
+                                arrayNode.add(item.getIntValue());
+                            } else if (item.isDouble() || item.isDecimal() || item.isFloat()) {
+                                arrayNode.add(item.castToDoubleValue());
+                            } else {
+                                arrayNode.add(item.getStringValue());
+                            }
+                        } else {
+                            arrayNode.add(item.serialize());
+                        }
+                    } catch (Exception e) {
+                        arrayNode.add(item.serialize());
+                    }
                 }
             }
             iterator.close();
 
-            String output = String.join("\n", results);
+            String output = mapper.writeValueAsString(arrayNode);
             return new Result(output, null);
         } catch (RumbleException exception) {
             String errorMessage = Objects.toString(exception.getJSONiqErrorMessage(), exception.getMessage());
