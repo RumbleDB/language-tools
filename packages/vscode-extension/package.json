@@ -95,6 +95,30 @@
                 "editor.suggest.showWords": false
             }
         },
+        "commands": [
+            {
+                "command": "jsoniq.runQuery",
+                "title": "Execute Query",
+                "category": "JSONiq",
+                "icon": "$(play)"
+            }
+        ],
+        "menus": {
+            "editor/title": [
+                {
+                    "command": "jsoniq.runQuery",
+                    "group": "navigation",
+                    "when": "editorLangId == jsoniq || editorLangId == xquery"
+                }
+            ],
+            "editor/context": [
+                {
+                    "command": "jsoniq.runQuery",
+                    "group": "1_modification",
+                    "when": "editorLangId == jsoniq || editorLangId == xquery"
+                }
+            ]
+        },
         "configuration": {
             "title": "JSONiq Language Support Configuration",
             "properties": {
