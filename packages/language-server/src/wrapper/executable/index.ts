@@ -3,6 +3,7 @@ import { createLogger } from "server/utils/logger.js";
 import { resolveDevLaunchConfig } from "./dev.js";
 import { DownloadProgressReporter } from "./download.js";
 import { resolveProdLaunchConfig } from "./prod.js";
+import { SPARK_JVM_ARGS } from "./utils.js";
 
 const logger = createLogger("wrapper:jar-resolution");
 
@@ -17,13 +18,15 @@ export interface WrapperResolutionOptions {
 export async function resolveWrapperLaunchConfig(
     options: WrapperResolutionOptions = {},
 ): Promise<WrapperLaunchConfig> {
-    const developmentConfig = resolveDevLaunchConfig();
-    if (developmentConfig !== undefined) {
-        return developmentConfig;
+    const devConfig = resolveDevLaunchConfig();
+    const config = devConfig ?? (await resolveProdLaunchConfig(options));
+    if (devConfig === undefined) {
+        logger.debug(
+            "No development wrapper configuration found, falling back to production configuration.",
+        );
     }
 
-    logger.debug(
-        "No development wrapper configuration found, falling back to production configuration.",
-    );
-    return resolveProdLaunchConfig(options);
+    return {
+        args: [...SPARK_JVM_ARGS, ...config.args],
+    };
 }
