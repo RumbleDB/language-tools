@@ -16,6 +16,7 @@ export function registerRunQueryCommand(
         }
 
         const uri = activeEditor.document.uri.toString();
+        const queryText = activeEditor.document.getText();
         const startTime = Date.now();
 
         await vscode.window.withProgress(
@@ -26,7 +27,10 @@ export function registerRunQueryCommand(
             },
             async () => {
                 try {
-                    const response = await RUN_QUERY_REQUEST.send(client, { uri });
+                    const response = await RUN_QUERY_REQUEST.send(client, {
+                        uri,
+                        query: queryText,
+                    });
                     const durationMs = Date.now() - startTime;
                     const timestamp = new Date().toLocaleTimeString();
 

@@ -17,10 +17,14 @@ export function initializeRunQueryRequest(
     documents: TextDocuments<TextDocument>,
 ): void {
     connection.onRequest(RUN_QUERY_LSP_METHOD, async (params: RunQueryLSPParams) => {
-        const document = documents.get(params.uri);
-        if (document !== undefined) {
-            return runQuery(document);
+        if (params.uri !== undefined) {
+            const document = documents.get(params.uri);
+            if (document !== undefined) {
+                return runQuery(document);
+            }
         }
-        return runQueryFromSource(params.uri);
+        const isUntitled = params.uri?.startsWith("untitled:");
+        const uriToPass = isUntitled ? undefined : params.uri;
+        return runQueryFromSource(uriToPass, params.query);
     });
 }
