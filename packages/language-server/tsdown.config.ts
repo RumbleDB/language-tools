@@ -5,6 +5,7 @@ export default defineConfig([
         entry: [
             "src/main.ts",
             "src/notifications/index.ts",
+            "src/requests/index.ts",
             "src/wrapper/executable/ensure-wrapper.ts",
         ],
         root: "src",

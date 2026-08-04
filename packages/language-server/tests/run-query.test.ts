@@ -1,4 +1,4 @@
-import { runQuery, runQueryFromSource } from "server/run-query/service.js";
+import { runQuery, runQueryFromSource } from "server/requests/run-query/service.js";
 import { getWrapperClient } from "server/wrapper/client.js";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
