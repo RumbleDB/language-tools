@@ -50,6 +50,20 @@
             <groupId>org.apache.spark</groupId>
             <artifactId>spark-hive_2.13</artifactId>
             <version>4.0.1</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.apache.hadoop</groupId>
+                    <artifactId>hadoop-yarn-server-resourcemanager</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.apache.hadoop</groupId>
+                    <artifactId>hadoop-yarn-server-applicationhistoryservice</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.apache.hadoop</groupId>
+                    <artifactId>hadoop-yarn-server-web-proxy</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
         <dependency>
             <groupId>org.apache.spark</groupId>
@@ -193,6 +207,41 @@
                                                 <exclude>META-INF/*.SF</exclude>
                                                 <exclude>META-INF/*.DSA</exclude>
                                                 <exclude>META-INF/*.RSA</exclude>
+                                                <exclude>META-INF/maven/**</exclude>
+                                                <exclude>META-INF/DEPENDENCIES</exclude>
+                                                <exclude>META-INF/LICENSE*</exclude>
+                                                <exclude>META-INF/NOTICE*</exclude>
+                                                <exclude>META-INF/*.markdown</exclude>
+                                                <!-- Native binaries for non-target architectures -->
+                                                <exclude>librocksdbjni-linux-ppc64le*.so</exclude>
+                                                <exclude>librocksdbjni-linux-s390x*.so</exclude>
+                                                <exclude>librocksdbjni-linux-riscv64*.so</exclude>
+                                                <exclude>librocksdbjni-linux32*.so</exclude>
+                                                <exclude>librocksdbjni-*-musl.so</exclude>
+                                                <exclude>aix/**</exclude>
+                                                <exclude>freebsd/**</exclude>
+                                                <exclude>win/x86/**</exclude>
+                                                <exclude>linux/riscv64/**</exclude>
+                                                <exclude>linux/ppc64/**</exclude>
+                                                <exclude>linux/ppc64le/**</exclude>
+                                                <exclude>linux/loongarch64/**</exclude>
+                                                <exclude>linux/mips64/**</exclude>
+                                                <exclude>linux/s390x/**</exclude>
+                                                <exclude>linux/i386/**</exclude>
+                                                <exclude>org/xerial/snappy/native/Linux/ppc*/**</exclude>
+                                                <exclude>org/xerial/snappy/native/Linux/s390*/**</exclude>
+                                                <exclude>org/xerial/snappy/native/Linux/riscv*/**</exclude>
+                                                <exclude>org/xerial/snappy/native/Linux/x86/**</exclude>
+                                                <exclude>org/xerial/snappy/native/AIX/**</exclude>
+                                                <exclude>org/xerial/snappy/native/SunOS/**</exclude>
+                                                <!-- Server daemons and database connectors not needed for local LSP execution -->
+                                                <exclude>org/apache/hadoop/yarn/server/**</exclude>
+                                                <exclude>org/apache/hadoop/hdfs/server/**</exclude>
+                                                <exclude>org/datanucleus/**</exclude>
+                                                <exclude>org/postgresql/**</exclude>
+                                                <exclude>com/mongodb/**</exclude>
+                                                <exclude>org/projectnessie/**</exclude>
+                                                <exclude>org/locationtech/**</exclude>
                                             </excludes>
                                         </filter>
                                     </filters>
