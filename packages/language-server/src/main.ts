@@ -22,6 +22,7 @@ import { parseDocument } from "./parser/index.js";
 import { getParserAdapterForDocument, supportsDocument } from "./parser/registry.js";
 import { findReferenceLocations } from "./references.js";
 import { buildRenameWorkspaceEdit, prepareRename } from "./rename.js";
+import { initializeCustomRequests } from "./requests/index.js";
 import {
     collectSemanticDiagnostics,
     collectSemanticTokens,
@@ -42,6 +43,7 @@ setLoggerSink(connection.console);
 initializeNotifications((method, payload) => {
     connection.sendNotification(method, payload);
 });
+initializeCustomRequests(connection, documents);
 
 async function refreshDiagnostics(uri: string): Promise<void> {
     const document = documents.get(uri);
