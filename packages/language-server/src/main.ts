@@ -29,7 +29,6 @@ import {
 } from "./semantic.js";
 import { findSignatureHelp } from "./signature-help.js";
 import { collectStaticTypecheckDiagnostics } from "./static-typecheck/diagnostics.js";
-import { clearStaticTypeIndexCache } from "./static-typecheck/index.js";
 import { clearStaticTypecheckCache } from "./static-typecheck/service.js";
 import { collectDocumentSymbols } from "./symbols.js";
 import { setLoggerSink } from "./utils/logger.js";
@@ -225,7 +224,6 @@ documents.onDidChangeContent(async (event) => {
 
 documents.onDidClose((event) => {
     clearStaticTypecheckCache(event.document.uri);
-    clearStaticTypeIndexCache(event.document.uri);
     connection.sendDiagnostics({
         uri: event.document.uri,
         diagnostics: [],

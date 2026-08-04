@@ -2,7 +2,9 @@ package org.jsoniq.lsp.wrapper.handlers;
 
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.Base64;
+import java.util.List;
 
 import org.jsoniq.lsp.wrapper.Position;
 import org.jsoniq.lsp.wrapper.Range;
@@ -13,10 +15,14 @@ import org.rumbledb.bindings.ExternalBindings;
 import org.rumbledb.compiler.VisitorHelpers;
 import org.rumbledb.config.RumbleConfiguration;
 import org.rumbledb.exceptions.ExceptionMetadata;
+import org.rumbledb.expressions.AbstractNodeVisitor;
 import org.rumbledb.expressions.Expression;
 import org.rumbledb.expressions.Node;
+import org.rumbledb.expressions.module.FunctionDeclaration;
 import org.rumbledb.expressions.module.MainModule;
+import org.rumbledb.expressions.module.VariableDeclaration;
 import org.rumbledb.expressions.postfix.ObjectLookupExpression;
+import org.rumbledb.expressions.primary.InlineFunctionExpression;
 
 public final class TypeAtPosition implements RequestHandler {
     public static final String REQUEST_TYPE = "type-at-position";
@@ -67,117 +73,173 @@ public final class TypeAtPosition implements RequestHandler {
             MainModule module = documentUri == null
                     ? VisitorHelpers.parseMainModuleFromQuery(query, this.configuration, ExternalBindings.empty())
                     : VisitorHelpers.parseMainModule(query, documentUri, this.configuration, ExternalBindings.empty());
-            Expression expression = findExpression(module, position);
-            if (expression == null || expression.getStaticSequenceType() == null) {
+            List<Candidate> candidates = new TypeAtPositionVisitor().visit(module, new ArrayList<>());
+            Candidate candidate = selectCandidate(candidates, position);
+            if (candidate == null || candidate.sequenceType() == null) {
                 return EMPTY_RESULT;
             }
             return new Result(
-                    SequenceType.fromSequenceType(expression.getStaticSequenceType()),
-                    Range.fromExceptionMetadata(expression.getMetadata()));
+                    SequenceType.fromSequenceType(candidate.sequenceType()),
+                    candidate.resultRange());
         } catch (Throwable throwable) {
             return EMPTY_RESULT;
         }
     }
 
-    private static Expression findExpression(Node root, Position position) {
-        Candidate objectLookupKeyCandidate = findBestObjectLookupKeyCandidate(root, position, null);
-        if (objectLookupKeyCandidate != null) {
-            return objectLookupKeyCandidate.expression();
-        }
-
-        Candidate bestEnding = findBestCandidate(root, position, true, null);
-        if (bestEnding != null) {
-            return bestEnding.expression();
-        }
-
-        Candidate bestContaining = findBestCandidate(root, position, false, null);
-        return bestContaining == null ? null : bestContaining.expression();
-    }
-
-    private static Candidate findBestObjectLookupKeyCandidate(Node node, Position position, Candidate best) {
-        if (node == null) {
-            return best;
-        }
-
-        if (node instanceof ObjectLookupExpression objectLookupExpression) {
-            Expression lookupExpression = objectLookupExpression.getLookupExpression();
-            Candidate lookupCandidate = lookupExpression == null ? null : Candidate.create(lookupExpression);
-            Candidate objectLookupCandidate = Candidate.create(objectLookupExpression);
-            boolean positionIsInsideLookupKey = lookupCandidate != null
-                    && objectLookupCandidate != null
-                    && lookupCandidate.matches(position, false);
-
-            if (positionIsInsideLookupKey) {
-                best = Candidate.prefer(best, objectLookupCandidate, false);
-            }
-        }
-
-        for (Node child : node.getChildren()) {
-            best = findBestObjectLookupKeyCandidate(child, position, best);
-        }
-        return best;
-    }
-
-    private static Candidate findBestCandidate(
-            Node node,
-            Position position,
-            boolean endingOnly,
-            Candidate best) {
-        if (node == null) {
-            return best;
-        }
-
-        if (node instanceof Expression expression && expression.getMetadata() != null) {
-            /// We only consider expressions as candidates for now
-            Candidate candidate = Candidate.create(expression);
-            if (candidate != null && candidate.matches(position, endingOnly)) {
-                best = Candidate.prefer(best, candidate, endingOnly);
-            }
-        }
-
-        for (Node child : node.getChildren()) {
-            best = findBestCandidate(child, position, endingOnly, best);
-        }
-        return best;
+    private enum CandidateKind {
+        EXPLICIT,
+        EXPRESSION
     }
 
     private record Candidate(
-            Expression expression,
-            Position start,
-            Position end) {
+            CandidateKind kind,
+            Range activationRange,
+            Range resultRange,
+            org.rumbledb.types.SequenceType sequenceType) {
 
-        private static Candidate create(Expression expression) {
-            ExceptionMetadata metadata = expression.getMetadata();
-            if (metadata == null) {
+        private static Candidate create(
+                CandidateKind kind,
+                ExceptionMetadata activationMetadata,
+                ExceptionMetadata resultMetadata,
+                org.rumbledb.types.SequenceType sequenceType) {
+            if (activationMetadata == null || resultMetadata == null || sequenceType == null) {
                 return null;
             }
             return new Candidate(
-                    expression,
-                    Position.fromSourcePosition(metadata.getStart()),
-                    Position.fromSourcePosition(metadata.getEnd()));
+                    kind,
+                    Range.fromExceptionMetadata(activationMetadata),
+                    Range.fromExceptionMetadata(resultMetadata),
+                    sequenceType);
         }
 
-        private boolean matches(Position position, boolean endingOnly) {
-            if (endingOnly) {
-                return this.end.compareTo(position) == 0;
-            }
-            return this.start.compareTo(position) <= 0 && position.compareTo(this.end) <= 0;
+        private boolean contains(Position position) {
+            return this.activationRange.start().compareTo(position) <= 0
+                    && position.compareTo(this.activationRange.end()) <= 0;
         }
 
-        private static Candidate prefer(Candidate current, Candidate candidate, boolean endingOnly) {
+        private static Candidate preferSmallest(Candidate current, Candidate candidate) {
             if (current == null) {
                 return candidate;
             }
 
-            int startComparison = candidate.start.compareTo(current.start);
-            int endComparison = candidate.end.compareTo(current.end);
-            if (endingOnly) {
-                return startComparison < 0 ? candidate : current;
-            }
+            int startComparison = candidate.activationRange.start().compareTo(current.activationRange.start());
+            int endComparison = candidate.activationRange.end().compareTo(current.activationRange.end());
             if (startComparison > 0 || (startComparison == 0 && endComparison < 0)) {
                 return candidate;
             }
             return current;
+        }
+
+        private static Candidate preferWidest(Candidate current, Candidate candidate) {
+            if (current == null) {
+                return candidate;
+            }
+            return candidate.activationRange.start().compareTo(current.activationRange.start()) < 0
+                    ? candidate
+                    : current;
+        }
+    }
+
+    private static Candidate selectCandidate(List<Candidate> candidates, Position position) {
+        Candidate explicit = candidates.stream()
+                .filter(candidate -> candidate.kind() == CandidateKind.EXPLICIT)
+                .filter(candidate -> candidate.contains(position))
+                .reduce(Candidate::preferSmallest)
+                .orElse(null);
+        if (explicit != null) {
+            return explicit;
+        }
+
+        Candidate endingExpression = candidates.stream()
+                .filter(candidate -> candidate.kind() == CandidateKind.EXPRESSION)
+                .filter(candidate -> candidate.activationRange().end().compareTo(position) == 0)
+                .reduce(Candidate::preferWidest)
+                .orElse(null);
+        if (endingExpression != null) {
+            return endingExpression;
+        }
+
+        return candidates.stream()
+                .filter(candidate -> candidate.kind() == CandidateKind.EXPRESSION)
+                .filter(candidate -> candidate.contains(position))
+                .reduce(Candidate::preferSmallest)
+                .orElse(null);
+    }
+
+    private static final class TypeAtPositionVisitor extends AbstractNodeVisitor<List<Candidate>> {
+        @Override
+        protected List<Candidate> defaultAction(Node node, List<Candidate> candidates) {
+            if (node instanceof Expression expression) {
+                addCandidate(
+                    candidates,
+                    Candidate.create(
+                        CandidateKind.EXPRESSION,
+                        expression.getMetadata(),
+                        expression.getMetadata(),
+                        expression.getStaticSequenceType()
+                    )
+                );
+            }
+            return visitDescendants(node, candidates);
+        }
+
+        @Override
+        public List<Candidate> visitObjectLookupExpression(
+                ObjectLookupExpression expression,
+                List<Candidate> candidates) {
+            Expression key = expression.getLookupExpression();
+            if (key != null) {
+                addCandidate(
+                    candidates,
+                    Candidate.create(
+                        CandidateKind.EXPLICIT,
+                        key.getMetadata(),
+                        expression.getMetadata(),
+                        expression.getStaticSequenceType()
+                    )
+                );
+            }
+            return defaultAction(expression, candidates);
+        }
+
+        @Override
+        public List<Candidate> visitVariableDeclaration(
+                VariableDeclaration declaration,
+                List<Candidate> candidates) {
+            addCandidate(
+                candidates,
+                Candidate.create(
+                    CandidateKind.EXPLICIT,
+                    declaration.getVariableMetadata(),
+                    declaration.getVariableMetadata(),
+                    declaration.getSequenceType()
+                )
+            );
+            return defaultAction(declaration, candidates);
+        }
+
+        @Override
+        public List<Candidate> visitFunctionDeclaration(
+                FunctionDeclaration declaration,
+                List<Candidate> candidates) {
+            if (declaration.getExpression() instanceof InlineFunctionExpression function) {
+                addCandidate(
+                    candidates,
+                    Candidate.create(
+                        CandidateKind.EXPLICIT,
+                        declaration.getNameMetadata(),
+                        declaration.getNameMetadata(),
+                        function.getReturnType()
+                    )
+                );
+            }
+            return defaultAction(declaration, candidates);
+        }
+
+        private static void addCandidate(List<Candidate> candidates, Candidate candidate) {
+            if (candidate != null) {
+                candidates.add(candidate);
+            }
         }
     }
 }
