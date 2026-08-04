@@ -81,4 +81,20 @@ class RunQueryTest {
         assertNotNull(result.output());
         assertEquals("true", result.output().trim());
     }
+
+    @Test
+    void jsonFileQueryExecutesSuccessfully() throws java.io.IOException {
+        System.setProperty("spark.master", "local[*]");
+        java.nio.file.Path tempJson = java.nio.file.Files.createTempFile("data", ".json");
+        java.nio.file.Files.writeString(tempJson, "{\"type\": \"ForkEvent\", \"repo\": {\"name\": \"bitcoin/bitcoin\"}, \"created_at\": \"2023-01-01T00:00:00Z\"}\n");
+        try {
+            String query = String.format("for $event in json-file(\"%s\") where $event.type eq \"ForkEvent\" return $event.repo.name", tempJson.toAbsolutePath());
+            RunQuery.Result result = assertDoesNotThrow(() -> this.runQuery.run(query, null));
+            assertNull(result.error());
+            assertNotNull(result.output());
+            assertTrue(result.output().contains("bitcoin/bitcoin"));
+        } finally {
+            java.nio.file.Files.deleteIfExists(tempJson);
+        }
+    }
 }
