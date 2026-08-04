@@ -18,14 +18,14 @@ class RunQueryTest {
 
     @Test
     void emptyQueryReturnsEmptyResult() {
-        RunQuery.Result result = this.runQuery.run("");
+        RunQuery.Result result = this.runQuery.run("", null);
         assertNull(result.output());
         assertNull(result.error());
     }
 
     @Test
     void simpleArithmeticQueryExecutesSuccessfully() {
-        RunQuery.Result result = assertDoesNotThrow(() -> this.runQuery.run("1 + 1"));
+        RunQuery.Result result = assertDoesNotThrow(() -> this.runQuery.run("1 + 1", null));
         assertNull(result.error());
         assertNotNull(result.output());
         assertEquals("2", result.output().trim());
@@ -33,7 +33,7 @@ class RunQueryTest {
 
     @Test
     void jsonQueryExecutesSuccessfully() {
-        RunQuery.Result result = assertDoesNotThrow(() -> this.runQuery.run("{ \"foo\": \"bar\" }"));
+        RunQuery.Result result = assertDoesNotThrow(() -> this.runQuery.run("{ \"foo\": \"bar\" }", null));
         assertNull(result.error());
         assertNotNull(result.output());
         assertTrue(result.output().contains("foo"));
@@ -53,7 +53,7 @@ class RunQueryTest {
 
     @Test
     void syntaxErrorReturnsErrorMessage() {
-        RunQuery.Result result = assertDoesNotThrow(() -> this.runQuery.run("1 +"));
+        RunQuery.Result result = assertDoesNotThrow(() -> this.runQuery.run("1 +", null));
         assertNull(result.output());
         assertNotNull(result.error());
     }
@@ -70,5 +70,15 @@ class RunQueryTest {
         } finally {
             java.nio.file.Files.deleteIfExists(tempFile);
         }
+    }
+
+    @Test
+    void parallelizeQueryExecutesSuccessfully() {
+        System.setProperty("spark.master", "local[*]");
+        String query = "distinct-values(parallelize((1, 1.0, 1e0))) eq 1";
+        RunQuery.Result result = assertDoesNotThrow(() -> this.runQuery.run(query, null));
+        assertNull(result.error());
+        assertNotNull(result.output());
+        assertEquals("true", result.output().trim());
     }
 }
