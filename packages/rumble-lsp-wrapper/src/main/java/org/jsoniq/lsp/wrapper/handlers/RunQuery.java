@@ -45,18 +45,14 @@ public final class RunQuery implements RequestHandler {
     }
 
     public Result run(String query, URI documentUri) {
-        boolean hasQuery = query != null && !query.isBlank();
-        if (!hasQuery && documentUri == null) {
+        if (query == null && documentUri == null) {
             return EMPTY_RESULT;
         }
 
         try {
-            MainModule module = hasQuery
-                    ? (documentUri == null
-                            ? VisitorHelpers.parseMainModuleFromQuery(query, this.configuration,
-                                    ExternalBindings.empty())
-                            : VisitorHelpers.parseMainModule(query, documentUri, this.configuration,
-                                    ExternalBindings.empty()))
+            MainModule module = query != null
+                    ? VisitorHelpers.parseMainModuleFromQuery(query, this.configuration,
+                            ExternalBindings.empty())
                     : VisitorHelpers.parseMainModuleFromLocation(documentUri, this.configuration,
                             ExternalBindings.empty());
 

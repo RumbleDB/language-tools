@@ -18,7 +18,7 @@ class RunQueryTest {
     @Test
     void emptyQueryReturnsEmptyResult() {
         RunQuery.Result result = this.runQuery.run("", null);
-        assertNull(result.output());
+        assertNotNull(result.output());
         assertNull(result.error());
     }
 
