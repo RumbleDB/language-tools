@@ -324,10 +324,10 @@ export function App() {
                                             </span>
                                         </div>
 
-                                        {/* Data Table Container */}
+                                        {/* Data Table Container with Horizontal & Vertical Overflow */}
                                         <div class="flex-1 overflow-auto bg-surface-container-lowest p-4 sm:p-6">
                                             <div class="ui-table-container">
-                                                <table class="w-full text-left border-collapse">
+                                                <table class="w-full min-w-full text-left border-collapse">
                                                     <thead>
                                                         <tr class="ui-table-header-tr">
                                                             <For each={table.getHeaderGroups()}>

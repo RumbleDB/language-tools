@@ -34,7 +34,7 @@ export class ResultsWebviewPanel {
 
         const panel = vscode.window.createWebviewPanel(
             "jsoniqResults",
-            "JSONiq Execution Results",
+            `Execution Results - ${data.fileUri}`,
             column,
             {
                 enableScripts: true,
