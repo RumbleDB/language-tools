@@ -193,13 +193,11 @@ export function App() {
             INDEX_COLUMN,
             {
                 id: "value",
+                accessorKey: "value",
                 header: "VALUE",
                 size: 400,
                 minSize: 150,
-                accessorFn: (row) => (typeof row === "object" ? JSON.stringify(row) : String(row)),
-                cell: (info) => (
-                    <span class="text-on-surface font-mono">{String(info.getValue())}</span>
-                ),
+                cell: (info) => renderCellValue(info.getValue()),
             },
         ];
     });
