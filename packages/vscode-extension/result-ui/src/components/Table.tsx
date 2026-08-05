@@ -14,7 +14,7 @@ export function TableView(props: TableProps) {
             {/* Toolbar / Search */}
             <div class="px-4 py-2.5 flex items-center justify-between gap-2 border-b ui-border-b bg-surface-container-lowest shrink-0 flex-wrap">
                 <div class="relative w-full max-w-xs sm:max-w-md">
-                    <span class="i-iconoir-search absolute left-3 top-1/2 -translate-y-1/2 text-outline text-[14px]" />
+                    <span class="i-iconoir-search absolute left-3 top-1/2 -translate-y-1/2 text-outline text-sm" />
                     <input
                         type="text"
                         value={props.globalFilter}
@@ -41,7 +41,7 @@ export function TableView(props: TableProps) {
                                             {(header) => (
                                                 <th
                                                     onClick={header.column.getToggleSortingHandler()}
-                                                    class={`ui-table-th text-[11px] font-bold text-on-surface tracking-wider uppercase select-none ${
+                                                    class={`ui-table-th text-2xs font-bold text-on-surface tracking-wider uppercase select-none ${
                                                         header.column.getCanSort()
                                                             ? "cursor-pointer hover:bg-surface-variant"
                                                             : ""
@@ -55,15 +55,15 @@ export function TableView(props: TableProps) {
                                                             )}
                                                         </span>
                                                         <Show when={header.column.getCanSort()}>
-                                                            <span class="text-secondary text-[13px]">
+                                                            <span class="text-secondary text-xs">
                                                                 {header.column.getIsSorted() ===
                                                                 "asc" ? (
-                                                                    <span class="i-iconoir-arrow-up text-[13px] text-primary" />
+                                                                    <span class="i-iconoir-arrow-up text-xs text-primary" />
                                                                 ) : header.column.getIsSorted() ===
                                                                   "desc" ? (
-                                                                    <span class="i-iconoir-arrow-down text-[13px] text-primary" />
+                                                                    <span class="i-iconoir-arrow-down text-xs text-primary" />
                                                                 ) : (
-                                                                    <span class="i-iconoir-arrow-up-down text-[12px] opacity-30" />
+                                                                    <span class="i-iconoir-arrow-up-down text-xs opacity-30" />
                                                                 )}
                                                             </span>
                                                         </Show>

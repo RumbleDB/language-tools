@@ -16,6 +16,9 @@ export default defineConfig({
         }),
     ],
     theme: {
+        fontSize: {
+            "2xs": ["11px", "14px"],
+        },
         colors: {
             surface: "var(--vscode-editor-background)",
             "on-surface": "var(--vscode-editor-foreground)",

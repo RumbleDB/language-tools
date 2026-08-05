@@ -15,11 +15,11 @@ export function Footer(props: FooterProps) {
         <footer class="bg-surface-container-low ui-border-t min-h-[32px] py-1 px-3 w-full shrink-0 flex items-center justify-between gap-3 text-xs z-10 flex-wrap box-border">
             <div class="flex items-center gap-3 text-secondary shrink-0">
                 <span class="flex items-center gap-1">
-                    <span class="i-iconoir-timer text-[14px]" />
+                    <span class="i-iconoir-timer text-sm" />
                     {props.durationMs}ms
                 </span>
                 <span class="flex items-center gap-1">
-                    <span class="i-iconoir-table-rows text-[14px]" />
+                    <span class="i-iconoir-table-rows text-sm" />
                     Rows: {props.rowCount}
                 </span>
             </div>
@@ -31,7 +31,7 @@ export function Footer(props: FooterProps) {
                         disabled={!props.table.getCanPreviousPage()}
                         class="p-1 hover:bg-surface-variant rounded transition-colors disabled:opacity-30 cursor-pointer flex items-center justify-center text-on-surface"
                     >
-                        <span class="i-iconoir-chevron-left text-[14px]" />
+                        <span class="i-iconoir-chevron-left text-sm" />
                     </button>
 
                     <span class="px-1 text-xs text-secondary font-medium">
@@ -44,21 +44,21 @@ export function Footer(props: FooterProps) {
                         disabled={!props.table.getCanNextPage()}
                         class="p-1 hover:bg-surface-variant rounded transition-colors disabled:opacity-30 cursor-pointer flex items-center justify-center text-on-surface"
                     >
-                        <span class="i-iconoir-chevron-right text-[14px]" />
+                        <span class="i-iconoir-chevron-right text-sm" />
                     </button>
                 </div>
 
                 <div class="w-px h-3.5 bg-outline-variant" />
 
                 <div class="flex items-center gap-1.5 text-secondary">
-                    <span class="text-[11px]">Show:</span>
+                    <span class="text-2xs">Show:</span>
                     <select
                         value={props.pageSize}
                         onChange={(e) => {
                             const size = Number(e.currentTarget.value);
                             props.onPageSizeChange(size);
                         }}
-                        class="bg-transparent border-none p-0 text-[11px] font-medium focus:ring-0 cursor-pointer text-on-surface"
+                        class="bg-transparent border-none p-0 text-2xs font-medium focus:ring-0 cursor-pointer text-on-surface"
                     >
                         <option value={20} class="bg-surface text-on-surface">
                             20
@@ -84,8 +84,8 @@ export function Footer(props: FooterProps) {
                     <span
                         class={
                             props.copied
-                                ? "i-iconoir-check text-[14px] text-success"
-                                : "i-iconoir-copy text-[14px]"
+                                ? "i-iconoir-check text-sm text-success"
+                                : "i-iconoir-copy text-sm"
                         }
                     />
                     {props.copied ? "Copied" : "Copy Results"}

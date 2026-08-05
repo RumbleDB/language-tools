@@ -272,7 +272,7 @@ export function App() {
                             <Show when={res().error}>
                                 <div class="p-4 sm:p-6">
                                     <div class="bg-error-container text-on-error-container p-4 rounded border border-error/30 font-code text-xs whitespace-pre-wrap flex items-start gap-2">
-                                        <span class="i-iconoir-alert-triangle text-[16px] shrink-0 mt-0.5 text-error" />
+                                        <span class="i-iconoir-alert-triangle text-base shrink-0 mt-0.5 text-error" />
                                         <div class="flex-1">{res().error}</div>
                                     </div>
                                 </div>
@@ -284,7 +284,7 @@ export function App() {
                                     fallback={
                                         <div class="p-4 sm:p-6">
                                             <div class="inline-flex items-center gap-1.5 text-xs bg-surface-container px-3 py-1.5 rounded border border-outline-variant text-secondary">
-                                                <span class="i-iconoir-info text-[15px]" />
+                                                <span class="i-iconoir-info text-sm" />
                                                 Sequence is empty ()
                                             </div>
                                         </div>
