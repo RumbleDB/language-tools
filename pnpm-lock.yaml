@@ -114,6 +114,9 @@ importers:
 
   packages/vscode-extension/result-ui:
     dependencies:
+      '@iconify-json/iconoir':
+        specifier: ^1.2.11
+        version: 1.2.11
       '@tanstack/solid-table':
         specifier: ^8.21.2
         version: 8.21.3(solid-js@1.9.14)
@@ -121,9 +124,6 @@ importers:
         specifier: ^1.9.5
         version: 1.9.14
     devDependencies:
-      '@iconify-json/lucide':
-        specifier: ^1.2.27
-        version: 1.2.121
       '@unocss/preset-icons':
         specifier: ^66.0.0
         version: 66.7.5
@@ -132,19 +132,19 @@ importers:
         version: 66.7.5
       '@unocss/vite':
         specifier: ^66.0.0
-        version: 66.7.5(vite@6.4.3(@types/node@26.1.2)(jiti@2.7.0)(lightningcss@1.33.0)(tsx@4.23.1)(yaml@2.9.0))
+        version: 66.7.5(vite@6.4.3(jiti@2.7.0))
       typescript:
         specifier: ^5.7.3
         version: 5.9.3
       unocss:
         specifier: ^66.0.0
-        version: 66.7.5(vite@6.4.3(@types/node@26.1.2)(jiti@2.7.0)(lightningcss@1.33.0)(tsx@4.23.1)(yaml@2.9.0))
+        version: 66.7.5(vite@6.4.3(jiti@2.7.0))
       vite:
         specifier: ^6.1.0
-        version: 6.4.3(@types/node@26.1.2)(jiti@2.7.0)(lightningcss@1.33.0)(tsx@4.23.1)(yaml@2.9.0)
+        version: 6.4.3(jiti@2.7.0)
       vite-plugin-solid:
         specifier: ^2.11.6
-        version: 2.11.14(solid-js@1.9.14)(vite@6.4.3(@types/node@26.1.2)(jiti@2.7.0)(lightningcss@1.33.0)(tsx@4.23.1)(yaml@2.9.0))
+        version: 2.11.14(solid-js@1.9.14)(vite@6.4.3(jiti@2.7.0))
 
 packages:
 
@@ -633,8 +633,8 @@ packages:
     cpu: [x64]
     os: [win32]
 
-  '@iconify-json/lucide@1.2.121':
-    resolution: {integrity: sha512-zSoQQSmsyFaeTpSwURHJ9PIrsDcGFpDNhGlpiTrs+Ua4uFeH5UsE26L4OEBLrgLWoSK0UO+JhsO8yehSw0403g==}
+  '@iconify-json/iconoir@1.2.11':
+    resolution: {integrity: sha512-clBrCsZPkmdksYOkufVp7aoAU1j1hFQPrLUooWWmoYIMvKskUHQ+IDnwV7agTR+tGYHbud7OP2SRfYEpnqFDNw==}
 
   '@iconify/types@2.0.0':
     resolution: {integrity: sha512-+wluvCrRhXrhyOmRDJ3q8mux9JkKy5SJ/v8ol2tu4FVjyYvtEzkc/3pK15ET6RKg4b4w4BmTk1+gsCUhf21Ykg==}
@@ -3663,7 +3663,7 @@ snapshots:
   '@esbuild/win32-x64@0.28.1':
     optional: true
 
-  '@iconify-json/lucide@1.2.121':
+  '@iconify-json/iconoir@1.2.11':
     dependencies:
       '@iconify/types': 2.0.0
 
@@ -4419,7 +4419,7 @@ snapshots:
     dependencies:
       '@unocss/core': 66.7.5
 
-  '@unocss/vite@66.7.5(vite@6.4.3(@types/node@26.1.2)(jiti@2.7.0)(lightningcss@1.33.0)(tsx@4.23.1)(yaml@2.9.0))':
+  '@unocss/vite@66.7.5(vite@6.4.3(jiti@2.7.0))':
     dependencies:
       '@jridgewell/remapping': 2.3.5
       '@unocss/config': 66.7.5
@@ -4430,7 +4430,7 @@ snapshots:
       pathe: 2.0.3
       tinyglobby: 0.2.17
       unplugin-utils: 0.3.2
-      vite: 6.4.3(@types/node@26.1.2)(jiti@2.7.0)(lightningcss@1.33.0)(tsx@4.23.1)(yaml@2.9.0)
+      vite: 6.4.3(jiti@2.7.0)
 
   '@vitest/expect@4.1.10':
     dependencies:
@@ -5602,7 +5602,7 @@ snapshots:
 
   universalify@0.1.2: {}
 
-  unocss@66.7.5(vite@6.4.3(@types/node@26.1.2)(jiti@2.7.0)(lightningcss@1.33.0)(tsx@4.23.1)(yaml@2.9.0)):
+  unocss@66.7.5(vite@6.4.3(jiti@2.7.0)):
     dependencies:
       '@unocss/cli': 66.7.5
       '@unocss/core': 66.7.5
@@ -5620,7 +5620,7 @@ snapshots:
       '@unocss/transformer-compile-class': 66.7.5
       '@unocss/transformer-directives': 66.7.5
       '@unocss/transformer-variant-group': 66.7.5
-      '@unocss/vite': 66.7.5(vite@6.4.3(@types/node@26.1.2)(jiti@2.7.0)(lightningcss@1.33.0)(tsx@4.23.1)(yaml@2.9.0))
+      '@unocss/vite': 66.7.5(vite@6.4.3(jiti@2.7.0))
     transitivePeerDependencies:
       - vite
 
@@ -5644,7 +5644,7 @@ snapshots:
 
   verkit@0.3.1: {}
 
-  vite-plugin-solid@2.11.14(solid-js@1.9.14)(vite@6.4.3(@types/node@26.1.2)(jiti@2.7.0)(lightningcss@1.33.0)(tsx@4.23.1)(yaml@2.9.0)):
+  vite-plugin-solid@2.11.14(solid-js@1.9.14)(vite@6.4.3(jiti@2.7.0)):
     dependencies:
       '@babel/core': 7.29.7
       '@types/babel__core': 7.20.5
@@ -5652,12 +5652,12 @@ snapshots:
       merge-anything: 5.1.7
       solid-js: 1.9.14
       solid-refresh: 0.6.3(solid-js@1.9.14)
-      vite: 6.4.3(@types/node@26.1.2)(jiti@2.7.0)(lightningcss@1.33.0)(tsx@4.23.1)(yaml@2.9.0)
-      vitefu: 1.1.3(vite@6.4.3(@types/node@26.1.2)(jiti@2.7.0)(lightningcss@1.33.0)(tsx@4.23.1)(yaml@2.9.0))
+      vite: 6.4.3(jiti@2.7.0)
+      vitefu: 1.1.3(vite@6.4.3(jiti@2.7.0))
     transitivePeerDependencies:
       - supports-color
 
-  vite@6.4.3(@types/node@26.1.2)(jiti@2.7.0)(lightningcss@1.33.0)(tsx@4.23.1)(yaml@2.9.0):
+  vite@6.4.3(jiti@2.7.0):
     dependencies:
       esbuild: 0.25.12
       fdir: 6.5.0(picomatch@4.0.5)
@@ -5666,12 +5666,8 @@ snapshots:
       rollup: 4.62.4
       tinyglobby: 0.2.17
     optionalDependencies:
-      '@types/node': 26.1.2
       fsevents: 2.3.3
       jiti: 2.7.0
-      lightningcss: 1.33.0
-      tsx: 4.23.1
-      yaml: 2.9.0
 
   vite@8.0.8(@types/node@26.1.2)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.23.1)(yaml@2.9.0):
     dependencies:
@@ -5688,9 +5684,9 @@ snapshots:
       tsx: 4.23.1
       yaml: 2.9.0
 
-  vitefu@1.1.3(vite@6.4.3(@types/node@26.1.2)(jiti@2.7.0)(lightningcss@1.33.0)(tsx@4.23.1)(yaml@2.9.0)):
+  vitefu@1.1.3(vite@6.4.3(jiti@2.7.0)):
     optionalDependencies:
-      vite: 6.4.3(@types/node@26.1.2)(jiti@2.7.0)(lightningcss@1.33.0)(tsx@4.23.1)(yaml@2.9.0)
+      vite: 6.4.3(jiti@2.7.0)
 
   vitest@4.1.10(@types/node@26.1.2)(vite@8.0.8(@types/node@26.1.2)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.23.1)(yaml@2.9.0)):
     dependencies:

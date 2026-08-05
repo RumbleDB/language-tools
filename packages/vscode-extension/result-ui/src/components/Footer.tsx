@@ -12,14 +12,14 @@ interface FooterProps {
 
 export function Footer(props: FooterProps) {
     return (
-        <footer class="bg-surface-container-low ui-border-t min-h-[32px] py-1 px-3 w-full shrink-0 flex items-center justify-between gap-3 font-code text-xs z-10 flex-wrap box-border">
+        <footer class="bg-surface-container-low ui-border-t min-h-[32px] py-1 px-3 w-full shrink-0 flex items-center justify-between gap-3 text-xs z-10 flex-wrap box-border">
             <div class="flex items-center gap-3 text-secondary shrink-0">
                 <span class="flex items-center gap-1">
-                    <span class="i-lucide-timer text-[14px]" />
+                    <span class="i-iconoir-timer text-[14px]" />
                     {props.durationMs}ms
                 </span>
                 <span class="flex items-center gap-1">
-                    <span class="i-lucide-rows-3 text-[14px]" />
+                    <span class="i-iconoir-table-rows text-[14px]" />
                     Rows: {props.rowCount}
                 </span>
             </div>
@@ -31,7 +31,7 @@ export function Footer(props: FooterProps) {
                         disabled={!props.table.getCanPreviousPage()}
                         class="p-1 hover:bg-surface-variant rounded transition-colors disabled:opacity-30 cursor-pointer flex items-center justify-center text-on-surface"
                     >
-                        <span class="i-lucide-chevron-left text-[14px]" />
+                        <span class="i-iconoir-chevron-left text-[14px]" />
                     </button>
 
                     <span class="px-1 text-xs text-secondary font-medium">
@@ -44,7 +44,7 @@ export function Footer(props: FooterProps) {
                         disabled={!props.table.getCanNextPage()}
                         class="p-1 hover:bg-surface-variant rounded transition-colors disabled:opacity-30 cursor-pointer flex items-center justify-center text-on-surface"
                     >
-                        <span class="i-lucide-chevron-right text-[14px]" />
+                        <span class="i-iconoir-chevron-right text-[14px]" />
                     </button>
                 </div>
 
@@ -84,8 +84,8 @@ export function Footer(props: FooterProps) {
                     <span
                         class={
                             props.copied
-                                ? "i-lucide-check text-[14px] text-success"
-                                : "i-lucide-copy text-[14px]"
+                                ? "i-iconoir-check text-[14px] text-success"
+                                : "i-iconoir-copy text-[14px]"
                         }
                     />
                     {props.copied ? "Copied" : "Copy Results"}

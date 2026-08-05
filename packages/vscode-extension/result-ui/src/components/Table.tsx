@@ -14,7 +14,7 @@ export function TableView(props: TableProps) {
             {/* Toolbar / Search */}
             <div class="px-4 py-2.5 flex items-center justify-between gap-2 border-b ui-border-b bg-surface-container-lowest shrink-0 flex-wrap">
                 <div class="relative w-full max-w-xs sm:max-w-md">
-                    <span class="i-lucide-search absolute left-3 top-1/2 -translate-y-1/2 text-outline text-[14px]" />
+                    <span class="i-iconoir-search absolute left-3 top-1/2 -translate-y-1/2 text-outline text-[14px]" />
                     <input
                         type="text"
                         value={props.globalFilter}
@@ -30,7 +30,7 @@ export function TableView(props: TableProps) {
             </div>
 
             {/* Data Table Container with Horizontal & Vertical Overflow */}
-            <div class="flex-1 overflow-auto bg-surface-container-lowest p-4 sm:p-6">
+            <div class="flex-1 overflow-auto bg-surface-container-lowest p-4">
                 <div class="ui-table-container">
                     <table class="w-full min-w-full text-left border-collapse">
                         <thead>
@@ -58,12 +58,12 @@ export function TableView(props: TableProps) {
                                                             <span class="text-secondary text-[13px]">
                                                                 {header.column.getIsSorted() ===
                                                                 "asc" ? (
-                                                                    <span class="i-lucide-arrow-up text-[13px] text-primary" />
+                                                                    <span class="i-iconoir-arrow-up text-[13px] text-primary" />
                                                                 ) : header.column.getIsSorted() ===
                                                                   "desc" ? (
-                                                                    <span class="i-lucide-arrow-down text-[13px] text-primary" />
+                                                                    <span class="i-iconoir-arrow-down text-[13px] text-primary" />
                                                                 ) : (
-                                                                    <span class="i-lucide-arrow-up-down text-[12px] opacity-30" />
+                                                                    <span class="i-iconoir-arrow-up-down text-[12px] opacity-30" />
                                                                 )}
                                                             </span>
                                                         </Show>
