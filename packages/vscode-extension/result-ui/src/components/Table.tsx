@@ -40,7 +40,7 @@ export function TableView(props: TableProps) {
 
             {/* Data Table Container with Horizontal & Vertical Overflow */}
             <div class="flex-1 overflow-auto bg-surface-container-lowest p-4">
-                <div class="border border-outline-variant rounded bg-surface overflow-auto max-w-full h-full max-h-full">
+                <div class="border border-outline-variant rounded bg-surface overflow-auto max-w-full max-h-full">
                     <table class="w-full min-w-full text-left border-separate border-spacing-0 table-fixed">
                         <colgroup>
                             <For each={props.table.getVisibleFlatColumns()}>
