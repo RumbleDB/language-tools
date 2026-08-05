@@ -8,7 +8,7 @@ import {
     type SortingState,
     type PaginationState,
 } from "@tanstack/solid-table";
-import { createSignal, onMount, createMemo, Show } from "solid-js";
+import { createSignal, onMount, createMemo, Show, type JSX } from "solid-js";
 
 import { Footer } from "./components/Footer.js";
 import { Header } from "./components/Header.js";
@@ -22,6 +22,35 @@ declare global {
     }
 }
 
+const INDEX_COLUMN: ColumnDef<Record<string, unknown>> = {
+    id: "__index",
+    header: "ID",
+    accessorFn: (_, index) => index + 1,
+    cell: (info) => (
+        <span class="text-secondary font-code text-xs select-none">{String(info.getValue())}</span>
+    ),
+};
+
+function renderCellValue(val: unknown): JSX.Element {
+    if (val === undefined || val === null) {
+        return <span class="text-secondary/50 italic font-code">null</span>;
+    }
+    if (typeof val === "boolean") {
+        return (
+            <span class={val ? "text-success font-semibold" : "text-error font-semibold"}>
+                {String(val)}
+            </span>
+        );
+    }
+    if (typeof val === "number") {
+        return <span class="text-token-number font-code">{val}</span>;
+    }
+    if (typeof val === "object") {
+        return <span class="text-token-string font-code">{JSON.stringify(val)}</span>;
+    }
+    return <span class="text-on-surface font-code">{String(val)}</span>;
+}
+
 export function App() {
     const [data, setData] = createSignal<ExecutionResultData | undefined>(window.__INITIAL_DATA__);
     const [copied, setCopied] = createSignal(false);
@@ -32,6 +61,8 @@ export function App() {
         pageIndex: 0,
         pageSize: 50,
     });
+
+    let copyTimer: ReturnType<typeof setTimeout> | undefined;
 
     onMount(() => {
         const handleMessage = (event: MessageEvent) => {
@@ -78,7 +109,8 @@ export function App() {
         }
 
         setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
+        if (copyTimer) clearTimeout(copyTimer);
+        copyTimer = setTimeout(() => setCopied(false), 2000);
     };
 
     const parsedItems = createMemo(() => {
@@ -127,73 +159,20 @@ export function App() {
                 }
             });
 
-            const indexCol: ColumnDef<Record<string, unknown>> = {
-                id: "__index",
-                header: "ID",
-                accessorFn: (_, index) => index + 1,
-                cell: (info) => (
-                    <span class="text-secondary font-code text-xs select-none">
-                        {String(info.getValue())}
-                    </span>
-                ),
-            };
-
             const dataCols: ColumnDef<Record<string, unknown>>[] = Array.from(keySet).map(
                 (key) => ({
                     id: key,
                     accessorKey: key,
                     header: key.toUpperCase(),
-                    cell: (info) => {
-                        const val = info.getValue();
-                        if (val === undefined || val === null) {
-                            return <span class="text-secondary/50 italic font-code">null</span>;
-                        }
-                        if (typeof val === "boolean") {
-                            return (
-                                <span
-                                    class={
-                                        val
-                                            ? "text-success font-semibold"
-                                            : "text-error font-semibold"
-                                    }
-                                >
-                                    {String(val)}
-                                </span>
-                            );
-                        }
-                        if (typeof val === "number") {
-                            return (
-                                <span class="text-[var(--vscode-symbolIcon-numberForeground,var(--vscode-editor-foreground))] font-code">
-                                    {val}
-                                </span>
-                            );
-                        }
-                        if (typeof val === "object") {
-                            return (
-                                <span class="text-[var(--vscode-symbolIcon-stringForeground,var(--vscode-editor-foreground))] font-code">
-                                    {JSON.stringify(val)}
-                                </span>
-                            );
-                        }
-                        return <span class="text-on-surface font-code">{String(val)}</span>;
-                    },
+                    cell: (info) => renderCellValue(info.getValue()),
                 }),
             );
 
-            return [indexCol, ...dataCols];
+            return [INDEX_COLUMN, ...dataCols];
         }
 
         return [
-            {
-                id: "__index",
-                header: "ID",
-                accessorFn: (_, index) => index + 1,
-                cell: (info) => (
-                    <span class="text-secondary font-code text-xs select-none">
-                        {String(info.getValue())}
-                    </span>
-                ),
-            },
+            INDEX_COLUMN,
             {
                 id: "value",
                 header: "VALUE",

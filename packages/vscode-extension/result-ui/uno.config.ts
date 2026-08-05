@@ -41,6 +41,13 @@ export default defineConfig({
                 "var(--vscode-inputValidation-errorBackground, rgba(90, 29, 29, 0.4))",
             "on-error-container": "var(--vscode-errorForeground, #f48771)",
             success: "var(--vscode-testing-iconPassed, #2ecc71)",
+            "token-number":
+                "var(--vscode-symbolIcon-numberForeground, var(--vscode-editor-foreground))",
+            "token-string":
+                "var(--vscode-symbolIcon-stringForeground, var(--vscode-editor-foreground))",
+            "input-bg": "var(--vscode-input-background, var(--vscode-editor-background))",
+            "input-placeholder":
+                "var(--vscode-input-placeholderForeground, rgba(204, 204, 204, 0.5))",
         },
         fontFamily: {
             inter: ["var(--vscode-font-family)", "Inter", "sans-serif"],
