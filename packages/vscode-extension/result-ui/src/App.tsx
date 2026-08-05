@@ -228,7 +228,7 @@ export function App() {
                 {(res) => (
                     <>
                         {/* TopAppBar */}
-                        <header class="bg-surface ui-border-b min-h-[36px] py-1 px-3 flex items-center justify-between gap-2 w-full shrink-0 z-10 box-border">
+                        <header class="bg-surface ui-border-b min-h-[36px] py-1 px-4 flex items-center justify-between gap-2 w-full shrink-0 z-10 box-border">
                             <div class="flex items-center gap-2 text-secondary min-w-0">
                                 <span class="i-lucide-file-text text-[16px] text-primary shrink-0" />
                                 <h1 class="text-[14px] font-semibold text-on-surface truncate max-w-[240px] sm:max-w-xs">
@@ -325,7 +325,7 @@ export function App() {
                                         </div>
 
                                         {/* Data Table Container with Horizontal & Vertical Overflow */}
-                                        <div class="flex-1 overflow-auto bg-surface-container-lowest p-4 sm:p-6">
+                                        <div class="flex-1 overflow-auto bg-surface-container-lowest p-4">
                                             <div class="ui-table-container">
                                                 <table class="w-full min-w-full text-left border-collapse">
                                                     <thead>
