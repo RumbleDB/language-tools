@@ -23,7 +23,7 @@ export function TableView(props: TableProps) {
                         class="w-full pl-9 pr-3 py-1 bg-[var(--vscode-input-background,var(--vscode-editor-background))] border border-outline-variant rounded text-xs focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all placeholder:text-[var(--vscode-input-placeholderForeground,rgba(204,204,204,0.5))] text-on-surface"
                     />
                 </div>
-                <span class="text-xs text-secondary font-code shrink-0">
+                <span class="text-xs text-secondary shrink-0">
                     Showing {props.table.getFilteredRowModel().rows.length} of {props.totalRows}{" "}
                     rows
                 </span>
