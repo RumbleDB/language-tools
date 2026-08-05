@@ -30,13 +30,13 @@ const INDEX_COLUMN: ColumnDef<Record<string, unknown>> = {
     maxSize: 80,
     accessorFn: (_, index) => index + 1,
     cell: (info) => (
-        <span class="text-secondary font-code text-xs select-none">{String(info.getValue())}</span>
+        <span class="text-secondary font-mono text-xs select-none">{String(info.getValue())}</span>
     ),
 };
 
 function renderCellValue(val: unknown): JSX.Element {
     if (val === undefined || val === null) {
-        return <span class="text-secondary/50 italic font-code">null</span>;
+        return <span class="text-secondary/50 italic font-mono">null</span>;
     }
     if (typeof val === "boolean") {
         return (
@@ -46,12 +46,12 @@ function renderCellValue(val: unknown): JSX.Element {
         );
     }
     if (typeof val === "number") {
-        return <span class="text-token-number font-code">{val}</span>;
+        return <span class="text-token-number font-mono">{val}</span>;
     }
     if (typeof val === "object") {
-        return <span class="text-token-string font-code">{JSON.stringify(val)}</span>;
+        return <span class="text-token-string font-mono">{JSON.stringify(val)}</span>;
     }
-    return <span class="text-on-surface font-code">{String(val)}</span>;
+    return <span class="text-on-surface font-mono">{String(val)}</span>;
 }
 
 function getDynamicColumnSize(items: Record<string, unknown>[], key: string): number {
@@ -198,7 +198,7 @@ export function App() {
                 minSize: 150,
                 accessorFn: (row) => (typeof row === "object" ? JSON.stringify(row) : String(row)),
                 cell: (info) => (
-                    <span class="text-on-surface font-code">{String(info.getValue())}</span>
+                    <span class="text-on-surface font-mono">{String(info.getValue())}</span>
                 ),
             },
         ];
@@ -275,7 +275,7 @@ export function App() {
                         <main class="flex-1 flex flex-col bg-surface overflow-hidden relative w-full">
                             <Show when={res().error}>
                                 <div class="p-4 sm:p-6">
-                                    <div class="bg-error-container text-on-error-container p-4 rounded border border-error/30 font-code text-xs whitespace-pre-wrap flex items-start gap-2">
+                                    <div class="bg-error-container text-on-error-container p-4 rounded border border-error/30 font-mono text-xs whitespace-pre-wrap flex items-start gap-2">
                                         <span class="i-iconoir-alert-triangle text-base shrink-0 mt-0.5 text-error" />
                                         <div class="flex-1">{res().error}</div>
                                     </div>

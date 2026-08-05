@@ -102,7 +102,7 @@ export function TableView(props: TableProps) {
                                 </For>
                             </tr>
                         </thead>
-                        <tbody class="font-code text-xs text-on-surface">
+                        <tbody class="font-mono text-xs text-on-surface">
                             <For each={props.table.getRowModel().rows}>
                                 {(row) => (
                                     <tr class="hover:bg-surface-variant transition-colors">

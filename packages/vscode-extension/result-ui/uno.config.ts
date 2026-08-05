@@ -50,8 +50,15 @@ export default defineConfig({
                 "var(--vscode-input-placeholderForeground, rgba(204, 204, 204, 0.5))",
         },
         fontFamily: {
-            inter: ["var(--vscode-font-family)", "Inter", "sans-serif"],
-            code: ["var(--vscode-editor-font-family)", "JetBrains Mono", "monospace"],
+            sans: [
+                "var(--vscode-font-family)",
+                "Inter",
+                "-apple-system",
+                "BlinkMacSystemFont",
+                "Segoe UI",
+                "sans-serif",
+            ],
+            mono: ["var(--vscode-editor-font-family)", "JetBrains Mono", "monospace"],
         },
     },
 });
