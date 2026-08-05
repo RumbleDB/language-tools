@@ -123,8 +123,8 @@ export function App() {
                                 <span
                                     class={
                                         val
-                                            ? "text-[#059669] font-semibold"
-                                            : "text-[#e74c3c] font-semibold"
+                                            ? "text-success font-semibold"
+                                            : "text-error font-semibold"
                                     }
                                 >
                                     {String(val)}
@@ -132,11 +132,17 @@ export function App() {
                             );
                         }
                         if (typeof val === "number") {
-                            return <span class="text-[#2563eb] font-code">{val}</span>;
+                            return (
+                                <span class="text-[var(--vscode-symbolIcon-numberForeground,var(--vscode-editor-foreground))] font-code">
+                                    {val}
+                                </span>
+                            );
                         }
                         if (typeof val === "object") {
                             return (
-                                <span class="text-[#d97706] font-code">{JSON.stringify(val)}</span>
+                                <span class="text-[var(--vscode-symbolIcon-stringForeground,var(--vscode-editor-foreground))] font-code">
+                                    {JSON.stringify(val)}
+                                </span>
                             );
                         }
                         return <span class="text-on-surface font-code">{String(val)}</span>;
@@ -231,13 +237,13 @@ export function App() {
                                 <Show
                                     when={isSuccess()}
                                     fallback={
-                                        <div class="flex items-center gap-1 text-[#e74c3c] bg-[#e74c3c]/10 px-2 py-0.5 rounded-full text-[11px] font-bold tracking-wider border border-[#e74c3c]/30 shrink-0">
+                                        <div class="flex items-center gap-1 text-error bg-error-container px-2 py-0.5 rounded-full text-[11px] font-bold tracking-wider border border-error/30 shrink-0">
                                             <span class="i-lucide-x-circle text-[13px]" />
                                             ERROR
                                         </div>
                                     }
                                 >
-                                    <div class="flex items-center gap-1 text-[#059669] bg-[#059669]/10 px-2 py-0.5 rounded-full text-[11px] font-bold tracking-wider border border-[#059669]/30 shrink-0">
+                                    <div class="flex items-center gap-1 text-success bg-success/15 px-2 py-0.5 rounded-full text-[11px] font-bold tracking-wider border border-success/30 shrink-0">
                                         <span class="i-lucide-check-circle-2 text-[13px]" />
                                         SUCCESS
                                     </div>
@@ -251,7 +257,7 @@ export function App() {
                                             onClick={() => setViewMode("table")}
                                             class={`px-2 py-0.5 rounded text-[11px] font-medium flex items-center gap-1 cursor-pointer transition-colors ${
                                                 viewMode() === "table"
-                                                    ? "bg-primary text-white"
+                                                    ? "bg-primary text-on-primary font-semibold"
                                                     : "text-secondary hover:text-on-surface"
                                             }`}
                                         >
@@ -262,7 +268,7 @@ export function App() {
                                             onClick={() => setViewMode("raw")}
                                             class={`px-2 py-0.5 rounded text-[11px] font-medium flex items-center gap-1 cursor-pointer transition-colors ${
                                                 viewMode() === "raw"
-                                                    ? "bg-primary text-white"
+                                                    ? "bg-primary text-on-primary font-semibold"
                                                     : "text-secondary hover:text-on-surface"
                                             }`}
                                         >
@@ -278,8 +284,8 @@ export function App() {
                         <main class="flex-1 flex flex-col bg-surface overflow-hidden relative w-full">
                             <Show when={res().error}>
                                 <div class="p-4 sm:p-6">
-                                    <div class="bg-surface-container text-error p-4 rounded border border-outline-variant font-code text-xs whitespace-pre-wrap flex items-start gap-2">
-                                        <span class="i-lucide-alert-triangle text-[16px] shrink-0 mt-0.5" />
+                                    <div class="bg-error-container text-on-error-container p-4 rounded border border-error/30 font-code text-xs whitespace-pre-wrap flex items-start gap-2">
+                                        <span class="i-lucide-alert-triangle text-[16px] shrink-0 mt-0.5 text-error" />
                                         <div class="flex-1">{res().error}</div>
                                     </div>
                                 </div>
@@ -309,7 +315,7 @@ export function App() {
                                                         setGlobalFilter(e.currentTarget.value)
                                                     }
                                                     placeholder="Filter results..."
-                                                    class="w-full pl-9 pr-3 py-1 bg-surface border border-outline-variant rounded text-xs focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all placeholder:text-[#94A3B8] text-on-surface"
+                                                    class="w-full pl-9 pr-3 py-1 bg-[var(--vscode-input-background,var(--vscode-editor-background))] border border-outline-variant rounded text-xs focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all placeholder:text-[var(--vscode-input-placeholderForeground,rgba(204,204,204,0.5))] text-on-surface"
                                                 />
                                             </div>
                                             <span class="text-xs text-secondary font-code shrink-0">
@@ -372,7 +378,7 @@ export function App() {
                                                     <tbody class="font-code text-xs text-on-surface">
                                                         <For each={table.getRowModel().rows}>
                                                             {(row) => (
-                                                                <tr class="ui-table-tr hover:bg-surface-variant transition-colors">
+                                                                <tr class="ui-table-tr transition-colors">
                                                                     <For
                                                                         each={row.getVisibleCells()}
                                                                     >
@@ -422,7 +428,7 @@ export function App() {
                                                 <button
                                                     onClick={() => table.previousPage()}
                                                     disabled={!table.getCanPreviousPage()}
-                                                    class="p-1 hover:bg-surface-variant rounded transition-colors disabled:opacity-30 cursor-pointer flex items-center justify-center"
+                                                    class="p-1 hover:bg-surface-variant rounded transition-colors disabled:opacity-30 cursor-pointer flex items-center justify-center text-on-surface"
                                                 >
                                                     <span class="i-lucide-chevron-left text-[14px]" />
                                                 </button>
@@ -435,7 +441,7 @@ export function App() {
                                                 <button
                                                     onClick={() => table.nextPage()}
                                                     disabled={!table.getCanNextPage()}
-                                                    class="p-1 hover:bg-surface-variant rounded transition-colors disabled:opacity-30 cursor-pointer flex items-center justify-center"
+                                                    class="p-1 hover:bg-surface-variant rounded transition-colors disabled:opacity-30 cursor-pointer flex items-center justify-center text-on-surface"
                                                 >
                                                     <span class="i-lucide-chevron-right text-[14px]" />
                                                 </button>
@@ -453,10 +459,30 @@ export function App() {
                                                     }}
                                                     class="bg-transparent border-none p-0 text-[11px] font-medium focus:ring-0 cursor-pointer text-on-surface"
                                                 >
-                                                    <option value={20}>20</option>
-                                                    <option value={50}>50</option>
-                                                    <option value={100}>100</option>
-                                                    <option value={250}>250</option>
+                                                    <option
+                                                        value={20}
+                                                        class="bg-surface text-on-surface"
+                                                    >
+                                                        20
+                                                    </option>
+                                                    <option
+                                                        value={50}
+                                                        class="bg-surface text-on-surface"
+                                                    >
+                                                        50
+                                                    </option>
+                                                    <option
+                                                        value={100}
+                                                        class="bg-surface text-on-surface"
+                                                    >
+                                                        100
+                                                    </option>
+                                                    <option
+                                                        value={250}
+                                                        class="bg-surface text-on-surface"
+                                                    >
+                                                        250
+                                                    </option>
                                                 </select>
                                             </div>
                                         </div>
@@ -469,7 +495,7 @@ export function App() {
                                                 <span
                                                     class={
                                                         copied()
-                                                            ? "i-lucide-check text-[14px]"
+                                                            ? "i-lucide-check text-[14px] text-success"
                                                             : "i-lucide-copy text-[14px]"
                                                     }
                                                 />

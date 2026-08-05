@@ -6,54 +6,66 @@
 
 html,
 body {
-    font-family:
+    font-family: var(
+        --vscode-font-family,
         "Inter",
         -apple-system,
         BlinkMacSystemFont,
         "Segoe UI",
         Roboto,
-        sans-serif;
+        sans-serif
+    );
     margin: 0;
     padding: 0;
     width: 100%;
     height: 100%;
     overflow: hidden;
-    background-color: var(--vscode-editor-background, #f7f9fb);
-    color: var(--vscode-editor-foreground, #191c1e);
+    background-color: var(--vscode-editor-background);
+    color: var(--vscode-editor-foreground);
 }
 
 .font-code {
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--vscode-editor-font-family, "JetBrains Mono", monospace);
 }
 
-/* Explicit Table & Border Styling */
+/* Theme-Adapting Explicit Table & Border Styling */
 .ui-border-b {
-    border-bottom: 1px solid var(--vscode-panel-border, #c3c6d7);
+    border-bottom: 1px solid
+        var(--vscode-panel-border, var(--vscode-widget-border, rgba(128, 128, 128, 0.35)));
 }
 
 .ui-border-t {
-    border-top: 1px solid var(--vscode-panel-border, #c3c6d7);
+    border-top: 1px solid
+        var(--vscode-panel-border, var(--vscode-widget-border, rgba(128, 128, 128, 0.35)));
 }
 
 .ui-border-r {
-    border-right: 1px solid var(--vscode-panel-border, #c3c6d7);
+    border-right: 1px solid
+        var(--vscode-panel-border, var(--vscode-widget-border, rgba(128, 128, 128, 0.35)));
 }
 
 .ui-table-container {
-    border: 1px solid var(--vscode-panel-border, #c3c6d7);
+    border: 1px solid
+        var(--vscode-panel-border, var(--vscode-widget-border, rgba(128, 128, 128, 0.35)));
     border-radius: 4px;
-    background-color: var(--vscode-editor-background, #ffffff);
+    background-color: var(--vscode-editor-background);
     overflow: hidden;
 }
 
 .ui-table-header-tr {
-    background-color: var(--vscode-sideBarSectionHeader-background, #f1f5f9) !important;
-    border-bottom: 1px solid var(--vscode-panel-border, #c3c6d7) !important;
+    background-color: var(
+        --vscode-sideBarSectionHeader-background,
+        var(--vscode-editorWidget-background, rgba(128, 128, 128, 0.1))
+    ) !important;
+    border-bottom: 1px solid
+        var(--vscode-panel-border, var(--vscode-widget-border, rgba(128, 128, 128, 0.35))) !important;
 }
 
 .ui-table-th {
-    border-right: 1px solid var(--vscode-panel-border, #c3c6d7);
+    border-right: 1px solid
+        var(--vscode-panel-border, var(--vscode-widget-border, rgba(128, 128, 128, 0.35)));
     padding: 10px 16px;
+    color: var(--vscode-editor-foreground);
 }
 
 .ui-table-th:last-child {
@@ -61,19 +73,26 @@ body {
 }
 
 .ui-table-tr {
-    border-bottom: 1px solid var(--vscode-panel-border, rgba(195, 198, 215, 0.5));
+    border-bottom: 1px solid
+        var(--vscode-panel-border, var(--vscode-widget-border, rgba(128, 128, 128, 0.2)));
+}
+
+.ui-table-tr:hover {
+    background-color: var(--vscode-list-hoverBackground, rgba(128, 128, 128, 0.12));
 }
 
 .ui-table-td {
-    border-right: 1px solid var(--vscode-panel-border, rgba(195, 198, 215, 0.5));
+    border-right: 1px solid
+        var(--vscode-panel-border, var(--vscode-widget-border, rgba(128, 128, 128, 0.2)));
     padding: 10px 16px;
+    color: var(--vscode-editor-foreground);
 }
 
 .ui-table-td:last-child {
     border-right: none;
 }
 
-/* Minimalist Scrollbar */
+/* Minimalist Scrollbar matching VS Code theme */
 ::-webkit-scrollbar {
     width: 8px;
     height: 8px;
