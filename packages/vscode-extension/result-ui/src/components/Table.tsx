@@ -40,15 +40,15 @@ export function TableView(props: TableProps) {
 
             {/* Data Table Container with Horizontal & Vertical Overflow */}
             <div class="flex-1 overflow-auto bg-surface-container-lowest p-4">
-                <div class="border border-outline-variant rounded bg-surface overflow-auto max-w-full">
-                    <table class="w-full min-w-full text-left border-collapse table-fixed">
+                <div class="border border-outline-variant rounded bg-surface overflow-auto max-w-full h-full max-h-full">
+                    <table class="w-full min-w-full text-left border-separate border-spacing-0 table-fixed">
                         <colgroup>
                             <For each={props.table.getVisibleFlatColumns()}>
                                 {(column) => <col style={{ width: `${column.getSize()}px` }} />}
                             </For>
                         </colgroup>
-                        <thead>
-                            <tr class="bg-surface-container-high border-b border-outline-variant">
+                        <thead class="sticky top-0 z-10">
+                            <tr class="bg-surface-container-high">
                                 <For each={props.table.getHeaderGroups()}>
                                     {(headerGroup) => (
                                         <For each={headerGroup.headers}>
@@ -56,7 +56,7 @@ export function TableView(props: TableProps) {
                                                 <th
                                                     onClick={header.column.getToggleSortingHandler()}
                                                     style={{ width: `${header.getSize()}px` }}
-                                                    class={`relative border-r border-outline-variant px-4 py-2.5 text-2xs font-bold text-on-surface tracking-wider uppercase select-none last:border-r-0 ${
+                                                    class={`sticky top-0 z-10 bg-surface-container-high border-b border-r border-outline-variant px-4 py-2.5 text-2xs font-bold text-on-surface tracking-wider uppercase select-none last:border-r-0 ${
                                                         header.column.getCanSort()
                                                             ? "cursor-pointer hover:bg-surface-variant"
                                                             : ""
