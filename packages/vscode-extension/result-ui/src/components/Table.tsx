@@ -41,7 +41,12 @@ export function TableView(props: TableProps) {
             {/* Data Table Container with Horizontal & Vertical Overflow */}
             <div class="flex-1 overflow-auto bg-surface-container-lowest p-4">
                 <div class="border border-outline-variant rounded bg-surface overflow-auto max-w-full">
-                    <table class="w-full min-w-full text-left border-collapse">
+                    <table class="w-full min-w-full text-left border-collapse table-fixed">
+                        <colgroup>
+                            <For each={props.table.getVisibleFlatColumns()}>
+                                {(column) => <col style={{ width: `${column.getSize()}px` }} />}
+                            </For>
+                        </colgroup>
                         <thead>
                             <tr class="bg-surface-container-high border-b border-outline-variant">
                                 <For each={props.table.getHeaderGroups()}>
@@ -50,7 +55,8 @@ export function TableView(props: TableProps) {
                                             {(header) => (
                                                 <th
                                                     onClick={header.column.getToggleSortingHandler()}
-                                                    class={`border-r border-outline-variant px-4 py-2.5 text-2xs font-bold text-on-surface tracking-wider uppercase select-none last:border-r-0 ${
+                                                    style={{ width: `${header.getSize()}px` }}
+                                                    class={`relative border-r border-outline-variant px-4 py-2.5 text-2xs font-bold text-on-surface tracking-wider uppercase select-none last:border-r-0 ${
                                                         header.column.getCanSort()
                                                             ? "cursor-pointer hover:bg-surface-variant"
                                                             : ""
@@ -77,6 +83,18 @@ export function TableView(props: TableProps) {
                                                             </span>
                                                         </Show>
                                                     </div>
+                                                    <Show when={header.column.getCanResize()}>
+                                                        <div
+                                                            onMouseDown={header.getResizeHandler()}
+                                                            onTouchStart={header.getResizeHandler()}
+                                                            onClick={(e) => e.stopPropagation()}
+                                                            class={`absolute right-0 top-0 h-full w-1.5 cursor-col-resize select-none touch-none hover:bg-primary/50 transition-colors ${
+                                                                header.column.getIsResizing()
+                                                                    ? "bg-primary w-1 opacity-100"
+                                                                    : "opacity-0 hover:opacity-100"
+                                                            }`}
+                                                        />
+                                                    </Show>
                                                 </th>
                                             )}
                                         </For>
@@ -90,7 +108,10 @@ export function TableView(props: TableProps) {
                                     <tr class="border-b border-outline-variant/30 hover:bg-surface-variant transition-colors">
                                         <For each={row.getVisibleCells()}>
                                             {(cell) => (
-                                                <td class="border-r border-outline-variant/30 px-4 py-2.5 text-on-surface max-w-[400px] break-words overflow-wrap-anywhere align-top last:border-r-0">
+                                                <td
+                                                    style={{ width: `${cell.column.getSize()}px` }}
+                                                    class="border-r border-outline-variant/30 px-4 py-2.5 text-on-surface max-w-[400px] break-words overflow-wrap-anywhere align-top last:border-r-0"
+                                                >
                                                     {flexRender(
                                                         cell.column.columnDef.cell,
                                                         cell.getContext(),

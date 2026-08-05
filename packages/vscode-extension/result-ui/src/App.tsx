@@ -24,7 +24,10 @@ declare global {
 
 const INDEX_COLUMN: ColumnDef<Record<string, unknown>> = {
     id: "__index",
-    header: "ID",
+    header: "#",
+    size: 60,
+    minSize: 50,
+    maxSize: 80,
     accessorFn: (_, index) => index + 1,
     cell: (info) => (
         <span class="text-secondary font-code text-xs select-none">{String(info.getValue())}</span>
@@ -49,6 +52,19 @@ function renderCellValue(val: unknown): JSX.Element {
         return <span class="text-token-string font-code">{JSON.stringify(val)}</span>;
     }
     return <span class="text-on-surface font-code">{String(val)}</span>;
+}
+
+function getDynamicColumnSize(items: Record<string, unknown>[], key: string): number {
+    const sample = items.slice(0, 30);
+    const maxLen = Math.max(
+        key.length,
+        ...sample.map((it) => {
+            const val = it[key];
+            if (val === null || val === undefined) return 0;
+            return typeof val === "object" ? JSON.stringify(val).length : String(val).length;
+        }),
+    );
+    return Math.min(Math.max(maxLen * 8 + 36, 90), 450);
 }
 
 export function App() {
@@ -164,6 +180,8 @@ export function App() {
                     id: key,
                     accessorKey: key,
                     header: key.toUpperCase(),
+                    size: getDynamicColumnSize(items as Record<string, unknown>[], key),
+                    minSize: 80,
                     cell: (info) => renderCellValue(info.getValue()),
                 }),
             );
@@ -176,6 +194,8 @@ export function App() {
             {
                 id: "value",
                 header: "VALUE",
+                size: 400,
+                minSize: 150,
                 accessorFn: (row) => (typeof row === "object" ? JSON.stringify(row) : String(row)),
                 cell: (info) => (
                     <span class="text-on-surface font-code">{String(info.getValue())}</span>
@@ -199,6 +219,11 @@ export function App() {
         },
         get columns() {
             return tableColumns();
+        },
+        columnResizeMode: "onChange",
+        defaultColumn: {
+            size: 160,
+            minSize: 60,
         },
         state: {
             get sorting() {
