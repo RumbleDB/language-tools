@@ -48,7 +48,7 @@ export function TableView(props: TableProps) {
                             </For>
                         </colgroup>
                         <thead class="sticky top-0 z-10">
-                            <tr class="bg-surface-container-high">
+                            <tr>
                                 <For each={props.table.getHeaderGroups()}>
                                     {(headerGroup) => (
                                         <For each={headerGroup.headers}>
@@ -56,7 +56,7 @@ export function TableView(props: TableProps) {
                                                 <th
                                                     onClick={header.column.getToggleSortingHandler()}
                                                     style={{ width: `${header.getSize()}px` }}
-                                                    class={`sticky top-0 z-10 bg-surface-container-high border-b border-r border-outline-variant px-4 py-2.5 text-2xs font-bold text-on-surface tracking-wider uppercase select-none last:border-r-0 ${
+                                                    class={`sticky top-0 z-20 bg-surface-container-high border-b border-r border-outline-variant px-4 py-2.5 text-2xs font-bold text-on-surface tracking-wider uppercase select-none last:border-r-0 ${
                                                         header.column.getCanSort()
                                                             ? "cursor-pointer hover:bg-surface-variant"
                                                             : ""
@@ -105,12 +105,12 @@ export function TableView(props: TableProps) {
                         <tbody class="font-code text-xs text-on-surface">
                             <For each={props.table.getRowModel().rows}>
                                 {(row) => (
-                                    <tr class="border-b border-outline-variant/30 hover:bg-surface-variant transition-colors">
+                                    <tr class="hover:bg-surface-variant transition-colors">
                                         <For each={row.getVisibleCells()}>
                                             {(cell) => (
                                                 <td
                                                     style={{ width: `${cell.column.getSize()}px` }}
-                                                    class="border-r border-outline-variant/30 px-4 py-2.5 text-on-surface max-w-[400px] break-words overflow-wrap-anywhere align-top last:border-r-0"
+                                                    class="border-b border-r border-outline-variant/30 px-4 py-2.5 text-on-surface max-w-[400px] break-words overflow-wrap-anywhere align-top last:border-r-0"
                                                 >
                                                     {flexRender(
                                                         cell.column.columnDef.cell,

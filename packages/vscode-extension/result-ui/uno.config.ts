@@ -28,7 +28,7 @@ export default defineConfig({
                 "var(--vscode-sideBar-background, var(--vscode-editorWidget-background))",
             "surface-container-lowest": "var(--vscode-editor-background)",
             "surface-container-high":
-                "var(--vscode-sideBarSectionHeader-background, var(--vscode-editorWidget-background, var(--vscode-sideBar-background, var(--vscode-editor-background))))",
+                "var(--vscode-editorWidget-background, var(--vscode-editor-background))",
             "surface-variant": "var(--vscode-list-hoverBackground, rgba(128, 128, 128, 0.12))",
             outline: "var(--vscode-descriptionForeground, rgba(128, 128, 128, 0.6))",
             "outline-variant":
