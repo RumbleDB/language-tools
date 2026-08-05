@@ -25,12 +25,12 @@ export function Header(props: HeaderProps) {
 
             <div class="flex items-center gap-2 shrink-0">
                 <Show when={props.isSuccess && props.hasItems}>
-                    <div class="flex items-center bg-surface-container rounded p-0.5 border border-outline-variant">
+                    <div class="flex items-center bg-surface-container rounded p-0.5 border border-outline-variant gap-1">
                         <For each={VIEW_MODES}>
                             {(item) => (
                                 <button
                                     onClick={() => props.onViewModeChange(item.mode)}
-                                    class={`px-2 py-0.5 rounded text-2xs font-medium flex items-center gap-1 cursor-pointer transition-colors ${
+                                    class={`px-2 py-0.5 rounded-sm text-2xs font-medium flex items-center gap-1 cursor-pointer transition-colors ${
                                         props.viewMode === item.mode
                                             ? "bg-primary text-on-primary font-semibold"
                                             : "text-secondary hover:text-on-surface"
