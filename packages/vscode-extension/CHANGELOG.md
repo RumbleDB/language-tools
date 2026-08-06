@@ -1,5 +1,56 @@
 # jsoniq-vscode
 
+## 1.5.0
+
+### Minor Changes
+
+- [#45](https://github.com/RumbleDB/language-tools/pull/45) [`4772a5e`](https://github.com/RumbleDB/language-tools/commit/4772a5e0750a571d3c87d142aa6580a0fbff8362) - Introduce full query execution support for JSONiq and XQuery files powered by RumbleDB, allowing users to run queries directly within VS Code and view formatted results in a side-by-side webview panel.
+
+  The Java LSP wrapper now includes a dedicated `RunQuery` handler that executes JSONiq/XQuery scripts against the RumbleDB query engine and serializes execution results as structured JSON arrays.
+
+  The Language Server protocol layer adds custom `runQuery` request handlers, protocol interfaces, and client execution helpers to bridge query execution requests between the editor client and the underlying Java wrapper process.
+
+  The VS Code extension registers the `jsoniq.runQuery` command in editor context menus and title bars. It creates a new webview panel to display query results in a structured table format, powered by the new `@jsoniq/results-ui` webview package built with SolidJS and TanStack Table.
+
+- [#42](https://github.com/RumbleDB/language-tools/pull/42) [`4afa8c7`](https://github.com/RumbleDB/language-tools/commit/4afa8c712a6c1c8479b4d7c3a8e1711105ee3a89) - Switch output format to ESM because it's now supported in VSCode
+
+- [#41](https://github.com/RumbleDB/language-tools/pull/41) [`dcd685f`](https://github.com/RumbleDB/language-tools/commit/dcd685f44ef859208e4cb4cdd29e24b57f632391) - RumbleDB has been updated to latest commit in `next` branch: [7b462ac](https://github.com/RumbleDB/rumble/commit/7b462acaec162990315c5a6ca9ec99d14e90dfdf)
+
+  Also, the following Node.js dependencies have been updated:
+
+  | Dependency              |      From |         To | Scope                                   |
+  | ----------------------- | --------: | ---------: | --------------------------------------- |
+  | `@changesets/cli`       | `^2.31.0` |  `^2.31.1` | root                                    |
+  | `@types/node`           | `^26.0.0` |  `^26.1.2` | language-server, vscode-extension       |
+  | `fast-xml-parser`       |  `^5.9.3` |  `^5.10.1` | language-server                         |
+  | `lint-staged`           | `^17.0.7` |  `^17.3.0` | root                                    |
+  | `npm-run-all2`          |  `^9.0.2` |   `^9.0.3` | root                                    |
+  | `oxfmt`                 | `^0.55.0` |  `^0.61.0` | root, language-server, vscode-extension |
+  | `oxlint`                | `^1.70.0` |  `^1.76.0` | root, language-server, vscode-extension |
+  | `rolldown`              |   `1.1.2` |    `1.2.1` | vscode-extension                        |
+  | `tsc-alias`             | `^1.8.17` |   `^1.9.1` | language-server                         |
+  | `tsdown`                | `^0.22.3` | `^0.22.14` | language-server                         |
+  | `tsx`                   | `^4.22.4` |  `^4.23.1` | language-server                         |
+  | `typescript`            |  `^6.0.3` |   `^7.0.2` | language-server, vscode-extension       |
+  | `vitest`                |  `^4.1.9` |  `^4.1.10` | language-server                         |
+  | `vscode-languageclient` | `^10.0.0` |  `^10.1.0` | vscode-extension                        |
+  | `vscode-languageserver` | `^10.0.0` |  `^10.1.0` | language-server                         |
+
+  And Maven dependencies have been updated:
+
+  | Dependency                                    |     From |               To |
+  | --------------------------------------------- | -------: | ---------------: |
+  | `com.esotericsoftware:kryo`                   |  `5.6.0` |          `5.6.2` |
+  | `org.apache.hadoop:hadoop-common`             |  `3.3.6` |          `3.5.0` |
+  | `org.apache.spark:spark-sql_2.13`             |  `4.0.1` | `4.2.0-preview5` |
+  | `com.fasterxml.jackson.core:jackson-databind` | `2.20.0` |         `2.22.1` |
+  | `org.junit.jupiter:junit-jupiter`             | `5.12.2` |          `6.1.2` |
+
+### Patch Changes
+
+- Updated dependencies [[`face347`](https://github.com/RumbleDB/language-tools/commit/face3475e15cf8491de49504fd46e43084a52b9c), [`6daad42`](https://github.com/RumbleDB/language-tools/commit/6daad428989fb8b129c62bc32563dcea38f37a7c), [`4772a5e`](https://github.com/RumbleDB/language-tools/commit/4772a5e0750a571d3c87d142aa6580a0fbff8362), [`98207ed`](https://github.com/RumbleDB/language-tools/commit/98207ede10fe9f69b238587945ab2a189ddfad52), [`0a67f42`](https://github.com/RumbleDB/language-tools/commit/0a67f42b9176ea7f3dd87e10c963789bf74e1bc2), [`dcd685f`](https://github.com/RumbleDB/language-tools/commit/dcd685f44ef859208e4cb4cdd29e24b57f632391)]:
+  - jsoniq-language-server@2.8.0
+
 ## 1.4.2
 
 ### Patch Changes
