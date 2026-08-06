@@ -1,133 +1,141 @@
 import { CommonTokenStream, Token } from "antlr4ng";
 
+import { buildCommentAttachmentMap, CommentAttachmentMap } from "./comments.js";
 import type { FormatterOptions } from "./options.js";
+
+export interface FormatterContextState {
+    indentLevel: number;
+    emittedComments: Set<number>;
+}
 
 /**
  * Tracks formatting state during a formatting pass.
- * Manages indentation, output buffering, and HIDDEN channel access.
+ * Manages indentation, line width, and token comment attachments.
  */
 export class FormatterContext {
     private indentLevel: number = 0;
     public readonly options: FormatterOptions;
     public readonly tokenStream: CommonTokenStream;
+    public readonly attachmentMap: CommentAttachmentMap;
+
+    private emittedComments: Set<number> = new Set();
 
     public constructor(options: FormatterOptions, tokenStream: CommonTokenStream) {
         this.options = options;
         this.tokenStream = tokenStream;
+        this.attachmentMap = buildCommentAttachmentMap(tokenStream);
     }
 
-    public get currentIndent(): string {
-        const char = this.options.useTabs ? "\t" : " ";
-        const count = this.options.useTabs
-            ? this.indentLevel
-            : this.indentLevel * this.options.indentSize;
-        return char.repeat(count);
+    public saveState(): FormatterContextState {
+        return {
+            indentLevel: this.indentLevel,
+            emittedComments: new Set(this.emittedComments),
+        };
+    }
+
+    public restoreState(state: FormatterContextState): void {
+        this.indentLevel = state.indentLevel;
+        this.emittedComments = new Set(state.emittedComments);
+    }
+
+    /**
+     * Formats a terminal token at tokenIndex by emitting its attached leading comments,
+     * its text content, and its attached trailing comments.
+     */
+    public formatToken(tokenIndex: number, text: string): string {
+        let leadingText = "";
+
+        // 1. Leading comments (on lines before this token)
+        const leading = this.attachmentMap.leading.get(tokenIndex);
+        if (leading) {
+            for (const c of leading) {
+                if (!this.emittedComments.has(c.tokenIndex)) {
+                    this.emittedComments.add(c.tokenIndex);
+                    const commentIndent =
+                        c.tokenIndex === 0 || this.isStartOfDocumentComment(c)
+                            ? ""
+                            : this.currentIndent;
+                    leadingText += `${commentIndent}${c.text?.trim()}\n`;
+                }
+            }
+        }
+
+        // 2. Token text
+        let result = leadingText ? `${leadingText}${this.currentIndent}${text}` : text;
+
+        // 3. Trailing comments (on the same line after this token)
+        const trailing = this.attachmentMap.trailing.get(tokenIndex);
+        if (trailing) {
+            for (const c of trailing) {
+                if (!this.emittedComments.has(c.tokenIndex)) {
+                    this.emittedComments.add(c.tokenIndex);
+                    result += ` ${c.text?.trim()}`;
+                }
+            }
+        }
+
+        return result;
+    }
+
+    /**
+     * Formats any un-emitted dangling comments at the end of file.
+     */
+    public formatDanglingComments(): string {
+        let result = "";
+        for (const c of this.attachmentMap.dangling) {
+            if (!this.emittedComments.has(c.tokenIndex)) {
+                this.emittedComments.add(c.tokenIndex);
+                result += `${c.text?.trim()}\n`;
+            }
+        }
+        return result;
+    }
+
+    /**
+     * Returns comment tokens strictly between two parser-token indices.
+     *
+     * This is retained for the generic formatter helpers. The normal visitor
+     * path uses the precomputed attachment map, which also prevents duplicate
+     * emission when a token is visited more than once during layout decisions.
+     */
+    public getCommentsBetween(fromTokenIndex: number, toTokenIndex: number): Token[] {
+        const comments: Token[] = [];
+        const start = Math.max(0, fromTokenIndex + 1);
+        const end = Math.min(this.tokenStream.size, toTokenIndex);
+
+        for (let i = start; i < end; i++) {
+            const token = this.tokenStream.get(i);
+            if (token.channel === Token.HIDDEN_CHANNEL && token.text?.trim().startsWith("(:")) {
+                comments.push(token);
+            }
+        }
+
+        return comments;
+    }
+
+    private isStartOfDocumentComment(comment: Token): boolean {
+        for (let i = 0; i < comment.tokenIndex; i++) {
+            const t = this.tokenStream.get(i);
+            if (t.channel === Token.DEFAULT_CHANNEL && t.type !== -1) {
+                return false;
+            }
+        }
+        return true;
     }
 
     public indent(): void {
-        this.indentLevel += 1;
+        this.indentLevel++;
     }
 
     public dedent(): void {
         this.indentLevel = Math.max(0, this.indentLevel - 1);
     }
 
-    /**
-     * Returns the HIDDEN-channel tokens (comments, but not whitespace)
-     * that fall between two token indices.
-     */
-    public getCommentsBetween(fromTokenIndex: number, toTokenIndex: number): Token[] {
-        const comments: Token[] = [];
-
-        for (let i = fromTokenIndex + 1; i < toTokenIndex; i++) {
-            const token = this.tokenStream.get(i);
-            if (token.channel !== Token.DEFAULT_CHANNEL && !isWhitespace(token)) {
-                comments.push(token);
-            }
-        }
-
-        return comments;
+    public get currentIndent(): string {
+        return " ".repeat(this.indentLevel * this.options.indentSize);
     }
 
-    /**
-     * Returns HIDDEN-channel comment tokens that appear before the given token index.
-     * Stops at the first DEFAULT_CHANNEL token or the beginning of the stream.
-     */
-    public getCommentsBefore(tokenIndex: number): Token[] {
-        const comments: Token[] = [];
-
-        for (let i = tokenIndex - 1; i >= 0; i--) {
-            const token = this.tokenStream.get(i);
-            if (token.channel === Token.DEFAULT_CHANNEL) {
-                break;
-            }
-            if (!isWhitespace(token)) {
-                comments.unshift(token);
-            }
-        }
-
-        return comments;
+    public resetIndent(): void {
+        this.indentLevel = 0;
     }
-
-    /**
-     * Returns HIDDEN-channel comment tokens that appear after the given token index.
-     * Stops at the first DEFAULT_CHANNEL token or the end of the stream.
-     */
-    public getCommentsAfter(tokenIndex: number): Token[] {
-        const comments: Token[] = [];
-        const size = this.tokenStream.size;
-
-        for (let i = tokenIndex + 1; i < size; i++) {
-            const token = this.tokenStream.get(i);
-            if (token.channel === Token.DEFAULT_CHANNEL) {
-                break;
-            }
-            if (!isWhitespace(token)) {
-                comments.push(token);
-            }
-        }
-
-        return comments;
-    }
-
-    /**
-     * Checks whether there is a newline in the original source between two token indices.
-     * Used to preserve intentional blank lines.
-     */
-    public hasNewlineBetween(fromTokenIndex: number, toTokenIndex: number): boolean {
-        for (let i = fromTokenIndex + 1; i < toTokenIndex; i++) {
-            const token = this.tokenStream.get(i);
-            if (
-                isWhitespace(token) &&
-                token.text !== null &&
-                token.text !== undefined &&
-                token.text.includes("\n")
-            ) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    /**
-     * Counts the number of newlines in the original source between two token indices.
-     */
-    public countNewlinesBetween(fromTokenIndex: number, toTokenIndex: number): number {
-        let count = 0;
-        for (let i = fromTokenIndex + 1; i < toTokenIndex; i++) {
-            const token = this.tokenStream.get(i);
-            if (isWhitespace(token) && token.text !== null && token.text !== undefined) {
-                for (const ch of token.text) {
-                    if (ch === "\n") {
-                        count += 1;
-                    }
-                }
-            }
-        }
-        return count;
-    }
-}
-
-function isWhitespace(token: Token): boolean {
-    return token.text !== null && token.text !== undefined && /^[\s]+$/.test(token.text);
 }

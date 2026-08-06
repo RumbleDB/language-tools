@@ -4,10 +4,8 @@ import {
     formatBlock,
     formatCommaSeparated,
     formatFlworExpression,
-    formatFunctionDecl,
     formatIfExpression,
     formatTryCatch,
-    formatVarDecl,
     smartJoin,
     spaced,
 } from "server/formatter/helpers.js";
@@ -38,29 +36,44 @@ export class XQueryFormatterVisitor extends XQueryParserVisitor<string> {
         if (node.symbol.type === -1 /* Token.EOF */ || node.getText() === "<EOF>") {
             return "";
         }
-        return node.getText();
+        return this.ctx.formatToken(node.symbol.tokenIndex, node.getText());
     };
 
     public override visitStringLiteral = (node: ctx.StringLiteralContext): string => {
+        if (node.start !== null) {
+            return this.ctx.formatToken(node.start.tokenIndex, node.getText());
+        }
         return node.getText();
     };
 
     public override visitUriLiteral = (node: ctx.UriLiteralContext): string => {
+        if (node.start !== null) {
+            return this.ctx.formatToken(node.start.tokenIndex, node.getText());
+        }
         return node.getText();
     };
 
     // ─── Module & Prolog ──────────────────────────────────────────────────────
 
     public override visitModuleAndThisIsIt = (node: ctx.ModuleAndThisIsItContext): string => {
-        return this.visitChildren(node) ?? "";
+        const body = this.visitChildren(node) ?? "";
+        const dangling = this.ctx.formatDanglingComments();
+        if (!dangling) {
+            return body.endsWith("\n") ? body : `${body}\n`;
+        }
+        const formattedBody = body.endsWith("\n") ? body : `${body}\n`;
+        return `${formattedBody}${dangling}`;
     };
 
     public override visitModule = (node: ctx.ModuleContext): string => {
         const parts: string[] = [];
         if (node.KW_XQUERY() !== null) {
+            const kwXquery = this.v(node.KW_XQUERY());
+            const kwVer = node.KW_VERSION() ? this.v(node.KW_VERSION()) : "version";
             const versionStr = node._vers ? this.v(node._vers) : "";
             const encStr = node._encoding ? ` encoding ${this.v(node._encoding)}` : "";
-            parts.push(`xquery version ${versionStr}${encStr};`);
+            const semi = ";";
+            parts.push(`${kwXquery} ${kwVer} ${versionStr}${encStr}${semi}`);
         }
         if (node.libraryModule()) {
             parts.push(this.v(node.libraryModule()));
@@ -69,7 +82,7 @@ export class XQueryFormatterVisitor extends XQueryParserVisitor<string> {
                 node
                     .mainModule()
                     .map((m) => this.v(m))
-                    .join(";\n"),
+                    .join("\n\n"),
             );
         }
         return parts.join("\n\n");
@@ -110,49 +123,60 @@ export class XQueryFormatterVisitor extends XQueryParserVisitor<string> {
     // ─── Declarations ─────────────────────────────────────────────────────────
 
     public override visitFunctionDecl = (node: ctx.FunctionDeclContext): string => {
+        const decl = node.KW_DECLARE() ? this.v(node.KW_DECLARE()) : "declare";
         const annotations = node.annotations() ? this.v(node.annotations()) : "";
+        const fnKw = node.KW_FUNCTION() ? this.v(node.KW_FUNCTION()) : "function";
         const name = node.functionName() ? this.v(node.functionName()) : "";
         const params = node.paramList() ? `(${this.v(node.paramList())})` : "()";
         const returnType = node._return_type ? this.v(node._return_type) : null;
         const isExternal = node.KW_EXTERNAL() !== null || node._is_external !== undefined;
 
-        if (isExternal || !node._fn_body) {
-            return formatFunctionDecl(
-                annotations,
-                name,
-                params,
-                returnType,
-                null,
-                isExternal,
-                this.ctx,
-            );
+        const signature = spaced(decl, annotations, fnKw, name + params);
+        const withReturn = returnType !== null ? spaced(signature, "as", returnType) : signature;
+
+        if (isExternal) {
+            const semi = node.SEMICOLON() ? this.v(node.SEMICOLON()) : ";";
+            return `${withReturn} external${semi}`;
+        }
+
+        if (!node._fn_body) {
+            const semi = node.SEMICOLON() ? this.v(node.SEMICOLON()) : ";";
+            return `${withReturn}${semi}`;
         }
 
         this.ctx.indent();
         const body = this.v(node._fn_body);
         this.ctx.dedent();
 
-        const signature = spaced("declare", annotations, "function", name + params);
-        const withReturn = returnType !== null ? spaced(signature, "as", returnType) : signature;
-
+        const semi = node.stop ? this.ctx.formatToken(node.stop.tokenIndex, ";") : ";";
         if (
             !body.includes("\n") &&
             withReturn.length + body.length + 5 <= this.ctx.options.maxLineWidth
         ) {
-            return `${withReturn} { ${body.trim()} };`;
+            return `${withReturn} { ${body.trim()} }${semi}`;
         }
 
-        return `${withReturn} {\n${body}\n${this.ctx.currentIndent}};`;
+        return `${withReturn} {\n${body}\n${this.ctx.currentIndent}}${semi}`;
     };
 
     public override visitVarDecl = (node: ctx.VarDeclContext): string => {
+        const decl = node.KW_DECLARE() ? this.v(node.KW_DECLARE()) : "declare";
         const annotations = node.annotations() ? this.v(node.annotations()) : "";
+        const varKw = node.KW_VARIABLE() ? this.v(node.KW_VARIABLE()) : "variable";
         const name = node.varBinding() ? this.v(node.varBinding()) : "";
         const typeSeq = node.sequenceType() ? this.v(node.sequenceType()) : null;
         const expr = node.exprSingle() ? this.v(node.exprSingle()) : null;
         const isExternal = node.KW_EXTERNAL() !== null || node._external !== undefined;
 
-        return formatVarDecl(annotations, name, typeSeq, expr, isExternal, null);
+        const prefix = spaced(decl, annotations, varKw, name);
+        const typed = typeSeq !== null ? spaced(prefix, "as", typeSeq) : prefix;
+        const semi = node.SEMICOLON() ? this.v(node.SEMICOLON()) : ";";
+
+        if (isExternal) {
+            return `${typed} external${semi}`;
+        }
+
+        return typed + (expr !== null ? ` := ${expr}${semi}` : semi);
     };
 
     public override visitParamList = (node: ctx.ParamListContext): string => {
@@ -160,9 +184,9 @@ export class XQueryFormatterVisitor extends XQueryParserVisitor<string> {
     };
 
     public override visitParam = (node: ctx.ParamContext): string => {
-        const name = node._name ? this.v(node._name) : "";
-        const type = node.sequenceType() ? this.v(node.sequenceType()) : "";
-        return type ? `${name} as ${type}` : name;
+        const name = node.varBinding() ? this.v(node.varBinding()) : "";
+        const typeSeq = node.sequenceType() ? ` as ${this.v(node.sequenceType())}` : "";
+        return `${name}${typeSeq}`;
     };
 
     public override visitAnnotations = (node: ctx.AnnotationsContext): string => {
@@ -170,9 +194,6 @@ export class XQueryFormatterVisitor extends XQueryParserVisitor<string> {
     };
 
     public override visitAnnotation = (node: ctx.AnnotationContext): string => {
-        if (node.KW_UPDATING() !== null || node._updating !== undefined) {
-            return "%updating";
-        }
         const name = node._name ? this.v(node._name) : "";
         const lits = node.literal().map((l) => this.v(l));
         return lits.length > 0 ? `%${name}(${formatCommaSeparated(lits)})` : `%${name}`;
@@ -193,13 +214,15 @@ export class XQueryFormatterVisitor extends XQueryParserVisitor<string> {
                 clauses.push(text);
             }
         }
+        const returnKw = node.KW_RETURN() ? this.v(node.KW_RETURN()) : "return";
         const returnExpr = node._return_expr ? this.v(node._return_expr) : "";
-        return formatFlworExpression(clauses, "return", returnExpr, this.ctx);
+        return formatFlworExpression(clauses, returnKw, returnExpr, this.ctx);
     };
 
     public override visitForClause = (node: ctx.ForClauseContext): string => {
+        const kw = node.KW_FOR() ? this.v(node.KW_FOR()) : "for";
         const vars = node._vars.map((v) => this.v(v));
-        return `for ${formatCommaSeparated(vars)}`;
+        return `${kw} ${formatCommaSeparated(vars)}`;
     };
 
     public override visitForVar = (node: ctx.ForVarContext): string => {
@@ -212,8 +235,9 @@ export class XQueryFormatterVisitor extends XQueryParserVisitor<string> {
     };
 
     public override visitLetClause = (node: ctx.LetClauseContext): string => {
+        const kw = node.KW_LET() ? this.v(node.KW_LET()) : "let";
         const vars = node._vars.map((v) => this.v(v));
-        return `let ${formatCommaSeparated(vars)}`;
+        return `${kw} ${formatCommaSeparated(vars)}`;
     };
 
     public override visitLetVar = (node: ctx.LetVarContext): string => {
@@ -224,8 +248,9 @@ export class XQueryFormatterVisitor extends XQueryParserVisitor<string> {
     };
 
     public override visitWhereClause = (node: ctx.WhereClauseContext): string => {
+        const kw = node.KW_WHERE() ? this.v(node.KW_WHERE()) : "where";
         const expr = node.exprSingle() ? this.v(node.exprSingle()) : "";
-        return `where ${expr}`;
+        return `${kw} ${expr}`;
     };
 
     public override visitGroupByClause = (node: ctx.GroupByClauseContext): string => {
@@ -392,8 +417,9 @@ export class XQueryFormatterVisitor extends XQueryParserVisitor<string> {
         }
 
         const outerIndent = this.ctx.currentIndent;
-        const singleText = this.v(exprNode);
-        const singleLine = `(${singleText})`;
+        const savedState = this.ctx.saveState();
+        const bodyText = this.v(exprNode);
+        const singleLine = `(${bodyText})`;
         if (
             !singleLine.includes("\n") &&
             singleLine.length + outerIndent.length <= this.ctx.options.maxLineWidth
@@ -401,6 +427,7 @@ export class XQueryFormatterVisitor extends XQueryParserVisitor<string> {
             return singleLine;
         }
 
+        this.ctx.restoreState(savedState);
         this.ctx.indent();
         let items: string[];
         if ("exprSingle" in exprNode && typeof exprNode.exprSingle === "function") {

@@ -218,6 +218,103 @@ describe("JSONiq & XQuery Formatter", () => {
         });
     });
 
+    describe("Comment preservation", () => {
+        it("preserves top-of-file comments, inline comments, and standalone comments in JSONiq", () => {
+            const input = [
+                "(: Top comment :)",
+                "declare function local:test() {",
+                "    (: Inside function comment :)",
+                "    let $x := 1 (: inline comment :)",
+                "    return $x",
+                "};",
+                "(: Trailing comment :)",
+            ].join("\n");
+            const formatted = formatText(input, "jsoniq");
+            const expected = [
+                "(: Top comment :)",
+                "declare function local:test() {",
+                "    (: Inside function comment :)",
+                "    let $x := 1 (: inline comment :)",
+                "    return $x",
+                "};",
+                "(: Trailing comment :)\n",
+            ].join("\n");
+            expect(formatted).toBe(expected);
+        });
+
+        it("preserves comments in XQuery", () => {
+            const input = [
+                "(: Header comment :)",
+                'xquery version "3.1";',
+                "(: Prolog comment :)",
+                "declare variable $x := 42; (: var comment :)",
+                "$x",
+            ].join("\n");
+            const formatted = formatText(input, "xquery");
+            const expected = [
+                "(: Header comment :)",
+                'xquery version "3.1";',
+                "",
+                "(: Prolog comment :)",
+                "declare variable $x := 42; (: var comment :)",
+                "",
+                "$x\n",
+            ].join("\n");
+            expect(formatted).toBe(expected);
+        });
+
+        it("preserves comments in FLWOR expressions, objects, arrays, and binary operations", () => {
+            const input = [
+                "for $x in (",
+                "    (: inside array :)",
+                "    1,",
+                "    2",
+                ")",
+                "(: clause comment :)",
+                "where $x > 0 (: condition comment :)",
+                "return {",
+                '    (: object comment :) "a": $x + (: binary comment :) 1',
+                "}",
+            ].join("\n");
+            const formatted = formatText(input, "jsoniq");
+            const expected = [
+                "for $x in (",
+                "    (: inside array :)",
+                "    1,",
+                "    2",
+                ")",
+                "(: clause comment :)",
+                "where $x > 0 (: condition comment :)",
+                "return {",
+                "    (: object comment :)",
+                '    "a": $x + (: binary comment :) 1',
+                "}\n",
+            ].join("\n");
+            expect(formatted).toBe(expected);
+        });
+
+        it("preserves comments before let clause without moving them after the dollar sign", () => {
+            const input = ["(: Before :)", "let $a := 1", "return $a"].join("\n");
+            const formatted = formatText(input, "jsoniq");
+            const expected = ["(: Before :)", "let $a := 1", "return $a\n"].join("\n");
+            expect(formatted).toBe(expected);
+        });
+
+        it("preserves comments inside sequence expressions", () => {
+            const input = ["let $a := (1 (:test:))", "return $a"].join("\n");
+            const formatted = formatText(input, "jsoniq");
+            const expected = ["let $a := (1 (:test:))", "return $a\n"].join("\n");
+            expect(formatted).toBe(expected);
+        });
+
+        it("preserves comments inside multi-item sequence expressions before commas", () => {
+            const input = ["let $a := (1 (:test:), 2)", "return $a"].join("\n");
+            const formatted = formatText(input, "jsoniq");
+            const expected = ["let $a := (1 (:test:), 2)", "return $a\n"].join("\n");
+            expect(formatted).toBe(expected);
+        });
+    });
+
     describe("Syntax error handling", () => {
         it("refuses to format documents with syntax errors", () => {
             const input = "declare function local:foo("; // Incomplete syntax
