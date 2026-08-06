@@ -11,6 +11,7 @@ import {
 import { findCompletionsWithTypeInfo } from "./completion.js";
 import { config, InitializationOptions, mergeConfiguration } from "./config.js";
 import { findDefinitionLocation } from "./definitions.js";
+import { formatDocument } from "./formatter/index.js";
 import { findHover } from "./hover.js";
 import { collectInlayHints } from "./inlay-hints.js";
 import {
@@ -108,6 +109,7 @@ connection.onInitialize((params: InitializeParams): InitializeResult => {
                 legend: semanticLegend,
                 full: true,
             },
+            documentFormattingProvider: true,
         },
         serverInfo: {
             name: "JSONiq Language Server",
@@ -214,6 +216,16 @@ connection.languages.semanticTokens.on((params) => {
     }
 
     return collectSemanticTokens(document);
+});
+
+connection.onDocumentFormatting((params) => {
+    const document = documents.get(params.textDocument.uri);
+
+    if (document === undefined || !supportsDocument(document)) {
+        return [];
+    }
+
+    return formatDocument(document);
 });
 
 documents.onDidOpen(async (event) => {

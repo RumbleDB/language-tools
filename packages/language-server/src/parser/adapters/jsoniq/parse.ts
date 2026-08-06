@@ -27,6 +27,8 @@ export function parseJsoniq(document: TextDocument): ParseResult {
         tokens,
         ast,
         diagnostics: errorListener.diagnostics,
+        tree,
+        tokenStream,
     };
 }
 

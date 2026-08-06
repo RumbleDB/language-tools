@@ -27,6 +27,8 @@ export function parseXQuery(document: TextDocument): ParseResult {
         tokens,
         ast,
         diagnostics: errorListener.diagnostics,
+        tree,
+        tokenStream,
     };
 }
 
