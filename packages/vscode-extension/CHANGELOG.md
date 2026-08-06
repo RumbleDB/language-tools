@@ -1,5 +1,12 @@
 # jsoniq-vscode
 
+## 1.5.1
+
+### Patch Changes
+
+- Updated dependencies [[`e0dafdb`](https://github.com/RumbleDB/language-tools/commit/e0dafdbe4aa2fef4e50e0f48bb74bd83b387a2d6)]:
+  - jsoniq-language-server@2.8.1
+
 ## 1.5.0
 
 ### Minor Changes
