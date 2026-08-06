@@ -1,5 +1,11 @@
 # jsoniq-language-server
 
+## 2.8.1
+
+### Patch Changes
+
+- [`e0dafdb`](https://github.com/RumbleDB/language-tools/commit/e0dafdbe4aa2fef4e50e0f48bb74bd83b387a2d6) - Upgrade RumbleDB to https://github.com/RumbleDB/rumble/commit/b8542ba408571cd399611154d3380f460892d9a5
+
 ## 2.8.0
 
 ### Minor Changes
