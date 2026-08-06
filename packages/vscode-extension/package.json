@@ -17,7 +17,7 @@
     "scripts": {
         "build": "pnpm run clean && pnpm run build:webview && pnpm run typecheck && rolldown -c",
         "build:prod": "pnpm run clean && pnpm run build:webview && pnpm run typecheck && rolldown -c  --environment BUILD:production",
-        "build:webview": "pnpm --filter @jsoniq/result-ui run build",
+        "build:webview": "pnpm --filter @jsoniq/results-ui run build",
         "typecheck": "tsc -p tsconfig.json --noEmit",
         "watch": "rolldown -c -w",
         "clean": "rm -rf dist",
