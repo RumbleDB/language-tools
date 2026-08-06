@@ -42,6 +42,7 @@ export default defineConfig([
                 "vscode-languageserver",
                 "vscode-languageserver/node",
                 "vscode-languageserver-textdocument",
+                "pidusage",
             ],
         },
     },
