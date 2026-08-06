@@ -31,7 +31,7 @@ export function Footer(props: FooterProps) {
                         disabled={!props.table.getCanPreviousPage()}
                         class="p-1 hover:bg-surface-variant rounded transition-colors disabled:opacity-30 cursor-pointer flex items-center justify-center text-on-surface"
                     >
-                        <span class="i-iconoir-chevron-left text-sm" />
+                        <span class="i-iconoir-nav-arrow-left text-sm" />
                     </button>
 
                     <span class="px-1 text-xs text-secondary font-medium">
@@ -44,7 +44,7 @@ export function Footer(props: FooterProps) {
                         disabled={!props.table.getCanNextPage()}
                         class="p-1 hover:bg-surface-variant rounded transition-colors disabled:opacity-30 cursor-pointer flex items-center justify-center text-on-surface"
                     >
-                        <span class="i-iconoir-chevron-right text-sm" />
+                        <span class="i-iconoir-nav-arrow-right text-sm" />
                     </button>
                 </div>
 

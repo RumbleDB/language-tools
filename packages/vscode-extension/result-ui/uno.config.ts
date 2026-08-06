@@ -29,7 +29,8 @@ export default defineConfig({
             "surface-container-lowest": "var(--vscode-editor-background)",
             "surface-container-high":
                 "var(--vscode-editorWidget-background, var(--vscode-editor-background))",
-            "surface-variant": "var(--vscode-list-hoverBackground, rgba(128, 128, 128, 0.12))",
+            "surface-variant":
+                "var(--vscode-editorHoverWidget-background, rgba(128, 128, 128, 0.12))",
             outline: "var(--vscode-descriptionForeground, rgba(128, 128, 128, 0.6))",
             "outline-variant":
                 "var(--vscode-panel-border, var(--vscode-widget-border, rgba(128, 128, 128, 0.35)))",
