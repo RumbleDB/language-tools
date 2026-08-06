@@ -1,160 +1,100 @@
-import type { FormatterContext } from "./context.js";
+import { concat, Doc, group, hardline, indent, join, line, NIL, text } from "./doc.js";
 
-// ─── Spacing Helpers ──────────────────────────────────────────────────────────
-
-/**
- * Joins formatted parts with a single space, filtering out empty strings.
- */
-export function spaced(...parts: (string | null | undefined)[]): string {
-    return parts.filter((p): p is string => p !== null && p !== undefined && p !== "").join(" ");
-}
-
-// ─── Comma-Separated Lists ───────────────────────────────────────────────────
+// ─── List Formatting ─────────────────────────────────────────────────────────
 
 /**
- * Formats a comma-separated list of items with spacing after commas.
- * Used for argument lists, parameter lists, sequence items, etc.
- *
- * Examples:
- *   formatCommaSeparated(["$x", "$y", "$z"]) => "$x, $y, $z"
+ * Formats a comma-separated list of items (sequence items, arguments, params).
+ * If the group breaks across lines, items are separated by `, \n`.
  */
-export function formatCommaSeparated(items: string[]): string {
-    return items.join(", ");
+export function formatCommaSeparatedDocs(items: readonly Doc[]): Doc {
+    if (items.length === 0) {
+        return NIL;
+    }
+    return join(concat([text(","), line]), items);
 }
 
 // ─── Block Formatting ─────────────────────────────────────────────────────────
 
 /**
  * Formats a brace-enclosed block `{ content }`.
- * If the content is short enough, keeps it on one line.
- * Otherwise, breaks it across multiple lines with indentation.
+ * When flat: `{ content }`
+ * When broken:
+ * ```
+ * {
+ *     content
+ * }
+ * ```
  */
-export function formatBlock(
-    content: string,
-    ctx: FormatterContext,
-    forceMultiLine: boolean = false,
-): string {
-    const trimmed = content.trim();
-
-    if (trimmed === "") {
-        return "{}";
+export function formatBlockDoc(content: Doc): Doc {
+    if (content.kind === "text" && content.text === "") {
+        return text("{}");
     }
-
-    const singleLine = `{ ${trimmed} }`;
-    if (!forceMultiLine && singleLine.length <= ctx.options.maxLineWidth) {
-        return singleLine;
-    }
-
-    ctx.indent();
-    const indentedContent = trimmed
-        .split("\n")
-        .map((line) => (line.trim() === "" ? "" : `${ctx.currentIndent}${line.trim()}`))
-        .join("\n");
-    ctx.dedent();
-
-    return `{\n${indentedContent}\n${ctx.currentIndent}}`;
+    return group(concat([text("{"), indent(concat([line, content])), line, text("}")]));
 }
 
 // ─── FLWOR Formatting ─────────────────────────────────────────────────────────
 
 /**
- * Formats a FLWOR expression with each clause on its own line.
- *
- * ```
- * for $x in $seq
- * let $y := $x + 1
- * where $y > 5
- * order by $y
- * return $y
- * ```
+ * Formats a FLWOR expression with each clause separated by a hard line break.
  */
-export function formatFlworExpression(
-    clauses: string[],
-    returnKeyword: string,
-    returnExpr: string,
-    ctx: FormatterContext,
-): string {
-    const parts = clauses.filter((c) => c !== "");
-    const returnLine = spaced(returnKeyword, returnExpr);
-    parts.push(returnLine);
-    return parts.join("\n" + ctx.currentIndent);
+export function formatFlworExpressionDoc(
+    clauses: readonly Doc[],
+    returnKeywordDoc: Doc,
+    returnExprDoc: Doc,
+): Doc {
+    const returnLine = concat([returnKeywordDoc, text(" "), returnExprDoc]);
+    return join(hardline, [...clauses, returnLine]);
 }
 
 // ─── If/Else Formatting ──────────────────────────────────────────────────────
 
 /**
  * Formats an if/then/else expression.
- * Short expressions stay on one line; longer ones break across lines.
- *
- * Single line: `if ($cond) then $a else $b`
- * Multi line:
+ * When flat: `if ($cond) then $a else $b`
+ * When broken:
  * ```
  * if ($cond)
- * then $a
- * else $b
+ *     then $a
+ *     else $b
  * ```
  */
-export function formatIfExpression(
-    condition: string,
-    thenExpr: string,
-    elseExpr: string,
-    ctx: FormatterContext,
-): string {
-    const singleLine = `if (${condition}) then ${thenExpr} else ${elseExpr}`;
-    if (
-        singleLine.length + ctx.currentIndent.length <= ctx.options.maxLineWidth &&
-        !singleLine.includes("\n")
-    ) {
-        return singleLine;
-    }
-
-    return [
-        `if (${condition})`,
-        `${ctx.currentIndent}then ${thenExpr}`,
-        `${ctx.currentIndent}else ${elseExpr}`,
-    ].join("\n");
+export function formatIfExpressionDoc(condDoc: Doc, thenDoc: Doc, elseDoc: Doc): Doc {
+    return group(
+        concat([
+            text("if ("),
+            condDoc,
+            text(")"),
+            indent(concat([line, text("then "), thenDoc, line, text("else "), elseDoc])),
+        ]),
+    );
 }
 
 // ─── Try/Catch Formatting ─────────────────────────────────────────────────────
 
 /**
  * Formats a try/catch expression.
- *
- * ```
- * try {
- *   expr
- * } catch * {
- *   handler
- * }
- * ```
  */
-export function formatTryCatch(
-    tryBody: string,
-    catchClauses: string[],
-    ctx: FormatterContext,
-): string {
-    const tryBlock = formatBlock(tryBody, ctx);
-    const parts = [`try ${tryBlock}`];
-    for (const clause of catchClauses) {
-        parts.push(ctx.currentIndent + clause);
+export function formatTryCatchDoc(tryBodyDoc: Doc, catchClausesDocs: readonly Doc[]): Doc {
+    const tryBlock = formatBlockDoc(tryBodyDoc);
+    const parts: Doc[] = [concat([text("try "), tryBlock])];
+    for (const c of catchClausesDocs) {
+        parts.push(concat([text(" "), c]));
     }
-    return parts.join("\n");
+    return join(line, parts);
 }
 
 // ─── Blank Line Normalization ─────────────────────────────────────────────────
 
 /**
- * Normalizes blank lines in a formatted string.
- * Collapses consecutive blank lines to the specified maximum.
- * Removes trailing whitespace from each line.
+ * Post-processes printer text output to normalize blank lines and trim trailing spaces.
  */
-export function normalizeBlankLines(text: string, maxConsecutive: number): string {
-    const lines = text.split("\n");
+export function normalizeBlankLines(textStr: string, maxConsecutive: number): string {
+    const lines = textStr.split("\n");
     const result: string[] = [];
     let consecutiveBlanks = 0;
 
-    for (const line of lines) {
-        const trimmed = line.trimEnd();
+    for (const l of lines) {
+        const trimmed = l.trimEnd();
         if (trimmed === "") {
             consecutiveBlanks += 1;
             if (consecutiveBlanks <= maxConsecutive) {
@@ -169,100 +109,10 @@ export function normalizeBlankLines(text: string, maxConsecutive: number): strin
     return result.join("\n");
 }
 
-// ─── Smart Token Joining ──────────────────────────────────────────────────────
+// ─── Declaration Separation ────────────────────────────────────────────────────
 
 /**
- * Joins token parts with smart spacing — adds spaces between most tokens,
- * but not after opening delimiters, before closing delimiters, before commas/semicolons, etc.
- */
-export function smartJoin(parts: string[]): string {
-    if (parts.length === 0) {
-        return "";
-    }
-
-    let result = parts[0]!;
-    for (let i = 1; i < parts.length; i++) {
-        const prev = result;
-        const next = parts[i]!;
-
-        if (needsSpaceBetween(prev, next)) {
-            result += " " + next;
-        } else {
-            result += next;
-        }
-    }
-    return result;
-}
-
-function needsSpaceBetween(left: string, right: string): boolean {
-    if (left === "" || right === "") {
-        return false;
-    }
-
-    const lastChar = left[left.length - 1]!;
-    const firstChar = right[0]!;
-
-    // No space after opening delimiters
-    if (lastChar === "(" || lastChar === "[" || lastChar === "{") {
-        return false;
-    }
-
-    // No space before closing delimiters
-    if (firstChar === ")" || firstChar === "]" || firstChar === "}") {
-        return false;
-    }
-
-    // No space before comma or semicolon
-    if (firstChar === "," || firstChar === ";") {
-        return false;
-    }
-
-    // No space after $ (variable prefix) — but only when $ stands alone,
-    // not when it is the last char of a compound token like $$
-    if (left === "$") {
-        return false;
-    }
-
-    // No space after @ (attribute axis shorthand)
-    if (lastChar === "@") {
-        return false;
-    }
-
-    // No space before or after :: (axis separator)
-    if (right.startsWith("::") || left.endsWith("::")) {
-        return false;
-    }
-
-    // No space before or after / and // (path separators)
-    if (right === "/" || right === "//" || left === "/" || left === "//") {
-        return false;
-    }
-
-    // No space before postfix predicate [n] when attached to an expression
-    // (dot lookups are handled explicitly in visitPostfixExpr, not via smartJoin)
-    if (right.startsWith("[")) {
-        return false;
-    }
-
-    // No space before or after .. (parent step in XPath)
-    if (left === ".." || right === "..") {
-        return false;
-    }
-
-    // No space before or after # (named function ref arity)
-    if (firstChar === "#" || lastChar === "#") {
-        return false;
-    }
-
-    return true;
-}
-
-// ─── Prolog Declaration Separation ────────────────────────────────────────────
-
-/**
- * Determines if two consecutive prolog declarations should have a blank line
- * between them. Related declarations of the same kind are grouped together
- * without a blank line; different kinds get a blank line.
+ * Determines if two consecutive prolog declarations should have a blank line between them.
  */
 export function shouldSeparateDeclarations(prev: string, current: string): boolean {
     return getDeclarationType(prev) !== getDeclarationType(current);

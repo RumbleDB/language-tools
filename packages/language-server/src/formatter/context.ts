@@ -1,20 +1,14 @@
 import { CommonTokenStream } from "antlr4ng";
-import { Token } from "antlr4ng";
 
 import { buildCommentAttachmentMap, CommentAttachmentMap } from "./comments.js";
+import { concat, Doc, hardline, NIL, text } from "./doc.js";
 import type { FormatterOptions } from "./options.js";
 
-export interface FormatterContextState {
-    indentLevel: number;
-    emittedComments: Set<number>;
-}
-
 /**
- * Tracks formatting state during a formatting pass.
- * Manages indentation, line width, and token comment attachments.
+ * FormatterContext manages options, the token stream, and comment attachment maps
+ * during Document IR construction.
  */
 export class FormatterContext {
-    private indentLevel: number = 0;
     public readonly options: FormatterOptions;
     public readonly tokenStream: CommonTokenStream;
     public readonly attachmentMap: CommentAttachmentMap;
@@ -28,129 +22,71 @@ export class FormatterContext {
     }
 
     /**
-     * Saves the current formatting state (indentation + emitted-comment tracking).
-     * Used before dry-run layout attempts so the state can be restored if the dry
-     * run is discarded (e.g., when deciding single-line vs. multi-line layout).
-     */
-    public saveState(): FormatterContextState {
-        return {
-            indentLevel: this.indentLevel,
-            emittedComments: new Set(this.emittedComments),
-        };
-    }
-
-    public restoreState(state: FormatterContextState): void {
-        this.indentLevel = state.indentLevel;
-        this.emittedComments = new Set(state.emittedComments);
-    }
-
-    /**
-     * Formats a terminal token at tokenIndex by emitting:
+     * Formats a terminal token at tokenIndex into a Doc node by attaching:
      *  1. Any leading comments (on their own line before this token)
-     *  2. The token text itself
+     *  2. The token text itself as a TextDoc
      *  3. Any trailing comments (on the same line after this token)
-     *
-     * Leading comments are indented at the current indent level, except for
-     * the very first comment in the document (top-of-file comments).
      */
-    public formatToken(tokenIndex: number, text: string): string {
-        const leading = this.flushLeadingComments(tokenIndex);
-        let result = leading ? `${leading}${this.currentIndent}${text}` : text;
-        result += this.flushTrailingComments(tokenIndex);
-        return result;
+    public formatTokenDoc(tokenIndex: number, tokenText: string): Doc {
+        const leading = this.flushLeadingDoc(tokenIndex);
+        const tokenDoc = text(tokenText);
+        const trailing = this.flushTrailingDoc(tokenIndex);
+
+        return concat([leading, tokenDoc, trailing]);
     }
 
     /**
-     * Emits any un-emitted leading comments for a token index and returns them
-     * as a string. Does NOT emit the token itself.
-     *
-     * Use this when you need leading comments to appear before a construct that
-     * you are building manually (i.e. not via visitTerminal).
-     *
-     * The returned string already ends with `\n` when non-empty, so the caller
-     * can simply concatenate it before its own output.
+     * Emits any un-emitted leading comments for a token index as a Doc.
      */
-    public flushLeadingComments(tokenIndex: number): string {
-        let result = "";
+    public flushLeadingDoc(tokenIndex: number): Doc {
         const leading = this.attachmentMap.leading.get(tokenIndex);
-        if (!leading) {
-            return result;
+        if (!leading || leading.length === 0) {
+            return NIL;
         }
+
+        const docs: Doc[] = [];
         for (const c of leading) {
             if (!this.emittedComments.has(c.tokenIndex)) {
                 this.emittedComments.add(c.tokenIndex);
-                const commentIndent = this.isFirstDocumentComment(c.tokenIndex)
-                    ? ""
-                    : this.currentIndent;
-                result += `${commentIndent}${c.text?.trim()}\n`;
+                docs.push(text(c.text?.trim() ?? ""));
+                docs.push(hardline);
             }
         }
-        return result;
+        return concat(docs);
     }
 
     /**
-     * Emits any un-emitted trailing comments for a token index (inline comments
-     * on the same line as the token). Returns them as a string starting with a
-     * space, e.g. ` (: comment :)`.
+     * Emits any un-emitted trailing comments for a token index as a Doc.
      */
-    public flushTrailingComments(tokenIndex: number): string {
-        let result = "";
+    public flushTrailingDoc(tokenIndex: number): Doc {
         const trailing = this.attachmentMap.trailing.get(tokenIndex);
-        if (!trailing) {
-            return result;
+        if (!trailing || trailing.length === 0) {
+            return NIL;
         }
+
+        const docs: Doc[] = [];
         for (const c of trailing) {
             if (!this.emittedComments.has(c.tokenIndex)) {
                 this.emittedComments.add(c.tokenIndex);
-                result += ` ${c.text?.trim()}`;
+                docs.push(text(" "));
+                docs.push(text(c.text?.trim() ?? ""));
             }
         }
-        return result;
+        return concat(docs);
     }
 
     /**
-     * Emits any dangling comments (those after the last token in the document).
-     * Called once at the end of the top-level module visitor.
+     * Emits any dangling comments (after the last default token) as a Doc.
      */
-    public formatDanglingComments(): string {
-        let result = "";
+    public formatDanglingDoc(): Doc {
+        const docs: Doc[] = [];
         for (const c of this.attachmentMap.dangling) {
             if (!this.emittedComments.has(c.tokenIndex)) {
                 this.emittedComments.add(c.tokenIndex);
-                result += `${c.text?.trim()}\n`;
+                docs.push(hardline);
+                docs.push(text(c.text?.trim() ?? ""));
             }
         }
-        return result;
-    }
-
-    public indent(): void {
-        this.indentLevel++;
-    }
-
-    public dedent(): void {
-        this.indentLevel = Math.max(0, this.indentLevel - 1);
-    }
-
-    public get currentIndent(): string {
-        return " ".repeat(this.indentLevel * this.options.indentSize);
-    }
-
-    public resetIndent(): void {
-        this.indentLevel = 0;
-    }
-
-    /**
-     * Returns true if the comment at `commentTokenIndex` is the first comment in
-     * the document (i.e., no DEFAULT_CHANNEL token appears before it).
-     * Such comments should not be indented.
-     */
-    private isFirstDocumentComment(commentTokenIndex: number): boolean {
-        for (let i = 0; i < commentTokenIndex; i++) {
-            const t = this.tokenStream.get(i);
-            if (t.channel === Token.DEFAULT_CHANNEL && t.type !== Token.EOF) {
-                return false;
-            }
-        }
-        return true;
+        return concat(docs);
     }
 }

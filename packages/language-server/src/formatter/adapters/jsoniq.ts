@@ -1,587 +1,606 @@
-import type { ParseTree, TerminalNode } from "antlr4ng";
+import { ParseTree, TerminalNode } from "antlr4ng";
 import { FormatterContext } from "server/formatter/context.js";
 import {
-    formatBlock,
-    formatCommaSeparated,
-    formatFlworExpression,
-    formatIfExpression,
-    formatTryCatch,
+    concat,
+    Doc,
+    group,
+    hardline,
+    indent,
+    join,
+    line,
+    NIL,
+    softline,
+    spacedDocs,
+    text,
+} from "server/formatter/doc.js";
+import {
+    formatBlockDoc,
+    formatCommaSeparatedDocs,
+    formatFlworExpressionDoc,
+    formatIfExpressionDoc,
+    formatTryCatchDoc,
     shouldSeparateDeclarations,
-    smartJoin,
-    spaced,
 } from "server/formatter/helpers.js";
+import { printDocToString } from "server/formatter/printer.js";
 import type * as ctx from "server/parser/adapters/jsoniq/grammar/JsoniqParser.js";
 import { JsoniqParserVisitor } from "server/parser/adapters/jsoniq/grammar/JsoniqParserVisitor.js";
 
-export class JsoniqFormatterVisitor extends JsoniqParserVisitor<string> {
+export class JsoniqFormatterVisitor extends JsoniqParserVisitor<Doc> {
     public constructor(private readonly ctx: FormatterContext) {
         super();
     }
 
-    private v = (child: ParseTree | null | undefined): string => {
+    private v = (child: ParseTree | null | undefined): Doc => {
         if (child === null || child === undefined) {
-            return "";
+            return NIL;
         }
-        return this.visit(child) ?? "";
+        if ("accept" in child && typeof child.accept === "function") {
+            return child.accept(this) ?? NIL;
+        }
+        return NIL;
     };
 
-    protected override defaultResult(): string {
-        return "";
+    private vStrDoc = (doc: Doc): string => {
+        return printDocToString(doc, this.ctx.options);
+    };
+
+    protected override defaultResult(): Doc {
+        return NIL;
     }
 
-    protected override aggregateResult(aggregate: string, nextResult: string): string {
-        return smartJoin([aggregate, nextResult].filter(Boolean));
+    protected override aggregateResult(aggregate: Doc, nextResult: Doc): Doc {
+        if (aggregate.kind === "text" && aggregate.text === "") {
+            return nextResult;
+        }
+        if (nextResult.kind === "text" && nextResult.text === "") {
+            return aggregate;
+        }
+        return concat([aggregate, text(" "), nextResult]);
     }
 
-    public override visitTerminal = (node: TerminalNode): string => {
+    public override visitTerminal = (node: TerminalNode): Doc => {
         if (node.symbol.type === -1 /* Token.EOF */ || node.getText() === "<EOF>") {
-            return "";
+            return NIL;
         }
-        return this.ctx.formatToken(node.symbol.tokenIndex, node.getText());
+        return this.ctx.formatTokenDoc(node.symbol.tokenIndex, node.getText());
     };
 
-    public override visitStringLiteral = (node: ctx.StringLiteralContext): string => {
+    public override visitStringLiteral = (node: ctx.StringLiteralContext): Doc => {
         if (node.start !== null) {
-            return this.ctx.formatToken(node.start.tokenIndex, node.getText());
+            return this.ctx.formatTokenDoc(node.start.tokenIndex, node.getText());
         }
-        return node.getText();
+        return text(node.getText());
     };
 
-    public override visitUriLiteral = (node: ctx.UriLiteralContext): string => {
+    public override visitUriLiteral = (node: ctx.UriLiteralContext): Doc => {
         if (node.start !== null) {
-            return this.ctx.formatToken(node.start.tokenIndex, node.getText());
+            return this.ctx.formatTokenDoc(node.start.tokenIndex, node.getText());
         }
-        return node.getText();
+        return text(node.getText());
     };
 
     // ─── Module & Prolog ──────────────────────────────────────────────────────
 
-    public override visitModuleAndThisIsIt = (node: ctx.ModuleAndThisIsItContext): string => {
-        const body = this.visitChildren(node) ?? "";
-        const dangling = this.ctx.formatDanglingComments();
-        if (!dangling) {
-            return body.endsWith("\n") ? body : `${body}\n`;
-        }
-        const formattedBody = body.endsWith("\n") ? body : `${body}\n`;
-        return `${formattedBody}${dangling}`;
+    public override visitModuleAndThisIsIt = (node: ctx.ModuleAndThisIsItContext): Doc => {
+        const body = this.visitChildren(node) ?? NIL;
+        const dangling = this.ctx.formatDanglingDoc();
+        return concat([body, dangling]);
     };
 
-    public override visitModule = (node: ctx.ModuleContext): string => {
-        const parts: string[] = [];
+    public override visitModule = (node: ctx.ModuleContext): Doc => {
+        const parts: Doc[] = [];
         if (node.KW_JSONIQ() !== null) {
             const kwJsoniq = this.v(node.KW_JSONIQ());
-            const kwVer = node.KW_VERSION() ? this.v(node.KW_VERSION()) : "version";
-            const versionStr = node._vers ? this.v(node._vers) : "";
-            const encStr = node._encoding ? ` encoding ${this.v(node._encoding)}` : "";
-            const semi = ";";
-            parts.push(`${kwJsoniq} ${kwVer} ${versionStr}${encStr}${semi}`);
+            const kwVer = node.KW_VERSION() ? this.v(node.KW_VERSION()) : text("version");
+            const versionStr = node._vers ? this.v(node._vers) : NIL;
+            const encStr = node._encoding
+                ? concat([text(" encoding "), this.v(node._encoding)])
+                : NIL;
+            const semi = text(";");
+            parts.push(concat([kwJsoniq, text(" "), kwVer, text(" "), versionStr, encStr, semi]));
         }
         if (node.libraryModule()) {
             parts.push(this.v(node.libraryModule()));
         } else if (node.mainModule()) {
             parts.push(this.v(node.mainModule()));
         }
-        return parts.join("\n\n");
+        return join(concat([hardline, hardline]), parts);
     };
 
-    public override visitLibraryModule = (node: ctx.LibraryModuleContext): string => {
-        const ncName = node.ncName() ? this.v(node.ncName()) : "";
-        const uri = node._uri ? this.v(node._uri) : "";
-        const prolog = node.prolog() ? this.v(node.prolog()) : "";
-        const header = `module namespace ${ncName} = ${uri};`;
-        return prolog ? `${header}\n\n${prolog}` : header;
+    public override visitLibraryModule = (node: ctx.LibraryModuleContext): Doc => {
+        const ncName = node.ncName() ? this.v(node.ncName()) : NIL;
+        const uri = node._uri ? this.v(node._uri) : NIL;
+        const prolog = node.prolog() ? this.v(node.prolog()) : NIL;
+        const header = concat([text("module namespace "), ncName, text(" = "), uri, text(";")]);
+        return prolog.kind !== "text" ? concat([header, hardline, hardline, prolog]) : header;
     };
 
-    public override visitMainModule = (node: ctx.MainModuleContext): string => {
-        const prolog = node.prolog() ? this.v(node.prolog()) : "";
-        const program = node.program() ? this.v(node.program()) : "";
-        if (prolog && program) {
-            return `${prolog}\n\n${program}`;
+    public override visitMainModule = (node: ctx.MainModuleContext): Doc => {
+        const prolog = node.prolog() ? this.v(node.prolog()) : NIL;
+        const program = node.program() ? this.v(node.program()) : NIL;
+        if (prolog.kind !== "text" && program.kind !== "text") {
+            return concat([prolog, hardline, hardline, program]);
         }
-        return prolog || program;
+        return prolog.kind !== "text" ? prolog : program;
     };
 
-    public override visitProlog = (node: ctx.PrologContext): string => {
-        const parts: string[] = [];
+    public override visitProlog = (node: ctx.PrologContext): Doc => {
+        const parts: Doc[] = [];
         const count = node.getChildCount();
+        for (let i = 0; i < count; i++) {
+            const child = node.getChild(i);
+            if (child === null || child instanceof TerminalNode) {
+                continue;
+            }
+            const res = this.v(child);
+            if (res.kind !== "text" || res.text !== "") {
+                parts.push(res);
+            }
+        }
+        if (parts.length === 0) {
+            return NIL;
+        }
+        const docs: Doc[] = [parts[0]!];
+        for (let i = 1; i < parts.length; i++) {
+            const prevStr = this.vStrDoc(parts[i - 1]!);
+            const currStr = this.vStrDoc(parts[i]!);
+            const sep =
+                this.ctx.options.blankLineBetweenDeclarations &&
+                shouldSeparateDeclarations(prevStr, currStr)
+                    ? concat([hardline, hardline])
+                    : hardline;
+            docs.push(sep);
+            docs.push(parts[i]!);
+        }
+        return concat(docs);
+    };
+
+    public override visitAnnotatedDecl = (node: ctx.AnnotatedDeclContext): Doc => {
+        const count = node.getChildCount();
+        const parts: Doc[] = [];
         for (let i = 0; i < count; i++) {
             const child = node.getChild(i);
             if (child !== null) {
                 const res = this.v(child);
-                if (res) {
+                if (res.kind !== "text" || res.text !== "") {
                     parts.push(res);
                 }
             }
         }
-        if (parts.length === 0) {
-            return "";
-        }
-        let result = parts[0]!;
-        for (let i = 1; i < parts.length; i++) {
-            const sep = shouldSeparateDeclarations(parts[i - 1]!, parts[i]!) ? "\n\n" : "\n";
-            result += sep + parts[i]!;
-        }
-        return result;
+        return concat(parts);
     };
 
     // ─── Declarations ─────────────────────────────────────────────────────────
 
-    public override visitFunctionDecl = (node: ctx.FunctionDeclContext): string => {
-        const decl = node.KW_DECLARE() ? this.v(node.KW_DECLARE()) : "declare";
-        const annotations = node.annotations() ? this.v(node.annotations()) : "";
-        const fnKw = node.KW_FUNCTION() ? this.v(node.KW_FUNCTION()) : "function";
-        const name = node.functionName() ? this.v(node.functionName()) : "";
-        const params = node.paramList() ? `(${this.v(node.paramList())})` : "()";
+    public override visitFunctionDecl = (node: ctx.FunctionDeclContext): Doc => {
+        const decl = node.KW_DECLARE() ? this.v(node.KW_DECLARE()) : text("declare");
+        const annotations = node.annotations() ? this.v(node.annotations()) : NIL;
+        const fnKw = node.KW_FUNCTION() ? this.v(node.KW_FUNCTION()) : text("function");
+        const name = node.functionName() ? this.v(node.functionName()) : NIL;
+        const params = node.paramList()
+            ? concat([text("("), this.v(node.paramList()), text(")")])
+            : text("()");
         const returnType = node._return_type ? this.v(node._return_type) : null;
         const isExternal = node.KW_EXTERNAL() !== null || node._is_external !== undefined;
 
-        const signature = spaced(decl, annotations, fnKw, name + params);
-        const withReturn = returnType !== null ? spaced(signature, "as", returnType) : signature;
+        const signature = spacedDocs(decl, annotations, fnKw, concat([name, params]));
+        const withReturn =
+            returnType !== null ? spacedDocs(signature, text("as"), returnType) : signature;
+
+        const semi = node.stop ? this.ctx.formatTokenDoc(node.stop.tokenIndex, ";") : text(";");
 
         if (isExternal) {
-            const semi = node.SEMICOLON() ? this.v(node.SEMICOLON()) : ";";
-            return `${withReturn} external${semi}`;
+            return concat([withReturn, text(" external"), semi]);
         }
 
         if (!node._fn_body) {
-            const semi = node.SEMICOLON() ? this.v(node.SEMICOLON()) : ";";
-            return `${withReturn}${semi}`;
+            return concat([withReturn, semi]);
         }
 
-        this.ctx.indent();
-        const body = this.v(node._fn_body);
-        this.ctx.dedent();
-
-        const semi = node.stop ? this.ctx.formatToken(node.stop.tokenIndex, ";") : ";";
-        if (
-            !body.includes("\n") &&
-            withReturn.length + body.length + 5 <= this.ctx.options.maxLineWidth
-        ) {
-            return `${withReturn} { ${body.trim()} }${semi}`;
-        }
-
-        return `${withReturn} {\n${body}\n${this.ctx.currentIndent}}${semi}`;
+        const bodyDoc = this.v(node._fn_body);
+        return concat([withReturn, text(" "), formatBlockDoc(bodyDoc), semi]);
     };
 
-    public override visitVarDecl = (node: ctx.VarDeclContext): string => {
-        const decl = node.KW_DECLARE() ? this.v(node.KW_DECLARE()) : "declare";
-        const annotations = node.annotations() ? this.v(node.annotations()) : "";
-        const varKw = node.KW_VARIABLE() ? this.v(node.KW_VARIABLE()) : "variable";
-        const name = node.varBinding() ? this.v(node.varBinding()) : "";
+    public override visitVarDecl = (node: ctx.VarDeclContext): Doc => {
+        const decl = node.KW_DECLARE() ? this.v(node.KW_DECLARE()) : text("declare");
+        const annotations = node.annotations() ? this.v(node.annotations()) : NIL;
+        const varKw = node.KW_VARIABLE() ? this.v(node.KW_VARIABLE()) : text("variable");
+        const name = node.varBinding() ? this.v(node.varBinding()) : NIL;
         const typeSeq = node.sequenceType() ? this.v(node.sequenceType()) : null;
         const expr = node.exprSingle() ? this.v(node.exprSingle()) : null;
         const isExternal = node.KW_EXTERNAL() !== null || node._external !== undefined;
 
-        const prefix = spaced(decl, annotations, varKw, name);
-        const typed = typeSeq !== null ? spaced(prefix, "as", typeSeq) : prefix;
-        const semi = node.SEMICOLON() ? this.v(node.SEMICOLON()) : ";";
+        const prefix = spacedDocs(decl, annotations, varKw, name);
+        const typed = typeSeq !== null ? spacedDocs(prefix, text("as"), typeSeq) : prefix;
+        const semi = node.SEMICOLON() ? this.v(node.SEMICOLON()) : text(";");
 
         if (isExternal) {
-            return `${typed} external${semi}`;
+            return concat([typed, text(" external"), semi]);
         }
 
-        return typed + (expr !== null ? ` := ${expr}${semi}` : semi);
+        return concat([typed, expr !== null ? concat([text(" := "), expr]) : NIL, semi]);
     };
 
-    public override visitParamList = (node: ctx.ParamListContext): string => {
-        return formatCommaSeparated(node.param().map((p) => this.v(p)));
+    public override visitParamList = (node: ctx.ParamListContext): Doc => {
+        return formatCommaSeparatedDocs(node.param().map((p) => this.v(p)));
     };
 
-    public override visitParam = (node: ctx.ParamContext): string => {
-        const name = node.varBinding() ? this.v(node.varBinding()) : "";
-        const typeSeq = node.sequenceType() ? ` as ${this.v(node.sequenceType())}` : "";
-        return `${name}${typeSeq}`;
+    public override visitParam = (node: ctx.ParamContext): Doc => {
+        const name = node.varBinding() ? this.v(node.varBinding()) : NIL;
+        const typeSeq = node.sequenceType()
+            ? concat([text(" as "), this.v(node.sequenceType())])
+            : NIL;
+        return concat([name, typeSeq]);
     };
 
-    public override visitAnnotations = (node: ctx.AnnotationsContext): string => {
-        return smartJoin(node.annotation().map((a) => this.v(a)));
+    public override visitAnnotations = (node: ctx.AnnotationsContext): Doc => {
+        return join(
+            text(" "),
+            node.annotation().map((a) => this.v(a)),
+        );
     };
 
-    public override visitAnnotation = (node: ctx.AnnotationContext): string => {
+    public override visitAnnotation = (node: ctx.AnnotationContext): Doc => {
         if (node.KW_UPDATING() !== null || node._updating !== undefined) {
-            return "%updating";
+            return text("%updating");
         }
-        const name = node._name ? this.v(node._name) : "";
+        const name = node._name ? this.v(node._name) : NIL;
         const lits = node.literal().map((l) => this.v(l));
-        return lits.length > 0 ? `%${name}(${formatCommaSeparated(lits)})` : `%${name}`;
+        return lits.length > 0
+            ? concat([text("%"), name, text("("), formatCommaSeparatedDocs(lits), text(")")])
+            : concat([text("%"), name]);
     };
 
-    public override visitTypeDecl = (node: ctx.TypeDeclContext): string => {
-        const decl = node.KW_DECLARE() ? this.v(node.KW_DECLARE()) : "declare";
-        const typeKw = node.KW_TYPE() ? this.v(node.KW_TYPE()) : "type";
-        const typeName = node._type_name ? this.v(node._type_name) : "";
-        const typeDef = node._type_definition ? this.v(node._type_definition) : "";
-        const schema = node.schemaLanguage() ? this.v(node.schemaLanguage()) + " " : "";
-        return `${decl} ${typeKw} ${typeName} as ${schema}${typeDef};`;
+    public override visitTypeDecl = (node: ctx.TypeDeclContext): Doc => {
+        const decl = node.KW_DECLARE() ? this.v(node.KW_DECLARE()) : text("declare");
+        const typeKw = node.KW_TYPE() ? this.v(node.KW_TYPE()) : text("type");
+        const typeName = node._type_name ? this.v(node._type_name) : NIL;
+        const typeDef = node._type_definition ? this.v(node._type_definition) : NIL;
+        const schema = node.schemaLanguage()
+            ? concat([this.v(node.schemaLanguage()), text(" ")])
+            : NIL;
+        return concat([
+            decl,
+            text(" "),
+            typeKw,
+            text(" "),
+            typeName,
+            text(" as "),
+            schema,
+            typeDef,
+            text(";"),
+        ]);
     };
 
     // ─── FLWOR Expressions ───────────────────────────────────────────────────
 
-    public override visitFlworExpr = (node: ctx.FlworExprContext): string => {
-        const clauses: string[] = [];
+    public override visitFlworExpr = (node: ctx.FlworExprContext): Doc => {
+        const clauses: Doc[] = [];
         const count = node.getChildCount();
         for (let i = 0; i < count; i++) {
             const child = node.getChild(i);
             if (child === null || child === node.KW_RETURN() || child === node._return_expr) {
                 continue;
             }
-            const text = this.v(child);
-            if (text) {
-                clauses.push(text);
+            const res = this.v(child);
+            if (res.kind !== "text" || res.text !== "") {
+                clauses.push(res);
             }
         }
-        const returnKw = node.KW_RETURN() ? this.v(node.KW_RETURN()) : "return";
-        const returnExpr = node._return_expr ? this.v(node._return_expr) : "";
-        return formatFlworExpression(clauses, returnKw, returnExpr, this.ctx);
+        const returnKw = node.KW_RETURN() ? this.v(node.KW_RETURN()) : text("return");
+        const returnExpr = node._return_expr ? this.v(node._return_expr) : NIL;
+        return group(formatFlworExpressionDoc(clauses, returnKw, returnExpr));
     };
 
-    public override visitForClause = (node: ctx.ForClauseContext): string => {
-        const kw = node.KW_FOR() ? this.v(node.KW_FOR()) : "for";
+    public override visitForClause = (node: ctx.ForClauseContext): Doc => {
+        const kw = node.KW_FOR() ? this.v(node.KW_FOR()) : text("for");
         const vars = node._vars.map((v) => this.v(v));
-        return `${kw} ${formatCommaSeparated(vars)}`;
+        return group(concat([kw, text(" "), formatCommaSeparatedDocs(vars)]));
     };
 
-    public override visitForVar = (node: ctx.ForVarContext): string => {
-        const varRef = node._var_ref ? this.v(node._var_ref) : "";
-        const seq = node._seq ? ` as ${this.v(node._seq)}` : "";
-        const allowingEmpty = node.allowingEmpty() ? " allowing empty" : "";
-        const at = node._at ? ` at ${this.v(node._at)}` : "";
-        const inExpr = node._ex ? this.v(node._ex) : "";
-        return `${varRef}${seq}${allowingEmpty}${at} in ${inExpr}`;
+    public override visitForVar = (node: ctx.ForVarContext): Doc => {
+        const varRef = node._var_ref ? this.v(node._var_ref) : NIL;
+        const seq = node._seq ? concat([text(" as "), this.v(node._seq)]) : NIL;
+        const allowingEmpty = node.allowingEmpty() ? text(" allowing empty") : NIL;
+        const at = node._at ? concat([text(" at "), this.v(node._at)]) : NIL;
+        const inExpr = node._ex ? this.v(node._ex) : NIL;
+        return concat([varRef, seq, allowingEmpty, at, text(" in "), inExpr]);
     };
 
-    public override visitLetClause = (node: ctx.LetClauseContext): string => {
-        const kw = node.KW_LET() ? this.v(node.KW_LET()) : "let";
+    public override visitLetClause = (node: ctx.LetClauseContext): Doc => {
+        const kw = node.KW_LET() ? this.v(node.KW_LET()) : text("let");
         const vars = node._vars.map((v) => this.v(v));
-        return `${kw} ${formatCommaSeparated(vars)}`;
+        return group(concat([kw, text(" "), formatCommaSeparatedDocs(vars)]));
     };
 
-    public override visitLetVar = (node: ctx.LetVarContext): string => {
-        const varRef = node._var_ref ? this.v(node._var_ref) : "";
-        const seq = node._seq ? ` as ${this.v(node._seq)}` : "";
-        const expr = node._ex ? this.v(node._ex) : "";
-        return `${varRef}${seq} := ${expr}`;
+    public override visitLetVar = (node: ctx.LetVarContext): Doc => {
+        const varRef = node._var_ref ? this.v(node._var_ref) : NIL;
+        const seq = node._seq ? concat([text(" as "), this.v(node._seq)]) : NIL;
+        const expr = node._ex ? this.v(node._ex) : NIL;
+        return concat([varRef, seq, text(" := "), expr]);
     };
 
-    public override visitWhereClause = (node: ctx.WhereClauseContext): string => {
-        const kw = node.KW_WHERE() ? this.v(node.KW_WHERE()) : "where";
-        const expr = node.exprSingle() ? this.v(node.exprSingle()) : "";
-        return `${kw} ${expr}`;
+    public override visitWhereClause = (node: ctx.WhereClauseContext): Doc => {
+        const kw = node.KW_WHERE() ? this.v(node.KW_WHERE()) : text("where");
+        const expr = node.exprSingle() ? this.v(node.exprSingle()) : NIL;
+        return concat([kw, text(" "), expr]);
     };
 
-    public override visitGroupByClause = (node: ctx.GroupByClauseContext): string => {
+    public override visitGroupByClause = (node: ctx.GroupByClauseContext): Doc => {
         const vars = node._vars.map((v) => this.v(v));
-        return `group by ${formatCommaSeparated(vars)}`;
+        return group(concat([text("group by "), formatCommaSeparatedDocs(vars)]));
     };
 
-    public override visitGroupByVar = (node: ctx.GroupByVarContext): string => {
-        const varRef = node._var_ref ? this.v(node._var_ref) : "";
-        const seq = node._seq ? ` as ${this.v(node._seq)}` : "";
-        const expr = node._ex ? ` := ${this.v(node._ex)}` : "";
-        return `${varRef}${seq}${expr}`;
+    public override visitGroupByVar = (node: ctx.GroupByVarContext): Doc => {
+        const varRef = node._var_ref ? this.v(node._var_ref) : NIL;
+        const seq = node._seq ? concat([text(" as "), this.v(node._seq)]) : NIL;
+        const expr = node._ex ? concat([text(" := "), this.v(node._ex)]) : NIL;
+        return concat([varRef, seq, expr]);
     };
 
-    public override visitOrderByClause = (node: ctx.OrderByClauseContext): string => {
+    public override visitOrderByClause = (node: ctx.OrderByClauseContext): Doc => {
         const specs = node._specs.map((s) => this.v(s));
-        const stable = node.KW_STABLE() ? "stable " : "";
-        return `${stable}order by ${formatCommaSeparated(specs)}`;
+        const stable = node.KW_STABLE() ? text("stable ") : NIL;
+        return group(concat([stable, text("order by "), formatCommaSeparatedDocs(specs)]));
     };
 
-    public override visitCountClause = (node: ctx.CountClauseContext): string => {
-        const varBinding = node.varBinding() ? this.v(node.varBinding()) : "";
-        return `count ${varBinding}`;
+    public override visitCountClause = (node: ctx.CountClauseContext): Doc => {
+        const varBinding = node.varBinding() ? this.v(node.varBinding()) : NIL;
+        return concat([text("count "), varBinding]);
     };
 
     // ─── Expressions ──────────────────────────────────────────────────────────
 
-    public override visitExpr = (node: ctx.ExprContext): string => {
-        return formatCommaSeparated(node.exprSingle().map((e) => this.v(e)));
+    public override visitExpr = (node: ctx.ExprContext): Doc => {
+        return group(formatCommaSeparatedDocs(node.exprSingle().map((e) => this.v(e))));
     };
 
-    public override visitIfExpr = (node: ctx.IfExprContext): string => {
-        const cond = node._test_condition ? this.v(node._test_condition) : "";
-        const thenBranch = node._branch ? this.v(node._branch) : "";
-        const elseBranch = node._else_branch ? this.v(node._else_branch) : "";
-        return formatIfExpression(cond, thenBranch, elseBranch, this.ctx);
+    public override visitIfExpr = (node: ctx.IfExprContext): Doc => {
+        const cond = node._test_condition ? this.v(node._test_condition) : NIL;
+        const thenBranch = node._branch ? this.v(node._branch) : NIL;
+        const elseBranch = node._else_branch ? this.v(node._else_branch) : NIL;
+        return formatIfExpressionDoc(cond, thenBranch, elseBranch);
     };
 
-    public override visitTryCatchExpr = (node: ctx.TryCatchExprContext): string => {
-        const tryExpr = node._try_expression ? this.v(node._try_expression) : "";
+    public override visitTryCatchExpr = (node: ctx.TryCatchExprContext): Doc => {
+        const tryExpr = node._try_expression ? this.v(node._try_expression) : NIL;
         const catches = node.catchClause().map((c) => this.v(c));
-        return formatTryCatch(tryExpr, catches, this.ctx);
+        return formatTryCatchDoc(tryExpr, catches);
     };
 
-    public override visitCatchClause = (node: ctx.CatchClauseContext): string => {
-        const catchExpr = node._catch_expression ? this.v(node._catch_expression) : "";
-        const catchVar = node._catch_var ? ` (${this.v(node._catch_var)})` : "";
-        const body = formatBlock(catchExpr, this.ctx);
-        return `catch${catchVar} ${body}`;
+    public override visitCatchClause = (node: ctx.CatchClauseContext): Doc => {
+        const catchExpr = node._catch_expression ? this.v(node._catch_expression) : NIL;
+        const catchVar = node._catch_var
+            ? concat([text(" ("), this.v(node._catch_var), text(")")])
+            : NIL;
+        const body = formatBlockDoc(catchExpr);
+        return concat([text("catch"), catchVar, text(" "), body]);
     };
 
     // ─── Object & Array Constructors (JSONiq) ─────────────────────────────────
 
-    public override visitObjectConstructor = (node: ctx.ObjectConstructorContext): string => {
+    public override visitObjectConstructor = (node: ctx.ObjectConstructorContext): Doc => {
         if (
             node.LBRACE_VBAR() !== null ||
             (node._merge_operator && node._merge_operator.length > 0)
         ) {
             const exprNode = node.expr();
             if (!exprNode) {
-                return "{||}";
+                return text("{||}");
             }
-            const outerIndent = this.ctx.currentIndent;
-            this.ctx.indent();
-            let formattedItems: string[];
+            let formattedItems: Doc[];
             if ("exprSingle" in exprNode && typeof exprNode.exprSingle === "function") {
                 formattedItems = (exprNode as ctx.ExprContext).exprSingle().map((e) => this.v(e));
             } else {
                 formattedItems = [this.v(exprNode)];
             }
-            const innerContent = formattedItems
-                .map((item) =>
-                    item.startsWith(this.ctx.currentIndent)
-                        ? item
-                        : `${this.ctx.currentIndent}${item}`,
-                )
-                .join(",\n");
-            this.ctx.dedent();
-            return `${outerIndent}{|\n${innerContent}\n${outerIndent}|}`;
+            return group(
+                concat([
+                    text("{|"),
+                    indent(concat([line, join(concat([text(","), line]), formattedItems)])),
+                    line,
+                    text("|}"),
+                ]),
+            );
         }
 
-        const outerIndent = this.ctx.currentIndent;
-        this.ctx.indent();
         const pairs = node.pairConstructor().map((p) => this.v(p));
-        const indentedPairs = pairs
-            .map((p) =>
-                p.startsWith(this.ctx.currentIndent) ? p : `${this.ctx.currentIndent}${p}`,
-            )
-            .join(",\n");
-        this.ctx.dedent();
-
         if (pairs.length === 0) {
-            return "{}";
+            return text("{}");
         }
 
-        const singleLine = `{ ${formatCommaSeparated(pairs)} }`;
-        if (
-            pairs.length <= 2 &&
-            !singleLine.includes("\n") &&
-            singleLine.length + outerIndent.length <= this.ctx.options.maxLineWidth
-        ) {
-            return singleLine;
+        if (pairs.length > 2) {
+            return concat([
+                text("{"),
+                indent(concat([hardline, join(concat([text(","), hardline]), pairs)])),
+                hardline,
+                text("}"),
+            ]);
         }
 
-        return `${outerIndent}{\n${indentedPairs}\n${outerIndent}}`;
+        return group(
+            concat([
+                text("{"),
+                indent(concat([line, join(concat([text(","), line]), pairs)])),
+                line,
+                text("}"),
+            ]),
+        );
     };
 
-    public override visitPairConstructor = (node: ctx.PairConstructorContext): string => {
-        const lhs = node._lhs ? this.v(node._lhs) : "";
-        const rhs = node._rhs ? this.v(node._rhs) : "";
-        return `${lhs}: ${rhs}`;
+    public override visitPairConstructor = (node: ctx.PairConstructorContext): Doc => {
+        const lhs = node._lhs ? this.v(node._lhs) : NIL;
+        const rhs = node._rhs ? this.v(node._rhs) : NIL;
+        return concat([lhs, text(": "), rhs]);
     };
 
     public override visitSquareArrayConstructor = (
         node: ctx.SquareArrayConstructorContext,
-    ): string => {
-        const outerIndent = this.ctx.currentIndent;
-        this.ctx.indent();
-        const items = node.exprSingle().map((e) => {
-            const text = this.v(e);
+    ): Doc => {
+        const exprSingles = node.exprSingle();
+        if (exprSingles.length === 0) {
+            return text("[]");
+        }
+
+        if (exprSingles.length === 1) {
+            const itemStr = this.vStrDoc(this.v(exprSingles[0]));
             if (
-                (text.startsWith("for ") || text.startsWith("let ")) &&
-                !/\b(where|let|for|order|group)\b/.test(text.slice(4))
+                (itemStr.startsWith("for ") || itemStr.startsWith("let ")) &&
+                !/\b(where|let|for|order|group)\b/.test(itemStr.slice(4))
             ) {
-                const single = text.replace(/\n\s*/g, " ");
-                if (
-                    single.length + this.ctx.currentIndent.length <=
-                    this.ctx.options.maxLineWidth
-                ) {
-                    return single;
-                }
+                const single = itemStr.replace(/\n\s*/g, " ");
+                return text(`[ ${single} ]`);
             }
-            return text;
-        });
-        const indentedItems = items
-            .map((item) =>
-                item.startsWith(this.ctx.currentIndent) ? item : `${this.ctx.currentIndent}${item}`,
-            )
-            .join(",\n");
-        this.ctx.dedent();
-
-        if (items.length === 0) {
-            return "[]";
         }
 
-        const singleLine = `[ ${formatCommaSeparated(items)} ]`;
-        if (
-            !singleLine.includes("\n") &&
-            singleLine.length + outerIndent.length <= this.ctx.options.maxLineWidth
-        ) {
-            return singleLine;
-        }
-
-        return `[\n${indentedItems}\n${outerIndent}]`;
+        const items = exprSingles.map((e) => this.v(e));
+        return group(
+            concat([
+                text("["),
+                indent(concat([line, join(concat([text(","), line]), items)])),
+                line,
+                text("]"),
+            ]),
+        );
     };
 
-    public override visitCurlyArrayConstructor = (
-        node: ctx.CurlyArrayConstructorContext,
-    ): string => {
-        const enclosed = node.enclosedExpression() ? this.v(node.enclosedExpression()) : "{}";
-        return `array ${enclosed}`;
+    public override visitCurlyArrayConstructor = (node: ctx.CurlyArrayConstructorContext): Doc => {
+        const enclosed = node.enclosedExpression() ? this.v(node.enclosedExpression()) : text("{}");
+        return concat([text("array "), enclosed]);
     };
 
-    public override visitPostfixExpr = (node: ctx.PostfixExprContext): string => {
+    public override visitPostfixExpr = (node: ctx.PostfixExprContext): Doc => {
         const count = node.getChildCount();
-        let result = "";
+        const parts: Doc[] = [];
         for (let i = 0; i < count; i++) {
             const child = node.getChild(i);
             if (child !== null) {
-                result += this.v(child);
+                parts.push(this.v(child));
             }
         }
-        return result;
+        return concat(parts);
     };
 
-    public override visitPredicate = (node: ctx.PredicateContext): string => {
-        const expr = node.expr() ? this.v(node.expr()) : "";
-        return `[${expr}]`;
+    public override visitPredicate = (node: ctx.PredicateContext): Doc => {
+        const expr = node.expr() ? this.v(node.expr()) : NIL;
+        return concat([text("["), expr, text("]")]);
     };
 
-    public override visitObjectLookup = (node: ctx.ObjectLookupContext): string => {
+    public override visitObjectLookup = (node: ctx.ObjectLookupContext): Doc => {
         const key = this.v(node.getChild(1) as ParseTree);
-        return `.${key}`;
+        return concat([text("."), key]);
     };
 
-    public override visitArrayLookup = (node: ctx.ArrayLookupContext): string => {
-        const expr = node.expr() ? this.v(node.expr()) : "";
-        return `[[${expr}]]`;
+    public override visitArrayLookup = (node: ctx.ArrayLookupContext): Doc => {
+        const expr = node.expr() ? this.v(node.expr()) : NIL;
+        return concat([text("[["), expr, text("]]")]);
     };
 
-    public override visitArrayUnboxing = (_node: ctx.ArrayUnboxingContext): string => {
-        return "[]";
+    public override visitArrayUnboxing = (_node: ctx.ArrayUnboxingContext): Doc => {
+        return text("[]");
     };
 
-    public override visitContextItemExpr = (_node: ctx.ContextItemExprContext): string => {
-        return "$$";
+    public override visitContextItemExpr = (_node: ctx.ContextItemExprContext): Doc => {
+        return text("$$");
     };
 
     // ─── Primary & Miscellaneous ──────────────────────────────────────────────
 
-    public override visitParenthesizedExpr = (node: ctx.ParenthesizedExprContext): string => {
+    public override visitParenthesizedExpr = (node: ctx.ParenthesizedExprContext): Doc => {
         const exprNode = node.expr();
 
-        // Flush leading comments attached to '(' before any dry-run, then save
-        // state. This ensures the comments are preserved regardless of which
-        // layout branch is taken, and restoreState() will not re-emit them.
         const openIdx = node.start?.tokenIndex;
         const closeIdx = node.stop?.tokenIndex;
-        const openLeading = openIdx != null ? this.ctx.flushLeadingComments(openIdx) : "";
-        const openTrailing = openIdx != null ? this.ctx.flushTrailingComments(openIdx) : "";
+        const openLeadingDoc = openIdx != null ? this.ctx.flushLeadingDoc(openIdx) : NIL;
+        const openTrailingDoc = openIdx != null ? this.ctx.flushTrailingDoc(openIdx) : NIL;
+        const closeTrailingDoc = closeIdx != null ? this.ctx.flushTrailingDoc(closeIdx) : NIL;
 
         if (!exprNode) {
-            const closeTrailing = closeIdx != null ? this.ctx.flushTrailingComments(closeIdx) : "";
-            return `${openLeading}()${openTrailing}${closeTrailing}`;
+            return concat([openLeadingDoc, text("()"), openTrailingDoc, closeTrailingDoc]);
         }
 
-        const outerIndent = this.ctx.currentIndent;
-        const savedState = this.ctx.saveState();
-        const bodyText = this.v(exprNode);
-        const singleLine = `(${bodyText})`;
-        if (
-            !singleLine.includes("\n") &&
-            singleLine.length + outerIndent.length <= this.ctx.options.maxLineWidth
-        ) {
-            const closeTrailing = closeIdx != null ? this.ctx.flushTrailingComments(closeIdx) : "";
-            return `${openLeading}(${bodyText})${openTrailing}${closeTrailing}`;
-        }
-
-        this.ctx.restoreState(savedState);
-        this.ctx.indent();
-        let items: string[];
+        let items: Doc[];
         if ("exprSingle" in exprNode && typeof exprNode.exprSingle === "function") {
             items = (exprNode as ctx.ExprContext).exprSingle().map((e) => this.v(e));
         } else {
             items = [this.v(exprNode)];
         }
-        const indentedItems = items.map((item) =>
-            item.startsWith(this.ctx.currentIndent) ? item : `${this.ctx.currentIndent}${item}`,
-        );
-        // Use newline separator whenever any item contains a newline, OR when items
-        // are collectively too long to fit on a single (indented) line.
-        const joinedSingleLine = indentedItems.join(", ");
-        const joiner =
-            items.some((item) => item.includes("\n")) ||
-            joinedSingleLine.length > this.ctx.options.maxLineWidth
-                ? ",\n"
-                : ", ";
-        const indentedContent = indentedItems.join(joiner);
-        this.ctx.dedent();
 
-        const closeTrailing = closeIdx != null ? this.ctx.flushTrailingComments(closeIdx) : "";
-        return `${openLeading}(\n${indentedContent}\n${outerIndent})${openTrailing}${closeTrailing}`;
+        return concat([
+            openLeadingDoc,
+            group(
+                concat([
+                    text("("),
+                    openTrailingDoc,
+                    indent(concat([softline, join(concat([text(","), line]), items)])),
+                    softline,
+                    text(")"),
+                    closeTrailingDoc,
+                ]),
+            ),
+        ]);
     };
 
-    public override visitFunctionCall = (node: ctx.FunctionCallContext): string => {
-        const fnName = node._fn_name ? this.v(node._fn_name) : "";
-        const args = node.argumentList() ? this.v(node.argumentList()) : "()";
-        return `${fnName}${args}`;
+    public override visitFunctionCall = (node: ctx.FunctionCallContext): Doc => {
+        const fnName = node._fn_name ? this.v(node._fn_name) : NIL;
+        const args = node.argumentList() ? this.v(node.argumentList()) : text("()");
+        return concat([fnName, args]);
     };
 
-    public override visitArgumentList = (node: ctx.ArgumentListContext): string => {
+    public override visitArgumentList = (node: ctx.ArgumentListContext): Doc => {
+        const openIdx = node.start?.tokenIndex;
+        const closeIdx = node.stop?.tokenIndex;
+        const openLeadingDoc = openIdx != null ? this.ctx.flushLeadingDoc(openIdx) : NIL;
+        const openTrailingDoc = openIdx != null ? this.ctx.flushTrailingDoc(openIdx) : NIL;
+        const closeTrailingDoc = closeIdx != null ? this.ctx.flushTrailingDoc(closeIdx) : NIL;
+
         const args = node.argument().map((a) => this.v(a));
         if (args.length === 0) {
-            return "()";
+            return concat([openLeadingDoc, text("()"), openTrailingDoc, closeTrailingDoc]);
         }
 
-        const singleLine = `(${formatCommaSeparated(args)})`;
-        if (
-            !singleLine.includes("\n") &&
-            singleLine.length + this.ctx.currentIndent.length <= this.ctx.options.maxLineWidth
-        ) {
-            return singleLine;
-        }
-
-        this.ctx.indent();
-        const indentedArgs = args
-            .map((arg) => {
-                const lines = arg.split("\n");
-                return lines
-                    .map((l) => (l.trim() === "" ? "" : `${this.ctx.currentIndent}${l}`))
-                    .join("\n");
-            })
-            .join(",\n");
-        this.ctx.dedent();
-
-        return `(\n${indentedArgs}\n${this.ctx.currentIndent})`;
+        return concat([
+            openLeadingDoc,
+            group(
+                concat([
+                    text("("),
+                    openTrailingDoc,
+                    indent(concat([softline, join(concat([text(","), line]), args)])),
+                    softline,
+                    text(")"),
+                    closeTrailingDoc,
+                ]),
+            ),
+        ]);
     };
 
-    public override visitArgument = (node: ctx.ArgumentContext): string => {
+    public override visitArgument = (node: ctx.ArgumentContext): Doc => {
         if (node.QUESTION() !== null) {
-            return "?";
+            return text("?");
         }
-        return node.exprSingle() ? this.v(node.exprSingle()) : "";
+        return node.exprSingle() ? this.v(node.exprSingle()) : NIL;
     };
 
-    public override visitVarRef = (node: ctx.VarRefContext): string => {
-        const name = node._var_name ? this.v(node._var_name) : "";
-        return `$${name}`;
+    public override visitVarRef = (node: ctx.VarRefContext): Doc => {
+        const name = node._var_name ? this.v(node._var_name) : NIL;
+        return concat([text("$"), name]);
     };
 
-    public override visitVarBinding = (node: ctx.VarBindingContext): string => {
-        const name = node._var_name ? this.v(node._var_name) : "";
-        return `$${name}`;
+    public override visitVarBinding = (node: ctx.VarBindingContext): Doc => {
+        const name = node._var_name ? this.v(node._var_name) : NIL;
+        return concat([text("$"), name]);
     };
 
-    public override visitEnclosedExpression = (node: ctx.EnclosedExpressionContext): string => {
-        const expr = node.expr() ? this.v(node.expr()) : "";
-        return formatBlock(expr, this.ctx);
+    public override visitEnclosedExpression = (node: ctx.EnclosedExpressionContext): Doc => {
+        const expr = node.expr() ? this.v(node.expr()) : NIL;
+        return formatBlockDoc(expr);
     };
 
-    public override visitSequenceType = (node: ctx.SequenceTypeContext): string => {
+    public override visitSequenceType = (node: ctx.SequenceTypeContext): Doc => {
         if (node.KW_EMPTY_SEQUENCE()) {
-            return "empty-sequence()";
+            return text("empty-sequence()");
         }
-        const item = node._item ? this.v(node._item) : "";
+        const item = node._item ? this.v(node._item) : NIL;
         const occurrence =
             node._question && node._question.length > 0
                 ? "?"
@@ -590,7 +609,7 @@ export class JsoniqFormatterVisitor extends JsoniqParserVisitor<string> {
                   : node._plus && node._plus.length > 0
                     ? "+"
                     : "";
-        return `${item}${occurrence}`;
+        return concat([item, text(occurrence)]);
     };
 }
 

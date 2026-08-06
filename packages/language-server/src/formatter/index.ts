@@ -7,8 +7,10 @@ import { getDocumentText } from "../parser/utils.js";
 import { createJsoniqFormatterVisitor } from "./adapters/jsoniq.js";
 import { createXQueryFormatterVisitor } from "./adapters/xquery.js";
 import { FormatterContext } from "./context.js";
+import { NIL, Doc } from "./doc.js";
 import { normalizeBlankLines } from "./helpers.js";
 import { type FormatterOptions, resolveFormatterOptions } from "./options.js";
+import { printDocToString } from "./printer.js";
 
 /**
  * Formats an entire document and returns a single TextEdit replacing the full content.
@@ -37,16 +39,18 @@ export function formatDocument(
     const resolvedOptions = resolveFormatterOptions(options);
     const ctx = new FormatterContext(resolvedOptions, parsed.tokenStream);
 
-    let formatted: string;
+    let docTree: Doc;
     if (adapter.id === "jsoniq") {
         const visitor = createJsoniqFormatterVisitor(ctx);
-        formatted = visitor.visit(parsed.tree) ?? "";
+        docTree = visitor.visit(parsed.tree) ?? NIL;
     } else if (adapter.id === "xquery") {
         const visitor = createXQueryFormatterVisitor(ctx);
-        formatted = visitor.visit(parsed.tree) ?? "";
+        docTree = visitor.visit(parsed.tree) ?? NIL;
     } else {
         return [];
     }
+
+    let formatted = printDocToString(docTree, resolvedOptions);
 
     // Post-process: normalize blank lines and trailing whitespace
     formatted = normalizeBlankLines(formatted, resolvedOptions.maxConsecutiveBlankLines);
