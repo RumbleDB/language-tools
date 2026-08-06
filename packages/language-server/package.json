@@ -15,6 +15,7 @@
     "exports": {
         ".": "./dist/main.mjs",
         "./notifications": "./dist/notifications/index.mjs",
+        "./requests": "./dist/requests/index.mjs",
         "./bundled": "./dist/bundled/main.mjs"
     },
     "scripts": {

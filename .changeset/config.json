@@ -14,7 +14,7 @@
     "baseBranch": "main",
     "updateInternalDependencies": "patch",
     "bumpVersionsWithWorkspaceProtocolOnly": false,
-    "ignore": [],
+    "ignore": ["@jsoniq/results-ui"],
     "privatePackages": {
         "version": true,
         "tag": false

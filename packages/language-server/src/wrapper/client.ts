@@ -168,6 +168,7 @@ class RumbleWrapperClient {
 
     public async sendRequest<Spec extends AnyWrapperRequestSpec>(
         payload: Spec["request"],
+        timeoutMs?: number,
     ): Promise<WrapperDaemonResponse<Spec["requestType"], Spec["response"]>> {
         if (!this.isConfiguredEnabled()) {
             throw new Error("LSP wrapper is disabled.");
@@ -178,7 +179,7 @@ class RumbleWrapperClient {
         }
 
         await this.connect();
-        return this.sendRequestInternal<Spec>(payload);
+        return this.sendRequestInternal<Spec>(payload, timeoutMs);
     }
 
     private markUnavailable(error: Error): void {
@@ -192,6 +193,7 @@ class RumbleWrapperClient {
 
     private async sendRequestInternal<Spec extends AnyWrapperRequestSpec>(
         payload: Spec["request"],
+        timeoutMs: number = 12_000,
     ): Promise<WrapperDaemonResponse<Spec["requestType"], Spec["response"]>> {
         const id = this.nextRequestId;
         this.nextRequestId += 1;
@@ -214,7 +216,7 @@ class RumbleWrapperClient {
                 const timeout = setTimeout(() => {
                     this.pending.delete(id);
                     reject(new Error("Wrapper timed out."));
-                }, 12_000);
+                }, timeoutMs);
 
                 this.pending.set(id, {
                     expectedResponseType: payload.requestType,

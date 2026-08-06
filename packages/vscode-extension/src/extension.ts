@@ -6,6 +6,7 @@ import {
     TransportKind,
 } from "vscode-languageclient/node";
 
+import { registerRunQueryCommand } from "./commands/run-query.js";
 import { config } from "./config.js";
 import { JSONIQ_LANGUAGE_ID, XQUERY_LANGUAGE_ID } from "./const.js";
 import { JUPYTER_NOTEBOOK_SELECTOR } from "./notebook/index.js";
@@ -63,6 +64,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     context.subscriptions.push(client);
     await client.start();
     initializeCustomNotifications(client, context);
+    context.subscriptions.push(registerRunQueryCommand(client, context));
 }
 
 export async function deactivate(): Promise<void> {
