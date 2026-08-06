@@ -1,8 +1,6 @@
-import { ChildProcessWithoutNullStreams, spawn, execFile } from "node:child_process";
-import { promisify } from "node:util";
+import { ChildProcessWithoutNullStreams, spawn } from "node:child_process";
 
-const execFileAsync = promisify(execFile);
-
+import pidusage from "pidusage";
 import { config } from "server/config.js";
 import { createLogger } from "server/utils/logger.js";
 
@@ -335,17 +333,11 @@ class RumbleWrapperClient {
             return null;
         }
 
-        const { stdout } = await execFileAsync("ps", ["-o", "rss=", "-p", String(pid)]);
-        const rssKb = Number.parseInt(stdout.trim(), 10);
-        if (!Number.isFinite(rssKb)) {
-            throw new Error(
-                `Could not parse wrapper memory usage for pid ${pid}: '${stdout.trim()}'`,
-            );
-        }
+        const stats = await pidusage(pid);
 
         return {
             pid,
-            rssBytes: rssKb * 1024,
+            rssBytes: stats.memory,
         };
     }
 }
