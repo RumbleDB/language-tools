@@ -6,6 +6,7 @@ import {
     formatFlworExpression,
     formatIfExpression,
     formatTryCatch,
+    shouldSeparateDeclarations,
     smartJoin,
     spaced,
 } from "server/formatter/helpers.js";
@@ -112,7 +113,15 @@ export class JsoniqFormatterVisitor extends JsoniqParserVisitor<string> {
                 }
             }
         }
-        return parts.join("\n\n");
+        if (parts.length === 0) {
+            return "";
+        }
+        let result = parts[0]!;
+        for (let i = 1; i < parts.length; i++) {
+            const sep = shouldSeparateDeclarations(parts[i - 1]!, parts[i]!) ? "\n\n" : "\n";
+            result += sep + parts[i]!;
+        }
+        return result;
     };
 
     // ─── Declarations ─────────────────────────────────────────────────────────
@@ -460,8 +469,18 @@ export class JsoniqFormatterVisitor extends JsoniqParserVisitor<string> {
 
     public override visitParenthesizedExpr = (node: ctx.ParenthesizedExprContext): string => {
         const exprNode = node.expr();
+
+        // Flush leading comments attached to '(' before any dry-run, then save
+        // state. This ensures the comments are preserved regardless of which
+        // layout branch is taken, and restoreState() will not re-emit them.
+        const openIdx = node.start?.tokenIndex;
+        const closeIdx = node.stop?.tokenIndex;
+        const openLeading = openIdx != null ? this.ctx.flushLeadingComments(openIdx) : "";
+        const openTrailing = openIdx != null ? this.ctx.flushTrailingComments(openIdx) : "";
+
         if (!exprNode) {
-            return "()";
+            const closeTrailing = closeIdx != null ? this.ctx.flushTrailingComments(closeIdx) : "";
+            return `${openLeading}()${openTrailing}${closeTrailing}`;
         }
 
         const outerIndent = this.ctx.currentIndent;
@@ -472,7 +491,8 @@ export class JsoniqFormatterVisitor extends JsoniqParserVisitor<string> {
             !singleLine.includes("\n") &&
             singleLine.length + outerIndent.length <= this.ctx.options.maxLineWidth
         ) {
-            return singleLine;
+            const closeTrailing = closeIdx != null ? this.ctx.flushTrailingComments(closeIdx) : "";
+            return `${openLeading}(${bodyText})${openTrailing}${closeTrailing}`;
         }
 
         this.ctx.restoreState(savedState);
@@ -483,16 +503,22 @@ export class JsoniqFormatterVisitor extends JsoniqParserVisitor<string> {
         } else {
             items = [this.v(exprNode)];
         }
-        const hasNewline = items.some((item) => item.includes("\n"));
-        const joiner = hasNewline ? ",\n" : ", ";
-        const indentedContent = items
-            .map((item) =>
-                item.startsWith(this.ctx.currentIndent) ? item : `${this.ctx.currentIndent}${item}`,
-            )
-            .join(joiner);
+        const indentedItems = items.map((item) =>
+            item.startsWith(this.ctx.currentIndent) ? item : `${this.ctx.currentIndent}${item}`,
+        );
+        // Use newline separator whenever any item contains a newline, OR when items
+        // are collectively too long to fit on a single (indented) line.
+        const joinedSingleLine = indentedItems.join(", ");
+        const joiner =
+            items.some((item) => item.includes("\n")) ||
+            joinedSingleLine.length > this.ctx.options.maxLineWidth
+                ? ",\n"
+                : ", ";
+        const indentedContent = indentedItems.join(joiner);
         this.ctx.dedent();
 
-        return `(\n${indentedContent}\n${outerIndent})`;
+        const closeTrailing = closeIdx != null ? this.ctx.flushTrailingComments(closeIdx) : "";
+        return `${openLeading}(\n${indentedContent}\n${outerIndent})${openTrailing}${closeTrailing}`;
     };
 
     public override visitFunctionCall = (node: ctx.FunctionCallContext): string => {

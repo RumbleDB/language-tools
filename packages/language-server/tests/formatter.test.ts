@@ -315,6 +315,53 @@ describe("JSONiq & XQuery Formatter", () => {
         });
     });
 
+    describe("Comment preservation — parenthesized expressions", () => {
+        it("preserves comments before parenthesized expressions (JIQS-style header comments)", () => {
+            const input = ['(:JIQS: ShouldRun; Output="false" :)', "(1 to 10) ! ($$ + $$)"].join(
+                "\n",
+            );
+            const formatted = formatText(input, "jsoniq");
+            const expected = [
+                '(:JIQS: ShouldRun; Output="false" :)',
+                "(1 to 10) ! ($$ + $$)\n",
+            ].join("\n");
+            expect(formatted).toBe(expected);
+        });
+    });
+
+    describe("Parenthesized expression layout", () => {
+        it("breaks multi-item sequence across lines when items together exceed maxLineWidth", () => {
+            const input = [
+                "for $i in parallelize(",
+                "    (",
+                '        { "commits": [ { "author": "Einstein" } ], "repo": "r2" },     { "commits": [ { "author": "Goedel" }, { "author": "Ramanujan" } ], "repo": "r1" }',
+                "    )",
+                ")",
+                "return $i",
+            ].join("\n");
+            const formatted = formatText(input, "jsoniq");
+            // Each object must be on its own line — the combined line would be > 100 chars
+            expect(formatted).toContain(
+                '{ "commits": [ { "author": "Einstein" } ], "repo": "r2" },\n',
+            );
+            expect(formatted).toContain(
+                '{ "commits": [ { "author": "Goedel" }, { "author": "Ramanujan" } ], "repo": "r1" }',
+            );
+        });
+    });
+
+    describe("Context item ($$ / .) spacing", () => {
+        it("preserves spaces around operators when using JSONiq context item ($$)", () => {
+            const formatted = formatText("(1 to 5) ! ($$ + $$)", "jsoniq");
+            expect(formatted).toBe("(1 to 5) ! ($$ + $$)\n");
+        });
+
+        it("preserves spaces around operators when using XQuery context item (.)", () => {
+            const formatted = formatText("(1 to 5) ! (. + .)", "xquery");
+            expect(formatted).toBe("(1 to 5) ! (. + .)\n");
+        });
+    });
+
     describe("Syntax error handling", () => {
         it("refuses to format documents with syntax errors", () => {
             const input = "declare function local:foo("; // Incomplete syntax
