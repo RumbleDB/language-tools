@@ -1,5 +1,22 @@
 import { concat, Doc, group, hardline, indent, join, line, NIL, space, text } from "./doc.js";
 
+// ─── Lexer Token Literal Helper ───────────────────────────────────────────────
+
+/**
+ * Resolves the literal string representation of a token type from a Lexer's literalNames array.
+ * E.g., for KW_FUNCTION with "'function'", returns "function".
+ */
+export function getTokenLiteral(tokenType: number, literalNames: (string | null)[]): string {
+    const raw = literalNames[tokenType];
+    if (!raw) {
+        return "";
+    }
+    if (raw.startsWith("'") && raw.endsWith("'")) {
+        return raw.slice(1, -1);
+    }
+    return raw;
+}
+
 // ─── List Formatting ─────────────────────────────────────────────────────────
 
 /**
