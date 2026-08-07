@@ -25,11 +25,11 @@ export function formatCommaSeparatedDocs(items: readonly Doc[]): Doc {
  * }
  * ```
  */
-export function formatBlockDoc(content: Doc): Doc {
-    if (content.kind === "text" && content.text === "") {
+export function formatBlockDoc(doc: Doc): Doc {
+    if (doc.kind === "text" && doc.text === "") {
         return text("{}");
     }
-    return group(concat([text("{"), indent(concat([line, content])), line, text("}")]));
+    return group(concat([text("{"), indent(concat([line, doc])), line, text("}")]));
 }
 
 // ─── FLWOR Formatting ─────────────────────────────────────────────────────────
@@ -58,10 +58,11 @@ export function formatFlworExpressionDoc(
  *     else $b
  * ```
  */
-export function formatIfExpressionDoc(condDoc: Doc, thenDoc: Doc, elseDoc: Doc): Doc {
+export function formatIfExpressionDoc(ifKw: Doc, condDoc: Doc, thenDoc: Doc, elseDoc: Doc): Doc {
     return group(
         concat([
-            text("if ("),
+            ifKw,
+            text(" ("),
             condDoc,
             text(")"),
             indent(concat([line, text("then "), thenDoc, line, text("else "), elseDoc])),
@@ -74,13 +75,17 @@ export function formatIfExpressionDoc(condDoc: Doc, thenDoc: Doc, elseDoc: Doc):
 /**
  * Formats a try/catch expression.
  */
-export function formatTryCatchDoc(tryBodyDoc: Doc, catchClausesDocs: readonly Doc[]): Doc {
+export function formatTryCatchDoc(
+    tryKw: Doc,
+    tryBodyDoc: Doc,
+    catchClausesDocs: readonly Doc[],
+): Doc {
     const tryBlock = formatBlockDoc(tryBodyDoc);
-    const parts: Doc[] = [concat([text("try "), tryBlock])];
+    const parts: Doc[] = [concat([tryKw, text(" "), tryBlock])];
     for (const c of catchClausesDocs) {
-        parts.push(concat([text(" "), c]));
+        parts.push(c);
     }
-    return join(line, parts);
+    return join(hardline, parts);
 }
 
 // ─── Blank Line Normalization ─────────────────────────────────────────────────

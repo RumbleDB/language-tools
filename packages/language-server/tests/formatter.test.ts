@@ -423,4 +423,41 @@ describe("JSONiq & XQuery Formatter", () => {
             expect(formattedTwice).toBe(formattedOnce);
         });
     });
+
+    describe("Control flow expressions", () => {
+        it("formats try-catch expressions with catch block on a new line", () => {
+            const input = "try { 1 / 0 } catch ($e) { 0 }";
+            const formatted = formatText(input);
+            expect(formatted).toBe("try { 1 / 0 }\ncatch ($e) { 0 }\n");
+        });
+
+        it("formats switch expressions with indented cases", () => {
+            const input =
+                'switch ($x) case 1 return "one" case 2 return "two" default return "other"';
+            const formatted = formatText(input);
+            expect(formatted).toBe(
+                'switch ($x)\n    case 1 return "one"\n    case 2 return "two"\n    default return "other"\n',
+            );
+        });
+
+        it("formats typeswitch expressions with indented cases", () => {
+            const input =
+                'typeswitch ($x) case $i as integer return "int" case $s as string return "str" default $d return "other"';
+            const formatted = formatText(input);
+            expect(formatted).toBe(
+                'typeswitch ($x)\n    case $i as integer return "int"\n    case $s as string return "str"\n    default $d return "other"\n',
+            );
+        });
+
+        it("preserves top-level header comments before typeswitch expressions", () => {
+            const input = [
+                '(:JIQS: ShouldRun; Output="([ 1, 2 ], 1, 2, 3)" :)',
+                'typeswitch ( [ 1, 2 ] ) case string return "string" case $a as boolean+ | array* return ($a, 1, 2, 3) default return "default"',
+                "(: multiple items returned  :)",
+            ].join("\n");
+            const formatted = formatText(input);
+            expect(formatted).toContain('(:JIQS: ShouldRun; Output="([ 1, 2 ], 1, 2, 3)" :)');
+            expect(formatted).toContain("(: multiple items returned  :)");
+        });
+    });
 });

@@ -356,25 +356,122 @@ export class JsoniqFormatterVisitor extends JsoniqParserVisitor<Doc> {
     };
 
     public override visitIfExpr = (node: ctx.IfExprContext): Doc => {
+        const kwIf = node.KW_IF() ? this.v(node.KW_IF()) : text("if");
         const cond = node._test_condition ? this.v(node._test_condition) : NIL;
         const thenBranch = node._branch ? this.v(node._branch) : NIL;
         const elseBranch = node._else_branch ? this.v(node._else_branch) : NIL;
-        return formatIfExpressionDoc(cond, thenBranch, elseBranch);
+        return formatIfExpressionDoc(kwIf, cond, thenBranch, elseBranch);
     };
 
     public override visitTryCatchExpr = (node: ctx.TryCatchExprContext): Doc => {
+        const kwTry = node.KW_TRY() ? this.v(node.KW_TRY()) : text("try");
         const tryExpr = node._try_expression ? this.v(node._try_expression) : NIL;
         const catches = node.catchClause().map((c) => this.v(c));
-        return formatTryCatchDoc(tryExpr, catches);
+        return formatTryCatchDoc(kwTry, tryExpr, catches);
     };
 
     public override visitCatchClause = (node: ctx.CatchClauseContext): Doc => {
+        const kwCatch = node.KW_CATCH() ? this.v(node.KW_CATCH()) : text("catch");
         const catchExpr = node._catch_expression ? this.v(node._catch_expression) : NIL;
-        const catchVar = node._catch_var
-            ? concat([text(" ("), this.v(node._catch_var), text(")")])
-            : NIL;
+        let catchTarget: Doc = NIL;
+        if (node._catch_var) {
+            catchTarget = concat([text(" ("), this.v(node._catch_var), text(")")]);
+        } else {
+            const targets: Doc[] = [];
+            const nAny = node as any;
+            if (nAny.errors && Array.isArray(nAny.errors)) {
+                for (const e of nAny.errors) {
+                    targets.push(this.v(e));
+                }
+            }
+            if (nAny.jokers && Array.isArray(nAny.jokers)) {
+                for (const j of nAny.jokers) {
+                    targets.push(this.v(j));
+                }
+            }
+            if (targets.length > 0) {
+                catchTarget = concat([text(" "), join(text(" | "), targets)]);
+            }
+        }
         const body = formatBlockDoc(catchExpr);
-        return concat([text("catch"), catchVar, text(" "), body]);
+        return concat([kwCatch, catchTarget, text(" "), body]);
+    };
+
+    public override visitSwitchExpr = (node: ctx.SwitchExprContext): Doc => {
+        const kwSwitch = node.KW_SWITCH() ? this.v(node.KW_SWITCH()) : text("switch");
+        const cond = node._cond ? this.v(node._cond) : NIL;
+        const cases = node.switchCaseClause().map((c) => this.v(c));
+        const defExpr = node._def ? this.v(node._def) : NIL;
+        const defaultClause = group(
+            concat([text("default return "), indent(concat([softline, defExpr]))]),
+        );
+        return group(
+            concat([
+                kwSwitch,
+                text(" ("),
+                cond,
+                text(")"),
+                indent(concat([hardline, join(hardline, cases), hardline, defaultClause])),
+            ]),
+        );
+    };
+
+    public override visitSwitchCaseClause = (node: ctx.SwitchCaseClauseContext): Doc => {
+        const cases = node.KW_CASE();
+        const conds = node._cond ? node._cond.map((c) => this.v(c)) : [];
+        const retExpr = node._ret ? this.v(node._ret) : NIL;
+        const caseParts: Doc[] = [];
+        for (let i = 0; i < conds.length; i++) {
+            const kw = cases[i] ? this.v(cases[i]!) : text("case");
+            caseParts.push(concat([kw, text(" "), conds[i]!]));
+        }
+        const caseHeader = join(text(" "), caseParts);
+        return group(concat([caseHeader, text(" return "), indent(concat([softline, retExpr]))]));
+    };
+
+    public override visitTypeswitchExpr = (node: ctx.TypeswitchExprContext): Doc => {
+        const kwTypeswitch = node.KW_TYPESWITCH()
+            ? this.v(node.KW_TYPESWITCH())
+            : text("typeswitch");
+        const cond = node._cond ? this.v(node._cond) : NIL;
+        const cases = node.caseClause().map((c) => this.v(c));
+        const defVar = node._var_ref ? concat([text(" "), this.v(node._var_ref)]) : NIL;
+        const defExpr = node._def ? this.v(node._def) : NIL;
+        const defaultClause = group(
+            concat([
+                text("default"),
+                defVar,
+                text(" return "),
+                indent(concat([softline, defExpr])),
+            ]),
+        );
+        return group(
+            concat([
+                kwTypeswitch,
+                text(" ("),
+                cond,
+                text(")"),
+                indent(concat([hardline, join(hardline, cases), hardline, defaultClause])),
+            ]),
+        );
+    };
+
+    public override visitCaseClause = (node: ctx.CaseClauseContext): Doc => {
+        const kwCase = node.KW_CASE() ? this.v(node.KW_CASE()) : text("case");
+        const varRef = node._var_ref ? concat([this.v(node._var_ref), text(" as ")]) : NIL;
+        const unions = node._union ? node._union.map((u) => this.v(u)) : [];
+        const unionTypes = join(text(" | "), unions);
+        const retExpr = node._ret ? this.v(node._ret) : NIL;
+        return group(
+            concat([
+                kwCase,
+                text(" "),
+                varRef,
+                unionTypes,
+                text(" return "),
+                indent(concat([softline, retExpr])),
+            ]),
+        );
     };
 
     // ─── Object & Array Constructors (JSONiq) ─────────────────────────────────
