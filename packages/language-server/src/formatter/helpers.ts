@@ -1,4 +1,4 @@
-import { concat, Doc, group, hardline, indent, join, line, NIL, text } from "./doc.js";
+import { concat, Doc, group, hardline, indent, join, line, NIL, space, text } from "./doc.js";
 
 // ─── List Formatting ─────────────────────────────────────────────────────────
 
@@ -42,7 +42,7 @@ export function formatFlworExpressionDoc(
     returnKeywordDoc: Doc,
     returnExprDoc: Doc,
 ): Doc {
-    const returnLine = concat([returnKeywordDoc, text(" "), returnExprDoc]);
+    const returnLine = concat([returnKeywordDoc, space, returnExprDoc]);
     return join(hardline, [...clauses, returnLine]);
 }
 
@@ -50,22 +50,27 @@ export function formatFlworExpressionDoc(
 
 /**
  * Formats an if/then/else expression.
- * When flat: `if ($cond) then $a else $b`
- * When broken:
- * ```
- * if ($cond)
- *     then $a
- *     else $b
- * ```
+ * All keyword Docs (ifKw, thenKw, elseKw) and punctuation Docs (lparenDoc, rparenDoc)
+ * should come from the visitor's kw() helper so comment attachment is preserved.
  */
-export function formatIfExpressionDoc(ifKw: Doc, condDoc: Doc, thenDoc: Doc, elseDoc: Doc): Doc {
+export function formatIfExpressionDoc(
+    ifKw: Doc,
+    lparenDoc: Doc,
+    condDoc: Doc,
+    rparenDoc: Doc,
+    thenKw: Doc,
+    thenDoc: Doc,
+    elseKw: Doc,
+    elseDoc: Doc,
+): Doc {
     return group(
         concat([
             ifKw,
-            text(" ("),
+            space,
+            lparenDoc,
             condDoc,
-            text(")"),
-            indent(concat([line, text("then "), thenDoc, line, text("else "), elseDoc])),
+            rparenDoc,
+            indent(concat([line, thenKw, space, thenDoc, line, elseKw, space, elseDoc])),
         ]),
     );
 }
@@ -81,7 +86,7 @@ export function formatTryCatchDoc(
     catchClausesDocs: readonly Doc[],
 ): Doc {
     const tryBlock = formatBlockDoc(tryBodyDoc);
-    const parts: Doc[] = [concat([tryKw, text(" "), tryBlock])];
+    const parts: Doc[] = [concat([tryKw, space, tryBlock])];
     for (const c of catchClausesDocs) {
         parts.push(c);
     }

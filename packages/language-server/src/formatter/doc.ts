@@ -47,6 +47,8 @@ export interface IfBreakDoc {
 // ─── Constants & Constructors ──────────────────────────────────────────────────
 
 export const NIL: TextDoc = { kind: "text", text: "" };
+/** A single space character. Use instead of `text(" ")` for clarity. */
+export const space: TextDoc = { kind: "text", text: " " };
 export const line: LineDoc = { kind: "line", hard: false, soft: false };
 export const softline: LineDoc = { kind: "line", hard: false, soft: true };
 export const hardline: LineDoc = { kind: "line", hard: true, soft: false };

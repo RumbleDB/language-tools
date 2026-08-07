@@ -1,7 +1,7 @@
-import { CommonTokenStream } from "antlr4ng";
+import { CommonTokenStream, TerminalNode, Token } from "antlr4ng";
 
 import { buildCommentAttachmentMap, CommentAttachmentMap } from "./comments.js";
-import { concat, Doc, hardline, NIL, text } from "./doc.js";
+import { concat, Doc, hardline, NIL, space, text } from "./doc.js";
 import type { FormatterOptions } from "./options.js";
 
 /**
@@ -22,12 +22,30 @@ export class FormatterContext {
     }
 
     /**
-     * Formats a terminal token at tokenIndex into a Doc node by attaching:
+     * Formats a terminal token / source token into a Doc node by attaching:
      *  1. Any leading comments (on their own line before this token)
      *  2. The token text itself as a TextDoc
      *  3. Any trailing comments (on the same line after this token)
+     *
+     * This is the ONLY correct way to emit a real source token.
+     * Never use `text("keyword")` for tokens that exist in the source —
+     * use this method instead, so that comment attachment is triggered.
      */
-    public formatTokenDoc(tokenIndex: number, tokenText: string): Doc {
+    public formatTokenDoc(target: TerminalNode | Token | number, textFallback?: string): Doc {
+        let tokenIndex: number;
+        let tokenText: string;
+
+        if (typeof target === "number") {
+            tokenIndex = target;
+            tokenText = textFallback ?? "";
+        } else if ("symbol" in target) {
+            tokenIndex = target.symbol.tokenIndex;
+            tokenText = target.getText();
+        } else {
+            tokenIndex = target.tokenIndex;
+            tokenText = target.text ?? textFallback ?? "";
+        }
+
         const leading = this.flushLeadingDoc(tokenIndex);
         const tokenDoc = text(tokenText);
         const trailing = this.flushTrailingDoc(tokenIndex);
@@ -68,7 +86,7 @@ export class FormatterContext {
         for (const c of trailing) {
             if (!this.emittedComments.has(c.tokenIndex)) {
                 this.emittedComments.add(c.tokenIndex);
-                docs.push(text(" "));
+                docs.push(space);
                 docs.push(text(c.text?.trim() ?? ""));
             }
         }
