@@ -6,10 +6,11 @@
  * `Doc` trees against the target line width to decide where line breaks should occur.
  */
 
-export type Doc = TextDoc | ConcatDoc | GroupDoc | IndentDoc | LineDoc | IfBreakDoc;
+export type Doc = TextDoc | ConcatDoc | GroupDoc | IndentDoc | LineDoc;
 
 export interface TextDoc {
     readonly kind: "text";
+    /** A text fragment never contains a newline; use `line` or `hardline` instead. */
     readonly text: string;
 }
 
@@ -21,7 +22,6 @@ export interface ConcatDoc {
 export interface GroupDoc {
     readonly kind: "group";
     readonly doc: Doc;
-    readonly id?: symbol | undefined;
 }
 
 export interface IndentDoc {
@@ -37,13 +37,6 @@ export interface LineDoc {
     readonly soft: boolean;
 }
 
-export interface IfBreakDoc {
-    readonly kind: "ifBreak";
-    readonly breakDoc: Doc;
-    readonly flatDoc: Doc;
-    readonly groupId?: symbol | undefined;
-}
-
 // ─── Constants & Constructors ──────────────────────────────────────────────────
 
 export const NIL: TextDoc = { kind: "text", text: "" };
@@ -56,6 +49,21 @@ export const hardline: LineDoc = { kind: "line", hard: true, soft: false };
 export function text(str: string): Doc {
     if (str === "") {
         return NIL;
+    }
+    // Preserve the document-algebra invariant that only line documents introduce
+    // newlines. This is relevant for multiline comments and protects column tracking.
+    if (str.includes("\n") || str.includes("\r")) {
+        const lines = str.split(/\r\n|\r|\n/);
+        const docs: Doc[] = [];
+        for (let i = 0; i < lines.length; i++) {
+            if (i > 0) {
+                docs.push(hardline);
+            }
+            if (lines[i] !== "") {
+                docs.push({ kind: "text", text: lines[i]! });
+            }
+        }
+        return concat(docs);
     }
     return { kind: "text", text: str };
 }
@@ -81,11 +89,11 @@ export function concat(docs: readonly Doc[]): Doc {
     return { kind: "concat", docs: flattened };
 }
 
-export function group(doc: Doc, id?: symbol): Doc {
+export function group(doc: Doc): Doc {
     if (doc.kind === "group") {
         return doc;
     }
-    return { kind: "group", doc, id };
+    return { kind: "group", doc };
 }
 
 export function indent(doc: Doc): Doc {
@@ -93,10 +101,6 @@ export function indent(doc: Doc): Doc {
         return NIL;
     }
     return { kind: "indent", doc };
-}
-
-export function ifBreak(breakDoc: Doc, flatDoc: Doc = NIL, groupId?: symbol): Doc {
-    return { kind: "ifBreak", breakDoc, flatDoc, groupId };
 }
 
 /**

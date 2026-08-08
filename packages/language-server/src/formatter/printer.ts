@@ -14,12 +14,10 @@ interface Command {
  */
 export function printDocToString(doc: Doc, options: FormatterOptions): string {
     const width = options.maxLineWidth;
-    const indentStr = " ".repeat(options.indentSize);
+    const indentStr = options.useTabs ? "\t" : " ".repeat(options.indentSize);
 
     let output = "";
     let currentColumn = 0;
-
-    const groupModes = new Map<symbol, Mode>();
 
     const cmds: Command[] = [{ indent: 0, mode: "break", doc }];
 
@@ -45,12 +43,13 @@ export function printDocToString(doc: Doc, options: FormatterOptions): string {
             }
             case "group": {
                 const groupMode =
-                    mode === "flat" || fits(current.doc, width - currentColumn, groupModes)
+                    mode === "flat" ||
+                    fits(width - currentColumn, [
+                        ...cmds,
+                        { indent, mode: "flat", doc: current.doc },
+                    ])
                         ? "flat"
                         : "break";
-                if (current.id) {
-                    groupModes.set(current.id, groupMode);
-                }
                 cmds.push({ indent, mode: groupMode, doc: current.doc });
                 break;
             }
@@ -72,14 +71,6 @@ export function printDocToString(doc: Doc, options: FormatterOptions): string {
                 }
                 break;
             }
-            case "ifBreak": {
-                const targetMode = current.groupId
-                    ? (groupModes.get(current.groupId) ?? mode)
-                    : mode;
-                const chosen = targetMode === "break" ? current.breakDoc : current.flatDoc;
-                cmds.push({ indent, mode, doc: chosen });
-                break;
-            }
         }
     }
 
@@ -87,15 +78,18 @@ export function printDocToString(doc: Doc, options: FormatterOptions): string {
 }
 
 /**
- * Checks if a Doc tree fits within the remaining line width when evaluated flat.
+ * Checks whether the current line of a pending command stack fits in the remaining width.
+ *
+ * The stack includes the continuation after a group. This is essential: a group may fit by
+ * itself while flattening it leaves insufficient room for the document that follows it.
  */
-function fits(doc: Doc, remainingWidth: number, groupModes: Map<symbol, Mode>): boolean {
+function fits(remainingWidth: number, pending: readonly Command[]): boolean {
     if (remainingWidth < 0) {
         return false;
     }
 
     let restWidth = remainingWidth;
-    const cmds: Command[] = [{ indent: 0, mode: "flat", doc }];
+    const cmds = [...pending];
 
     while (cmds.length > 0) {
         if (restWidth < 0) {
@@ -125,8 +119,11 @@ function fits(doc: Doc, remainingWidth: number, groupModes: Map<symbol, Mode>): 
                 break;
             }
             case "line": {
+                if (mode === "break") {
+                    return true;
+                }
                 if (current.hard) {
-                    return false; // Hard line breaks force the group to break
+                    return false;
                 }
                 if (current.soft) {
                     // Prints nothing in flat mode
@@ -135,16 +132,8 @@ function fits(doc: Doc, remainingWidth: number, groupModes: Map<symbol, Mode>): 
                 }
                 break;
             }
-            case "ifBreak": {
-                const targetMode = current.groupId
-                    ? (groupModes.get(current.groupId) ?? mode)
-                    : mode;
-                const chosen = targetMode === "break" ? current.breakDoc : current.flatDoc;
-                cmds.push({ indent, mode, doc: chosen });
-                break;
-            }
         }
     }
 
-    return true;
+    return restWidth >= 0;
 }
