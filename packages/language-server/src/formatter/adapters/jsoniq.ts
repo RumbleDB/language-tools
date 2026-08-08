@@ -12,7 +12,6 @@ import {
     softline,
     space,
     spacedDocs,
-    text,
 } from "server/formatter/doc.js";
 import {
     formatBlockDoc,
@@ -126,19 +125,11 @@ export class JsoniqFormatterVisitor extends JsoniqParserVisitor<Doc> {
     };
 
     public override visitStringLiteral = (node: ctx.StringLiteralContext): Doc => {
-        const startIdx = node.start?.tokenIndex;
-        const stopIdx = node.stop?.tokenIndex;
-        const leading = startIdx != null ? this.ctx.flushLeadingDoc(startIdx) : NIL;
-        const trailing = stopIdx != null ? this.ctx.flushTrailingDoc(stopIdx) : NIL;
-        return concat([leading, text(node.getText()), trailing]);
+        return composeTokenDoc(this.ctx.formatTokenRange(node.start!, node.stop!));
     };
 
     public override visitUriLiteral = (node: ctx.UriLiteralContext): Doc => {
-        const startIdx = node.start?.tokenIndex;
-        const stopIdx = node.stop?.tokenIndex;
-        const leading = startIdx != null ? this.ctx.flushLeadingDoc(startIdx) : NIL;
-        const trailing = stopIdx != null ? this.ctx.flushTrailingDoc(stopIdx) : NIL;
-        return concat([leading, text(node.getText()), trailing]);
+        return composeTokenDoc(this.ctx.formatTokenRange(node.start!, node.stop!));
     };
 
     // ─── Module & Prolog ──────────────────────────────────────────────────────

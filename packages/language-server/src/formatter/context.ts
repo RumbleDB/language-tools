@@ -28,11 +28,13 @@ export function composeTokenDoc(token: TokenDoc): Doc {
 export class FormatterContext {
     public readonly options: FormatterOptions;
 
+    private readonly tokenStream: CommonTokenStream;
     private readonly attachmentMap: CommentAttachmentMap;
     private readonly emittedComments = new Set<number>();
 
     public constructor(options: FormatterOptions, tokenStream: CommonTokenStream) {
         this.options = options;
+        this.tokenStream = tokenStream;
         this.attachmentMap = buildCommentAttachmentMap(tokenStream);
     }
 
@@ -48,6 +50,22 @@ export class FormatterContext {
             leading: this.flushLeadingDoc(tokenIndex),
             value: text(tokenText),
             trailing: this.flushTrailingDoc(tokenIndex),
+        };
+    }
+
+    /**
+     * Formats a source range exactly as written, including hidden-channel text.
+     * This is required for parser-level literals: ParserRuleContext.getText()
+     * omits whitespace tokens that the parser did not consume.
+     */
+    public formatTokenRange(start: Token, stop: Token): TokenDoc {
+        const tokenText =
+            start.inputStream?.getTextFromRange(start.start, stop.stop) ??
+            this.tokenStream.getTextFromRange(start, stop);
+        return {
+            leading: this.flushLeadingDoc(start.tokenIndex),
+            value: text(tokenText),
+            trailing: this.flushTrailingDoc(stop.tokenIndex),
         };
     }
 

@@ -20,6 +20,19 @@ function formatText(source: string | string[], languageId: "jsoniq" | "xquery" =
 }
 
 describe("JSONiq & XQuery Formatter", () => {
+    describe("String literals", () => {
+        it.each(["jsoniq", "xquery"] as const)(
+            "preserves whitespace inside %s string literals",
+            (languageId) => {
+                const input = `["hello  world", ' padded value ', "tab\tseparated"]`;
+
+                expect(formatText(input, languageId)).toBe(
+                    `[ "hello  world", ' padded value ', "tab\tseparated" ]\n`,
+                );
+            },
+        );
+    });
+
     describe("Sequence item spacing", () => {
         it("adds spaces after commas in sequence expressions: (1,2,3) -> (1, 2, 3)", () => {
             const formatted = formatText("(1,2,3)");
