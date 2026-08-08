@@ -257,7 +257,16 @@ export class XQueryFormatterVisitor extends XQueryParserVisitor<Doc> {
         }
 
         const bodyDoc = this.v(node._fn_body);
-        return concat([withReturn, space, formatBlockDoc(bodyDoc), semi]);
+        return concat([
+            withReturn,
+            space,
+            formatBlockDoc(
+                this.kw(node.LBRACE(), XQueryParser.LBRACE),
+                bodyDoc,
+                this.kw(node.RBRACE(), XQueryParser.RBRACE),
+            ),
+            semi,
+        ]);
     };
 
     public override visitVarDecl = (node: ctx.VarDeclContext): Doc => {
@@ -445,7 +454,13 @@ export class XQueryFormatterVisitor extends XQueryParserVisitor<Doc> {
         const kwTry = this.kw(node.KW_TRY(), XQueryParser.KW_TRY);
         const tryExpr = node._try_expression ? this.v(node._try_expression) : NIL;
         const catches = node.catchClause().map((c) => this.v(c));
-        return formatTryCatchDoc(kwTry, tryExpr, catches);
+        return formatTryCatchDoc(
+            kwTry,
+            this.kw(node.LBRACE(), XQueryParser.LBRACE),
+            tryExpr,
+            this.kw(node.RBRACE(), XQueryParser.RBRACE),
+            catches,
+        );
     };
 
     public override visitCatchClause = (node: ctx.CatchClauseContext): Doc => {
@@ -473,7 +488,11 @@ export class XQueryFormatterVisitor extends XQueryParserVisitor<Doc> {
                 catchTarget = concat([space, join(concat([space, vbar, space]), targets)]);
             }
         }
-        const body = formatBlockDoc(catchExpr);
+        const body = formatBlockDoc(
+            this.kw(node.LBRACE(), XQueryParser.LBRACE),
+            catchExpr,
+            this.kw(node.RBRACE(), XQueryParser.RBRACE),
+        );
         return concat([kwCatch, catchTarget, space, body]);
     };
 
@@ -752,7 +771,11 @@ export class XQueryFormatterVisitor extends XQueryParserVisitor<Doc> {
 
     public override visitEnclosedExpression = (node: ctx.EnclosedExpressionContext): Doc => {
         const expr = node.expr() ? this.v(node.expr()) : NIL;
-        return formatBlockDoc(expr);
+        return formatBlockDoc(
+            this.kw(node.LBRACE(), XQueryParser.LBRACE),
+            expr,
+            this.kw(node.RBRACE(), XQueryParser.RBRACE),
+        );
     };
 
     public override visitSequenceType = (node: ctx.SequenceTypeContext): Doc => {

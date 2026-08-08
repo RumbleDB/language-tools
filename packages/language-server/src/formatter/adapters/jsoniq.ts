@@ -16,7 +16,6 @@ import {
 } from "server/formatter/doc.js";
 import {
     formatBlockDoc,
-    formatCommaSeparatedDocs,
     formatFlworExpressionDoc,
     formatIfExpressionDoc,
     formatTryCatchDoc,
@@ -75,11 +74,26 @@ export class JsoniqFormatterVisitor extends JsoniqParserVisitor<Doc> {
 
     private isEmpty = (doc: Doc): boolean => doc.kind === "text" && doc.text === "";
 
-    private formatStatementBlock = (statements: Doc): Doc => {
-        if (this.isEmpty(statements)) {
-            return text("{}");
+    private joinWithCommas = (
+        items: readonly Doc[],
+        commas: readonly TerminalNode[],
+        breakDoc: Doc = line,
+    ): Doc => {
+        const docs: Doc[] = [];
+        for (let i = 0; i < items.length; i++) {
+            if (i > 0) {
+                docs.push(this.kw(commas[i - 1], JsoniqParser.COMMA), breakDoc);
+            }
+            docs.push(items[i]!);
         }
-        return concat([text("{"), indent(concat([hardline, statements])), hardline, text("}")]);
+        return concat(docs);
+    };
+
+    private formatStatementBlock = (leftBrace: Doc, statements: Doc, rightBrace: Doc): Doc => {
+        if (this.isEmpty(statements)) {
+            return concat([leftBrace, rightBrace]);
+        }
+        return concat([leftBrace, indent(concat([hardline, statements])), hardline, rightBrace]);
     };
 
     protected override defaultResult(): Doc {
@@ -264,7 +278,16 @@ export class JsoniqFormatterVisitor extends JsoniqParserVisitor<Doc> {
         }
 
         const bodyDoc = this.v(node._fn_body);
-        return concat([withReturn, space, formatBlockDoc(bodyDoc), semi]);
+        return concat([
+            withReturn,
+            space,
+            formatBlockDoc(
+                this.kw(node.LBRACE(), JsoniqParser.LBRACE),
+                bodyDoc,
+                this.kw(node.RBRACE(), JsoniqParser.RBRACE),
+            ),
+            semi,
+        ]);
     };
 
     public override visitVarDecl = (node: ctx.VarDeclContext): Doc => {
@@ -296,14 +319,17 @@ export class JsoniqFormatterVisitor extends JsoniqParserVisitor<Doc> {
     };
 
     public override visitParamList = (node: ctx.ParamListContext): Doc => {
-        return formatCommaSeparatedDocs(node.param().map((p) => this.v(p)));
+        return this.joinWithCommas(
+            node.param().map((p) => this.v(p)),
+            node.getTokens(JsoniqParser.COMMA),
+        );
     };
 
     public override visitParam = (node: ctx.ParamContext): Doc => {
         const name = node.varBinding() ? this.v(node.varBinding()) : NIL;
         const kwAs = node.KW_AS() ? this.kw(node.KW_AS(), JsoniqParser.KW_AS) : null;
         const typeSeq = node.sequenceType()
-            ? concat([space, kwAs ?? text("as"), space, this.v(node.sequenceType())])
+            ? concat([space, kwAs!, space, this.v(node.sequenceType())])
             : NIL;
         return concat([name, typeSeq]);
     };
@@ -325,7 +351,13 @@ export class JsoniqFormatterVisitor extends JsoniqParserVisitor<Doc> {
         if (lits.length > 0) {
             const lp = this.kw(node.LPAREN(), JsoniqParser.LPAREN);
             const rp = this.kw(node.RPAREN(), JsoniqParser.RPAREN);
-            return concat([pct, name, lp, formatCommaSeparatedDocs(lits), rp]);
+            return concat([
+                pct,
+                name,
+                lp,
+                this.joinWithCommas(lits, node.getTokens(JsoniqParser.COMMA)),
+                rp,
+            ]);
         }
         return concat([pct, name]);
     };
@@ -406,7 +438,11 @@ export class JsoniqFormatterVisitor extends JsoniqParserVisitor<Doc> {
     };
 
     public override visitBlockStatement = (node: ctx.BlockStatementContext): Doc => {
-        return this.formatStatementBlock(this.v(node.statements()));
+        return this.formatStatementBlock(
+            this.kw(node.LBRACE(), JsoniqParser.LBRACE),
+            this.v(node.statements()),
+            this.kw(node.RBRACE(), JsoniqParser.RBRACE),
+        );
     };
 
     public override visitBreakStatement = (node: ctx.BreakStatementContext): Doc => {
@@ -603,9 +639,9 @@ export class JsoniqFormatterVisitor extends JsoniqParserVisitor<Doc> {
             annotations === NIL ? NIL : space,
             this.kw(node.KW_VARIABLE(), JsoniqParser.KW_VARIABLE),
             space,
-            join(
-                concat([text(","), line]),
+            this.joinWithCommas(
                 node.varDeclForStatement().map((decl) => this.v(decl)),
+                node.getTokens(JsoniqParser.COMMA),
             ),
             this.kw(node.SEMICOLON(), JsoniqParser.SEMICOLON),
         ]);
@@ -651,7 +687,11 @@ export class JsoniqFormatterVisitor extends JsoniqParserVisitor<Doc> {
     };
 
     public override visitBlockExpr = (node: ctx.BlockExprContext): Doc => {
-        return this.formatStatementBlock(this.v(node.statementsAndExpr()));
+        return this.formatStatementBlock(
+            this.kw(node.LBRACE(), JsoniqParser.LBRACE),
+            this.v(node.statementsAndExpr()),
+            this.kw(node.RBRACE(), JsoniqParser.RBRACE),
+        );
     };
 
     // ─── FLWOR Expressions ───────────────────────────────────────────────────
@@ -677,7 +717,9 @@ export class JsoniqFormatterVisitor extends JsoniqParserVisitor<Doc> {
     public override visitForClause = (node: ctx.ForClauseContext): Doc => {
         const kw = this.kw(node.KW_FOR(), JsoniqParser.KW_FOR);
         const vars = node._vars.map((v) => this.v(v));
-        return group(concat([kw, space, formatCommaSeparatedDocs(vars)]));
+        return group(
+            concat([kw, space, this.joinWithCommas(vars, node.getTokens(JsoniqParser.COMMA))]),
+        );
     };
 
     public override visitForVar = (node: ctx.ForVarContext): Doc => {
@@ -696,7 +738,9 @@ export class JsoniqFormatterVisitor extends JsoniqParserVisitor<Doc> {
     public override visitLetClause = (node: ctx.LetClauseContext): Doc => {
         const kw = this.kw(node.KW_LET(), JsoniqParser.KW_LET);
         const vars = node._vars.map((v) => this.v(v));
-        return group(concat([kw, space, formatCommaSeparatedDocs(vars)]));
+        return group(
+            concat([kw, space, this.joinWithCommas(vars, node.getTokens(JsoniqParser.COMMA))]),
+        );
     };
 
     public override visitLetVar = (node: ctx.LetVarContext): Doc => {
@@ -718,7 +762,15 @@ export class JsoniqFormatterVisitor extends JsoniqParserVisitor<Doc> {
         const kwGroup = this.kw(node.KW_GROUP(), JsoniqParser.KW_GROUP);
         const kwBy = this.kw(node.KW_BY(), JsoniqParser.KW_BY);
         const vars = node._vars.map((v) => this.v(v));
-        return group(concat([kwGroup, space, kwBy, space, formatCommaSeparatedDocs(vars)]));
+        return group(
+            concat([
+                kwGroup,
+                space,
+                kwBy,
+                space,
+                this.joinWithCommas(vars, node.getTokens(JsoniqParser.COMMA)),
+            ]),
+        );
     };
 
     public override visitGroupByVar = (node: ctx.GroupByVarContext): Doc => {
@@ -738,7 +790,14 @@ export class JsoniqFormatterVisitor extends JsoniqParserVisitor<Doc> {
         const kwOrder = this.kw(node.KW_ORDER(), JsoniqParser.KW_ORDER);
         const kwBy = this.kw(node.KW_BY(), JsoniqParser.KW_BY);
         return group(
-            concat([kwStable, kwOrder, space, kwBy, space, formatCommaSeparatedDocs(specs)]),
+            concat([
+                kwStable,
+                kwOrder,
+                space,
+                kwBy,
+                space,
+                this.joinWithCommas(specs, node.getTokens(JsoniqParser.COMMA)),
+            ]),
         );
     };
 
@@ -751,7 +810,12 @@ export class JsoniqFormatterVisitor extends JsoniqParserVisitor<Doc> {
     // ─── Expressions ──────────────────────────────────────────────────────────
 
     public override visitExpr = (node: ctx.ExprContext): Doc => {
-        return group(formatCommaSeparatedDocs(node.exprSingle().map((e) => this.v(e))));
+        return group(
+            this.joinWithCommas(
+                node.exprSingle().map((e) => this.v(e)),
+                node.getTokens(JsoniqParser.COMMA),
+            ),
+        );
     };
 
     public override visitIfExpr = (node: ctx.IfExprContext): Doc => {
@@ -779,7 +843,13 @@ export class JsoniqFormatterVisitor extends JsoniqParserVisitor<Doc> {
         const kwTry = this.kw(node.KW_TRY(), JsoniqParser.KW_TRY);
         const tryExpr = node._try_expression ? this.v(node._try_expression) : NIL;
         const catches = node.catchClause().map((c) => this.v(c));
-        return formatTryCatchDoc(kwTry, tryExpr, catches);
+        return formatTryCatchDoc(
+            kwTry,
+            this.kw(node.LBRACE(), JsoniqParser.LBRACE),
+            tryExpr,
+            this.kw(node.RBRACE(), JsoniqParser.RBRACE),
+            catches,
+        );
     };
 
     public override visitCatchClause = (node: ctx.CatchClauseContext): Doc => {
@@ -807,7 +877,11 @@ export class JsoniqFormatterVisitor extends JsoniqParserVisitor<Doc> {
                 catchTarget = concat([space, join(concat([space, vbar, space]), targets)]);
             }
         }
-        const body = formatBlockDoc(catchExpr);
+        const body = formatBlockDoc(
+            this.kw(node.LBRACE(), JsoniqParser.LBRACE),
+            catchExpr,
+            this.kw(node.RBRACE(), JsoniqParser.RBRACE),
+        );
         return concat([kwCatch, catchTarget, space, body]);
     };
 
@@ -929,7 +1003,12 @@ export class JsoniqFormatterVisitor extends JsoniqParserVisitor<Doc> {
             return group(
                 concat([
                     lbv,
-                    indent(concat([line, join(concat([text(","), line]), formattedItems)])),
+                    indent(
+                        concat([
+                            line,
+                            this.joinWithCommas(formattedItems, node.getTokens(JsoniqParser.COMMA)),
+                        ]),
+                    ),
                     line,
                     rbv,
                 ]),
@@ -946,14 +1025,26 @@ export class JsoniqFormatterVisitor extends JsoniqParserVisitor<Doc> {
         if (pairs.length > 2) {
             return concat([
                 lb,
-                indent(concat([hardline, join(concat([text(","), hardline]), pairs)])),
+                indent(
+                    concat([
+                        hardline,
+                        this.joinWithCommas(pairs, node.getTokens(JsoniqParser.COMMA), hardline),
+                    ]),
+                ),
                 hardline,
                 rb,
             ]);
         }
 
         return group(
-            concat([lb, indent(concat([line, join(concat([text(","), line]), pairs)])), line, rb]),
+            concat([
+                lb,
+                indent(
+                    concat([line, this.joinWithCommas(pairs, node.getTokens(JsoniqParser.COMMA))]),
+                ),
+                line,
+                rb,
+            ]),
         );
     };
 
@@ -974,22 +1065,13 @@ export class JsoniqFormatterVisitor extends JsoniqParserVisitor<Doc> {
             return concat([lbracket, rbracket]);
         }
 
-        if (exprSingles.length === 1) {
-            const itemStr = this.vStrDoc(this.v(exprSingles[0]));
-            if (
-                (itemStr.startsWith("for ") || itemStr.startsWith("let ")) &&
-                !/\b(where|let|for|order|group)\b/.test(itemStr.slice(4))
-            ) {
-                const single = itemStr.replace(/\n\s*/g, " ");
-                return text(`[ ${single} ]`);
-            }
-        }
-
         const items = exprSingles.map((e) => this.v(e));
         return group(
             concat([
                 lbracket,
-                indent(concat([line, join(concat([text(","), line]), items)])),
+                indent(
+                    concat([line, this.joinWithCommas(items, node.getTokens(JsoniqParser.COMMA))]),
+                ),
                 line,
                 rbracket,
             ]),
@@ -998,7 +1080,7 @@ export class JsoniqFormatterVisitor extends JsoniqParserVisitor<Doc> {
 
     public override visitCurlyArrayConstructor = (node: ctx.CurlyArrayConstructorContext): Doc => {
         const kwArray = this.kw(node.KW_ARRAY(), JsoniqParser.KW_ARRAY);
-        const enclosed = node.enclosedExpression() ? this.v(node.enclosedExpression()) : text("{}");
+        const enclosed = node.enclosedExpression() ? this.v(node.enclosedExpression()) : NIL;
         return concat([kwArray, space, enclosed]);
     };
 
@@ -1068,7 +1150,12 @@ export class JsoniqFormatterVisitor extends JsoniqParserVisitor<Doc> {
             lp,
             group(
                 concat([
-                    indent(concat([softline, join(concat([text(","), line]), items)])),
+                    indent(
+                        concat([
+                            softline,
+                            this.joinWithCommas(items, node.getTokens(JsoniqParser.COMMA)),
+                        ]),
+                    ),
                     softline,
                     rp,
                 ]),
@@ -1078,7 +1165,7 @@ export class JsoniqFormatterVisitor extends JsoniqParserVisitor<Doc> {
 
     public override visitFunctionCall = (node: ctx.FunctionCallContext): Doc => {
         const fnName = node._fn_name ? this.v(node._fn_name) : NIL;
-        const args = node.argumentList() ? this.v(node.argumentList()) : text("()");
+        const args = node.argumentList() ? this.v(node.argumentList()) : NIL;
         return concat([fnName, args]);
     };
 
@@ -1094,7 +1181,12 @@ export class JsoniqFormatterVisitor extends JsoniqParserVisitor<Doc> {
             lp,
             group(
                 concat([
-                    indent(concat([softline, join(concat([text(","), line]), args)])),
+                    indent(
+                        concat([
+                            softline,
+                            this.joinWithCommas(args, node.getTokens(JsoniqParser.COMMA)),
+                        ]),
+                    ),
                     softline,
                     rp,
                 ]),
@@ -1123,7 +1215,11 @@ export class JsoniqFormatterVisitor extends JsoniqParserVisitor<Doc> {
 
     public override visitEnclosedExpression = (node: ctx.EnclosedExpressionContext): Doc => {
         const expr = node.expr() ? this.v(node.expr()) : NIL;
-        return formatBlockDoc(expr);
+        return formatBlockDoc(
+            this.kw(node.LBRACE(), JsoniqParser.LBRACE),
+            expr,
+            this.kw(node.RBRACE(), JsoniqParser.RBRACE),
+        );
     };
 
     public override visitSequenceType = (node: ctx.SequenceTypeContext): Doc => {

@@ -42,11 +42,11 @@ export function formatCommaSeparatedDocs(items: readonly Doc[]): Doc {
  * }
  * ```
  */
-export function formatBlockDoc(doc: Doc): Doc {
+export function formatBlockDoc(leftBrace: Doc, doc: Doc, rightBrace: Doc): Doc {
     if (doc.kind === "text" && doc.text === "") {
-        return text("{}");
+        return concat([leftBrace, rightBrace]);
     }
-    return group(concat([text("{"), indent(concat([line, doc])), line, text("}")]));
+    return group(concat([leftBrace, indent(concat([line, doc])), line, rightBrace]));
 }
 
 // ─── FLWOR Formatting ─────────────────────────────────────────────────────────
@@ -99,10 +99,12 @@ export function formatIfExpressionDoc(
  */
 export function formatTryCatchDoc(
     tryKw: Doc,
+    leftBrace: Doc,
     tryBodyDoc: Doc,
+    rightBrace: Doc,
     catchClausesDocs: readonly Doc[],
 ): Doc {
-    const tryBlock = formatBlockDoc(tryBodyDoc);
+    const tryBlock = formatBlockDoc(leftBrace, tryBodyDoc, rightBrace);
     const parts: Doc[] = [concat([tryKw, space, tryBlock])];
     for (const c of catchClausesDocs) {
         parts.push(c);
