@@ -72,6 +72,63 @@ describe("JSONiq & XQuery Formatter", () => {
         });
     });
 
+    describe("JSONiq scripting statements", () => {
+        it("formats statement sequences, assignments, loops, branches, and exits", () => {
+            const input = [
+                "variable $x:=0;",
+                "while($x lt 3){$x:=$x+1;}",
+                "if($x eq 3)then{break loop;}else{continue loop;}",
+                "exit returning $x;",
+            ].join("\n");
+
+            expect(formatText(input)).toBe(
+                [
+                    "variable $x := 0;",
+                    "while ($x lt 3) {",
+                    "    $x := $x + 1;",
+                    "}",
+                    "if ($x eq 3) then {",
+                    "    break loop;",
+                    "} else {",
+                    "    continue loop;",
+                    "}",
+                    "exit returning $x;\n",
+                ].join("\n"),
+            );
+        });
+
+        it("formats FLWOR statements with a statement return branch", () => {
+            const input = "for $x in (1,2) return $x := $x + 1;";
+
+            expect(formatText(input)).toBe("for $x in (1, 2)\nreturn $x := $x + 1;\n");
+        });
+
+        it("formats switch, try/catch, and typeswitch statement forms", () => {
+            const input = [
+                "switch($x)case 1 return break loop;default return continue loop;",
+                "try{$x:=1;}catch * {$x:=2;}",
+                "typeswitch($x)case $n as integer return break loop;default return continue loop;",
+            ].join("\n");
+
+            expect(formatText(input)).toBe(
+                [
+                    "switch ($x)",
+                    "    case 1 return break loop;",
+                    "    default return continue loop;",
+                    "try {",
+                    "    $x := 1;",
+                    "}",
+                    "catch * {",
+                    "    $x := 2;",
+                    "}",
+                    "typeswitch ($x)",
+                    "    case $n as integer return break loop;",
+                    "    default return continue loop;\n",
+                ].join("\n"),
+            );
+        });
+    });
+
     describe("If-Then-Else expressions", () => {
         it("formats short if-expressions on a single line", () => {
             const input = "if ($x > 0) then 1 else 0";

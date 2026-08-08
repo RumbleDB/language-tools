@@ -73,6 +73,15 @@ export class JsoniqFormatterVisitor extends JsoniqParserVisitor<Doc> {
         return printDocToString(doc, this.ctx.options);
     };
 
+    private isEmpty = (doc: Doc): boolean => doc.kind === "text" && doc.text === "";
+
+    private formatStatementBlock = (statements: Doc): Doc => {
+        if (this.isEmpty(statements)) {
+            return text("{}");
+        }
+        return concat([text("{"), indent(concat([hardline, statements])), hardline, text("}")]);
+    };
+
     protected override defaultResult(): Doc {
         return NIL;
     }
@@ -342,6 +351,307 @@ export class JsoniqFormatterVisitor extends JsoniqParserVisitor<Doc> {
             typeDef,
             semi,
         ]);
+    };
+
+    // ─── JSONiq Scripting Statements ─────────────────────────────────────────
+
+    public override visitProgram = (node: ctx.ProgramContext): Doc => {
+        return this.v(node.statementsAndOptionalExpr());
+    };
+
+    public override visitStatements = (node: ctx.StatementsContext): Doc => {
+        return join(
+            hardline,
+            node.statement().map((statement) => this.v(statement)),
+        );
+    };
+
+    public override visitStatementsAndExpr = (node: ctx.StatementsAndExprContext): Doc => {
+        const statements = this.v(node.statements());
+        const expr = this.v(node.expr());
+        return this.isEmpty(statements) ? expr : concat([statements, hardline, expr]);
+    };
+
+    public override visitStatementsAndOptionalExpr = (
+        node: ctx.StatementsAndOptionalExprContext,
+    ): Doc => {
+        const statements = this.v(node.statements());
+        const expr = node.expr() ? this.v(node.expr()) : NIL;
+        if (this.isEmpty(statements)) {
+            return expr;
+        }
+        return this.isEmpty(expr) ? statements : concat([statements, hardline, expr]);
+    };
+
+    public override visitStatement = (node: ctx.StatementContext): Doc => {
+        return this.visitChildren(node) ?? NIL;
+    };
+
+    public override visitApplyStatement = (node: ctx.ApplyStatementContext): Doc => {
+        return concat([
+            this.v(node.exprSimple()),
+            this.kw(node.SEMICOLON(), JsoniqParser.SEMICOLON),
+        ]);
+    };
+
+    public override visitAssignStatement = (node: ctx.AssignStatementContext): Doc => {
+        return concat([
+            this.v(node.varRef()),
+            space,
+            this.kw(node.COLON_EQ(), JsoniqParser.COLON_EQ),
+            space,
+            this.v(node.exprSingle()),
+            this.kw(node.SEMICOLON(), JsoniqParser.SEMICOLON),
+        ]);
+    };
+
+    public override visitBlockStatement = (node: ctx.BlockStatementContext): Doc => {
+        return this.formatStatementBlock(this.v(node.statements()));
+    };
+
+    public override visitBreakStatement = (node: ctx.BreakStatementContext): Doc => {
+        return concat([
+            this.kw(node.KW_BREAK(), JsoniqParser.KW_BREAK),
+            space,
+            this.kw(node.KW_LOOP(), JsoniqParser.KW_LOOP),
+            this.kw(node.SEMICOLON(), JsoniqParser.SEMICOLON),
+        ]);
+    };
+
+    public override visitContinueStatement = (node: ctx.ContinueStatementContext): Doc => {
+        return concat([
+            this.kw(node.KW_CONTINUE(), JsoniqParser.KW_CONTINUE),
+            space,
+            this.kw(node.KW_LOOP(), JsoniqParser.KW_LOOP),
+            this.kw(node.SEMICOLON(), JsoniqParser.SEMICOLON),
+        ]);
+    };
+
+    public override visitExitStatement = (node: ctx.ExitStatementContext): Doc => {
+        return concat([
+            this.kw(node.KW_EXIT(), JsoniqParser.KW_EXIT),
+            space,
+            this.kw(node.KW_RETURNING(), JsoniqParser.KW_RETURNING),
+            space,
+            this.v(node.exprSingle()),
+            this.kw(node.SEMICOLON(), JsoniqParser.SEMICOLON),
+        ]);
+    };
+
+    public override visitFlworStatement = (node: ctx.FlworStatementContext): Doc => {
+        const clauses: Doc[] = [];
+        for (let i = 0; i < node.getChildCount(); i++) {
+            const child = node.getChild(i);
+            if (child !== null && child !== node.KW_RETURN() && child !== node.statement()) {
+                const doc = this.v(child);
+                if (!this.isEmpty(doc)) {
+                    clauses.push(doc);
+                }
+            }
+        }
+        return concat([
+            join(hardline, clauses),
+            hardline,
+            this.kw(node.KW_RETURN(), JsoniqParser.KW_RETURN),
+            space,
+            this.v(node.statement()),
+        ]);
+    };
+
+    public override visitIfStatement = (node: ctx.IfStatementContext): Doc => {
+        const thenStatement = node.statement(0);
+        const elseStatement = node.statement(1);
+        const thenBranch = this.v(thenStatement);
+        const elseBranch = this.v(elseStatement);
+        const thenContent = thenStatement?.blockStatement()
+            ? concat([space, thenBranch])
+            : indent(concat([line, thenBranch]));
+        const elseContent = elseStatement?.blockStatement()
+            ? concat([space, elseBranch])
+            : indent(concat([line, elseBranch]));
+        return group(
+            concat([
+                this.kw(node.KW_IF(), JsoniqParser.KW_IF),
+                space,
+                this.kw(node.LPAREN(), JsoniqParser.LPAREN),
+                this.v(node.expr()),
+                this.kw(node.RPAREN(), JsoniqParser.RPAREN),
+                space,
+                this.kw(node.KW_THEN(), JsoniqParser.KW_THEN),
+                thenContent,
+                thenStatement?.blockStatement() ? space : line,
+                this.kw(node.KW_ELSE(), JsoniqParser.KW_ELSE),
+                elseContent,
+            ]),
+        );
+    };
+
+    public override visitSwitchStatement = (node: ctx.SwitchStatementContext): Doc => {
+        const cases = node.switchCaseStatement().map((caseStatement) => this.v(caseStatement));
+        const defaultCase = concat([
+            this.kw(node.KW_DEFAULT(), JsoniqParser.KW_DEFAULT),
+            space,
+            this.kw(node.KW_RETURN(), JsoniqParser.KW_RETURN),
+            space,
+            this.v(node.statement()),
+        ]);
+        return concat([
+            this.kw(node.KW_SWITCH(), JsoniqParser.KW_SWITCH),
+            space,
+            this.kw(node.LPAREN(), JsoniqParser.LPAREN),
+            this.v(node.expr()),
+            this.kw(node.RPAREN(), JsoniqParser.RPAREN),
+            indent(concat([hardline, join(hardline, cases), hardline, defaultCase])),
+        ]);
+    };
+
+    public override visitSwitchCaseStatement = (node: ctx.SwitchCaseStatementContext): Doc => {
+        const conditions = node.exprSingle().map((condition) => this.v(condition));
+        const caseDocs = conditions.flatMap((condition) => [
+            this.kw(node.KW_CASE(), JsoniqParser.KW_CASE),
+            space,
+            condition,
+            space,
+        ]);
+        return concat([
+            ...caseDocs,
+            this.kw(node.KW_RETURN(), JsoniqParser.KW_RETURN),
+            space,
+            this.v(node.statement()),
+        ]);
+    };
+
+    public override visitTryCatchStatement = (node: ctx.TryCatchStatementContext): Doc => {
+        return concat([
+            this.kw(node.KW_TRY(), JsoniqParser.KW_TRY),
+            space,
+            this.v(node.blockStatement()),
+            hardline,
+            join(
+                hardline,
+                node.catchCaseStatement().map((catchCase) => this.v(catchCase)),
+            ),
+        ]);
+    };
+
+    public override visitCatchCaseStatement = (node: ctx.CatchCaseStatementContext): Doc => {
+        const targets =
+            node.getChildCount() > 0
+                ? node
+                      .wildcard()
+                      .map((wildcard) => this.v(wildcard))
+                      .concat(node.eqName().map((name) => this.v(name)))
+                : [];
+        return concat([
+            this.kw(node.KW_CATCH(), JsoniqParser.KW_CATCH),
+            space,
+            join(concat([space, this.kw(node.VBAR(), JsoniqParser.VBAR), space]), targets),
+            space,
+            this.v(node.blockStatement()),
+        ]);
+    };
+
+    public override visitTypeSwitchStatement = (node: ctx.TypeSwitchStatementContext): Doc => {
+        const cases = node.caseStatement().map((caseStatement) => this.v(caseStatement));
+        const binding = node.varBinding() ? concat([space, this.v(node.varBinding())]) : NIL;
+        const defaultCase = concat([
+            this.kw(node.KW_DEFAULT(), JsoniqParser.KW_DEFAULT),
+            binding,
+            space,
+            this.kw(node.KW_RETURN(), JsoniqParser.KW_RETURN),
+            space,
+            this.v(node.statement()),
+        ]);
+        return concat([
+            this.kw(node.KW_TYPESWITCH(), JsoniqParser.KW_TYPESWITCH),
+            space,
+            this.kw(node.LPAREN(), JsoniqParser.LPAREN),
+            this.v(node.expr()),
+            this.kw(node.RPAREN(), JsoniqParser.RPAREN),
+            indent(concat([hardline, join(hardline, cases), hardline, defaultCase])),
+        ]);
+    };
+
+    public override visitCaseStatement = (node: ctx.CaseStatementContext): Doc => {
+        const binding = node.varBinding()
+            ? concat([
+                  this.v(node.varBinding()),
+                  space,
+                  this.kw(node.KW_AS(), JsoniqParser.KW_AS),
+                  space,
+              ])
+            : NIL;
+        return concat([
+            this.kw(node.KW_CASE(), JsoniqParser.KW_CASE),
+            space,
+            binding,
+            join(
+                concat([space, this.kw(node.VBAR(), JsoniqParser.VBAR), space]),
+                node.sequenceType().map((type) => this.v(type)),
+            ),
+            space,
+            this.kw(node.KW_RETURN(), JsoniqParser.KW_RETURN),
+            space,
+            this.v(node.statement()),
+        ]);
+    };
+
+    public override visitVarDeclStatement = (node: ctx.VarDeclStatementContext): Doc => {
+        const annotations = node.annotations() ? this.v(node.annotations()) : NIL;
+        return concat([
+            annotations,
+            annotations === NIL ? NIL : space,
+            this.kw(node.KW_VARIABLE(), JsoniqParser.KW_VARIABLE),
+            space,
+            join(
+                concat([text(","), line]),
+                node.varDeclForStatement().map((decl) => this.v(decl)),
+            ),
+            this.kw(node.SEMICOLON(), JsoniqParser.SEMICOLON),
+        ]);
+    };
+
+    public override visitVarDeclForStatement = (node: ctx.VarDeclForStatementContext): Doc => {
+        const binding = this.v(node.varBinding());
+        const sequenceType = node.sequenceType()
+            ? concat([
+                  space,
+                  this.kw(node.KW_AS(), JsoniqParser.KW_AS),
+                  space,
+                  this.v(node.sequenceType()),
+              ])
+            : NIL;
+        const value = node.exprSingle()
+            ? concat([
+                  space,
+                  this.kw(node.COLON_EQ(), JsoniqParser.COLON_EQ),
+                  space,
+                  this.v(node.exprSingle()),
+              ])
+            : NIL;
+        return concat([binding, sequenceType, value]);
+    };
+
+    public override visitWhileStatement = (node: ctx.WhileStatementContext): Doc => {
+        const statement = node.statement();
+        const body = this.v(statement);
+        const bodyContent = statement.blockStatement()
+            ? concat([space, body])
+            : indent(concat([line, body]));
+        return group(
+            concat([
+                this.kw(node.KW_WHILE(), JsoniqParser.KW_WHILE),
+                space,
+                this.kw(node.LPAREN(), JsoniqParser.LPAREN),
+                this.v(node.expr()),
+                this.kw(node.RPAREN(), JsoniqParser.RPAREN),
+                bodyContent,
+            ]),
+        );
+    };
+
+    public override visitBlockExpr = (node: ctx.BlockExprContext): Doc => {
+        return this.formatStatementBlock(this.v(node.statementsAndExpr()));
     };
 
     // ─── FLWOR Expressions ───────────────────────────────────────────────────
