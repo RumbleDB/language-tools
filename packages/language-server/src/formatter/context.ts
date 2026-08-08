@@ -5,6 +5,23 @@ import { concat, Doc, hardline, NIL, space, text } from "./doc.js";
 import type { FormatterOptions } from "./options.js";
 
 /**
+ * A source token and the comments attached directly around it.
+ *
+ * Keeping these parts separate lets a construct place leading comments outside
+ * its layout group while retaining the token and trailing comments inside it.
+ */
+export interface TokenDoc {
+    readonly leading: Doc;
+    readonly value: Doc;
+    readonly trailing: Doc;
+}
+
+/** Combines a structured source token for ordinary inline use. */
+export function composeTokenDoc(token: TokenDoc): Doc {
+    return concat([token.leading, token.value, token.trailing]);
+}
+
+/**
  * FormatterContext manages options, the token stream, and comment attachment maps
  * during Document IR construction.
  */
@@ -22,16 +39,11 @@ export class FormatterContext {
     }
 
     /**
-     * Formats a terminal token / source token into a Doc node by attaching:
-     *  1. Any leading comments (on their own line before this token)
-     *  2. The token text itself as a TextDoc
-     *  3. Any trailing comments (on the same line after this token)
-     *
-     * This is the ONLY correct way to emit a real source token.
-     * Never use `text("keyword")` for tokens that exist in the source —
-     * use this method instead, so that comment attachment is triggered.
+     * Formats a real source token and keeps its attached comments separate.
+     * Language adapters must use this method instead of constructing source
+     * tokens with `text()`, otherwise attached comments can be misplaced.
      */
-    public formatTokenDoc(target: TerminalNode | Token | number, textFallback?: string): Doc {
+    public formatToken(target: TerminalNode | Token | number, textFallback?: string): TokenDoc {
         let tokenIndex: number;
         let tokenText: string;
 
@@ -47,10 +59,19 @@ export class FormatterContext {
         }
 
         const leading = this.flushLeadingDoc(tokenIndex);
-        const tokenDoc = text(tokenText);
-        const trailing = this.flushTrailingDoc(tokenIndex);
+        return {
+            leading,
+            value: text(tokenText),
+            trailing: this.flushTrailingDoc(tokenIndex),
+        };
+    }
 
-        return concat([leading, tokenDoc, trailing]);
+    /**
+     * Creates a token document when a generated parser accessor does not expose
+     * the corresponding terminal. Source terminals should always use formatToken.
+     */
+    public formatSyntheticToken(tokenText: string): TokenDoc {
+        return { leading: NIL, value: text(tokenText), trailing: NIL };
     }
 
     /**

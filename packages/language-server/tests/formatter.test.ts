@@ -35,6 +35,40 @@ describe("JSONiq & XQuery Formatter", () => {
             const formatted = formatText("[1,2,3]");
             expect(formatted).toBe("[ 1, 2, 3 ]\n");
         });
+
+        it("keeps a fitting square array on one line", () => {
+            const formatted = formatText("[1,2,3,4]");
+            expect(formatted).toBe("[ 1, 2, 3, 4 ]\n");
+        });
+
+        it("keeps a fitting array flat after an own-line leading comment", () => {
+            const input = [
+                '(:JIQS: ShouldCrash; ErrorCode="XPTY0004"; ErrorMetadata="LINE:2:COLUMN:0:" :)',
+                "[",
+                "    1,",
+                "    2,",
+                "    3,",
+                "    4",
+                "]",
+            ].join("\n");
+
+            expect(formatText(input)).toBe(
+                '(:JIQS: ShouldCrash; ErrorCode="XPTY0004"; ErrorMetadata="LINE:2:COLUMN:0:" :)\n' +
+                    "[ 1, 2, 3, 4 ]\n",
+            );
+        });
+
+        it("applies the same leading-comment layout to XQuery arrays", () => {
+            const input = ["(: Header comment :)", "[1, 2, 3, 4]"].join("\n");
+
+            expect(formatText(input, "xquery")).toBe("(: Header comment :)\n[ 1, 2, 3, 4 ]\n");
+        });
+
+        it("keeps a fitting object flat after an own-line leading comment", () => {
+            const input = ["(: Header comment :)", '{ "answer": 42 }'].join("\n");
+
+            expect(formatText(input)).toBe('(: Header comment :)\n{ "answer": 42 }\n');
+        });
     });
 
     describe("Blank line management", () => {

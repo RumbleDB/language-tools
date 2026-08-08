@@ -1,5 +1,5 @@
 import { ParseTree, TerminalNode, Token } from "antlr4ng";
-import { FormatterContext } from "server/formatter/context.js";
+import { composeTokenDoc, FormatterContext, type TokenDoc } from "server/formatter/context.js";
 import {
     concat,
     Doc,
@@ -21,6 +21,7 @@ import {
     formatIfExpressionDoc,
     formatTryCatchDoc,
     getTokenLiteral,
+    groupStartingWith,
     shouldSeparateDeclarations,
 } from "server/formatter/helpers.js";
 import { printDocToString } from "server/formatter/printer.js";
@@ -36,7 +37,7 @@ export class XQueryFormatterVisitor extends XQueryParserVisitor<Doc> {
 
     /**
      * Visit any parse tree node (terminal or rule context).
-     * Terminals are routed through formatTokenDoc for comment attachment.
+     * Terminals are routed through formatToken for comment attachment.
      */
     private v = (child: ParseTree | null | undefined): Doc => {
         if (child === null || child === undefined) {
@@ -52,21 +53,28 @@ export class XQueryFormatterVisitor extends XQueryParserVisitor<Doc> {
      * Visit a keyword or punctuation terminal (or token).
      * Fallback text is dynamically resolved from the Lexer token type.
      */
-    private kw(
+    private token(
         terminal: TerminalNode | TerminalNode[] | Token | null | undefined,
-        tokenTypeOrFallback: number | string,
-    ): Doc {
+        expectedToken: number | string,
+    ): TokenDoc {
         if (Array.isArray(terminal)) {
             terminal = terminal[0] ?? null;
         }
         if (terminal) {
-            return this.ctx.formatTokenDoc(terminal);
+            return this.ctx.formatToken(terminal);
         }
-        const fallback =
-            typeof tokenTypeOrFallback === "number"
-                ? getTokenLiteral(tokenTypeOrFallback, XQueryLexer.literalNames)
-                : tokenTypeOrFallback;
-        return text(fallback);
+        const expected =
+            typeof expectedToken === "number"
+                ? getTokenLiteral(expectedToken, XQueryLexer.literalNames)
+                : expectedToken;
+        return this.ctx.formatSyntheticToken(expected);
+    }
+
+    private kw(
+        terminal: TerminalNode | TerminalNode[] | Token | null | undefined,
+        expectedToken: number | string,
+    ): Doc {
+        return composeTokenDoc(this.token(terminal, expectedToken));
     }
 
     private vStrDoc = (doc: Doc): string => {
@@ -91,7 +99,7 @@ export class XQueryFormatterVisitor extends XQueryParserVisitor<Doc> {
         if (node.symbol.type === -1 /* Token.EOF */ || node.getText() === "<EOF>") {
             return NIL;
         }
-        return this.ctx.formatTokenDoc(node);
+        return composeTokenDoc(this.ctx.formatToken(node));
     };
 
     public override visitStringLiteral = (node: ctx.StringLiteralContext): Doc => {
@@ -595,17 +603,17 @@ export class XQueryFormatterVisitor extends XQueryParserVisitor<Doc> {
     // ─── Maps & Arrays (XQuery 3.1) ───────────────────────────────────────────
 
     public override visitObjectConstructor = (node: ctx.ObjectConstructorContext): Doc => {
-        const kwMap = node.KW_MAP() ? this.kw(node.KW_MAP(), XQueryParser.KW_MAP) : text("map");
+        const kwMap = this.token(node.KW_MAP(), XQueryParser.KW_MAP);
         const lb = this.kw(node.LBRACE(), XQueryParser.LBRACE);
         const rb = this.kw(node.RBRACE(), XQueryParser.RBRACE);
         const pairs = node.pairConstructor().map((p) => this.v(p));
         if (pairs.length === 0) {
-            return concat([kwMap, space, lb, rb]);
+            return concat([composeTokenDoc(kwMap), space, lb, rb]);
         }
 
         if (pairs.length > 2) {
             return concat([
-                kwMap,
+                composeTokenDoc(kwMap),
                 space,
                 lb,
                 indent(concat([hardline, join(concat([text(","), hardline]), pairs)])),
@@ -614,9 +622,9 @@ export class XQueryFormatterVisitor extends XQueryParserVisitor<Doc> {
             ]);
         }
 
-        return group(
+        return groupStartingWith(
+            kwMap,
             concat([
-                kwMap,
                 space,
                 lb,
                 indent(concat([line, join(concat([text(","), line]), pairs)])),
@@ -636,28 +644,17 @@ export class XQueryFormatterVisitor extends XQueryParserVisitor<Doc> {
     public override visitSquareArrayConstructor = (
         node: ctx.SquareArrayConstructorContext,
     ): Doc => {
-        const lbracket = this.kw(node.LBRACKET(), XQueryParser.LBRACKET);
+        const lbracket = this.token(node.LBRACKET(), XQueryParser.LBRACKET);
         const rbracket = this.kw(node.RBRACKET(), XQueryParser.RBRACKET);
         const exprSingles = node.exprSingle();
         if (exprSingles.length === 0) {
-            return concat([lbracket, rbracket]);
-        }
-
-        if (exprSingles.length === 1) {
-            const itemStr = this.vStrDoc(this.v(exprSingles[0]));
-            if (
-                (itemStr.startsWith("for ") || itemStr.startsWith("let ")) &&
-                !/\b(where|let|for|order|group)\b/.test(itemStr.slice(4))
-            ) {
-                const single = itemStr.replace(/\n\s*/g, " ");
-                return text(`[ ${single} ]`);
-            }
+            return concat([composeTokenDoc(lbracket), rbracket]);
         }
 
         const items = exprSingles.map((e) => this.v(e));
-        return group(
+        return groupStartingWith(
+            lbracket,
             concat([
-                lbracket,
                 indent(concat([line, join(concat([text(","), line]), items)])),
                 line,
                 rbracket,

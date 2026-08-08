@@ -1,4 +1,14 @@
+import type { TokenDoc } from "./context.js";
 import { concat, Doc, group, hardline, indent, join, line, NIL, space, text } from "./doc.js";
+
+/**
+ * Starts a layout group with a source token while keeping that token's leading
+ * comments outside the group. The token itself and trailing comments remain
+ * part of the group's layout decision.
+ */
+export function groupStartingWith(first: TokenDoc, rest: Doc): Doc {
+    return concat([first.leading, group(concat([first.value, first.trailing, rest]))]);
+}
 
 // ─── Lexer Token Literal Helper ───────────────────────────────────────────────
 

@@ -1,5 +1,5 @@
 import { ParseTree, TerminalNode, Token } from "antlr4ng";
-import { FormatterContext } from "server/formatter/context.js";
+import { composeTokenDoc, FormatterContext, type TokenDoc } from "server/formatter/context.js";
 import {
     concat,
     Doc,
@@ -20,6 +20,7 @@ import {
     formatIfExpressionDoc,
     formatTryCatchDoc,
     getTokenLiteral,
+    groupStartingWith,
     shouldSeparateDeclarations,
 } from "server/formatter/helpers.js";
 import { printDocToString } from "server/formatter/printer.js";
@@ -35,7 +36,7 @@ export class JsoniqFormatterVisitor extends JsoniqParserVisitor<Doc> {
 
     /**
      * Visit any parse tree node (terminal or rule context).
-     * Terminals are routed through formatTokenDoc for comment attachment.
+     * Terminals are routed through formatToken for comment attachment.
      */
     private v = (child: ParseTree | null | undefined): Doc => {
         if (child === null || child === undefined) {
@@ -51,21 +52,28 @@ export class JsoniqFormatterVisitor extends JsoniqParserVisitor<Doc> {
      * Visit a keyword or punctuation terminal (or token).
      * Fallback text is dynamically resolved from the Lexer token type.
      */
-    private kw(
+    private token(
         terminal: TerminalNode | TerminalNode[] | Token | null | undefined,
-        tokenTypeOrFallback: number | string,
-    ): Doc {
+        expectedToken: number | string,
+    ): TokenDoc {
         if (Array.isArray(terminal)) {
             terminal = terminal[0] ?? null;
         }
         if (terminal) {
-            return this.ctx.formatTokenDoc(terminal);
+            return this.ctx.formatToken(terminal);
         }
-        const fallback =
-            typeof tokenTypeOrFallback === "number"
-                ? getTokenLiteral(tokenTypeOrFallback, JsoniqLexer.literalNames)
-                : tokenTypeOrFallback;
-        return text(fallback);
+        const expected =
+            typeof expectedToken === "number"
+                ? getTokenLiteral(expectedToken, JsoniqLexer.literalNames)
+                : expectedToken;
+        return this.ctx.formatSyntheticToken(expected);
+    }
+
+    private kw(
+        terminal: TerminalNode | TerminalNode[] | Token | null | undefined,
+        expectedToken: number | string,
+    ): Doc {
+        return composeTokenDoc(this.token(terminal, expectedToken));
     }
 
     private vStrDoc = (doc: Doc): string => {
@@ -114,7 +122,7 @@ export class JsoniqFormatterVisitor extends JsoniqParserVisitor<Doc> {
         if (node.symbol.type === -1 /* Token.EOF */ || node.getText() === "<EOF>") {
             return NIL;
         }
-        return this.ctx.formatTokenDoc(node);
+        return composeTokenDoc(this.ctx.formatToken(node));
     };
 
     public override visitStringLiteral = (node: ctx.StringLiteralContext): Doc => {
@@ -988,11 +996,11 @@ export class JsoniqFormatterVisitor extends JsoniqParserVisitor<Doc> {
             node.LBRACE_VBAR() !== null ||
             (node._merge_operator && node._merge_operator.length > 0)
         ) {
-            const lbv = this.kw(node.LBRACE_VBAR(), JsoniqParser.LBRACE_VBAR);
+            const lbv = this.token(node.LBRACE_VBAR(), JsoniqParser.LBRACE_VBAR);
             const rbv = this.kw(node.RBRACE_VBAR(), JsoniqParser.RBRACE_VBAR);
             const exprNode = node.expr();
             if (!exprNode) {
-                return concat([lbv, rbv]);
+                return concat([composeTokenDoc(lbv), rbv]);
             }
             let formattedItems: Doc[];
             if ("exprSingle" in exprNode && typeof exprNode.exprSingle === "function") {
@@ -1000,9 +1008,9 @@ export class JsoniqFormatterVisitor extends JsoniqParserVisitor<Doc> {
             } else {
                 formattedItems = [this.v(exprNode)];
             }
-            return group(
+            return groupStartingWith(
+                lbv,
                 concat([
-                    lbv,
                     indent(
                         concat([
                             line,
@@ -1015,16 +1023,16 @@ export class JsoniqFormatterVisitor extends JsoniqParserVisitor<Doc> {
             );
         }
 
-        const lb = this.kw(node.LBRACE(), JsoniqParser.LBRACE);
+        const lb = this.token(node.LBRACE(), JsoniqParser.LBRACE);
         const rb = this.kw(node.RBRACE(), JsoniqParser.RBRACE);
         const pairs = node.pairConstructor().map((p) => this.v(p));
         if (pairs.length === 0) {
-            return concat([lb, rb]);
+            return concat([composeTokenDoc(lb), rb]);
         }
 
         if (pairs.length > 2) {
             return concat([
-                lb,
+                composeTokenDoc(lb),
                 indent(
                     concat([
                         hardline,
@@ -1036,9 +1044,9 @@ export class JsoniqFormatterVisitor extends JsoniqParserVisitor<Doc> {
             ]);
         }
 
-        return group(
+        return groupStartingWith(
+            lb,
             concat([
-                lb,
                 indent(
                     concat([line, this.joinWithCommas(pairs, node.getTokens(JsoniqParser.COMMA))]),
                 ),
@@ -1058,17 +1066,17 @@ export class JsoniqFormatterVisitor extends JsoniqParserVisitor<Doc> {
     public override visitSquareArrayConstructor = (
         node: ctx.SquareArrayConstructorContext,
     ): Doc => {
-        const lbracket = this.kw(node.LBRACKET(), JsoniqParser.LBRACKET);
+        const lbracket = this.token(node.LBRACKET(), JsoniqParser.LBRACKET);
         const rbracket = this.kw(node.RBRACKET(), JsoniqParser.RBRACKET);
         const exprSingles = node.exprSingle();
         if (exprSingles.length === 0) {
-            return concat([lbracket, rbracket]);
+            return concat([composeTokenDoc(lbracket), rbracket]);
         }
 
         const items = exprSingles.map((e) => this.v(e));
-        return group(
+        return groupStartingWith(
+            lbracket,
             concat([
-                lbracket,
                 indent(
                     concat([line, this.joinWithCommas(items, node.getTokens(JsoniqParser.COMMA))]),
                 ),
