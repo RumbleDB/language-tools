@@ -110,6 +110,15 @@ export class XQueryFormatterVisitor extends XQueryParserVisitor<Doc> {
         return composeTokenDoc(this.ctx.formatTokenRange(node.start!, node.stop!));
     };
 
+    /**
+     * Direct XML constructors are semantic text boundaries. Their whitespace
+     * contributes to the resulting XML node, so formatting their children
+     * (including enclosed expressions) can alter the query result.
+     */
+    public override visitDirectConstructor = (node: ctx.DirectConstructorContext): Doc => {
+        return composeTokenDoc(this.ctx.formatTokenRange(node.start!, node.stop!));
+    };
+
     // ─── Module & Prolog ──────────────────────────────────────────────────────
 
     public override visitModuleAndThisIsIt = (node: ctx.ModuleAndThisIsItContext): Doc => {

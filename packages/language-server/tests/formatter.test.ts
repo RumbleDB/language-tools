@@ -33,6 +33,17 @@ describe("JSONiq & XQuery Formatter", () => {
         );
     });
 
+    describe("Direct XML constructors", () => {
+        it.each(["jsoniq", "xquery"] as const)(
+            "preserves %s XML markup, text, attributes, and enclosed expressions",
+            (languageId) => {
+                const input = `<root id="primary"><child>{1+2}</child><!-- note --><![CDATA[ raw ]]></root>`;
+
+                expect(formatText(input, languageId)).toBe(`${input}\n`);
+            },
+        );
+    });
+
     describe("Sequence item spacing", () => {
         it("adds spaces after commas in sequence expressions: (1,2,3) -> (1, 2, 3)", () => {
             const formatted = formatText("(1,2,3)");
