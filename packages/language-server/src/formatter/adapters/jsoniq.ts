@@ -1249,7 +1249,3 @@ export class JsoniqFormatterVisitor extends JsoniqParserVisitor<Doc> {
         return concat([item, occurrenceDoc]);
     };
 }
-
-export function createJsoniqFormatterVisitor(ctx: FormatterContext): JsoniqFormatterVisitor {
-    return new JsoniqFormatterVisitor(ctx);
-}

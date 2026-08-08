@@ -27,14 +27,12 @@ export function composeTokenDoc(token: TokenDoc): Doc {
  */
 export class FormatterContext {
     public readonly options: FormatterOptions;
-    public readonly tokenStream: CommonTokenStream;
-    public readonly attachmentMap: CommentAttachmentMap;
 
-    private emittedComments: Set<number> = new Set();
+    private readonly attachmentMap: CommentAttachmentMap;
+    private readonly emittedComments = new Set<number>();
 
     public constructor(options: FormatterOptions, tokenStream: CommonTokenStream) {
         this.options = options;
-        this.tokenStream = tokenStream;
         this.attachmentMap = buildCommentAttachmentMap(tokenStream);
     }
 
@@ -43,24 +41,11 @@ export class FormatterContext {
      * Language adapters must use this method instead of constructing source
      * tokens with `text()`, otherwise attached comments can be misplaced.
      */
-    public formatToken(target: TerminalNode | Token | number, textFallback?: string): TokenDoc {
-        let tokenIndex: number;
-        let tokenText: string;
-
-        if (typeof target === "number") {
-            tokenIndex = target;
-            tokenText = textFallback ?? "";
-        } else if ("symbol" in target) {
-            tokenIndex = target.symbol.tokenIndex;
-            tokenText = target.getText();
-        } else {
-            tokenIndex = target.tokenIndex;
-            tokenText = target.text ?? textFallback ?? "";
-        }
-
-        const leading = this.flushLeadingDoc(tokenIndex);
+    public formatToken(target: TerminalNode | Token): TokenDoc {
+        const tokenIndex = "symbol" in target ? target.symbol.tokenIndex : target.tokenIndex;
+        const tokenText = "symbol" in target ? target.getText() : (target.text ?? "");
         return {
-            leading,
+            leading: this.flushLeadingDoc(tokenIndex),
             value: text(tokenText),
             trailing: this.flushTrailingDoc(tokenIndex),
         };

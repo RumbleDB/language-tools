@@ -794,7 +794,3 @@ export class XQueryFormatterVisitor extends XQueryParserVisitor<Doc> {
         return concat([item, occurrenceDoc]);
     };
 }
-
-export function createXQueryFormatterVisitor(ctx: FormatterContext): XQueryFormatterVisitor {
-    return new XQueryFormatterVisitor(ctx);
-}

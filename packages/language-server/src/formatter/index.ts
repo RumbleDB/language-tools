@@ -4,8 +4,8 @@ import type { TextDocument } from "vscode-languageserver-textdocument";
 import { parseDocument } from "../parser/index.js";
 import { getParserAdapterForDocument } from "../parser/registry.js";
 import { getDocumentText } from "../parser/utils.js";
-import { createJsoniqFormatterVisitor } from "./adapters/jsoniq.js";
-import { createXQueryFormatterVisitor } from "./adapters/xquery.js";
+import { JsoniqFormatterVisitor } from "./adapters/jsoniq.js";
+import { XQueryFormatterVisitor } from "./adapters/xquery.js";
 import { FormatterContext } from "./context.js";
 import { NIL, Doc } from "./doc.js";
 import { normalizeBlankLines } from "./helpers.js";
@@ -41,10 +41,10 @@ export function formatDocument(
 
     let docTree: Doc;
     if (adapter.id === "jsoniq") {
-        const visitor = createJsoniqFormatterVisitor(ctx);
+        const visitor = new JsoniqFormatterVisitor(ctx);
         docTree = visitor.visit(parsed.tree) ?? NIL;
     } else if (adapter.id === "xquery") {
-        const visitor = createXQueryFormatterVisitor(ctx);
+        const visitor = new XQueryFormatterVisitor(ctx);
         docTree = visitor.visit(parsed.tree) ?? NIL;
     } else {
         return [];

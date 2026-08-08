@@ -8,28 +8,28 @@
 
 export type Doc = TextDoc | ConcatDoc | GroupDoc | IndentDoc | LineDoc;
 
-export interface TextDoc {
+interface TextDoc {
     readonly kind: "text";
     /** A text fragment never contains a newline; use `line` or `hardline` instead. */
     readonly text: string;
 }
 
-export interface ConcatDoc {
+interface ConcatDoc {
     readonly kind: "concat";
     readonly docs: readonly Doc[];
 }
 
-export interface GroupDoc {
+interface GroupDoc {
     readonly kind: "group";
     readonly doc: Doc;
 }
 
-export interface IndentDoc {
+interface IndentDoc {
     readonly kind: "indent";
     readonly doc: Doc;
 }
 
-export interface LineDoc {
+interface LineDoc {
     readonly kind: "line";
     /** If true, this newline is compulsory and will break containing groups */
     readonly hard: boolean;
