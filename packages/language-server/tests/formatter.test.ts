@@ -180,6 +180,71 @@ describe("JSONiq & XQuery Formatter", () => {
                 );
             },
         );
+
+        it.each(["jsoniq", "xquery"] as const)(
+            "preserves %s entities and escaped braces around formatted expressions",
+            (languageId) => {
+                const input = `<root>&amp;{{literal}}{1+2}</root>`;
+
+                expect(formatText(input, languageId)).toBe(
+                    `<root>&amp;{{literal}}{ 1 + 2 }</root>\n`,
+                );
+            },
+        );
+
+        it.each(["jsoniq", "xquery"] as const)(
+            "keeps %s CDATA verbatim while formatting nested markup",
+            (languageId) => {
+                const input = `<root><child id = "one"/><![CDATA[ x < y ]]></root>`;
+
+                expect(formatText(input, languageId)).toBe(
+                    `<root><child id="one"/><![CDATA[ x < y ]]></root>\n`,
+                );
+            },
+        );
+
+        it.each(["jsoniq", "xquery"] as const)(
+            "indents %s direct comments and processing instructions under strip",
+            (languageId) => {
+                const input = `<root><child/><!-- note --><?notice keep this?></root>`;
+
+                expect(formatText(input, languageId)).toBe(
+                    [
+                        "<root>",
+                        "    <child/>",
+                        "    <!-- note -->",
+                        "    <?notice keep this?>",
+                        "</root>",
+                        "",
+                    ].join("\n"),
+                );
+            },
+        );
+
+        it.each(["jsoniq", "xquery"] as const)(
+            "breaks long %s XML expressions without changing surrounding text",
+            (languageId) => {
+                const input = `<message>Result: {format-message("a very long value", "another long value")}</message>`;
+
+                expect(formatText(input, languageId, { maxLineWidth: 30 })).toContain("\n");
+            },
+        );
+
+        it.each(["jsoniq", "xquery"] as const)(
+            "is idempotent for %s XML formatting",
+            (languageId) => {
+                const input = [
+                    "declare boundary-space preserve;",
+                    '<root label="item-{1+2}">',
+                    '  <child id = "one">Value: {format-message("first", "second")}</child>',
+                    "  <![CDATA[ x < y ]]>",
+                    "</root>",
+                ].join("\n");
+
+                const once = formatText(input, languageId, { maxLineWidth: 30 });
+                expect(formatText(once, languageId, { maxLineWidth: 30 })).toBe(once);
+            },
+        );
     });
 
     describe("Sequence item spacing", () => {
