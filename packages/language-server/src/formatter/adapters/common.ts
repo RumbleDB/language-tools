@@ -161,15 +161,26 @@ function formatDirectBody(
     formatEnclosedExpression: FormatEnclosedExpression,
 ): Doc {
     const contents = node.dirElemContent();
+    const hasDirectConstructor = contents.some((content) => content.directConstructor() !== null);
     if (
         context.canReflowXmlBoundaryWhitespace() &&
-        contents.some((content) => content.directConstructor() !== null) &&
-        hasOnlyStructuralContent(context, node, contents)
+        hasOnlyStructuralContent(context, node, contents) &&
+        (contents.length > 1 || hasDirectConstructor)
     ) {
         const childDocs = contents.map((content) =>
             formatDirectContent(context, tokens, content, formatTerminal, formatEnclosedExpression),
         );
         const closingTag = context.formatVerbatimRange(node.LANGLE().symbol, node.stop!);
+
+        if (!hasDirectConstructor) {
+            return group(
+                concat([
+                    indent(concat([softline, join(softline, childDocs)])),
+                    softline,
+                    closingTag,
+                ]),
+            );
+        }
 
         return concat([
             indent(concat([hardline, join(hardline, childDocs)])),

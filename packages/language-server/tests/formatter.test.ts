@@ -154,6 +154,26 @@ describe("JSONiq & XQuery Formatter", () => {
         );
 
         it.each(["jsoniq", "xquery"] as const)(
+            "keeps fitting %s enclosed expressions flat under strip",
+            (languageId) => {
+                const input = `<root>{ $first }{ $second }</root>`;
+
+                expect(formatText(input, languageId)).toBe(`<root>{ $first }{ $second }</root>\n`);
+            },
+        );
+
+        it.each(["jsoniq", "xquery"] as const)(
+            "breaks long %s enclosed-expression bodies under strip",
+            (languageId) => {
+                const input = `<root>{ $first }{ $second }</root>`;
+
+                expect(formatText(input, languageId, { maxLineWidth: 20 })).toBe(
+                    ["<root>", "    { $first }", "    { $second }", "</root>", ""].join("\n"),
+                );
+            },
+        );
+
+        it.each(["jsoniq", "xquery"] as const)(
             "preserves %s boundary whitespace while formatting nested tags",
             (languageId) => {
                 const input = [
