@@ -115,13 +115,6 @@ export function formatDirectConstructor(
         return composeTokenDoc(context.formatTokenRange(node.start!, node.stop!));
     }
 
-    // Parser recovery can leave an incomplete attribute without its value.
-    // Preserve the entire constructor in that case rather than partially
-    // formatting it or indexing a missing value below.
-    if (attributes.qname().length !== attributes.dirAttributeValue().length) {
-        return composeTokenDoc(context.formatTokenRange(node.start!, node.stop!));
-    }
-
     const tagStart = concat([
         formatTerminal(openAngle, tokens.LANGLE),
         context.formatVerbatimRange(name.start!, name.stop!),

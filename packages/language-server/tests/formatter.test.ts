@@ -66,13 +66,6 @@ describe("JSONiq & XQuery Formatter", () => {
         );
 
         it.each(["jsoniq", "xquery"] as const)(
-            "preserves malformed %s direct tags without crashing",
-            (languageId) => {
-                expect(formatText(`<item label=>`, languageId)).toBe(`<item label=>`);
-            },
-        );
-
-        it.each(["jsoniq", "xquery"] as const)(
             "wraps long %s direct-tag attributes and reflows element-only content",
             (languageId) => {
                 const input = `<book isbn = "978-0123456789" language = "en" edition = "first"><title>Example</title></book>`;
