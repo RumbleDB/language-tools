@@ -19,19 +19,25 @@ interface DirectAttributeValue extends ParserRuleContext {
 
 interface DirectAttributeValueQuot extends ParserRuleContext {
     Quot(index: number): TerminalNode | null;
-    dirAttributeContentQuot(): EnclosedExpressionContent[];
+    dirAttributeContentQuot(): EnclosedExpressionCandidate[];
 }
 
 interface DirectAttributeValueApos extends ParserRuleContext {
     Apos(index: number): TerminalNode | null;
-    dirAttributeContentApos(): EnclosedExpressionContent[];
+    dirAttributeContentApos(): EnclosedExpressionCandidate[];
 }
 
-export interface EnclosedExpressionContent extends ParserRuleContext {
+interface EnclosedExpressionCandidate extends ParserRuleContext {
     expr(): ParserRuleContext | null;
     LBRACE(index: number): TerminalNode | null;
     RBRACE(index: number): TerminalNode | null;
 }
+
+export interface EnclosedExpressionContent extends EnclosedExpressionCandidate {
+    expr(): ParserRuleContext;
+}
+
+export type FormatEnclosedExpression = (node: EnclosedExpressionContent) => Doc;
 
 interface DirectElementOpenClose extends ParserRuleContext {
     RANGLE(index: number): TerminalNode | null;
@@ -97,7 +103,7 @@ export function formatDirectConstructor(
     tokens: XmlTokenTypes,
     node: DirectConstructor,
     formatTerminal: (terminal: SourceTerminal, expectedToken: number) => Doc,
-    formatEnclosedExpression: (node: EnclosedExpressionContent) => Doc | null,
+    formatEnclosedExpression: FormatEnclosedExpression,
 ): Doc {
     const openAngle = node.LANGLE();
     const name = node.qname();
@@ -152,7 +158,7 @@ function formatDirectBody(
     tokens: XmlTokenTypes,
     node: DirectElementOpenClose,
     formatTerminal: (terminal: SourceTerminal, expectedToken: number) => Doc,
-    formatEnclosedExpression: (node: EnclosedExpressionContent) => Doc | null,
+    formatEnclosedExpression: FormatEnclosedExpression,
 ): Doc {
     const contents = node.dirElemContent();
     if (
@@ -188,7 +194,7 @@ function formatBodyWithOriginalWhitespace(
     node: DirectElementOpenClose,
     contents: readonly DirectElementContent[],
     formatTerminal: (terminal: SourceTerminal, expectedToken: number) => Doc,
-    formatEnclosedExpression: (node: EnclosedExpressionContent) => Doc | null,
+    formatEnclosedExpression: FormatEnclosedExpression,
 ): Doc {
     const openingEnd = node.RANGLE(0)?.symbol;
     if (!openingEnd) {
@@ -214,7 +220,7 @@ function formatDirectContent(
     tokens: XmlTokenTypes,
     content: DirectElementContent,
     formatTerminal: (terminal: SourceTerminal, expectedToken: number) => Doc,
-    formatEnclosedExpression: (node: EnclosedExpressionContent) => Doc | null,
+    formatEnclosedExpression: FormatEnclosedExpression,
 ): Doc {
     const childElement = content.directConstructor();
     if (childElement) {
@@ -229,10 +235,7 @@ function formatDirectContent(
 
     const commonContent = content.commonContent();
     if (commonContent && isEnclosedExpressionContent(commonContent)) {
-        return (
-            formatEnclosedExpression(commonContent) ??
-            context.formatVerbatimRange(content.start!, content.stop!)
-        );
+        return formatEnclosedExpression(commonContent);
     }
     return context.formatVerbatimRange(content.start!, content.stop!);
 }
@@ -269,7 +272,7 @@ function formatDirectAttributes(
     tokens: XmlTokenTypes,
     node: DirectAttributeList,
     formatTerminal: (terminal: SourceTerminal, expectedToken: number) => Doc,
-    formatEnclosedExpression: (node: EnclosedExpressionContent) => Doc | null,
+    formatEnclosedExpression: FormatEnclosedExpression,
 ): Doc[] {
     const names = node.qname();
     const values = node.dirAttributeValue();
@@ -292,7 +295,7 @@ function formatDirectAttributeValue(
     context: FormatterContext,
     value: DirectAttributeValue,
     formatTerminal: (terminal: SourceTerminal, expectedToken: number) => Doc,
-    formatEnclosedExpression: (node: EnclosedExpressionContent) => Doc | null,
+    formatEnclosedExpression: FormatEnclosedExpression,
 ): Doc {
     const quoted = value.dirAttributeValueQuot();
     if (quoted) {
@@ -328,11 +331,11 @@ function formatDelimitedAttributeValue(
     value: DirectAttributeValue,
     openQuote: TerminalNode | null,
     closeQuote: TerminalNode | null,
-    contents: readonly EnclosedExpressionContent[],
+    contents: readonly EnclosedExpressionCandidate[],
     formatTerminal: (terminal: SourceTerminal, expectedToken: number) => Doc,
-    formatEnclosedExpression: (node: EnclosedExpressionContent) => Doc | null,
+    formatEnclosedExpression: FormatEnclosedExpression,
 ): Doc {
-    const expressions = contents.filter((content) => content.expr() !== null);
+    const expressions = contents.filter(isEnclosedExpressionContent);
     if (expressions.length === 0 || !openQuote || !closeQuote) {
         return context.formatVerbatimRange(value.start!, value.stop!);
     }
@@ -341,10 +344,7 @@ function formatDelimitedAttributeValue(
     let previous = openQuote.symbol;
     for (const expression of expressions) {
         docs.push(context.formatVerbatimBetween(previous, expression.start!));
-        docs.push(
-            formatEnclosedExpression(expression) ??
-                context.formatVerbatimRange(expression.start!, expression.stop!),
-        );
+        docs.push(formatEnclosedExpression(expression));
         previous = expression.stop!;
     }
     docs.push(context.formatVerbatimBetween(previous, closeQuote.symbol));
@@ -353,7 +353,10 @@ function formatDelimitedAttributeValue(
 }
 
 function isEnclosedExpressionContent(node: ParserRuleContext): node is EnclosedExpressionContent {
-    return "expr" in node && "LBRACE" in node && "RBRACE" in node;
+    if (!("expr" in node && "LBRACE" in node && "RBRACE" in node)) {
+        return false;
+    }
+    return (node as EnclosedExpressionCandidate).expr() !== null;
 }
 
 function formatDirectTag(tagStart: Doc, attributes: readonly Doc[], close: Doc): Doc {
