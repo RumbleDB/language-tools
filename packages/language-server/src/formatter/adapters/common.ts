@@ -163,7 +163,7 @@ function formatDirectBody(
     const contents = node.dirElemContent();
     if (
         context.canReflowXmlBoundaryWhitespace() &&
-        contents.length > 0 &&
+        contents.some((content) => content.directConstructor() !== null) &&
         hasOnlyStructuralContent(context, node, contents)
     ) {
         const childDocs = contents.map((content) =>
@@ -264,7 +264,11 @@ function hasOnlyStructuralContent(
 }
 
 function isStructuralContent(content: DirectElementContent): boolean {
-    return content.directConstructor() !== null;
+    const commonContent = content.commonContent();
+    return (
+        content.directConstructor() !== null ||
+        (commonContent !== null && isEnclosedExpressionContent(commonContent))
+    );
 }
 
 function formatDirectAttributes(
