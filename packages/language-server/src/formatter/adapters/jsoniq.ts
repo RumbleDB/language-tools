@@ -141,6 +141,22 @@ export class JsoniqFormatterVisitor extends JsoniqParserVisitor<Doc> {
         );
     };
 
+    public override visitBoundarySpaceDecl = (node: ctx.BoundarySpaceDeclContext): Doc => {
+        const isPreserve = node.KW_PRESERVE() !== null;
+        this.ctx.setXmlBoundarySpacePolicy(isPreserve ? "preserve" : "strip");
+        return concat([
+            this.kw(node.KW_DECLARE(), JsoniqParser.KW_DECLARE),
+            space,
+            this.kw(node.KW_BOUNDARY_SPACE(), JsoniqParser.KW_BOUNDARY_SPACE),
+            space,
+            this.kw(
+                isPreserve ? node.KW_PRESERVE() : node.KW_STRIP(),
+                isPreserve ? JsoniqParser.KW_PRESERVE : JsoniqParser.KW_STRIP,
+            ),
+            this.kw(node.SEMICOLON(), JsoniqParser.SEMICOLON),
+        ]);
+    };
+
     // ─── Module & Prolog ──────────────────────────────────────────────────────
 
     public override visitModuleAndThisIsIt = (node: ctx.ModuleAndThisIsItContext): Doc => {

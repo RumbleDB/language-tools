@@ -16,6 +16,8 @@ export interface TokenDoc {
     readonly trailing: Doc;
 }
 
+export type XmlBoundarySpacePolicy = "preserve" | "strip";
+
 /** Combines a structured source token for ordinary inline use. */
 export function composeTokenDoc(token: TokenDoc): Doc {
     return concat([token.leading, token.value, token.trailing]);
@@ -31,6 +33,7 @@ export class FormatterContext {
     private readonly tokenStream: CommonTokenStream;
     private readonly attachmentMap: CommentAttachmentMap;
     private readonly emittedComments = new Set<number>();
+    private xmlBoundarySpacePolicy: XmlBoundarySpacePolicy = "strip";
 
     public constructor(options: FormatterOptions, tokenStream: CommonTokenStream) {
         this.options = options;
@@ -59,9 +62,7 @@ export class FormatterContext {
      * omits whitespace tokens that the parser did not consume.
      */
     public formatTokenRange(start: Token, stop: Token): TokenDoc {
-        const tokenText =
-            start.inputStream?.getTextFromRange(start.start, stop.stop) ??
-            this.tokenStream.getTextFromRange(start, stop);
+        const tokenText = this.getSourceText(start, stop);
         return {
             leading: this.flushLeadingDoc(start.tokenIndex),
             value: text(tokenText),
@@ -74,10 +75,45 @@ export class FormatterContext {
      * Use for semantic text regions nested inside a larger formatted construct.
      */
     public formatVerbatimRange(start: Token, stop: Token): Doc {
-        const sourceText =
+        return text(this.getSourceText(start, stop));
+    }
+
+    /**
+     * Returns the exact source gap between two tokens without attaching comments.
+     * This is used for semantic XML boundary whitespace, which must retain its
+     * original spelling under `declare boundary-space preserve`.
+     */
+    public formatVerbatimBetween(left: Token, right: Token): Doc {
+        if (left.stop >= right.start - 1) {
+            return NIL;
+        }
+        const inputStream = left.inputStream ?? right.inputStream;
+        return text(inputStream?.getTextFromRange(left.stop + 1, right.start - 1) ?? "");
+    }
+
+    /** Returns the exact source text covered by two tokens. */
+    public getSourceText(start: Token, stop: Token): string {
+        return (
             start.inputStream?.getTextFromRange(start.start, stop.stop) ??
-            this.tokenStream.getTextFromRange(start, stop);
-        return text(sourceText);
+            this.tokenStream.getTextFromRange(start, stop)
+        );
+    }
+
+    /** Checks whether the source gap between two tokens contains only whitespace. */
+    public hasOnlyWhitespaceBetween(left: Token, right: Token): boolean {
+        if (left.stop >= right.start - 1) {
+            return true;
+        }
+        const gap = left.inputStream?.getTextFromRange(left.stop + 1, right.start - 1);
+        return gap !== undefined && gap !== null && /^\s*$/.test(gap);
+    }
+
+    public setXmlBoundarySpacePolicy(policy: XmlBoundarySpacePolicy): void {
+        this.xmlBoundarySpacePolicy = policy;
+    }
+
+    public canReflowXmlBoundaryWhitespace(): boolean {
+        return this.xmlBoundarySpacePolicy === "strip";
     }
 
     /**

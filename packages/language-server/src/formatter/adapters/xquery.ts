@@ -119,6 +119,22 @@ export class XQueryFormatterVisitor extends XQueryParserVisitor<Doc> {
         );
     };
 
+    public override visitBoundarySpaceDecl = (node: ctx.BoundarySpaceDeclContext): Doc => {
+        const isPreserve = node.KW_PRESERVE() !== null;
+        this.ctx.setXmlBoundarySpacePolicy(isPreserve ? "preserve" : "strip");
+        return concat([
+            this.kw(node.KW_DECLARE(), XQueryParser.KW_DECLARE),
+            space,
+            this.kw(node.KW_BOUNDARY_SPACE(), XQueryParser.KW_BOUNDARY_SPACE),
+            space,
+            this.kw(
+                isPreserve ? node.KW_PRESERVE() : node.KW_STRIP(),
+                isPreserve ? XQueryParser.KW_PRESERVE : XQueryParser.KW_STRIP,
+            ),
+            this.kw(node.SEMICOLON(), XQueryParser.SEMICOLON),
+        ]);
+    };
+
     // ─── Module & Prolog ──────────────────────────────────────────────────────
 
     public override visitModuleAndThisIsIt = (node: ctx.ModuleAndThisIsItContext): Doc => {

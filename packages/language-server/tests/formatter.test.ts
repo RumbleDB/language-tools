@@ -53,13 +53,18 @@ describe("JSONiq & XQuery Formatter", () => {
                 const input = `<book isbn = "123" language = "en"><title>Example</title></book>`;
 
                 expect(formatText(input, languageId)).toBe(
-                    `<book isbn="123" language="en"><title>Example</title></book>\n`,
+                    [
+                        '<book isbn="123" language="en">',
+                        "    <title>Example</title>",
+                        "</book>",
+                        "",
+                    ].join("\n"),
                 );
             },
         );
 
         it.each(["jsoniq", "xquery"] as const)(
-            "wraps long %s direct-tag attributes without reflowing content",
+            "wraps long %s direct-tag attributes and reflows element-only content",
             (languageId) => {
                 const input = `<book isbn = "978-0123456789" language = "en" edition = "first"><title>Example</title></book>`;
 
@@ -69,7 +74,9 @@ describe("JSONiq & XQuery Formatter", () => {
                         '    isbn="978-0123456789"',
                         '    language="en"',
                         '    edition="first"',
-                        "><title>Example</title></book>",
+                        ">",
+                        "    <title>Example</title>",
+                        "</book>",
                         "",
                     ].join("\n"),
                 );
@@ -90,6 +97,65 @@ describe("JSONiq & XQuery Formatter", () => {
                 ].join("\n"),
             );
         });
+
+        it.each(["jsoniq", "xquery"] as const)(
+            "indents %s element-only content under the strip policy",
+            (languageId) => {
+                const input = `<root><child id = "one"/><child id = "two"/></root>`;
+
+                expect(formatText(input, languageId)).toBe(
+                    [
+                        "<root>",
+                        '    <child id="one"/>',
+                        '    <child id="two"/>',
+                        "</root>",
+                        "",
+                    ].join("\n"),
+                );
+            },
+        );
+
+        it.each(["jsoniq", "xquery"] as const)(
+            "preserves %s boundary whitespace while formatting nested tags",
+            (languageId) => {
+                const input = [
+                    "declare boundary-space preserve;",
+                    "<root>",
+                    '  <child id = "one"/>',
+                    "</root>",
+                ].join("\n");
+
+                expect(formatText(input, languageId)).toBe(
+                    [
+                        "declare boundary-space preserve;",
+                        "",
+                        "<root>",
+                        '  <child id="one"/>',
+                        "</root>",
+                        "",
+                    ].join("\n"),
+                );
+            },
+        );
+
+        it.each(["jsoniq", "xquery"] as const)("preserves %s mixed text content", (languageId) => {
+            const input = `<paragraph>Hello <em>world</em>!</paragraph>`;
+
+            expect(formatText(input, languageId)).toBe(`${input}\n`);
+        });
+
+        it.each(["jsoniq", "xquery"] as const)(
+            "does not special-case %s xml:space",
+            (languageId) => {
+                const input = `<root xml:space="preserve"><child id = "one"/></root>`;
+
+                expect(formatText(input, languageId)).toBe(
+                    ['<root xml:space="preserve">', '    <child id="one"/>', "</root>", ""].join(
+                        "\n",
+                    ),
+                );
+            },
+        );
     });
 
     describe("Sequence item spacing", () => {

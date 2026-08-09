@@ -1,7 +1,7 @@
 import { ParserRuleContext, TerminalNode, Token } from "antlr4ng";
 
 import { composeTokenDoc, FormatterContext, type TokenDoc } from "../context.js";
-import { concat, type Doc, group, indent, join, line, softline } from "../doc.js";
+import { concat, type Doc, group, hardline, indent, join, line, softline } from "../doc.js";
 import { getTokenLiteral } from "../helpers.js";
 
 type SourceTerminal = TerminalNode | Token | null | undefined;
@@ -15,7 +15,12 @@ interface DirectAttributeList extends ParserRuleContext {
 interface DirectElementOpenClose extends ParserRuleContext {
     RANGLE(index: number): TerminalNode | null;
     LANGLE(): TerminalNode;
-    dirElemContent(): ParserRuleContext[];
+    dirElemContent(): DirectElementContent[];
+}
+
+interface DirectElementContent extends ParserRuleContext {
+    directConstructor(): DirectConstructor | null;
+    commonContent(): ParserRuleContext | null;
 }
 
 interface DirectElementSingleTag extends ParserRuleContext {
@@ -63,9 +68,8 @@ export function formatTokenDoc(
 }
 
 /**
- * Formats direct XML tag markup while retaining its body as verbatim source.
- * XML content can carry semantic whitespace, so body reflow is deliberately a
- * separate, policy-aware phase.
+ * Formats direct XML tag markup. XML boundary whitespace is policy-sensitive,
+ * but nested tag markup can always be formatted independently.
  */
 export function formatDirectConstructor(
     context: FormatterContext,
@@ -109,9 +113,97 @@ export function formatDirectConstructor(
         attributeDocs,
         formatTerminal(openClose.RANGLE(0), tokens.RANGLE),
     );
-    const bodyStart = openClose.dirElemContent()[0]?.start ?? openClose.LANGLE().symbol;
+    return concat([openingTag, formatDirectBody(context, tokens, openClose, formatTerminal)]);
+}
 
-    return concat([openingTag, context.formatVerbatimRange(bodyStart, openClose.stop!)]);
+function formatDirectBody(
+    context: FormatterContext,
+    tokens: XmlTokenTypes,
+    node: DirectElementOpenClose,
+    formatTerminal: (terminal: SourceTerminal, expectedToken: number) => Doc,
+): Doc {
+    const contents = node.dirElemContent();
+    if (
+        context.canReflowXmlBoundaryWhitespace() &&
+        contents.length > 0 &&
+        hasOnlyStructuralContent(context, node, contents)
+    ) {
+        const childDocs = contents.map((content) =>
+            formatDirectContent(context, tokens, content, formatTerminal),
+        );
+        const closingTag = context.formatVerbatimRange(node.LANGLE().symbol, node.stop!);
+
+        return concat([
+            indent(concat([hardline, join(hardline, childDocs)])),
+            hardline,
+            closingTag,
+        ]);
+    }
+
+    return formatBodyWithOriginalWhitespace(context, tokens, node, contents, formatTerminal);
+}
+
+function formatBodyWithOriginalWhitespace(
+    context: FormatterContext,
+    tokens: XmlTokenTypes,
+    node: DirectElementOpenClose,
+    contents: readonly DirectElementContent[],
+    formatTerminal: (terminal: SourceTerminal, expectedToken: number) => Doc,
+): Doc {
+    const openingEnd = node.RANGLE(0)?.symbol;
+    if (!openingEnd) {
+        return context.formatVerbatimRange(node.LANGLE().symbol, node.stop!);
+    }
+
+    const docs: Doc[] = [];
+    let previous = openingEnd;
+    for (const content of contents) {
+        docs.push(context.formatVerbatimBetween(previous, content.start!));
+        docs.push(formatDirectContent(context, tokens, content, formatTerminal));
+        previous = content.stop!;
+    }
+    docs.push(context.formatVerbatimBetween(previous, node.LANGLE().symbol));
+    docs.push(context.formatVerbatimRange(node.LANGLE().symbol, node.stop!));
+    return concat(docs);
+}
+
+function formatDirectContent(
+    context: FormatterContext,
+    tokens: XmlTokenTypes,
+    content: DirectElementContent,
+    formatTerminal: (terminal: SourceTerminal, expectedToken: number) => Doc,
+): Doc {
+    const childElement = content.directConstructor();
+    return childElement
+        ? formatDirectConstructor(context, tokens, childElement, formatTerminal)
+        : context.formatVerbatimRange(content.start!, content.stop!);
+}
+
+function hasOnlyStructuralContent(
+    context: FormatterContext,
+    node: DirectElementOpenClose,
+    contents: readonly DirectElementContent[],
+): boolean {
+    let previous = node.RANGLE(0)?.symbol;
+    if (!previous) {
+        return false;
+    }
+
+    for (const content of contents) {
+        if (!context.hasOnlyWhitespaceBetween(previous, content.start!)) {
+            return false;
+        }
+        if (!isStructuralContent(content)) {
+            return false;
+        }
+        previous = content.stop!;
+    }
+
+    return context.hasOnlyWhitespaceBetween(previous, node.LANGLE().symbol);
+}
+
+function isStructuralContent(content: DirectElementContent): boolean {
+    return content.directConstructor() !== null;
 }
 
 function formatDirectAttributes(
