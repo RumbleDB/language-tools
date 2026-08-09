@@ -182,6 +182,17 @@ describe("JSONiq & XQuery Formatter", () => {
         );
 
         it.each(["jsoniq", "xquery"] as const)(
+            "formats every %s enclosed expression in an attribute value",
+            (languageId) => {
+                const input = `<item label="before-{1+2}-after-{3+4}"/>`;
+
+                expect(formatText(input, languageId)).toBe(
+                    `<item label="before-{ 1 + 2 }-after-{ 3 + 4 }"/>\n`,
+                );
+            },
+        );
+
+        it.each(["jsoniq", "xquery"] as const)(
             "preserves %s entities and escaped braces around formatted expressions",
             (languageId) => {
                 const input = `<root>&amp;{{literal}}{1+2}</root>`;
@@ -227,6 +238,50 @@ describe("JSONiq & XQuery Formatter", () => {
                 const input = `<message>Result: {format-message("a very long value", "another long value")}</message>`;
 
                 expect(formatText(input, languageId, { maxLineWidth: 30 })).toContain("\n");
+            },
+        );
+
+        it.each(["jsoniq", "xquery"] as const)(
+            "breaks long %s attribute expressions without changing literal attribute text",
+            (languageId) => {
+                const input = `<item label='prefix-{format-message("a very long value", "another long value")}-suffix'/>`;
+
+                expect(formatText(input, languageId, { maxLineWidth: 30 })).toBe(
+                    [
+                        "<item",
+                        "    label='prefix-{",
+                        "        format-message(",
+                        '            "a very long value",',
+                        '            "another long value"',
+                        "        )",
+                        "    }-suffix'",
+                        "/>",
+                        "",
+                    ].join("\n"),
+                );
+            },
+        );
+
+        it.each(["jsoniq", "xquery"] as const)(
+            "preserves multiline %s direct comment and PI contents",
+            (languageId) => {
+                const input = [
+                    "declare boundary-space preserve;",
+                    "<root><!-- first line",
+                    "  second line --><?notice first line",
+                    "  second line?></root>",
+                ].join("\n");
+
+                expect(formatText(input, languageId)).toBe(
+                    [
+                        "declare boundary-space preserve;",
+                        "",
+                        "<root><!-- first line",
+                        "  second line --><?notice first line",
+                        "  second line?></root>",
+                        "",
+                    ].join("\n"),
+                );
             },
         );
 
