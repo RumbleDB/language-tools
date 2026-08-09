@@ -1,12 +1,11 @@
 import { ParseTree, TerminalNode, Token } from "antlr4ng";
 import {
-    formatDirectConstructor,
-    formatTokenDoc,
-    formatTokenSeparatedDocs,
-} from "server/formatter/adapters/common.js";
-import {
     formatBoundarySpaceDeclaration,
+    formatAnnotation,
     formatAnnotatedDeclaration,
+    formatAnnotations,
+    formatArgument,
+    formatArgumentList,
     formatCaseClause,
     formatCatchClause,
     formatEnclosedExpression,
@@ -35,20 +34,18 @@ import {
     formatVariableName,
     formatWhereClause,
     formatCountClause,
+    formatCurlyArrayConstructor,
+    formatFunctionCall,
+    formatParameter,
+    formatParameterList,
+    formatParenthesizedExpression,
+    formatPostfixExpression,
+    formatSquareArrayConstructor,
 } from "server/formatter/adapters/shared.js";
+import { formatTokenDoc, formatTokenSeparatedDocs } from "server/formatter/adapters/tokens.js";
+import { formatDirectConstructor } from "server/formatter/adapters/xml.js";
 import { composeTokenDoc, FormatterContext, type TokenDoc } from "server/formatter/context.js";
-import {
-    concat,
-    Doc,
-    group,
-    hardline,
-    indent,
-    join,
-    line,
-    NIL,
-    softline,
-    space,
-} from "server/formatter/doc.js";
+import { concat, Doc, hardline, indent, join, line, NIL, space } from "server/formatter/doc.js";
 import { formatBlockDoc, groupStartingWith } from "server/formatter/helpers.js";
 import { XQueryLexer } from "server/parser/adapters/xquery/grammar/XQueryLexer.js";
 import { XQueryParser } from "server/parser/adapters/xquery/grammar/XQueryParser.js";
@@ -78,19 +75,19 @@ export class XQueryFormatterVisitor extends XQueryParserVisitor<Doc> {
      * Visit a keyword or punctuation terminal (or token).
      * Fallback text is dynamically resolved from the Lexer token type.
      */
-    private token(
+    private token = (
         terminal: TerminalNode | TerminalNode[] | Token | null | undefined,
         expectedToken: number | string,
-    ): TokenDoc {
+    ): TokenDoc => {
         return formatTokenDoc(this.ctx, terminal, expectedToken, XQueryLexer.literalNames);
-    }
+    };
 
-    private kw(
+    private kw = (
         terminal: TerminalNode | TerminalNode[] | Token | null | undefined,
         expectedToken: number | string,
-    ): Doc {
+    ): Doc => {
         return composeTokenDoc(this.token(terminal, expectedToken));
-    }
+    };
 
     private joinWithCommas = (
         items: readonly Doc[],
@@ -144,7 +141,7 @@ export class XQueryFormatterVisitor extends XQueryParserVisitor<Doc> {
                 SLASH: XQueryParser.SLASH,
             },
             node,
-            (terminal, expectedToken) => this.kw(terminal, expectedToken),
+            this.kw,
             (content) => {
                 const expr = content.expr();
                 return formatBlockDoc(
@@ -157,9 +154,7 @@ export class XQueryFormatterVisitor extends XQueryParserVisitor<Doc> {
     };
 
     public override visitBoundarySpaceDecl = (node: ctx.BoundarySpaceDeclContext): Doc => {
-        return formatBoundarySpaceDeclaration(this.ctx, node, (terminal, expectedToken) =>
-            this.kw(terminal, expectedToken),
-        );
+        return formatBoundarySpaceDeclaration(this.ctx, node, this.kw);
     };
 
     // ─── Module & Prolog ──────────────────────────────────────────────────────
@@ -198,9 +193,7 @@ export class XQueryFormatterVisitor extends XQueryParserVisitor<Doc> {
     };
 
     public override visitLibraryModule = (node: ctx.LibraryModuleContext): Doc => {
-        return formatLibraryModule(node, this.v, (terminal, expectedToken) =>
-            this.kw(terminal, expectedToken),
-        );
+        return formatLibraryModule(node, this.v, this.kw);
     };
 
     public override visitMainModule = (node: ctx.MainModuleContext): Doc => {
@@ -218,175 +211,103 @@ export class XQueryFormatterVisitor extends XQueryParserVisitor<Doc> {
     // ─── Declarations ─────────────────────────────────────────────────────────
 
     public override visitFunctionDecl = (node: ctx.FunctionDeclContext): Doc => {
-        return formatFunctionDeclaration(node, this.v, (terminal, expectedToken) =>
-            this.kw(terminal, expectedToken),
-        );
+        return formatFunctionDeclaration(node, this.v, this.kw);
     };
 
     public override visitVarDecl = (node: ctx.VarDeclContext): Doc => {
-        return formatVariableDeclaration(node, this.v, (terminal, expectedToken) =>
-            this.kw(terminal, expectedToken),
-        );
+        return formatVariableDeclaration(node, this.v, this.kw);
     };
 
     public override visitParamList = (node: ctx.ParamListContext): Doc => {
-        return this.joinWithCommas(
-            node.param().map((param) => this.v(param)),
-            node.getTokens(XQueryParser.COMMA),
-        );
+        return formatParameterList(node, XQueryParser.COMMA, this.v, this.kw);
     };
 
     public override visitParam = (node: ctx.ParamContext): Doc => {
-        const name = node.varBinding() ? this.v(node.varBinding()) : NIL;
-        const typeSeq = node.sequenceType()
-            ? concat([
-                  space,
-                  this.kw(node.KW_AS(), XQueryParser.KW_AS),
-                  space,
-                  this.v(node.sequenceType()),
-              ])
-            : NIL;
-        return concat([name, typeSeq]);
+        return formatParameter(node, this.v, this.kw);
     };
 
     public override visitAnnotations = (node: ctx.AnnotationsContext): Doc => {
-        return join(
-            space,
-            node.annotation().map((a) => this.v(a)),
-        );
+        return formatAnnotations(node, this.v);
     };
 
     public override visitAnnotation = (node: ctx.AnnotationContext): Doc => {
-        const pct = this.kw(node.MOD(), XQueryParser.MOD);
-        const name = node._name ? this.v(node._name) : NIL;
-        const lits = node.literal().map((l) => this.v(l));
-        if (lits.length > 0) {
-            const lp = this.kw(node.LPAREN(), XQueryParser.LPAREN);
-            const rp = this.kw(node.RPAREN(), XQueryParser.RPAREN);
-            return concat([
-                pct,
-                name,
-                lp,
-                this.joinWithCommas(lits, node.getTokens(XQueryParser.COMMA)),
-                rp,
-            ]);
-        }
-        return concat([pct, name]);
+        return formatAnnotation(node, XQueryParser.COMMA, this.v, this.kw);
     };
 
     // ─── FLWOR Expressions ───────────────────────────────────────────────────
 
     public override visitFlworExpr = (node: ctx.FlworExprContext): Doc => {
-        return formatFlworExpression(node, this.v, (terminal, expectedToken) =>
-            this.kw(terminal, expectedToken),
-        );
+        return formatFlworExpression(node, this.v, this.kw);
     };
 
     public override visitForClause = (node: ctx.ForClauseContext): Doc => {
-        return formatForClause(node, XQueryParser.COMMA, this.v, (terminal, expectedToken) =>
-            this.kw(terminal, expectedToken),
-        );
+        return formatForClause(node, XQueryParser.COMMA, this.v, this.kw);
     };
 
     public override visitForVar = (node: ctx.ForVarContext): Doc => {
-        return formatForVariable(node, this.v, (terminal, expectedToken) =>
-            this.kw(terminal, expectedToken),
-        );
+        return formatForVariable(node, this.v, this.kw);
     };
 
     public override visitLetClause = (node: ctx.LetClauseContext): Doc => {
-        return formatLetClause(node, XQueryParser.COMMA, this.v, (terminal, expectedToken) =>
-            this.kw(terminal, expectedToken),
-        );
+        return formatLetClause(node, XQueryParser.COMMA, this.v, this.kw);
     };
 
     public override visitLetVar = (node: ctx.LetVarContext): Doc => {
-        return formatLetVariable(node, this.v, (terminal, expectedToken) =>
-            this.kw(terminal, expectedToken),
-        );
+        return formatLetVariable(node, this.v, this.kw);
     };
 
     public override visitWhereClause = (node: ctx.WhereClauseContext): Doc => {
-        return formatWhereClause(node, this.v, (terminal, expectedToken) =>
-            this.kw(terminal, expectedToken),
-        );
+        return formatWhereClause(node, this.v, this.kw);
     };
 
     public override visitGroupByClause = (node: ctx.GroupByClauseContext): Doc => {
-        return formatGroupByClause(node, XQueryParser.COMMA, this.v, (terminal, expectedToken) =>
-            this.kw(terminal, expectedToken),
-        );
+        return formatGroupByClause(node, XQueryParser.COMMA, this.v, this.kw);
     };
 
     public override visitGroupByVar = (node: ctx.GroupByVarContext): Doc => {
-        return formatGroupByVariable(node, this.v, (terminal, expectedToken) =>
-            this.kw(terminal, expectedToken),
-        );
+        return formatGroupByVariable(node, this.v, this.kw);
     };
 
     public override visitOrderByClause = (node: ctx.OrderByClauseContext): Doc => {
-        return formatOrderByClause(node, XQueryParser.COMMA, this.v, (terminal, expectedToken) =>
-            this.kw(terminal, expectedToken),
-        );
+        return formatOrderByClause(node, XQueryParser.COMMA, this.v, this.kw);
     };
 
     public override visitCountClause = (node: ctx.CountClauseContext): Doc => {
-        return formatCountClause(node, this.v, (terminal, expectedToken) =>
-            this.kw(terminal, expectedToken),
-        );
+        return formatCountClause(node, this.v, this.kw);
     };
 
     // ─── Expressions ──────────────────────────────────────────────────────────
 
     public override visitExpr = (node: ctx.ExprContext): Doc => {
-        return formatExpressionSequence(
-            node,
-            XQueryParser.COMMA,
-            this.v,
-            (terminal, expectedToken) => this.kw(terminal, expectedToken),
-        );
+        return formatExpressionSequence(node, XQueryParser.COMMA, this.v, this.kw);
     };
 
     public override visitIfExpr = (node: ctx.IfExprContext): Doc => {
-        return formatIfExpression(node, this.v, (terminal, expectedToken) =>
-            this.kw(terminal, expectedToken),
-        );
+        return formatIfExpression(node, this.v, this.kw);
     };
 
     public override visitTryCatchExpr = (node: ctx.TryCatchExprContext): Doc => {
-        return formatTryCatchExpression(node, this.v, (terminal, expectedToken) =>
-            this.kw(terminal, expectedToken),
-        );
+        return formatTryCatchExpression(node, this.v, this.kw);
     };
 
     public override visitCatchClause = (node: ctx.CatchClauseContext): Doc => {
-        return formatCatchClause(node, this.v, (terminal, expectedToken) =>
-            this.kw(terminal, expectedToken),
-        );
+        return formatCatchClause(node, this.v, this.kw);
     };
 
     public override visitSwitchExpr = (node: ctx.SwitchExprContext): Doc => {
-        return formatSwitchExpression(node, this.v, (terminal, expectedToken) =>
-            this.kw(terminal, expectedToken),
-        );
+        return formatSwitchExpression(node, this.v, this.kw);
     };
 
     public override visitSwitchCaseClause = (node: ctx.SwitchCaseClauseContext): Doc => {
-        return formatSwitchCaseClause(node, this.v, (terminal, expectedToken) =>
-            this.kw(terminal, expectedToken),
-        );
+        return formatSwitchCaseClause(node, this.v, this.kw);
     };
 
     public override visitTypeswitchExpr = (node: ctx.TypeswitchExprContext): Doc => {
-        return formatTypeswitchExpression(node, this.v, (terminal, expectedToken) =>
-            this.kw(terminal, expectedToken),
-        );
+        return formatTypeswitchExpression(node, this.v, this.kw);
     };
 
     public override visitCaseClause = (node: ctx.CaseClauseContext): Doc => {
-        return formatCaseClause(node, this.v, (terminal, expectedToken) =>
-            this.kw(terminal, expectedToken),
-        );
+        return formatCaseClause(node, this.v, this.kw);
     };
 
     // ─── Maps & Arrays (XQuery 3.1) ───────────────────────────────────────────
@@ -425,56 +346,25 @@ export class XQueryFormatterVisitor extends XQueryParserVisitor<Doc> {
     };
 
     public override visitPairConstructor = (node: ctx.PairConstructorContext): Doc => {
-        return formatPairConstructor(node, this.v, (terminal, expectedToken) =>
-            this.kw(terminal, expectedToken),
-        );
+        return formatPairConstructor(node, this.v, this.kw);
     };
 
     public override visitSquareArrayConstructor = (
         node: ctx.SquareArrayConstructorContext,
     ): Doc => {
-        const lbracket = this.token(node.LBRACKET(), XQueryParser.LBRACKET);
-        const rbracket = this.kw(node.RBRACKET(), XQueryParser.RBRACKET);
-        const exprSingles = node.exprSingle();
-        if (exprSingles.length === 0) {
-            return concat([composeTokenDoc(lbracket), rbracket]);
-        }
-
-        const items = exprSingles.map((e) => this.v(e));
-        return groupStartingWith(
-            lbracket,
-            concat([
-                indent(
-                    concat([line, this.joinWithCommas(items, node.getTokens(XQueryParser.COMMA))]),
-                ),
-                line,
-                rbracket,
-            ]),
-        );
+        return formatSquareArrayConstructor(node, XQueryParser.COMMA, this.v, this.token, this.kw);
     };
 
     public override visitCurlyArrayConstructor = (node: ctx.CurlyArrayConstructorContext): Doc => {
-        const kwArray = this.kw(node.KW_ARRAY(), XQueryParser.KW_ARRAY);
-        const enclosed = node.enclosedExpression() ? this.v(node.enclosedExpression()) : NIL;
-        return concat([kwArray, space, enclosed]);
+        return formatCurlyArrayConstructor(node, this.v, this.kw);
     };
 
     public override visitPostfixExpr = (node: ctx.PostfixExprContext): Doc => {
-        const count = node.getChildCount();
-        const parts: Doc[] = [];
-        for (let i = 0; i < count; i++) {
-            const child = node.getChild(i);
-            if (child !== null) {
-                parts.push(this.v(child));
-            }
-        }
-        return concat(parts);
+        return formatPostfixExpression(node, this.v);
     };
 
     public override visitPredicate = (node: ctx.PredicateContext): Doc => {
-        return formatPredicate(node, this.v, (terminal, expectedToken) =>
-            this.kw(terminal, expectedToken),
-        );
+        return formatPredicate(node, this.v, this.kw);
     };
 
     public override visitContextItemExpr = (node: ctx.ContextItemExprContext): Doc => {
@@ -484,97 +374,34 @@ export class XQueryFormatterVisitor extends XQueryParserVisitor<Doc> {
     // ─── Primary & Miscellaneous ──────────────────────────────────────────────
 
     public override visitParenthesizedExpr = (node: ctx.ParenthesizedExprContext): Doc => {
-        const exprNode = node.expr();
-        const lp = this.kw(node.LPAREN(), XQueryParser.LPAREN);
-        const rp = this.kw(node.RPAREN(), XQueryParser.RPAREN);
-
-        if (!exprNode) {
-            return concat([lp, rp]);
-        }
-
-        let items: Doc[];
-        if ("exprSingle" in exprNode && typeof exprNode.exprSingle === "function") {
-            items = (exprNode as ctx.ExprContext).exprSingle().map((e) => this.v(e));
-        } else {
-            items = [this.v(exprNode)];
-        }
-
-        return concat([
-            lp,
-            group(
-                concat([
-                    indent(
-                        concat([
-                            softline,
-                            this.joinWithCommas(items, node.getTokens(XQueryParser.COMMA)),
-                        ]),
-                    ),
-                    softline,
-                    rp,
-                ]),
-            ),
-        ]);
+        return formatParenthesizedExpression(node, XQueryParser.COMMA, this.v, this.kw);
     };
 
     public override visitFunctionCall = (node: ctx.FunctionCallContext): Doc => {
-        const fnName = node._fn_name ? this.v(node._fn_name) : NIL;
-        const args = node.argumentList() ? this.v(node.argumentList()) : NIL;
-        return concat([fnName, args]);
+        return formatFunctionCall(node, this.v);
     };
 
     public override visitArgumentList = (node: ctx.ArgumentListContext): Doc => {
-        const lp = this.kw(node.LPAREN(), XQueryParser.LPAREN);
-        const rp = this.kw(node.RPAREN(), XQueryParser.RPAREN);
-        const args = node.argument().map((a) => this.v(a));
-        if (args.length === 0) {
-            return concat([lp, rp]);
-        }
-
-        return concat([
-            lp,
-            group(
-                concat([
-                    indent(
-                        concat([
-                            softline,
-                            this.joinWithCommas(args, node.getTokens(XQueryParser.COMMA)),
-                        ]),
-                    ),
-                    softline,
-                    rp,
-                ]),
-            ),
-        ]);
+        return formatArgumentList(node, XQueryParser.COMMA, this.v, this.kw);
     };
 
     public override visitArgument = (node: ctx.ArgumentContext): Doc => {
-        if (node.QUESTION() !== null) {
-            return this.kw(node.QUESTION(), XQueryParser.QUESTION);
-        }
-        return node.exprSingle() ? this.v(node.exprSingle()) : NIL;
+        return formatArgument(node, this.v, this.kw);
     };
 
     public override visitVarRef = (node: ctx.VarRefContext): Doc => {
-        return formatVariableName(node, this.v, (terminal, expectedToken) =>
-            this.kw(terminal, expectedToken),
-        );
+        return formatVariableName(node, this.v, this.kw);
     };
 
     public override visitVarBinding = (node: ctx.VarBindingContext): Doc => {
-        return formatVariableName(node, this.v, (terminal, expectedToken) =>
-            this.kw(terminal, expectedToken),
-        );
+        return formatVariableName(node, this.v, this.kw);
     };
 
     public override visitEnclosedExpression = (node: ctx.EnclosedExpressionContext): Doc => {
-        return formatEnclosedExpression(node, this.v, (terminal, expectedToken) =>
-            this.kw(terminal, expectedToken),
-        );
+        return formatEnclosedExpression(node, this.v, this.kw);
     };
 
     public override visitSequenceType = (node: ctx.SequenceTypeContext): Doc => {
-        return formatSequenceType(node, this.v, (terminal, expectedToken) =>
-            this.kw(terminal, expectedToken),
-        );
+        return formatSequenceType(node, this.v, this.kw);
     };
 }
