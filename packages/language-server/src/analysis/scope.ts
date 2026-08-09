@@ -1,42 +1,40 @@
-import { type Prefix } from "server/parser/types/name.js";
 import { getDocumentText } from "server/parser/utils.js";
 import { TextDocument } from "vscode-languageserver-textdocument";
 
-import { BaseDefinition, SourceDefinition, SourceNamespaceDefinition } from "./definitions.js";
+import { BaseDefinition, SourceDefinition } from "./definitions.js";
 import { QName, QNameToString, type FunctionName, type ReferenceNameByKind } from "./names.js";
 
 export class Scope {
-    private readonly definitionByName = new Map<string, SourceDefinition[]>();
+    private readonly definitionByName = new Map<string, ScopedDefinition[]>();
     private readonly children: Scope[] = [];
 
     private constructor(
         public readonly parent: Scope | undefined,
         public readonly startOffset: number,
         public readonly endOffset: number,
-        private readonly namespaces: ReadonlyMap<Prefix, SourceNamespaceDefinition>,
     ) {}
 
-    public static module(
-        document: TextDocument,
-        namespaces: ReadonlyMap<Prefix, SourceNamespaceDefinition>,
-    ): Scope {
-        return new Scope(undefined, 0, getDocumentText(document).length, namespaces);
+    public static module(document: TextDocument): Scope {
+        return new Scope(undefined, 0, getDocumentText(document).length);
     }
 
     public enter(startOffset: number, endOffset: number): Scope {
-        const child = new Scope(this, startOffset, endOffset, this.namespaces);
+        const child = new Scope(this, startOffset, endOffset);
         this.children.push(child);
         return child;
     }
 
-    public declare(newDefinition: SourceDefinition): void {
+    public declare(
+        newDefinition: SourceDefinition,
+        visibleFrom: number = newDefinition.visibleFrom,
+    ): void {
         const name = this.definitionLookupKey(newDefinition);
         if (!this.definitionByName.has(name)) {
             this.definitionByName.set(name, []);
         }
 
         const definitionsWithSameName = this.definitionByName.get(name)!;
-        definitionsWithSameName.push(newDefinition);
+        definitionsWithSameName.push({ definition: newDefinition, visibleFrom });
     }
 
     public resolve<K extends keyof ReferenceNameByKind>(
@@ -45,9 +43,11 @@ export class Scope {
         offset: number,
     ): SourceDefinition | undefined {
         const declarations = this.definitionByName.get(this.referenceLookupKey(name, kind));
-        const declaration = declarations?.findLast((candidate) => candidate.visibleFrom <= offset);
-        if (declaration !== undefined) {
-            return declaration;
+        const scopedDefinition = declarations?.findLast(
+            (candidate) => candidate.visibleFrom <= offset,
+        );
+        if (scopedDefinition !== undefined) {
+            return scopedDefinition.definition;
         }
 
         return this.parent?.resolve(kind, name, offset);
@@ -81,9 +81,11 @@ export class Scope {
         const visible = new Map<string, SourceDefinition>();
 
         for (const [name, definitions] of this.definitionByName.entries()) {
-            const definition = definitions.findLast((candidate) => candidate.visibleFrom <= offset);
-            if (definition !== undefined) {
-                visible.set(name, definition);
+            const scopedDefinition = definitions.findLast(
+                (candidate) => candidate.visibleFrom <= offset,
+            );
+            if (scopedDefinition !== undefined) {
+                visible.set(name, scopedDefinition.definition);
             }
         }
 
@@ -94,12 +96,12 @@ export class Scope {
                     continue;
                 }
 
-                const definition = definitions.findLast(
+                const scopedDefinition = definitions.findLast(
                     (candidate) => candidate.visibleFrom <= offset,
                 );
 
-                if (definition !== undefined) {
-                    visible.set(name, definition);
+                if (scopedDefinition !== undefined) {
+                    visible.set(name, scopedDefinition.definition);
                 }
             }
 
@@ -145,4 +147,9 @@ export class Scope {
                 throw kind satisfies never;
         }
     }
+}
+
+interface ScopedDefinition {
+    definition: SourceDefinition;
+    visibleFrom: number;
 }

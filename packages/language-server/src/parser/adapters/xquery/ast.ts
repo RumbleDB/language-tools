@@ -61,6 +61,18 @@ function unquoteStringLiteral(text: string): string {
         : text;
 }
 
+function hasPrivateAnnotation(node: FunctionDeclContext | VarDeclContext): boolean {
+    return (
+        node
+            .annotations()
+            ?.annotation()
+            .some((annotation) => {
+                const name = annotation._name?.getText() ?? "";
+                return name === "private" || name.endsWith(":private") || name.endsWith("}private");
+            }) ?? false
+    );
+}
+
 class XQueryAstBuilder extends XQueryParserVisitor<AstVisitResult> {
     public constructor(private readonly document: TextDocument) {
         super();
@@ -93,7 +105,10 @@ class XQueryAstBuilder extends XQueryParserVisitor<AstVisitResult> {
                 kind: "module-declaration",
                 prefix: prefix.getText().trim(),
                 namespaceUri: unquoteStringLiteral(namespace.getText()),
-                range: rangeFromNode(node, this.document),
+                range: {
+                    start: rangeFromNode(node.KW_MODULE(), this.document).start,
+                    end: rangeFromNode(node.SEMICOLON(), this.document).end,
+                },
                 selectionRange: rangeFromNode(prefix, this.document),
                 children: this.visitChildrenAsNodes(node),
             },
@@ -107,6 +122,9 @@ class XQueryAstBuilder extends XQueryParserVisitor<AstVisitResult> {
             {
                 kind: "module-import",
                 ...(node._prefix === undefined ? {} : { prefix: node._prefix.getText().trim() }),
+                ...(node._prefix === undefined
+                    ? {}
+                    : { prefixRange: rangeFromNode(node._prefix, this.document) }),
                 namespaceUri: unquoteStringLiteral(target.getText()),
                 namespaceUriRange: rangeFromNode(target, this.document),
                 locations: node._locations.map((location) => ({
@@ -197,6 +215,7 @@ class XQueryAstBuilder extends XQueryParserVisitor<AstVisitResult> {
             name: parseFunctionName(node),
             selectionRange: rangeFromNode(node.functionName(), this.document),
             parameters: this.parameters(node),
+            isPrivate: hasPrivateAnnotation(node),
             children: this.visitChildrenAsNodes(node),
         },
     ];
@@ -219,6 +238,7 @@ class XQueryAstBuilder extends XQueryParserVisitor<AstVisitResult> {
                   range: rangeFromNode(node, this.document),
                   selectionRange: rangeFromNode(node, this.document),
                   visibleFrom,
+                  isPrivate: false,
                   children: [],
               };
     }
@@ -256,9 +276,10 @@ class XQueryAstBuilder extends XQueryParserVisitor<AstVisitResult> {
             terminator === null || terminator.symbol.tokenIndex < 0
                 ? null
                 : rangeFromNode(terminator, this.document).end;
+        const declaration = this.variableDeclaration(node.varBinding(), visibleFrom);
         return this.declarationWithChildren(
             node,
-            this.variableDeclaration(node.varBinding(), visibleFrom),
+            declaration === null ? null : { ...declaration, isPrivate: hasPrivateAnnotation(node) },
         );
     };
 

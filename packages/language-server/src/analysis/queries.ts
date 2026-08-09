@@ -5,7 +5,11 @@ import { TextDocument } from "vscode-languageserver-textdocument";
 
 import type { AstNode, SymbolOccurrence } from "./ast.js";
 import { AnalysisResult } from "./builder.js";
-import { BaseDefinition, SourceDefinition } from "./definitions.js";
+import {
+    BaseDefinition,
+    SourceDefinition,
+    type SourceModuleExportDefinition,
+} from "./definitions.js";
 import { ResolvedReference } from "./reference.js";
 import { getAnalysis } from "./service.js";
 
@@ -28,6 +32,21 @@ export function collectDefinitions(analysis: AnalysisResult): SourceDefinition[]
     });
 
     return definitions.sort((left, right) => comparePositions(left.range.start, right.range.start));
+}
+
+/**
+ * Returns declarations that a library module exports to a direct importer.
+ * Imported modules do not re-export their own imports, and function-local
+ * declarations are not module exports.
+ */
+export function collectModuleExports(analysis: AnalysisResult): SourceModuleExportDefinition[] {
+    return analysis.ast.children.flatMap((node) =>
+        node.kind === "declaration" &&
+        (node.declaration.kind === "function" || node.declaration.kind === "variable") &&
+        !node.declaration.isPrivate
+            ? [node.declaration]
+            : [],
+    );
 }
 
 export function collectReferences(analysis: AnalysisResult): ResolvedReference[] {

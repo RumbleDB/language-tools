@@ -10,13 +10,15 @@ import { AnalysisResult } from "./analysis/builder.js";
 import {
     definitionNameToString,
     isSourceDefinition,
-    SourceDefinition,
+    type SourceParameterDefinition,
+    type SourceVariableDefinition,
 } from "./analysis/definitions.js";
+import type { QName } from "./analysis/names.js";
 import { findSymbolAtPosition } from "./analysis/queries.js";
 import { getAnalysis } from "./analysis/service.js";
 
 interface RenameTarget {
-    declaration: SourceDefinition;
+    declaration: SourceVariableDefinition | SourceParameterDefinition;
     range: Range;
 }
 
@@ -76,24 +78,26 @@ export function buildRenameWorkspaceEdit(
         return null;
     }
 
-    const edits: TextEdit[] = [
-        {
-            range: target.declaration.selectionRange,
-            newText: newName,
-        },
-    ];
+    const newLocalName = newName.slice(1).split(":").at(-1)!;
+    const editsByUri: Record<string, TextEdit[]> = {
+        [target.declaration.uri]: [
+            {
+                range: target.declaration.selectionRange,
+                newText: renamedVariable(target.declaration.name, newLocalName),
+            },
+        ],
+    };
 
     for (const reference of target.declaration.references) {
-        edits.push({
+        if (reference.kind !== "variable") continue;
+        (editsByUri[reference.uri] ??= []).push({
             range: reference.range,
-            newText: newName,
+            newText: renamedVariable(reference.name, newLocalName),
         });
     }
 
     return {
-        changes: {
-            [document.uri]: edits,
-        },
+        changes: editsByUri,
     };
 }
 
@@ -109,7 +113,10 @@ function findRenameTarget(analysis: AnalysisResult, position: Position): RenameT
         return null;
     }
 
-    if (!isSourceDefinition(occurrence.declaration) || occurrence.declaration.kind === "function") {
+    if (
+        !isSourceDefinition(occurrence.declaration) ||
+        (occurrence.declaration.kind !== "variable" && occurrence.declaration.kind !== "parameter")
+    ) {
         return null;
     }
 
@@ -117,6 +124,10 @@ function findRenameTarget(analysis: AnalysisResult, position: Position): RenameT
         declaration: occurrence.declaration,
         range: occurrence.reference?.range ?? occurrence.declaration.selectionRange,
     };
+}
+
+function renamedVariable(name: QName, localName: string): string {
+    return `$${name.prefix === undefined ? "" : `${name.prefix}:`}${localName}`;
 }
 
 /**

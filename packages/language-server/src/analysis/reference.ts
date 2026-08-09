@@ -6,6 +6,7 @@ import { ReferenceNameByKind } from "./names.js";
 export interface Reference<K extends keyof ReferenceNameByKind> {
     name: ReferenceNameByKind[K];
     kind: K;
+    uri: string;
     range: Range;
 }
 

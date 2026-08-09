@@ -43,6 +43,7 @@ export interface ModuleDeclarationAstNode extends AstNodeBase<"module-declaratio
 
 export interface ModuleImportAstNode extends AstNodeBase<"module-import"> {
     readonly prefix?: Prefix;
+    readonly prefixRange?: Range;
     readonly namespaceUri: string;
     readonly namespaceUriRange: Range;
     readonly locations: readonly { uri: string; range: Range }[];
@@ -75,6 +76,7 @@ export interface FunctionDeclarationAstNode extends AstNodeBase<"function-declar
     readonly name: LexicalFunctionName;
     readonly selectionRange: Range;
     readonly parameters: AstParameter[];
+    readonly isPrivate: boolean;
 }
 
 export interface VariableDeclarationAstNode extends AstNodeBase<"variable-declaration"> {
@@ -82,6 +84,7 @@ export interface VariableDeclarationAstNode extends AstNodeBase<"variable-declar
     readonly range: Range;
     readonly selectionRange: Range;
     readonly visibleFrom: Position;
+    readonly isPrivate: boolean;
 }
 
 export interface FlowrExpressionAstNode extends AstNodeBase<"flowr-expression"> {}

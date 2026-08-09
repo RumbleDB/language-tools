@@ -37,7 +37,7 @@ export function findReferenceLocations(
 
     for (const reference of targetDeclaration.references) {
         locations.push({
-            uri: targetDeclaration.uri,
+            uri: reference.uri,
             range: reference.range,
         });
     }

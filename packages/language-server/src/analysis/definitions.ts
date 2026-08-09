@@ -52,6 +52,7 @@ export interface BaseSourceDefinition<
 
 export interface SourceVariableDefinition extends BaseSourceDefinition<"variable"> {
     kind: "variable";
+    isPrivate: boolean;
 }
 
 export interface SourceParameterDefinition extends BaseSourceDefinition<"parameter"> {
@@ -62,7 +63,10 @@ export interface SourceParameterDefinition extends BaseSourceDefinition<"paramet
 export interface SourceFunctionDefinition extends BaseSourceDefinition<"function"> {
     kind: "function";
     parameters: SourceParameterDefinition[];
+    isPrivate: boolean;
 }
+
+export type SourceModuleExportDefinition = SourceVariableDefinition | SourceFunctionDefinition;
 
 export interface SourceNamespaceDefinition extends BaseSourceDefinition<"namespace"> {
     kind: "namespace";
@@ -151,6 +155,7 @@ export function createVariableDefinition(
     range: Range,
     selectionRange: Range,
     visibleFrom?: number,
+    isPrivate: boolean = false,
 ): SourceVariableDefinition {
     return {
         ...createBaseDefinition(document, {
@@ -160,6 +165,7 @@ export function createVariableDefinition(
         }),
         kind: "variable",
         name,
+        isPrivate,
     };
 }
 
@@ -168,6 +174,7 @@ export function createFunctionDefinition(
     name: FunctionName,
     range: Range,
     selectionRange: Range,
+    isPrivate: boolean = false,
 ): SourceFunctionDefinition {
     return {
         ...createBaseDefinition(document, {
@@ -178,6 +185,7 @@ export function createFunctionDefinition(
         kind: "function",
         name,
         parameters: [],
+        isPrivate,
     };
 }
 

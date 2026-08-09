@@ -8,7 +8,11 @@ import {
     type InitializeResult,
 } from "vscode-languageserver/node";
 
-import { removeOpenDocument, updateOpenDocument } from "./analysis/service.js";
+import {
+    invalidateModuleDocuments,
+    removeOpenDocument,
+    updateOpenDocument,
+} from "./analysis/service.js";
 import { findCompletionsWithTypeInfo } from "./completion.js";
 import { config, InitializationOptions, mergeConfiguration } from "./config.js";
 import { findDefinitionLocation } from "./definitions.js";
@@ -246,6 +250,10 @@ documents.onDidClose((event) => {
         uri: event.document.uri,
         diagnostics: [],
     });
+});
+
+connection.onDidChangeWatchedFiles((params) => {
+    invalidateModuleDocuments(params.changes.map((change) => change.uri));
 });
 
 documents.listen(connection);
