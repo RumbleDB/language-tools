@@ -70,6 +70,17 @@ export class FormatterContext {
     }
 
     /**
+     * Returns source text exactly as written without attaching formatter comments.
+     * Use for semantic text regions nested inside a larger formatted construct.
+     */
+    public formatVerbatimRange(start: Token, stop: Token): Doc {
+        const sourceText =
+            start.inputStream?.getTextFromRange(start.start, stop.stop) ??
+            this.tokenStream.getTextFromRange(start, stop);
+        return text(sourceText);
+    }
+
+    /**
      * Creates a token document when a generated parser accessor does not expose
      * the corresponding terminal. Source terminals should always use formatToken.
      */

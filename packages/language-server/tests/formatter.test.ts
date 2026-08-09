@@ -5,14 +5,18 @@ import { describe, expect, it } from "vitest";
 import { testDocument, testDocumentFromUri } from "./test-utils.js";
 
 let docId = 0;
-function formatText(source: string | string[], languageId: "jsoniq" | "xquery" = "jsoniq"): string {
+function formatText(
+    source: string | string[],
+    languageId: "jsoniq" | "xquery" = "jsoniq",
+    options?: Parameters<typeof formatDocument>[1],
+): string {
     docId += 1;
     const ext = languageId === "xquery" ? "xq" : "jq";
     const doc = testDocumentFromUri(source, {
         uri: `file:///test-document-${docId}.${ext}`,
         languageId,
     });
-    const edits = formatDocument(doc);
+    const edits = formatDocument(doc, options);
     if (edits.length === 0) {
         return doc.getText();
     }
@@ -42,6 +46,50 @@ describe("JSONiq & XQuery Formatter", () => {
                 expect(formatText(input, languageId)).toBe(`${input}\n`);
             },
         );
+
+        it.each(["jsoniq", "xquery"] as const)(
+            "normalizes %s direct-tag attribute separators",
+            (languageId) => {
+                const input = `<book isbn = "123" language = "en"><title>Example</title></book>`;
+
+                expect(formatText(input, languageId)).toBe(
+                    `<book isbn="123" language="en"><title>Example</title></book>\n`,
+                );
+            },
+        );
+
+        it.each(["jsoniq", "xquery"] as const)(
+            "wraps long %s direct-tag attributes without reflowing content",
+            (languageId) => {
+                const input = `<book isbn = "978-0123456789" language = "en" edition = "first"><title>Example</title></book>`;
+
+                expect(formatText(input, languageId, { maxLineWidth: 30 })).toBe(
+                    [
+                        "<book",
+                        '    isbn="978-0123456789"',
+                        '    language="en"',
+                        '    edition="first"',
+                        "><title>Example</title></book>",
+                        "",
+                    ].join("\n"),
+                );
+            },
+        );
+
+        it.each(["jsoniq", "xquery"] as const)("wraps long %s self-closing tags", (languageId) => {
+            const input = `<image src = "cover.png" alt = "Cover art" width = "800"/>`;
+
+            expect(formatText(input, languageId, { maxLineWidth: 24 })).toBe(
+                [
+                    "<image",
+                    '    src="cover.png"',
+                    '    alt="Cover art"',
+                    '    width="800"',
+                    "/>",
+                    "",
+                ].join("\n"),
+            );
+        });
     });
 
     describe("Sequence item spacing", () => {
