@@ -4,6 +4,11 @@ import { describe, expect, it } from "vitest";
 
 import { testDocument, testDocumentFromUri } from "./test-utils.js";
 
+const TEST_FORMATTER_OPTIONS = {
+    indentSize: 4,
+    useTabs: false,
+} as const;
+
 let docId = 0;
 function formatText(
     source: string | string[],
@@ -16,7 +21,7 @@ function formatText(
         uri: `file:///test-document-${docId}.${ext}`,
         languageId,
     });
-    const edits = formatDocument(doc, options);
+    const edits = formatDocument(doc, { ...TEST_FORMATTER_OPTIONS, ...options });
     if (edits.length === 0) {
         return doc.getText();
     }
@@ -24,6 +29,26 @@ function formatText(
 }
 
 describe("JSONiq & XQuery Formatter", () => {
+    describe("Formatter options", () => {
+        it.each(["jsoniq", "xquery"] as const)(
+            "uses the requested %s indentation size",
+            (languageId) => {
+                expect(formatText(`<root><child/></root>`, languageId, { indentSize: 2 })).toBe(
+                    ["<root>", "  <child/>", "</root>", ""].join("\n"),
+                );
+            },
+        );
+
+        it.each(["jsoniq", "xquery"] as const)(
+            "uses tabs for requested %s indentation",
+            (languageId) => {
+                expect(formatText(`<root><child/></root>`, languageId, { useTabs: true })).toBe(
+                    ["<root>", "\t<child/>", "</root>", ""].join("\n"),
+                );
+            },
+        );
+    });
+
     describe("String literals", () => {
         it.each(["jsoniq", "xquery"] as const)(
             "preserves whitespace inside %s string literals",
