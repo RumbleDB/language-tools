@@ -47,7 +47,7 @@ public final class StaticTypeChecker implements RequestHandler {
 
         List<StaticTypeError> typeErrors = new ArrayList<>();
         try {
-            parseMainModule(query, documentUri, this.strictConfiguration);
+            parseModule(query, documentUri, this.strictConfiguration);
         } catch (RumbleException exception) {
             typeErrors.add(toTypeError(exception));
         }
@@ -55,16 +55,29 @@ public final class StaticTypeChecker implements RequestHandler {
         return new Result(typeErrors);
     }
 
-    private static void parseMainModule(
+    private static void parseModule(
             String query,
             URI documentUri,
             RumbleConfiguration configuration) {
+        if (isLibraryModule(query)) {
+            VisitorHelpers.parseLibraryModuleFromQuery(
+                query,
+                documentUri == null ? URI.create(".") : documentUri,
+                configuration
+            );
+            return;
+        }
+
         if (documentUri == null) {
             VisitorHelpers.parseMainModuleFromQuery(query, configuration, ExternalBindings.empty());
             return;
         }
 
         VisitorHelpers.parseMainModule(query, documentUri, configuration, ExternalBindings.empty());
+    }
+
+    private static boolean isLibraryModule(String query) {
+        return query.matches("(?s)^\\s*(?:\\(:.*?:\\)\\s*)*(?:jsoniq|xquery)?(?:\\s+version\\s+[^;]+;\\s*)?module\\s+namespace\\b.*");
     }
 
     private static StaticTypeError toTypeError(RumbleException exception) {
