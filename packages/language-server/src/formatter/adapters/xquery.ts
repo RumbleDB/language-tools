@@ -113,13 +113,12 @@ export class XQueryFormatterVisitor extends XQueryParserVisitor<Doc> {
             node,
             (terminal, expectedToken) => this.kw(terminal, expectedToken),
             (content) => {
-                const commonContent = content as ctx.CommonContentContext;
-                const expr = commonContent.expr();
+                const expr = content.expr();
                 return expr
                     ? formatBlockDoc(
-                          this.kw(commonContent.LBRACE(0), XQueryParser.LBRACE),
+                          this.kw(content.LBRACE(0), XQueryParser.LBRACE),
                           this.v(expr),
-                          this.kw(commonContent.RBRACE(0), XQueryParser.RBRACE),
+                          this.kw(content.RBRACE(0), XQueryParser.RBRACE),
                       )
                     : null;
             },

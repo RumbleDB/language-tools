@@ -135,13 +135,12 @@ export class JsoniqFormatterVisitor extends JsoniqParserVisitor<Doc> {
             node,
             (terminal, expectedToken) => this.kw(terminal, expectedToken),
             (content) => {
-                const commonContent = content as ctx.CommonContentContext;
-                const expr = commonContent.expr();
+                const expr = content.expr();
                 return expr
                     ? formatBlockDoc(
-                          this.kw(commonContent.LBRACE(0), JsoniqParser.LBRACE),
+                          this.kw(content.LBRACE(0), JsoniqParser.LBRACE),
                           this.v(expr),
-                          this.kw(commonContent.RBRACE(0), JsoniqParser.RBRACE),
+                          this.kw(content.RBRACE(0), JsoniqParser.RBRACE),
                       )
                     : null;
             },

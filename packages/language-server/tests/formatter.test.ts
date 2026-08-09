@@ -169,6 +169,17 @@ describe("JSONiq & XQuery Formatter", () => {
                 );
             },
         );
+
+        it.each(["jsoniq", "xquery"] as const)(
+            "formats %s enclosed expressions inside attribute values",
+            (languageId) => {
+                const input = `<item label="item-{1+2}" data='{ $x+1 }'/>`;
+
+                expect(formatText(input, languageId)).toBe(
+                    `<item label="item-{ 1 + 2 }" data='{ $x + 1 }'/>\n`,
+                );
+            },
+        );
     });
 
     describe("Sequence item spacing", () => {
