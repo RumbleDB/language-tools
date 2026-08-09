@@ -540,6 +540,24 @@ describe("JSONiq & XQuery Formatter", () => {
                 );
             },
         );
+
+        it.each(["jsoniq", "xquery"] as const)(
+            "does not indent multiline semantic %s XML text inside a broken group",
+            (languageId) => {
+                const input = '[<root>first\n  second</root>, "a very long second array item"]';
+
+                expect(formatText(input, languageId, { maxLineWidth: 20 })).toBe(
+                    [
+                        "[",
+                        "    <root>first",
+                        "  second</root>,",
+                        '    "a very long second array item"',
+                        "]",
+                        "",
+                    ].join("\n"),
+                );
+            },
+        );
     });
 
     describe("FLWOR expressions", () => {
@@ -1041,6 +1059,17 @@ describe("JSONiq & XQuery Formatter", () => {
             const formatted = formatText(input);
             expect(formatted).toBe("try { 1 / 0 }\ncatch ($e) { 0 }\n");
         });
+
+        it.each(["jsoniq", "xquery"] as const)(
+            "preserves mixed %s catch targets in source order",
+            (languageId) => {
+                const input = "try { 1 } catch err:first | *:second | * { 0 }";
+
+                expect(formatText(input, languageId)).toBe(
+                    "try { 1 }\ncatch err:first | *:second | * { 0 }\n",
+                );
+            },
+        );
 
         it("formats switch expressions with indented cases", () => {
             const input =

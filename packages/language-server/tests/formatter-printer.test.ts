@@ -1,4 +1,4 @@
-import { concat, group, hardline, indent, line, text } from "server/formatter/doc.js";
+import { concat, group, hardline, indent, line, text, verbatim } from "server/formatter/doc.js";
 import { printDocToString } from "server/formatter/printer.js";
 import { describe, expect, it } from "vitest";
 
@@ -35,5 +35,17 @@ describe("document printer", () => {
         const doc = group(concat([text("a"), hardline, text("b")]));
 
         expect(printDocToString(doc, options)).toBe("a\nb");
+    });
+
+    it("does not inject indentation into verbatim multiline text", () => {
+        const doc = indent(concat([hardline, verbatim("first\n second")]));
+
+        expect(printDocToString(doc, options)).toBe("\n  first\n second");
+    });
+
+    it("counts text before a verbatim newline when fitting a preceding group", () => {
+        const doc = concat([group(concat([text("aaaa"), line, text("bbbb")])), verbatim(" c\n")]);
+
+        expect(printDocToString(doc, options)).toBe("aaaa\nbbbb c\n");
     });
 });

@@ -6,11 +6,17 @@
  * `Doc` trees against the target line width to decide where line breaks should occur.
  */
 
-export type Doc = TextDoc | ConcatDoc | GroupDoc | IndentDoc | LineDoc;
+export type Doc = TextDoc | VerbatimDoc | ConcatDoc | GroupDoc | IndentDoc | LineDoc;
 
 interface TextDoc {
     readonly kind: "text";
     /** A text fragment never contains a newline; use `line` or `hardline` instead. */
+    readonly text: string;
+}
+
+interface VerbatimDoc {
+    readonly kind: "verbatim";
+    /** Exact source text. Newlines and their following indentation are preserved. */
     readonly text: string;
 }
 
@@ -66,6 +72,11 @@ export function text(str: string): Doc {
         return concat(docs);
     }
     return { kind: "text", text: str };
+}
+
+/** Creates semantic source text that the printer must reproduce byte-for-byte. */
+export function verbatim(str: string): Doc {
+    return str === "" ? NIL : { kind: "verbatim", text: str };
 }
 
 export function concat(docs: readonly Doc[]): Doc {

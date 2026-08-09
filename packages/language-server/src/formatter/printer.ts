@@ -31,6 +31,18 @@ export function printDocToString(doc: Doc, options: FormatterOptions): string {
                 currentColumn += current.text.length;
                 break;
             }
+            case "verbatim": {
+                output += current.text;
+                const lastNewline = Math.max(
+                    current.text.lastIndexOf("\n"),
+                    current.text.lastIndexOf("\r"),
+                );
+                currentColumn =
+                    lastNewline === -1
+                        ? currentColumn + current.text.length
+                        : current.text.length - lastNewline - 1;
+                break;
+            }
             case "concat": {
                 for (let i = current.docs.length - 1; i >= 0; i--) {
                     cmds.push({ indent, mode, doc: current.docs[i]! });
@@ -104,6 +116,15 @@ function fits(remainingWidth: number, pending: readonly Command[]): boolean {
                 restWidth -= current.text.length;
                 break;
             }
+            case "verbatim": {
+                const newlineIndex = firstNewlineIndex(current.text);
+                if (newlineIndex !== -1) {
+                    restWidth -= newlineIndex;
+                    return restWidth >= 0 && mode === "break";
+                }
+                restWidth -= current.text.length;
+                break;
+            }
             case "concat": {
                 for (let i = current.docs.length - 1; i >= 0; i--) {
                     cmds.push({ indent, mode, doc: current.docs[i]! });
@@ -136,4 +157,16 @@ function fits(remainingWidth: number, pending: readonly Command[]): boolean {
     }
 
     return restWidth >= 0;
+}
+
+function firstNewlineIndex(value: string): number {
+    const lineFeed = value.indexOf("\n");
+    const carriageReturn = value.indexOf("\r");
+    if (lineFeed === -1) {
+        return carriageReturn;
+    }
+    if (carriageReturn === -1) {
+        return lineFeed;
+    }
+    return Math.min(lineFeed, carriageReturn);
 }

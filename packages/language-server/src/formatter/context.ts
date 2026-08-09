@@ -1,7 +1,7 @@
 import { CommonTokenStream, TerminalNode, Token } from "antlr4ng";
 
 import { buildCommentAttachmentMap, CommentAttachmentMap } from "./comments.js";
-import { concat, Doc, hardline, NIL, space, text } from "./doc.js";
+import { concat, Doc, hardline, NIL, space, text, verbatim } from "./doc.js";
 import type { FormatterOptions } from "./options.js";
 
 /**
@@ -65,7 +65,7 @@ export class FormatterContext {
         const tokenText = this.getSourceText(start, stop);
         return {
             leading: this.flushLeadingDoc(start.tokenIndex),
-            value: text(tokenText),
+            value: verbatim(tokenText),
             trailing: this.flushTrailingDoc(stop.tokenIndex),
         };
     }
@@ -75,7 +75,7 @@ export class FormatterContext {
      * Use for semantic text regions nested inside a larger formatted construct.
      */
     public formatVerbatimRange(start: Token, stop: Token): Doc {
-        return text(this.getSourceText(start, stop));
+        return verbatim(this.getSourceText(start, stop));
     }
 
     /**
@@ -88,7 +88,7 @@ export class FormatterContext {
             return NIL;
         }
         const inputStream = left.inputStream ?? right.inputStream;
-        return text(inputStream?.getTextFromRange(left.stop + 1, right.start - 1) ?? "");
+        return verbatim(inputStream?.getTextFromRange(left.stop + 1, right.start - 1) ?? "");
     }
 
     /** Returns the exact source text covered by two tokens. */
@@ -137,7 +137,7 @@ export class FormatterContext {
         for (const c of leading) {
             if (!this.emittedComments.has(c.tokenIndex)) {
                 this.emittedComments.add(c.tokenIndex);
-                docs.push(text(c.text?.trim() ?? ""));
+                docs.push(verbatim(c.text?.trim() ?? ""));
                 docs.push(hardline);
             }
         }
@@ -158,7 +158,7 @@ export class FormatterContext {
             if (!this.emittedComments.has(c.tokenIndex)) {
                 this.emittedComments.add(c.tokenIndex);
                 docs.push(space);
-                docs.push(text(c.text?.trim() ?? ""));
+                docs.push(verbatim(c.text?.trim() ?? ""));
             }
         }
         return concat(docs);
@@ -173,7 +173,7 @@ export class FormatterContext {
             if (!this.emittedComments.has(c.tokenIndex)) {
                 this.emittedComments.add(c.tokenIndex);
                 docs.push(hardline);
-                docs.push(text(c.text?.trim() ?? ""));
+                docs.push(verbatim(c.text?.trim() ?? ""));
             }
         }
         return concat(docs);
