@@ -35,18 +35,24 @@ import {
     formatWhereClause,
     formatCountClause,
     formatCurlyArrayConstructor,
+    formatDocumentRoot,
     formatFunctionCall,
+    formatModule,
+    formatPairObjectConstructor,
     formatParameter,
     formatParameterList,
     formatParenthesizedExpression,
     formatPostfixExpression,
     formatSquareArrayConstructor,
 } from "server/formatter/adapters/shared.js";
-import { formatTokenDoc, formatTokenSeparatedDocs } from "server/formatter/adapters/tokens.js";
+import {
+    formatSourceRange,
+    formatSourceTerminal,
+    formatTokenDoc,
+} from "server/formatter/adapters/tokens.js";
 import { formatDirectConstructor } from "server/formatter/adapters/xml.js";
 import { composeTokenDoc, FormatterContext, type TokenDoc } from "server/formatter/context.js";
-import { concat, Doc, hardline, indent, join, line, NIL, space } from "server/formatter/doc.js";
-import { formatBlockDoc, groupStartingWith } from "server/formatter/helpers.js";
+import { concat, Doc, NIL, space, spacedDocs } from "server/formatter/doc.js";
 import { XQueryLexer } from "server/parser/adapters/xquery/grammar/XQueryLexer.js";
 import { XQueryParser } from "server/parser/adapters/xquery/grammar/XQueryParser.js";
 import type * as ctx from "server/parser/adapters/xquery/grammar/XQueryParser.js";
@@ -89,45 +95,24 @@ export class XQueryFormatterVisitor extends XQueryParserVisitor<Doc> {
         return composeTokenDoc(this.token(terminal, expectedToken));
     };
 
-    private joinWithCommas = (
-        items: readonly Doc[],
-        commas: readonly TerminalNode[],
-        breakDoc: Doc = line,
-    ): Doc =>
-        formatTokenSeparatedDocs(
-            items,
-            commas,
-            (comma) => this.kw(comma, XQueryParser.COMMA),
-            breakDoc,
-        );
-
     protected override defaultResult(): Doc {
         return NIL;
     }
 
     protected override aggregateResult(aggregate: Doc, nextResult: Doc): Doc {
-        if (aggregate.kind === "text" && aggregate.text === "") {
-            return nextResult;
-        }
-        if (nextResult.kind === "text" && nextResult.text === "") {
-            return aggregate;
-        }
-        return concat([aggregate, space, nextResult]);
+        return spacedDocs(aggregate, nextResult);
     }
 
     public override visitTerminal = (node: TerminalNode): Doc => {
-        if (node.symbol.type === -1 /* Token.EOF */ || node.getText() === "<EOF>") {
-            return NIL;
-        }
-        return composeTokenDoc(this.ctx.formatToken(node));
+        return formatSourceTerminal(this.ctx, node);
     };
 
     public override visitStringLiteral = (node: ctx.StringLiteralContext): Doc => {
-        return composeTokenDoc(this.ctx.formatTokenRange(node.start!, node.stop!));
+        return formatSourceRange(this.ctx, node);
     };
 
     public override visitUriLiteral = (node: ctx.UriLiteralContext): Doc => {
-        return composeTokenDoc(this.ctx.formatTokenRange(node.start!, node.stop!));
+        return formatSourceRange(this.ctx, node);
     };
 
     /** Formats XML tags and expressions while preserving semantic text gaps. */
@@ -139,17 +124,12 @@ export class XQueryFormatterVisitor extends XQueryParserVisitor<Doc> {
                 RANGLE: XQueryParser.RANGLE,
                 EQUAL: XQueryParser.EQUAL,
                 SLASH: XQueryParser.SLASH,
+                LBRACE: XQueryParser.LBRACE,
+                RBRACE: XQueryParser.RBRACE,
             },
             node,
+            this.v,
             this.kw,
-            (content) => {
-                const expr = content.expr();
-                return formatBlockDoc(
-                    this.kw(content.LBRACE(0), XQueryParser.LBRACE),
-                    this.v(expr),
-                    this.kw(content.RBRACE(0), XQueryParser.RBRACE),
-                );
-            },
         );
     };
 
@@ -160,36 +140,11 @@ export class XQueryFormatterVisitor extends XQueryParserVisitor<Doc> {
     // ─── Module & Prolog ──────────────────────────────────────────────────────
 
     public override visitModuleAndThisIsIt = (node: ctx.ModuleAndThisIsItContext): Doc => {
-        const body = this.visitChildren(node) ?? NIL;
-        const dangling = this.ctx.formatDanglingDoc();
-        return concat([body, dangling]);
+        return formatDocumentRoot(this.ctx, this.visitChildren(node) ?? NIL);
     };
 
     public override visitModule = (node: ctx.ModuleContext): Doc => {
-        const parts: Doc[] = [];
-        if (node.KW_XQUERY() !== null) {
-            const kwXquery = this.kw(node.KW_XQUERY(), XQueryParser.KW_XQUERY);
-            const kwVer = this.kw(node.KW_VERSION(), XQueryParser.KW_VERSION);
-            const versionStr = node._vers ? this.v(node._vers) : NIL;
-            const encStr = node._encoding
-                ? concat([
-                      space,
-                      this.kw(node.KW_ENCODING(), XQueryParser.KW_ENCODING),
-                      space,
-                      this.v(node._encoding),
-                  ])
-                : NIL;
-            const semi = this.kw(node.SEMICOLON(), XQueryParser.SEMICOLON);
-            parts.push(concat([kwXquery, space, kwVer, space, versionStr, encStr, semi]));
-        }
-        if (node.libraryModule()) {
-            parts.push(this.v(node.libraryModule()));
-        } else if (node.mainModule().length > 0) {
-            for (const m of node.mainModule()) {
-                parts.push(this.v(m));
-            }
-        }
-        return join(concat([hardline, hardline]), parts);
+        return formatModule(node, node.KW_XQUERY(), "xquery", this.v, this.kw);
     };
 
     public override visitLibraryModule = (node: ctx.LibraryModuleContext): Doc => {
@@ -318,31 +273,7 @@ export class XQueryFormatterVisitor extends XQueryParserVisitor<Doc> {
         const rb = this.kw(node.RBRACE(), XQueryParser.RBRACE);
         const pairs = node.pairConstructor().map((p) => this.v(p));
         const commas = node.getTokens(XQueryParser.COMMA);
-        if (pairs.length === 0) {
-            return concat([composeTokenDoc(kwMap), space, lb, rb]);
-        }
-
-        if (pairs.length > 2) {
-            return concat([
-                composeTokenDoc(kwMap),
-                space,
-                lb,
-                indent(concat([hardline, this.joinWithCommas(pairs, commas, hardline)])),
-                hardline,
-                rb,
-            ]);
-        }
-
-        return groupStartingWith(
-            kwMap,
-            concat([
-                space,
-                lb,
-                indent(concat([line, this.joinWithCommas(pairs, commas)])),
-                line,
-                rb,
-            ]),
-        );
+        return formatPairObjectConstructor(kwMap, concat([space, lb]), rb, pairs, commas, this.kw);
     };
 
     public override visitPairConstructor = (node: ctx.PairConstructorContext): Doc => {

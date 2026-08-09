@@ -1,10 +1,23 @@
-import type { TerminalNode, Token } from "antlr4ng";
+import type { ParserRuleContext, TerminalNode, Token } from "antlr4ng";
 
-import type { FormatterContext, TokenDoc } from "../context.js";
+import { composeTokenDoc, type FormatterContext, type TokenDoc } from "../context.js";
 import { concat, type Doc, line, NIL } from "../doc.js";
 import { getTokenLiteral } from "../helpers.js";
 
 export type SourceTerminal = TerminalNode | Token | null | undefined;
+
+/** Formats a visited terminal, ignoring the parser's synthetic EOF node. */
+export function formatSourceTerminal(context: FormatterContext, node: TerminalNode): Doc {
+    if (node.symbol.type === -1 /* Token.EOF */ || node.getText() === "<EOF>") {
+        return NIL;
+    }
+    return composeTokenDoc(context.formatToken(node));
+}
+
+/** Preserves a grammar range as one token-aware document. */
+export function formatSourceRange(context: FormatterContext, node: ParserRuleContext): Doc {
+    return composeTokenDoc(context.formatTokenRange(node.start!, node.stop!));
+}
 
 /** Formats a real source token, with a synthetic fallback for generated accessors. */
 export function formatTokenDoc(

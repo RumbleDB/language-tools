@@ -35,14 +35,22 @@ import {
     formatWhereClause,
     formatCountClause,
     formatCurlyArrayConstructor,
+    formatDocumentRoot,
     formatFunctionCall,
+    formatModule,
+    formatPairObjectConstructor,
     formatParameter,
     formatParameterList,
     formatParenthesizedExpression,
     formatPostfixExpression,
     formatSquareArrayConstructor,
 } from "server/formatter/adapters/shared.js";
-import { formatTokenDoc, formatTokenSeparatedDocs } from "server/formatter/adapters/tokens.js";
+import {
+    formatSourceRange,
+    formatSourceTerminal,
+    formatTokenDoc,
+    formatTokenSeparatedDocs,
+} from "server/formatter/adapters/tokens.js";
 import { formatDirectConstructor } from "server/formatter/adapters/xml.js";
 import { composeTokenDoc, FormatterContext, type TokenDoc } from "server/formatter/context.js";
 import {
@@ -55,8 +63,9 @@ import {
     line,
     NIL,
     space,
+    spacedDocs,
 } from "server/formatter/doc.js";
-import { formatBlockDoc, groupStartingWith } from "server/formatter/helpers.js";
+import { groupStartingWith } from "server/formatter/helpers.js";
 import { JsoniqLexer } from "server/parser/adapters/jsoniq/grammar/JsoniqLexer.js";
 import { JsoniqParser } from "server/parser/adapters/jsoniq/grammar/JsoniqParser.js";
 import type * as ctx from "server/parser/adapters/jsoniq/grammar/JsoniqParser.js";
@@ -125,28 +134,19 @@ export class JsoniqFormatterVisitor extends JsoniqParserVisitor<Doc> {
     }
 
     protected override aggregateResult(aggregate: Doc, nextResult: Doc): Doc {
-        if (aggregate.kind === "text" && aggregate.text === "") {
-            return nextResult;
-        }
-        if (nextResult.kind === "text" && nextResult.text === "") {
-            return aggregate;
-        }
-        return concat([aggregate, space, nextResult]);
+        return spacedDocs(aggregate, nextResult);
     }
 
     public override visitTerminal = (node: TerminalNode): Doc => {
-        if (node.symbol.type === -1 /* Token.EOF */ || node.getText() === "<EOF>") {
-            return NIL;
-        }
-        return composeTokenDoc(this.ctx.formatToken(node));
+        return formatSourceTerminal(this.ctx, node);
     };
 
     public override visitStringLiteral = (node: ctx.StringLiteralContext): Doc => {
-        return composeTokenDoc(this.ctx.formatTokenRange(node.start!, node.stop!));
+        return formatSourceRange(this.ctx, node);
     };
 
     public override visitUriLiteral = (node: ctx.UriLiteralContext): Doc => {
-        return composeTokenDoc(this.ctx.formatTokenRange(node.start!, node.stop!));
+        return formatSourceRange(this.ctx, node);
     };
 
     /** Formats XML tags and expressions while preserving semantic text gaps. */
@@ -158,17 +158,12 @@ export class JsoniqFormatterVisitor extends JsoniqParserVisitor<Doc> {
                 RANGLE: JsoniqParser.RANGLE,
                 EQUAL: JsoniqParser.EQUAL,
                 SLASH: JsoniqParser.SLASH,
+                LBRACE: JsoniqParser.LBRACE,
+                RBRACE: JsoniqParser.RBRACE,
             },
             node,
+            this.v,
             this.kw,
-            (content) => {
-                const expr = content.expr();
-                return formatBlockDoc(
-                    this.kw(content.LBRACE(0), JsoniqParser.LBRACE),
-                    this.v(expr),
-                    this.kw(content.RBRACE(0), JsoniqParser.RBRACE),
-                );
-            },
         );
     };
 
@@ -179,34 +174,11 @@ export class JsoniqFormatterVisitor extends JsoniqParserVisitor<Doc> {
     // ─── Module & Prolog ──────────────────────────────────────────────────────
 
     public override visitModuleAndThisIsIt = (node: ctx.ModuleAndThisIsItContext): Doc => {
-        const body = this.visitChildren(node) ?? NIL;
-        const dangling = this.ctx.formatDanglingDoc();
-        return concat([body, dangling]);
+        return formatDocumentRoot(this.ctx, this.visitChildren(node) ?? NIL);
     };
 
     public override visitModule = (node: ctx.ModuleContext): Doc => {
-        const parts: Doc[] = [];
-        if (node.KW_JSONIQ() !== null) {
-            const kwJsoniq = this.kw(node.KW_JSONIQ(), JsoniqParser.KW_JSONIQ);
-            const kwVer = this.kw(node.KW_VERSION(), JsoniqParser.KW_VERSION);
-            const versionStr = node._vers ? this.v(node._vers) : NIL;
-            const encStr = node._encoding
-                ? concat([
-                      space,
-                      this.kw(node.KW_ENCODING(), JsoniqParser.KW_ENCODING),
-                      space,
-                      this.v(node._encoding),
-                  ])
-                : NIL;
-            const semi = this.kw(node.SEMICOLON(), JsoniqParser.SEMICOLON);
-            parts.push(concat([kwJsoniq, space, kwVer, space, versionStr, encStr, semi]));
-        }
-        if (node.libraryModule()) {
-            parts.push(this.v(node.libraryModule()));
-        } else if (node.mainModule()) {
-            parts.push(this.v(node.mainModule()));
-        }
-        return join(concat([hardline, hardline]), parts);
+        return formatModule(node, node.KW_JSONIQ(), "jsoniq", this.v, this.kw);
     };
 
     public override visitLibraryModule = (node: ctx.LibraryModuleContext): Doc => {
@@ -699,33 +671,13 @@ export class JsoniqFormatterVisitor extends JsoniqParserVisitor<Doc> {
         const lb = this.token(node.LBRACE(), JsoniqParser.LBRACE);
         const rb = this.kw(node.RBRACE(), JsoniqParser.RBRACE);
         const pairs = node.pairConstructor().map((p) => this.v(p));
-        if (pairs.length === 0) {
-            return concat([composeTokenDoc(lb), rb]);
-        }
-
-        if (pairs.length > 2) {
-            return concat([
-                composeTokenDoc(lb),
-                indent(
-                    concat([
-                        hardline,
-                        this.joinWithCommas(pairs, node.getTokens(JsoniqParser.COMMA), hardline),
-                    ]),
-                ),
-                hardline,
-                rb,
-            ]);
-        }
-
-        return groupStartingWith(
+        return formatPairObjectConstructor(
             lb,
-            concat([
-                indent(
-                    concat([line, this.joinWithCommas(pairs, node.getTokens(JsoniqParser.COMMA))]),
-                ),
-                line,
-                rb,
-            ]),
+            NIL,
+            rb,
+            pairs,
+            node.getTokens(JsoniqParser.COMMA),
+            this.kw,
         );
     };
 

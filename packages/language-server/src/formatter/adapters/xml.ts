@@ -1,7 +1,8 @@
-import { ParserRuleContext, TerminalNode } from "antlr4ng";
+import { type ParseTree, ParserRuleContext, TerminalNode } from "antlr4ng";
 
 import { composeTokenDoc, FormatterContext } from "../context.js";
 import { concat, type Doc, group, hardline, indent, join, line, softline } from "../doc.js";
+import { formatBlockDoc } from "../helpers.js";
 import type { SourceTerminal } from "./tokens.js";
 
 interface DirectAttributeList extends ParserRuleContext {
@@ -31,11 +32,11 @@ interface EnclosedExpressionCandidate extends ParserRuleContext {
     RBRACE(index: number): TerminalNode | null;
 }
 
-export interface EnclosedExpressionContent extends EnclosedExpressionCandidate {
+interface EnclosedExpressionContent extends EnclosedExpressionCandidate {
     expr(): ParserRuleContext;
 }
 
-export type FormatEnclosedExpression = (node: EnclosedExpressionContent) => Doc;
+type FormatEnclosedExpression = (node: EnclosedExpressionContent) => Doc;
 
 interface DirectElementOpenClose extends ParserRuleContext {
     RANGLE(index: number): TerminalNode | null;
@@ -67,6 +68,8 @@ export interface XmlTokenTypes {
     readonly RANGLE: number;
     readonly EQUAL: number;
     readonly SLASH: number;
+    readonly LBRACE: number;
+    readonly RBRACE: number;
 }
 
 /**
@@ -74,6 +77,28 @@ export interface XmlTokenTypes {
  * but nested tag markup can always be formatted independently.
  */
 export function formatDirectConstructor(
+    context: FormatterContext,
+    tokens: XmlTokenTypes,
+    node: DirectConstructor,
+    visit: (node: ParseTree | null | undefined) => Doc,
+    formatTerminal: (terminal: SourceTerminal, expectedToken: number) => Doc,
+): Doc {
+    const formatEnclosedExpression: FormatEnclosedExpression = (content) =>
+        formatBlockDoc(
+            formatTerminal(content.LBRACE(0), tokens.LBRACE),
+            visit(content.expr()),
+            formatTerminal(content.RBRACE(0), tokens.RBRACE),
+        );
+    return formatDirectConstructorContent(
+        context,
+        tokens,
+        node,
+        formatTerminal,
+        formatEnclosedExpression,
+    );
+}
+
+function formatDirectConstructorContent(
     context: FormatterContext,
     tokens: XmlTokenTypes,
     node: DirectConstructor,
@@ -210,7 +235,7 @@ function formatDirectContent(
 ): Doc {
     const childElement = content.directConstructor();
     if (childElement) {
-        return formatDirectConstructor(
+        return formatDirectConstructorContent(
             context,
             tokens,
             childElement,

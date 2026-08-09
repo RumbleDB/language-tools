@@ -82,6 +82,53 @@ type FunctionCall = jsoniq.FunctionCallContext | xquery.FunctionCallContext;
 type ArgumentList = jsoniq.ArgumentListContext | xquery.ArgumentListContext;
 type Argument = jsoniq.ArgumentContext | xquery.ArgumentContext;
 
+type QueryModule = jsoniq.ModuleContext | xquery.ModuleContext;
+
+export function formatDocumentRoot(context: FormatterContext, body: Doc): Doc {
+    return concat([body, context.formatDanglingDoc()]);
+}
+
+export function formatModule(
+    node: QueryModule,
+    languageTerminal: SourceTerminal,
+    languageName: string,
+    visit: Visit,
+    formatTerminal: FormatTerminal,
+): Doc {
+    const parts: Doc[] = [];
+    if (languageTerminal) {
+        const encoding = node._encoding
+            ? concat([
+                  space,
+                  formatTerminal(node.KW_ENCODING(), "encoding"),
+                  space,
+                  visit(node._encoding),
+              ])
+            : NIL;
+        parts.push(
+            concat([
+                formatTerminal(languageTerminal, languageName),
+                space,
+                formatTerminal(node.KW_VERSION(), "version"),
+                space,
+                visit(node._vers),
+                encoding,
+                formatTerminal(node.SEMICOLON(), ";"),
+            ]),
+        );
+    }
+
+    const libraryModule = node.libraryModule();
+    if (libraryModule) {
+        parts.push(visit(libraryModule));
+    } else {
+        const mainModules = node.mainModule();
+        const modules = Array.isArray(mainModules) ? mainModules : mainModules ? [mainModules] : [];
+        parts.push(...modules.map(visit));
+    }
+    return join(concat([hardline, hardline]), parts);
+}
+
 export function formatParameterList(
     node: ParameterList,
     commaTokenType: number,
@@ -130,6 +177,36 @@ export function formatAnnotation(
         ),
         formatTerminal(node.RPAREN(), ")"),
     ]);
+}
+
+export function formatPairObjectConstructor(
+    firstToken: TokenDoc,
+    afterFirstToken: Doc,
+    rightBrace: Doc,
+    pairs: readonly Doc[],
+    commas: readonly TerminalNode[],
+    formatTerminal: FormatTerminal,
+): Doc {
+    const opening = concat([composeTokenDoc(firstToken), afterFirstToken]);
+    if (pairs.length === 0) {
+        return concat([opening, rightBrace]);
+    }
+
+    const formatPairs = (breakDoc: Doc): Doc =>
+        formatTokenSeparatedDocs(pairs, commas, (comma) => formatTerminal(comma, ","), breakDoc);
+    if (pairs.length > 2) {
+        return concat([
+            opening,
+            indent(concat([hardline, formatPairs(hardline)])),
+            hardline,
+            rightBrace,
+        ]);
+    }
+
+    return groupStartingWith(
+        firstToken,
+        concat([afterFirstToken, indent(concat([line, formatPairs(line)])), line, rightBrace]),
+    );
 }
 
 export function formatSquareArrayConstructor(
