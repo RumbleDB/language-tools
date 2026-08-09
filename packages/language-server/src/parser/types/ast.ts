@@ -9,6 +9,8 @@ import type {
 
 export type AstNodeKind =
     | "module"
+    | "module-declaration"
+    | "module-import"
     | "namespace-declaration"
     | "context-item-declaration"
     | "type-declaration"
@@ -32,6 +34,19 @@ export interface AstNodeBase<K extends AstNodeKind> {
 }
 
 export interface ModuleAstNode extends AstNodeBase<"module"> {}
+
+export interface ModuleDeclarationAstNode extends AstNodeBase<"module-declaration"> {
+    readonly prefix: Prefix;
+    readonly namespaceUri: string;
+    readonly selectionRange: Range;
+}
+
+export interface ModuleImportAstNode extends AstNodeBase<"module-import"> {
+    readonly prefix?: Prefix;
+    readonly namespaceUri: string;
+    readonly namespaceUriRange: Range;
+    readonly locations: readonly { uri: string; range: Range }[];
+}
 
 export interface NamespaceDeclarationAstNode extends AstNodeBase<"namespace-declaration"> {
     readonly prefix: Prefix;
@@ -101,6 +116,8 @@ export interface ArgumentAstNode extends AstNodeBase<"argument"> {
 
 export type AstNode =
     | ModuleAstNode
+    | ModuleDeclarationAstNode
+    | ModuleImportAstNode
     | NamespaceDeclarationAstNode
     | ContextItemDeclarationAstNode
     | TypeDeclarationAstNode

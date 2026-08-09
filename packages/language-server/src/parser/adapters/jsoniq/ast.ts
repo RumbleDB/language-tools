@@ -27,6 +27,8 @@ import {
     LetVarContext,
     NamedFunctionRefContext,
     NamespaceDeclContext,
+    LibraryModuleContext,
+    ModuleImportContext,
     PositionalVarContext,
     QuantifiedExprVarContext,
     SlidingWindowClauseContext,
@@ -84,6 +86,40 @@ class JsoniqAstBuilder extends JsoniqParserVisitor<AstVisitResult> {
             children: this.visitChildrenAsNodes(node),
         },
     ];
+
+    public override visitLibraryModule = (node: LibraryModuleContext): AstVisitResult => {
+        const prefix = node.ncName();
+        const namespace = node.uriLiteral();
+        return [
+            {
+                kind: "module-declaration",
+                prefix: prefix.getText().trim(),
+                namespaceUri: unquoteStringLiteral(namespace.getText()),
+                range: rangeFromNode(node, this.document),
+                selectionRange: rangeFromNode(prefix, this.document),
+                children: this.visitChildrenAsNodes(node),
+            },
+        ];
+    };
+
+    public override visitModuleImport = (node: ModuleImportContext): AstVisitResult => {
+        const target = node._targetNamespace;
+        if (target === undefined) return [];
+        return [
+            {
+                kind: "module-import",
+                ...(node._prefix === undefined ? {} : { prefix: node._prefix.getText().trim() }),
+                namespaceUri: unquoteStringLiteral(target.getText()),
+                namespaceUriRange: rangeFromNode(target, this.document),
+                locations: node._locations.map((location) => ({
+                    uri: unquoteStringLiteral(location.getText()),
+                    range: rangeFromNode(location, this.document),
+                })),
+                range: rangeFromNode(node, this.document),
+                children: [],
+            },
+        ];
+    };
 
     public override visitNamespaceDecl = (node: NamespaceDeclContext): AstVisitResult => {
         const nameNode = node.ncName();
