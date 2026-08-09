@@ -1,5 +1,5 @@
 import type { TokenDoc } from "./context.js";
-import { concat, Doc, group, hardline, indent, join, line, NIL, space, text } from "./doc.js";
+import { concat, Doc, group, hardline, indent, join, line, space } from "./doc.js";
 
 /**
  * Starts a layout group with a source token while keeping that token's leading
@@ -25,19 +25,6 @@ export function getTokenLiteral(tokenType: number, literalNames: (string | null)
         return raw.slice(1, -1);
     }
     return raw;
-}
-
-// ─── List Formatting ─────────────────────────────────────────────────────────
-
-/**
- * Formats a comma-separated list of items (sequence items, arguments, params).
- * If the group breaks across lines, items are separated by `, \n`.
- */
-export function formatCommaSeparatedDocs(items: readonly Doc[]): Doc {
-    if (items.length === 0) {
-        return NIL;
-    }
-    return join(concat([text(","), line]), items);
 }
 
 // ─── Block Formatting ─────────────────────────────────────────────────────────

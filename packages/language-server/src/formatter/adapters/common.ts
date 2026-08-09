@@ -1,7 +1,7 @@
 import { ParserRuleContext, TerminalNode, Token } from "antlr4ng";
 
 import { composeTokenDoc, FormatterContext, type TokenDoc } from "../context.js";
-import { concat, type Doc, group, hardline, indent, join, line, softline } from "../doc.js";
+import { concat, type Doc, group, hardline, indent, join, line, NIL, softline } from "../doc.js";
 import { getTokenLiteral } from "../helpers.js";
 
 type SourceTerminal = TerminalNode | Token | null | undefined;
@@ -38,6 +38,27 @@ export interface EnclosedExpressionContent extends EnclosedExpressionCandidate {
 }
 
 export type FormatEnclosedExpression = (node: EnclosedExpressionContent) => Doc;
+
+/**
+ * Joins items with real source separators so comments attached to punctuation
+ * remain in the token stream rather than being bypassed by synthesized text.
+ */
+export function formatTokenSeparatedDocs(
+    items: readonly Doc[],
+    separators: readonly SourceTerminal[],
+    formatSeparator: (separator: SourceTerminal) => Doc,
+    breakDoc: Doc = line,
+): Doc {
+    if (items.length === 0) {
+        return NIL;
+    }
+
+    const docs: Doc[] = [items[0]!];
+    for (let index = 1; index < items.length; index++) {
+        docs.push(formatSeparator(separators[index - 1]), breakDoc, items[index]!);
+    }
+    return concat(docs);
+}
 
 interface DirectElementOpenClose extends ParserRuleContext {
     RANGLE(index: number): TerminalNode | null;

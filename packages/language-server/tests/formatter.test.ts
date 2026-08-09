@@ -774,12 +774,15 @@ describe("JSONiq & XQuery Formatter", () => {
             expect(formatted).toBe(expected);
         });
 
-        it("preserves comments inside multi-item sequence expressions before commas", () => {
-            const input = ["let $a := (1 (:test:), 2)", "return $a"].join("\n");
-            const formatted = formatText(input, "jsoniq");
-            const expected = ["let $a := (1 (:test:), 2)", "return $a\n"].join("\n");
-            expect(formatted).toBe(expected);
-        });
+        it.each(["jsoniq", "xquery"] as const)(
+            "preserves comments before source commas in %s sequences",
+            (languageId) => {
+                const input = ["let $a := (1 (:test:), 2)", "return $a"].join("\n");
+                const formatted = formatText(input, languageId);
+                const expected = ["let $a := (1 (:test:), 2)", "return $a\n"].join("\n");
+                expect(formatted).toBe(expected);
+            },
+        );
     });
 
     describe("Comment preservation — parenthesized expressions", () => {
@@ -915,6 +918,23 @@ describe("JSONiq & XQuery Formatter", () => {
                 'typeswitch ($x)\n    case $i as integer return "int"\n    case $s as string return "str"\n    default $d return "other"\n',
             );
         });
+
+        it.each(["jsoniq", "xquery"] as const)(
+            "preserves comments before source union bars in %s typeswitch cases",
+            (languageId) => {
+                const input =
+                    "typeswitch ($x) case $value as string (: union :) | integer return $value default return 0";
+
+                expect(formatText(input, languageId)).toBe(
+                    [
+                        "typeswitch ($x)",
+                        "    case $value as string (: union :) | integer return $value",
+                        "    default return 0",
+                        "",
+                    ].join("\n"),
+                );
+            },
+        );
 
         it("preserves top-level header comments before typeswitch expressions", () => {
             const input = [

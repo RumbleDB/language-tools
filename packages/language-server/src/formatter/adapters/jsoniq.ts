@@ -1,5 +1,41 @@
 import { ParseTree, TerminalNode, Token } from "antlr4ng";
-import { formatDirectConstructor, formatTokenDoc } from "server/formatter/adapters/common.js";
+import {
+    formatDirectConstructor,
+    formatTokenDoc,
+    formatTokenSeparatedDocs,
+} from "server/formatter/adapters/common.js";
+import {
+    formatBoundarySpaceDeclaration,
+    formatAnnotatedDeclaration,
+    formatCaseClause,
+    formatCatchClause,
+    formatEnclosedExpression,
+    formatExpressionSequence,
+    formatFlworExpression,
+    formatForClause,
+    formatForVariable,
+    formatFunctionDeclaration,
+    formatGroupByClause,
+    formatGroupByVariable,
+    formatIfExpression,
+    formatLetClause,
+    formatLetVariable,
+    formatLibraryModule,
+    formatMainModule,
+    formatOrderByClause,
+    formatPairConstructor,
+    formatPredicate,
+    formatProlog,
+    formatSequenceType,
+    formatSwitchCaseClause,
+    formatSwitchExpression,
+    formatTryCatchExpression,
+    formatTypeswitchExpression,
+    formatVariableDeclaration,
+    formatVariableName,
+    formatWhereClause,
+    formatCountClause,
+} from "server/formatter/adapters/shared.js";
 import { composeTokenDoc, FormatterContext, type TokenDoc } from "server/formatter/context.js";
 import {
     concat,
@@ -12,17 +48,8 @@ import {
     NIL,
     softline,
     space,
-    spacedDocs,
 } from "server/formatter/doc.js";
-import {
-    formatBlockDoc,
-    formatFlworExpressionDoc,
-    formatIfExpressionDoc,
-    formatTryCatchDoc,
-    groupStartingWith,
-    shouldSeparateDeclarations,
-} from "server/formatter/helpers.js";
-import { printDocToString } from "server/formatter/printer.js";
+import { formatBlockDoc, groupStartingWith } from "server/formatter/helpers.js";
 import { JsoniqLexer } from "server/parser/adapters/jsoniq/grammar/JsoniqLexer.js";
 import { JsoniqParser } from "server/parser/adapters/jsoniq/grammar/JsoniqParser.js";
 import type * as ctx from "server/parser/adapters/jsoniq/grammar/JsoniqParser.js";
@@ -65,26 +92,19 @@ export class JsoniqFormatterVisitor extends JsoniqParserVisitor<Doc> {
         return composeTokenDoc(this.token(terminal, expectedToken));
     }
 
-    private vStrDoc = (doc: Doc): string => {
-        return printDocToString(doc, this.ctx.options);
-    };
-
     private isEmpty = (doc: Doc): boolean => doc.kind === "text" && doc.text === "";
 
     private joinWithCommas = (
         items: readonly Doc[],
         commas: readonly TerminalNode[],
         breakDoc: Doc = line,
-    ): Doc => {
-        const docs: Doc[] = [];
-        for (let i = 0; i < items.length; i++) {
-            if (i > 0) {
-                docs.push(this.kw(commas[i - 1], JsoniqParser.COMMA), breakDoc);
-            }
-            docs.push(items[i]!);
-        }
-        return concat(docs);
-    };
+    ): Doc =>
+        formatTokenSeparatedDocs(
+            items,
+            commas,
+            (comma) => this.kw(comma, JsoniqParser.COMMA),
+            breakDoc,
+        );
 
     private formatStatementBlock = (leftBrace: Doc, statements: Doc, rightBrace: Doc): Doc => {
         if (this.isEmpty(statements)) {
@@ -146,19 +166,9 @@ export class JsoniqFormatterVisitor extends JsoniqParserVisitor<Doc> {
     };
 
     public override visitBoundarySpaceDecl = (node: ctx.BoundarySpaceDeclContext): Doc => {
-        const isPreserve = node.KW_PRESERVE() !== null;
-        this.ctx.setXmlBoundarySpacePolicy(isPreserve ? "preserve" : "strip");
-        return concat([
-            this.kw(node.KW_DECLARE(), JsoniqParser.KW_DECLARE),
-            space,
-            this.kw(node.KW_BOUNDARY_SPACE(), JsoniqParser.KW_BOUNDARY_SPACE),
-            space,
-            this.kw(
-                isPreserve ? node.KW_PRESERVE() : node.KW_STRIP(),
-                isPreserve ? JsoniqParser.KW_PRESERVE : JsoniqParser.KW_STRIP,
-            ),
-            this.kw(node.SEMICOLON(), JsoniqParser.SEMICOLON),
-        ]);
+        return formatBoundarySpaceDeclaration(this.ctx, node, (terminal, expectedToken) =>
+            this.kw(terminal, expectedToken),
+        );
     };
 
     // ─── Module & Prolog ──────────────────────────────────────────────────────
@@ -195,155 +205,35 @@ export class JsoniqFormatterVisitor extends JsoniqParserVisitor<Doc> {
     };
 
     public override visitLibraryModule = (node: ctx.LibraryModuleContext): Doc => {
-        const kwModule = this.kw(node.KW_MODULE(), JsoniqParser.KW_MODULE);
-        const kwNamespace = this.kw(node.KW_NAMESPACE(), JsoniqParser.KW_NAMESPACE);
-        const ncName = node.ncName() ? this.v(node.ncName()) : NIL;
-        const eq = this.kw(node.EQUAL(), JsoniqParser.EQUAL);
-        const uri = node._uri ? this.v(node._uri) : NIL;
-        const semi = this.kw(node.SEMICOLON(), JsoniqParser.SEMICOLON);
-        const prolog = node.prolog() ? this.v(node.prolog()) : NIL;
-        const header = concat([
-            kwModule,
-            space,
-            kwNamespace,
-            space,
-            ncName,
-            space,
-            eq,
-            space,
-            uri,
-            semi,
-        ]);
-        return prolog.kind !== "text" ? concat([header, hardline, hardline, prolog]) : header;
+        return formatLibraryModule(node, this.v, (terminal, expectedToken) =>
+            this.kw(terminal, expectedToken),
+        );
     };
 
     public override visitMainModule = (node: ctx.MainModuleContext): Doc => {
-        const prolog = node.prolog() ? this.v(node.prolog()) : NIL;
-        const program = node.program() ? this.v(node.program()) : NIL;
-        if (prolog.kind !== "text" && program.kind !== "text") {
-            return concat([prolog, hardline, hardline, program]);
-        }
-        return prolog.kind !== "text" ? prolog : program;
+        return formatMainModule(node, this.v);
     };
 
     public override visitProlog = (node: ctx.PrologContext): Doc => {
-        const parts: Doc[] = [];
-        const count = node.getChildCount();
-        for (let i = 0; i < count; i++) {
-            const child = node.getChild(i);
-            if (child === null || child instanceof TerminalNode) {
-                continue;
-            }
-            const res = this.v(child);
-            if (res.kind !== "text" || res.text !== "") {
-                parts.push(res);
-            }
-        }
-        if (parts.length === 0) {
-            return NIL;
-        }
-        const docs: Doc[] = [parts[0]!];
-        for (let i = 1; i < parts.length; i++) {
-            const prevStr = this.vStrDoc(parts[i - 1]!);
-            const currStr = this.vStrDoc(parts[i]!);
-            const sep =
-                this.ctx.options.blankLineBetweenDeclarations &&
-                shouldSeparateDeclarations(prevStr, currStr)
-                    ? concat([hardline, hardline])
-                    : hardline;
-            docs.push(sep);
-            docs.push(parts[i]!);
-        }
-        return concat(docs);
+        return formatProlog(this.ctx, node, this.v);
     };
 
     public override visitAnnotatedDecl = (node: ctx.AnnotatedDeclContext): Doc => {
-        const count = node.getChildCount();
-        const parts: Doc[] = [];
-        for (let i = 0; i < count; i++) {
-            const child = node.getChild(i);
-            if (child !== null) {
-                const res = this.v(child);
-                if (res.kind !== "text" || res.text !== "") {
-                    parts.push(res);
-                }
-            }
-        }
-        return concat(parts);
+        return formatAnnotatedDeclaration(node, this.v);
     };
 
     // ─── Declarations ─────────────────────────────────────────────────────────
 
     public override visitFunctionDecl = (node: ctx.FunctionDeclContext): Doc => {
-        const decl = this.kw(node.KW_DECLARE(), JsoniqParser.KW_DECLARE);
-        const annotations = node.annotations() ? this.v(node.annotations()) : NIL;
-        const fnKw = this.kw(node.KW_FUNCTION(), JsoniqParser.KW_FUNCTION);
-        const name = node.functionName() ? this.v(node.functionName()) : NIL;
-        const lparen = this.kw(node.LPAREN(), JsoniqParser.LPAREN);
-        const rparen = this.kw(node.RPAREN(), JsoniqParser.RPAREN);
-        const params = node.paramList()
-            ? concat([lparen, this.v(node.paramList()), rparen])
-            : concat([lparen, rparen]);
-        const returnType = node._return_type ? this.v(node._return_type) : null;
-        const kwAs = node.KW_AS() ? this.kw(node.KW_AS(), JsoniqParser.KW_AS) : null;
-        const isExternal = node.KW_EXTERNAL() !== null || node._is_external !== undefined;
-
-        const signature = spacedDocs(decl, annotations, fnKw, concat([name, params]));
-        const withReturn =
-            returnType !== null && kwAs !== null
-                ? spacedDocs(signature, kwAs, returnType)
-                : signature;
-
-        const semi = this.kw(node.SEMICOLON(), JsoniqParser.SEMICOLON);
-
-        if (isExternal) {
-            const kwExternal = this.kw(node.KW_EXTERNAL(), JsoniqParser.KW_EXTERNAL);
-            return concat([withReturn, space, kwExternal, semi]);
-        }
-
-        if (!node._fn_body) {
-            return concat([withReturn, semi]);
-        }
-
-        const bodyDoc = this.v(node._fn_body);
-        return concat([
-            withReturn,
-            space,
-            formatBlockDoc(
-                this.kw(node.LBRACE(), JsoniqParser.LBRACE),
-                bodyDoc,
-                this.kw(node.RBRACE(), JsoniqParser.RBRACE),
-            ),
-            semi,
-        ]);
+        return formatFunctionDeclaration(node, this.v, (terminal, expectedToken) =>
+            this.kw(terminal, expectedToken),
+        );
     };
 
     public override visitVarDecl = (node: ctx.VarDeclContext): Doc => {
-        const decl = this.kw(node.KW_DECLARE(), JsoniqParser.KW_DECLARE);
-        const annotations = node.annotations() ? this.v(node.annotations()) : NIL;
-        const varKw = this.kw(node.KW_VARIABLE(), JsoniqParser.KW_VARIABLE);
-        const name = node.varBinding() ? this.v(node.varBinding()) : NIL;
-        const kwAs = node.KW_AS() ? this.kw(node.KW_AS(), JsoniqParser.KW_AS) : null;
-        const typeSeq = node.sequenceType() ? this.v(node.sequenceType()) : null;
-        const expr = node.exprSingle() ? this.v(node.exprSingle()) : null;
-        const isExternal = node.KW_EXTERNAL() !== null || node._external !== undefined;
-
-        const prefix = spacedDocs(decl, annotations, varKw, name);
-        const typed =
-            typeSeq !== null && kwAs !== null ? spacedDocs(prefix, kwAs, typeSeq) : prefix;
-        const semi = this.kw(node.SEMICOLON(), JsoniqParser.SEMICOLON);
-
-        if (isExternal) {
-            const kwExternal = this.kw(node.KW_EXTERNAL(), JsoniqParser.KW_EXTERNAL);
-            return concat([typed, space, kwExternal, semi]);
-        }
-
-        const assign = node.COLON_EQ() ? this.kw(node.COLON_EQ(), JsoniqParser.COLON_EQ) : null;
-        return concat([
-            typed,
-            expr !== null && assign !== null ? concat([space, assign, space, expr]) : NIL,
-            semi,
-        ]);
+        return formatVariableDeclaration(node, this.v, (terminal, expectedToken) =>
+            this.kw(terminal, expectedToken),
+        );
     };
 
     public override visitParamList = (node: ctx.ParamListContext): Doc => {
@@ -725,287 +615,115 @@ export class JsoniqFormatterVisitor extends JsoniqParserVisitor<Doc> {
     // ─── FLWOR Expressions ───────────────────────────────────────────────────
 
     public override visitFlworExpr = (node: ctx.FlworExprContext): Doc => {
-        const clauses: Doc[] = [];
-        const count = node.getChildCount();
-        for (let i = 0; i < count; i++) {
-            const child = node.getChild(i);
-            if (child === null || child === node.KW_RETURN() || child === node._return_expr) {
-                continue;
-            }
-            const res = this.v(child);
-            if (res.kind !== "text" || res.text !== "") {
-                clauses.push(res);
-            }
-        }
-        const returnKw = this.kw(node.KW_RETURN(), JsoniqParser.KW_RETURN);
-        const returnExpr = node._return_expr ? this.v(node._return_expr) : NIL;
-        return group(formatFlworExpressionDoc(clauses, returnKw, returnExpr));
+        return formatFlworExpression(node, this.v, (terminal, expectedToken) =>
+            this.kw(terminal, expectedToken),
+        );
     };
 
     public override visitForClause = (node: ctx.ForClauseContext): Doc => {
-        const kw = this.kw(node.KW_FOR(), JsoniqParser.KW_FOR);
-        const vars = node._vars.map((v) => this.v(v));
-        return group(
-            concat([kw, space, this.joinWithCommas(vars, node.getTokens(JsoniqParser.COMMA))]),
+        return formatForClause(node, JsoniqParser.COMMA, this.v, (terminal, expectedToken) =>
+            this.kw(terminal, expectedToken),
         );
     };
 
     public override visitForVar = (node: ctx.ForVarContext): Doc => {
-        const varRef = node._var_ref ? this.v(node._var_ref) : NIL;
-        const kwAs = node.KW_AS() ? this.kw(node.KW_AS(), JsoniqParser.KW_AS) : null;
-        const seq = node._seq && kwAs ? concat([space, kwAs, space, this.v(node._seq)]) : NIL;
-        const kwAllowing = node.allowingEmpty() ? this.v(node.allowingEmpty()) : NIL;
-        const allowingEmpty = kwAllowing !== NIL ? concat([space, kwAllowing]) : NIL;
-        const kwAt = node.KW_AT() ? this.kw(node.KW_AT(), JsoniqParser.KW_AT) : null;
-        const at = node._at && kwAt ? concat([space, kwAt, space, this.v(node._at)]) : NIL;
-        const kwIn = this.kw(node.KW_IN(), JsoniqParser.KW_IN);
-        const inExpr = node._ex ? this.v(node._ex) : NIL;
-        return concat([varRef, seq, allowingEmpty, at, space, kwIn, space, inExpr]);
+        return formatForVariable(node, this.v, (terminal, expectedToken) =>
+            this.kw(terminal, expectedToken),
+        );
     };
 
     public override visitLetClause = (node: ctx.LetClauseContext): Doc => {
-        const kw = this.kw(node.KW_LET(), JsoniqParser.KW_LET);
-        const vars = node._vars.map((v) => this.v(v));
-        return group(
-            concat([kw, space, this.joinWithCommas(vars, node.getTokens(JsoniqParser.COMMA))]),
+        return formatLetClause(node, JsoniqParser.COMMA, this.v, (terminal, expectedToken) =>
+            this.kw(terminal, expectedToken),
         );
     };
 
     public override visitLetVar = (node: ctx.LetVarContext): Doc => {
-        const varRef = node._var_ref ? this.v(node._var_ref) : NIL;
-        const kwAs = node.KW_AS() ? this.kw(node.KW_AS(), JsoniqParser.KW_AS) : null;
-        const seq = node._seq && kwAs ? concat([space, kwAs, space, this.v(node._seq)]) : NIL;
-        const assign = this.kw(node.COLON_EQ(), JsoniqParser.COLON_EQ);
-        const expr = node._ex ? this.v(node._ex) : NIL;
-        return concat([varRef, seq, space, assign, space, expr]);
+        return formatLetVariable(node, this.v, (terminal, expectedToken) =>
+            this.kw(terminal, expectedToken),
+        );
     };
 
     public override visitWhereClause = (node: ctx.WhereClauseContext): Doc => {
-        const kw = this.kw(node.KW_WHERE(), JsoniqParser.KW_WHERE);
-        const expr = node.exprSingle() ? this.v(node.exprSingle()) : NIL;
-        return concat([kw, space, expr]);
+        return formatWhereClause(node, this.v, (terminal, expectedToken) =>
+            this.kw(terminal, expectedToken),
+        );
     };
 
     public override visitGroupByClause = (node: ctx.GroupByClauseContext): Doc => {
-        const kwGroup = this.kw(node.KW_GROUP(), JsoniqParser.KW_GROUP);
-        const kwBy = this.kw(node.KW_BY(), JsoniqParser.KW_BY);
-        const vars = node._vars.map((v) => this.v(v));
-        return group(
-            concat([
-                kwGroup,
-                space,
-                kwBy,
-                space,
-                this.joinWithCommas(vars, node.getTokens(JsoniqParser.COMMA)),
-            ]),
+        return formatGroupByClause(node, JsoniqParser.COMMA, this.v, (terminal, expectedToken) =>
+            this.kw(terminal, expectedToken),
         );
     };
 
     public override visitGroupByVar = (node: ctx.GroupByVarContext): Doc => {
-        const varRef = node._var_ref ? this.v(node._var_ref) : NIL;
-        const kwAs = node.KW_AS() ? this.kw(node.KW_AS(), JsoniqParser.KW_AS) : null;
-        const seq = node._seq && kwAs ? concat([space, kwAs, space, this.v(node._seq)]) : NIL;
-        const assign = node.COLON_EQ() ? this.kw(node.COLON_EQ(), JsoniqParser.COLON_EQ) : null;
-        const expr = node._ex && assign ? concat([space, assign, space, this.v(node._ex)]) : NIL;
-        return concat([varRef, seq, expr]);
+        return formatGroupByVariable(node, this.v, (terminal, expectedToken) =>
+            this.kw(terminal, expectedToken),
+        );
     };
 
     public override visitOrderByClause = (node: ctx.OrderByClauseContext): Doc => {
-        const specs = node._specs.map((s) => this.v(s));
-        const kwStable = node.KW_STABLE()
-            ? concat([this.kw(node.KW_STABLE(), JsoniqParser.KW_STABLE), space])
-            : NIL;
-        const kwOrder = this.kw(node.KW_ORDER(), JsoniqParser.KW_ORDER);
-        const kwBy = this.kw(node.KW_BY(), JsoniqParser.KW_BY);
-        return group(
-            concat([
-                kwStable,
-                kwOrder,
-                space,
-                kwBy,
-                space,
-                this.joinWithCommas(specs, node.getTokens(JsoniqParser.COMMA)),
-            ]),
+        return formatOrderByClause(node, JsoniqParser.COMMA, this.v, (terminal, expectedToken) =>
+            this.kw(terminal, expectedToken),
         );
     };
 
     public override visitCountClause = (node: ctx.CountClauseContext): Doc => {
-        const kw = this.kw(node.KW_COUNT(), JsoniqParser.KW_COUNT);
-        const varBinding = node.varBinding() ? this.v(node.varBinding()) : NIL;
-        return concat([kw, space, varBinding]);
+        return formatCountClause(node, this.v, (terminal, expectedToken) =>
+            this.kw(terminal, expectedToken),
+        );
     };
 
     // ─── Expressions ──────────────────────────────────────────────────────────
 
     public override visitExpr = (node: ctx.ExprContext): Doc => {
-        return group(
-            this.joinWithCommas(
-                node.exprSingle().map((e) => this.v(e)),
-                node.getTokens(JsoniqParser.COMMA),
-            ),
+        return formatExpressionSequence(
+            node,
+            JsoniqParser.COMMA,
+            this.v,
+            (terminal, expectedToken) => this.kw(terminal, expectedToken),
         );
     };
 
     public override visitIfExpr = (node: ctx.IfExprContext): Doc => {
-        const kwIf = this.kw(node.KW_IF(), JsoniqParser.KW_IF);
-        const lparen = this.kw(node.LPAREN(), JsoniqParser.LPAREN);
-        const rparen = this.kw(node.RPAREN(), JsoniqParser.RPAREN);
-        const kwThen = this.kw(node.KW_THEN(), JsoniqParser.KW_THEN);
-        const kwElse = this.kw(node.KW_ELSE(), JsoniqParser.KW_ELSE);
-        const cond = node._test_condition ? this.v(node._test_condition) : NIL;
-        const thenBranch = node._branch ? this.v(node._branch) : NIL;
-        const elseBranch = node._else_branch ? this.v(node._else_branch) : NIL;
-        return formatIfExpressionDoc(
-            kwIf,
-            lparen,
-            cond,
-            rparen,
-            kwThen,
-            thenBranch,
-            kwElse,
-            elseBranch,
+        return formatIfExpression(node, this.v, (terminal, expectedToken) =>
+            this.kw(terminal, expectedToken),
         );
     };
 
     public override visitTryCatchExpr = (node: ctx.TryCatchExprContext): Doc => {
-        const kwTry = this.kw(node.KW_TRY(), JsoniqParser.KW_TRY);
-        const tryExpr = node._try_expression ? this.v(node._try_expression) : NIL;
-        const catches = node.catchClause().map((c) => this.v(c));
-        return formatTryCatchDoc(
-            kwTry,
-            this.kw(node.LBRACE(), JsoniqParser.LBRACE),
-            tryExpr,
-            this.kw(node.RBRACE(), JsoniqParser.RBRACE),
-            catches,
+        return formatTryCatchExpression(node, this.v, (terminal, expectedToken) =>
+            this.kw(terminal, expectedToken),
         );
     };
 
     public override visitCatchClause = (node: ctx.CatchClauseContext): Doc => {
-        const kwCatch = this.kw(node.KW_CATCH(), JsoniqParser.KW_CATCH);
-        const catchExpr = node._catch_expression ? this.v(node._catch_expression) : NIL;
-        let catchTarget: Doc = NIL;
-        if (node._catch_var) {
-            const lp = this.kw(node.LPAREN(), JsoniqParser.LPAREN);
-            const rp = this.kw(node.RPAREN(), JsoniqParser.RPAREN);
-            catchTarget = concat([space, lp, this.v(node._catch_var), rp]);
-        } else {
-            const targets: Doc[] = [];
-            if (node._jokers && node._jokers.length > 0) {
-                for (const j of node._jokers) {
-                    targets.push(this.v(j));
-                }
-            }
-            if (node._errors && node._errors.length > 0) {
-                for (const e of node._errors) {
-                    targets.push(this.v(e));
-                }
-            }
-            if (targets.length > 0) {
-                const vbar = this.kw(node.VBAR(), JsoniqParser.VBAR);
-                catchTarget = concat([space, join(concat([space, vbar, space]), targets)]);
-            }
-        }
-        const body = formatBlockDoc(
-            this.kw(node.LBRACE(), JsoniqParser.LBRACE),
-            catchExpr,
-            this.kw(node.RBRACE(), JsoniqParser.RBRACE),
+        return formatCatchClause(node, this.v, (terminal, expectedToken) =>
+            this.kw(terminal, expectedToken),
         );
-        return concat([kwCatch, catchTarget, space, body]);
     };
 
     public override visitSwitchExpr = (node: ctx.SwitchExprContext): Doc => {
-        const kwSwitch = this.kw(node.KW_SWITCH(), JsoniqParser.KW_SWITCH);
-        const lp = this.kw(node.LPAREN(), JsoniqParser.LPAREN);
-        const rp = this.kw(node.RPAREN(), JsoniqParser.RPAREN);
-        const cond = node._cond ? this.v(node._cond) : NIL;
-        const cases = node.switchCaseClause().map((c) => this.v(c));
-        const kwDefault = this.kw(node.KW_DEFAULT(), JsoniqParser.KW_DEFAULT);
-        const kwReturn = this.kw(node.KW_RETURN(), JsoniqParser.KW_RETURN);
-        const defExpr = node._def ? this.v(node._def) : NIL;
-        const defaultClause = group(
-            concat([kwDefault, space, kwReturn, space, indent(concat([softline, defExpr]))]),
-        );
-        return group(
-            concat([
-                kwSwitch,
-                space,
-                lp,
-                cond,
-                rp,
-                indent(concat([hardline, join(hardline, cases), hardline, defaultClause])),
-            ]),
+        return formatSwitchExpression(node, this.v, (terminal, expectedToken) =>
+            this.kw(terminal, expectedToken),
         );
     };
 
     public override visitSwitchCaseClause = (node: ctx.SwitchCaseClauseContext): Doc => {
-        const cases = node.KW_CASE();
-        const conds = node._cond ? node._cond.map((c) => this.v(c)) : [];
-        const retExpr = node._ret ? this.v(node._ret) : NIL;
-        const caseParts: Doc[] = [];
-        for (let i = 0; i < conds.length; i++) {
-            const kw = this.kw(cases[i] ?? null, JsoniqParser.KW_CASE);
-            caseParts.push(concat([kw, space, conds[i]!]));
-        }
-        const kwReturn = this.kw(node.KW_RETURN(), JsoniqParser.KW_RETURN);
-        const caseHeader = join(space, caseParts);
-        return group(
-            concat([caseHeader, space, kwReturn, space, indent(concat([softline, retExpr]))]),
+        return formatSwitchCaseClause(node, this.v, (terminal, expectedToken) =>
+            this.kw(terminal, expectedToken),
         );
     };
 
     public override visitTypeswitchExpr = (node: ctx.TypeswitchExprContext): Doc => {
-        const kwTypeswitch = this.kw(node.KW_TYPESWITCH(), JsoniqParser.KW_TYPESWITCH);
-        const lp = this.kw(node.LPAREN(), JsoniqParser.LPAREN);
-        const rp = this.kw(node.RPAREN(), JsoniqParser.RPAREN);
-        const cond = node._cond ? this.v(node._cond) : NIL;
-        const cases = node.caseClause().map((c) => this.v(c));
-        const kwDefault = this.kw(node.KW_DEFAULT(), JsoniqParser.KW_DEFAULT);
-        const defVar = node._var_ref ? concat([space, this.v(node._var_ref)]) : NIL;
-        const kwReturn = this.kw(node.KW_RETURN(), JsoniqParser.KW_RETURN);
-        const defExpr = node._def ? this.v(node._def) : NIL;
-        const defaultClause = group(
-            concat([
-                kwDefault,
-                defVar,
-                space,
-                kwReturn,
-                space,
-                indent(concat([softline, defExpr])),
-            ]),
-        );
-        return group(
-            concat([
-                kwTypeswitch,
-                space,
-                lp,
-                cond,
-                rp,
-                indent(concat([hardline, join(hardline, cases), hardline, defaultClause])),
-            ]),
+        return formatTypeswitchExpression(node, this.v, (terminal, expectedToken) =>
+            this.kw(terminal, expectedToken),
         );
     };
 
     public override visitCaseClause = (node: ctx.CaseClauseContext): Doc => {
-        const kwCase = this.kw(node.KW_CASE(), JsoniqParser.KW_CASE);
-        const kwAs = node.KW_AS() ? this.kw(node.KW_AS(), JsoniqParser.KW_AS) : null;
-        const varRef =
-            node._var_ref && kwAs ? concat([this.v(node._var_ref), space, kwAs, space]) : NIL;
-        const unions = node._union ? node._union.map((u) => this.v(u)) : [];
-        const vbar = this.kw(node.VBAR(), JsoniqParser.VBAR);
-        const unionTypes = join(concat([space, vbar, space]), unions);
-        const kwReturn = this.kw(node.KW_RETURN(), JsoniqParser.KW_RETURN);
-        const retExpr = node._ret ? this.v(node._ret) : NIL;
-        return group(
-            concat([
-                kwCase,
-                space,
-                varRef,
-                unionTypes,
-                space,
-                kwReturn,
-                space,
-                indent(concat([softline, retExpr])),
-            ]),
+        return formatCaseClause(node, this.v, (terminal, expectedToken) =>
+            this.kw(terminal, expectedToken),
         );
     };
 
@@ -1077,10 +795,9 @@ export class JsoniqFormatterVisitor extends JsoniqParserVisitor<Doc> {
     };
 
     public override visitPairConstructor = (node: ctx.PairConstructorContext): Doc => {
-        const lhs = node._lhs ? this.v(node._lhs) : NIL;
-        const colon = this.kw(node.COLON(), JsoniqParser.COLON);
-        const rhs = node._rhs ? this.v(node._rhs) : NIL;
-        return concat([lhs, colon, space, rhs]);
+        return formatPairConstructor(node, this.v, (terminal, expectedToken) =>
+            this.kw(terminal, expectedToken),
+        );
     };
 
     public override visitSquareArrayConstructor = (
@@ -1125,10 +842,9 @@ export class JsoniqFormatterVisitor extends JsoniqParserVisitor<Doc> {
     };
 
     public override visitPredicate = (node: ctx.PredicateContext): Doc => {
-        const lb = this.kw(node.LBRACKET(), JsoniqParser.LBRACKET);
-        const rb = this.kw(node.RBRACKET(), JsoniqParser.RBRACKET);
-        const expr = node.expr() ? this.v(node.expr()) : NIL;
-        return concat([lb, expr, rb]);
+        return formatPredicate(node, this.v, (terminal, expectedToken) =>
+            this.kw(terminal, expectedToken),
+        );
     };
 
     public override visitObjectLookup = (node: ctx.ObjectLookupContext): Doc => {
@@ -1230,42 +946,26 @@ export class JsoniqFormatterVisitor extends JsoniqParserVisitor<Doc> {
     };
 
     public override visitVarRef = (node: ctx.VarRefContext): Doc => {
-        const dollar = this.kw(node.DOLLAR(), JsoniqParser.DOLLAR);
-        const name = node._var_name ? this.v(node._var_name) : NIL;
-        return concat([dollar, name]);
+        return formatVariableName(node, this.v, (terminal, expectedToken) =>
+            this.kw(terminal, expectedToken),
+        );
     };
 
     public override visitVarBinding = (node: ctx.VarBindingContext): Doc => {
-        const dollar = this.kw(node.DOLLAR(), JsoniqParser.DOLLAR);
-        const name = node._var_name ? this.v(node._var_name) : NIL;
-        return concat([dollar, name]);
+        return formatVariableName(node, this.v, (terminal, expectedToken) =>
+            this.kw(terminal, expectedToken),
+        );
     };
 
     public override visitEnclosedExpression = (node: ctx.EnclosedExpressionContext): Doc => {
-        const expr = node.expr() ? this.v(node.expr()) : NIL;
-        return formatBlockDoc(
-            this.kw(node.LBRACE(), JsoniqParser.LBRACE),
-            expr,
-            this.kw(node.RBRACE(), JsoniqParser.RBRACE),
+        return formatEnclosedExpression(node, this.v, (terminal, expectedToken) =>
+            this.kw(terminal, expectedToken),
         );
     };
 
     public override visitSequenceType = (node: ctx.SequenceTypeContext): Doc => {
-        if (node.KW_EMPTY_SEQUENCE()) {
-            const kw = this.kw(node.KW_EMPTY_SEQUENCE(), JsoniqParser.KW_EMPTY_SEQUENCE);
-            const lp = this.kw(node.LPAREN(), JsoniqParser.LPAREN);
-            const rp = this.kw(node.RPAREN(), JsoniqParser.RPAREN);
-            return concat([kw, lp, rp]);
-        }
-        const item = node._item ? this.v(node._item) : NIL;
-        let occurrenceDoc: Doc = NIL;
-        if (node._question && node._question.length > 0) {
-            occurrenceDoc = this.kw(node.QUESTION(), JsoniqParser.QUESTION);
-        } else if (node._star && node._star.length > 0) {
-            occurrenceDoc = this.kw(node.STAR(), JsoniqParser.STAR);
-        } else if (node._plus && node._plus.length > 0) {
-            occurrenceDoc = this.kw(node.PLUS(), JsoniqParser.PLUS);
-        }
-        return concat([item, occurrenceDoc]);
+        return formatSequenceType(node, this.v, (terminal, expectedToken) =>
+            this.kw(terminal, expectedToken),
+        );
     };
 }

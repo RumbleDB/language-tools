@@ -1,5 +1,41 @@
 import { ParseTree, TerminalNode, Token } from "antlr4ng";
-import { formatDirectConstructor, formatTokenDoc } from "server/formatter/adapters/common.js";
+import {
+    formatDirectConstructor,
+    formatTokenDoc,
+    formatTokenSeparatedDocs,
+} from "server/formatter/adapters/common.js";
+import {
+    formatBoundarySpaceDeclaration,
+    formatAnnotatedDeclaration,
+    formatCaseClause,
+    formatCatchClause,
+    formatEnclosedExpression,
+    formatExpressionSequence,
+    formatFlworExpression,
+    formatForClause,
+    formatForVariable,
+    formatFunctionDeclaration,
+    formatGroupByClause,
+    formatGroupByVariable,
+    formatIfExpression,
+    formatLetClause,
+    formatLetVariable,
+    formatLibraryModule,
+    formatMainModule,
+    formatOrderByClause,
+    formatPairConstructor,
+    formatPredicate,
+    formatProlog,
+    formatSequenceType,
+    formatSwitchCaseClause,
+    formatSwitchExpression,
+    formatTryCatchExpression,
+    formatTypeswitchExpression,
+    formatVariableDeclaration,
+    formatVariableName,
+    formatWhereClause,
+    formatCountClause,
+} from "server/formatter/adapters/shared.js";
 import { composeTokenDoc, FormatterContext, type TokenDoc } from "server/formatter/context.js";
 import {
     concat,
@@ -12,19 +48,8 @@ import {
     NIL,
     softline,
     space,
-    spacedDocs,
-    text,
 } from "server/formatter/doc.js";
-import {
-    formatBlockDoc,
-    formatCommaSeparatedDocs,
-    formatFlworExpressionDoc,
-    formatIfExpressionDoc,
-    formatTryCatchDoc,
-    groupStartingWith,
-    shouldSeparateDeclarations,
-} from "server/formatter/helpers.js";
-import { printDocToString } from "server/formatter/printer.js";
+import { formatBlockDoc, groupStartingWith } from "server/formatter/helpers.js";
 import { XQueryLexer } from "server/parser/adapters/xquery/grammar/XQueryLexer.js";
 import { XQueryParser } from "server/parser/adapters/xquery/grammar/XQueryParser.js";
 import type * as ctx from "server/parser/adapters/xquery/grammar/XQueryParser.js";
@@ -67,9 +92,17 @@ export class XQueryFormatterVisitor extends XQueryParserVisitor<Doc> {
         return composeTokenDoc(this.token(terminal, expectedToken));
     }
 
-    private vStrDoc = (doc: Doc): string => {
-        return printDocToString(doc, this.ctx.options);
-    };
+    private joinWithCommas = (
+        items: readonly Doc[],
+        commas: readonly TerminalNode[],
+        breakDoc: Doc = line,
+    ): Doc =>
+        formatTokenSeparatedDocs(
+            items,
+            commas,
+            (comma) => this.kw(comma, XQueryParser.COMMA),
+            breakDoc,
+        );
 
     protected override defaultResult(): Doc {
         return NIL;
@@ -124,19 +157,9 @@ export class XQueryFormatterVisitor extends XQueryParserVisitor<Doc> {
     };
 
     public override visitBoundarySpaceDecl = (node: ctx.BoundarySpaceDeclContext): Doc => {
-        const isPreserve = node.KW_PRESERVE() !== null;
-        this.ctx.setXmlBoundarySpacePolicy(isPreserve ? "preserve" : "strip");
-        return concat([
-            this.kw(node.KW_DECLARE(), XQueryParser.KW_DECLARE),
-            space,
-            this.kw(node.KW_BOUNDARY_SPACE(), XQueryParser.KW_BOUNDARY_SPACE),
-            space,
-            this.kw(
-                isPreserve ? node.KW_PRESERVE() : node.KW_STRIP(),
-                isPreserve ? XQueryParser.KW_PRESERVE : XQueryParser.KW_STRIP,
-            ),
-            this.kw(node.SEMICOLON(), XQueryParser.SEMICOLON),
-        ]);
+        return formatBoundarySpaceDeclaration(this.ctx, node, (terminal, expectedToken) =>
+            this.kw(terminal, expectedToken),
+        );
     };
 
     // ─── Module & Prolog ──────────────────────────────────────────────────────
@@ -175,166 +198,53 @@ export class XQueryFormatterVisitor extends XQueryParserVisitor<Doc> {
     };
 
     public override visitLibraryModule = (node: ctx.LibraryModuleContext): Doc => {
-        const kwModule = this.kw(node.KW_MODULE(), XQueryParser.KW_MODULE);
-        const kwNamespace = this.kw(node.KW_NAMESPACE(), XQueryParser.KW_NAMESPACE);
-        const ncName = node.ncName() ? this.v(node.ncName()) : NIL;
-        const eq = this.kw(node.EQUAL(), XQueryParser.EQUAL);
-        const uri = node._uri ? this.v(node._uri) : NIL;
-        const semi = this.kw(node.SEMICOLON(), XQueryParser.SEMICOLON);
-        const prolog = node.prolog() ? this.v(node.prolog()) : NIL;
-        const header = concat([
-            kwModule,
-            space,
-            kwNamespace,
-            space,
-            ncName,
-            space,
-            eq,
-            space,
-            uri,
-            semi,
-        ]);
-        return prolog.kind !== "text" ? concat([header, hardline, hardline, prolog]) : header;
+        return formatLibraryModule(node, this.v, (terminal, expectedToken) =>
+            this.kw(terminal, expectedToken),
+        );
     };
 
     public override visitMainModule = (node: ctx.MainModuleContext): Doc => {
-        const prolog = node.prolog() ? this.v(node.prolog()) : NIL;
-        const program = node.program() ? this.v(node.program()) : NIL;
-        if (prolog.kind !== "text" && program.kind !== "text") {
-            return concat([prolog, hardline, hardline, program]);
-        }
-        return prolog.kind !== "text" ? prolog : program;
+        return formatMainModule(node, this.v);
     };
 
     public override visitProlog = (node: ctx.PrologContext): Doc => {
-        const parts: Doc[] = [];
-        const count = node.getChildCount();
-        for (let i = 0; i < count; i++) {
-            const child = node.getChild(i);
-            if (child === null || child instanceof TerminalNode) {
-                continue;
-            }
-            const res = this.v(child);
-            if (res.kind !== "text" || res.text !== "") {
-                parts.push(res);
-            }
-        }
-        if (parts.length === 0) {
-            return NIL;
-        }
-        const docs: Doc[] = [parts[0]!];
-        for (let i = 1; i < parts.length; i++) {
-            const prevStr = this.vStrDoc(parts[i - 1]!);
-            const currStr = this.vStrDoc(parts[i]!);
-            const sep =
-                this.ctx.options.blankLineBetweenDeclarations &&
-                shouldSeparateDeclarations(prevStr, currStr)
-                    ? concat([hardline, hardline])
-                    : hardline;
-            docs.push(sep);
-            docs.push(parts[i]!);
-        }
-        return concat(docs);
+        return formatProlog(this.ctx, node, this.v);
     };
 
     public override visitAnnotatedDecl = (node: ctx.AnnotatedDeclContext): Doc => {
-        const count = node.getChildCount();
-        const parts: Doc[] = [];
-        for (let i = 0; i < count; i++) {
-            const child = node.getChild(i);
-            if (child !== null) {
-                const res = this.v(child);
-                if (res.kind !== "text" || res.text !== "") {
-                    parts.push(res);
-                }
-            }
-        }
-        return concat(parts);
+        return formatAnnotatedDeclaration(node, this.v);
     };
 
     // ─── Declarations ─────────────────────────────────────────────────────────
 
     public override visitFunctionDecl = (node: ctx.FunctionDeclContext): Doc => {
-        const decl = this.kw(node.KW_DECLARE(), XQueryParser.KW_DECLARE);
-        const annotations = node.annotations() ? this.v(node.annotations()) : NIL;
-        const fnKw = this.kw(node.KW_FUNCTION(), XQueryParser.KW_FUNCTION);
-        const name = node.functionName() ? this.v(node.functionName()) : NIL;
-        const lparen = this.kw(node.LPAREN(), XQueryParser.LPAREN);
-        const rparen = this.kw(node.RPAREN(), XQueryParser.RPAREN);
-        const params = node.paramList()
-            ? concat([lparen, this.v(node.paramList()), rparen])
-            : concat([lparen, rparen]);
-        const returnType = node._return_type ? this.v(node._return_type) : null;
-        const kwAs = node.KW_AS() ? this.kw(node.KW_AS(), XQueryParser.KW_AS) : null;
-        const isExternal = node.KW_EXTERNAL() !== null || node._is_external !== undefined;
-
-        const signature = spacedDocs(decl, annotations, fnKw, concat([name, params]));
-        const withReturn =
-            returnType !== null && kwAs !== null
-                ? spacedDocs(signature, kwAs, returnType)
-                : signature;
-
-        const semi = this.kw(node.SEMICOLON(), XQueryParser.SEMICOLON);
-
-        if (isExternal) {
-            const kwExternal = this.kw(node.KW_EXTERNAL(), XQueryParser.KW_EXTERNAL);
-            return concat([withReturn, space, kwExternal, semi]);
-        }
-
-        if (!node._fn_body) {
-            return concat([withReturn, semi]);
-        }
-
-        const bodyDoc = this.v(node._fn_body);
-        return concat([
-            withReturn,
-            space,
-            formatBlockDoc(
-                this.kw(node.LBRACE(), XQueryParser.LBRACE),
-                bodyDoc,
-                this.kw(node.RBRACE(), XQueryParser.RBRACE),
-            ),
-            semi,
-        ]);
+        return formatFunctionDeclaration(node, this.v, (terminal, expectedToken) =>
+            this.kw(terminal, expectedToken),
+        );
     };
 
     public override visitVarDecl = (node: ctx.VarDeclContext): Doc => {
-        const decl = this.kw(node.KW_DECLARE(), XQueryParser.KW_DECLARE);
-        const annotations = node.annotations() ? this.v(node.annotations()) : NIL;
-        const varKw = this.kw(node.KW_VARIABLE(), XQueryParser.KW_VARIABLE);
-        const name = node.varBinding() ? this.v(node.varBinding()) : NIL;
-        const kwAs = node.KW_AS() ? this.kw(node.KW_AS(), XQueryParser.KW_AS) : null;
-        const typeSeq = node.sequenceType() ? this.v(node.sequenceType()) : null;
-        const expr = node.exprSingle() ? this.v(node.exprSingle()) : null;
-        const isExternal = node.KW_EXTERNAL() !== null || node._external !== undefined;
-
-        const prefix = spacedDocs(decl, annotations, varKw, name);
-        const typed =
-            typeSeq !== null && kwAs !== null ? spacedDocs(prefix, kwAs, typeSeq) : prefix;
-        const semi = this.kw(node.SEMICOLON(), XQueryParser.SEMICOLON);
-
-        if (isExternal) {
-            const kwExternal = this.kw(node.KW_EXTERNAL(), XQueryParser.KW_EXTERNAL);
-            return concat([typed, space, kwExternal, semi]);
-        }
-
-        const assign = node.COLON_EQ() ? this.kw(node.COLON_EQ(), XQueryParser.COLON_EQ) : null;
-        return concat([
-            typed,
-            expr !== null && assign !== null ? concat([space, assign, space, expr]) : NIL,
-            semi,
-        ]);
+        return formatVariableDeclaration(node, this.v, (terminal, expectedToken) =>
+            this.kw(terminal, expectedToken),
+        );
     };
 
     public override visitParamList = (node: ctx.ParamListContext): Doc => {
-        return formatCommaSeparatedDocs(node.param().map((p) => this.v(p)));
+        return this.joinWithCommas(
+            node.param().map((param) => this.v(param)),
+            node.getTokens(XQueryParser.COMMA),
+        );
     };
 
     public override visitParam = (node: ctx.ParamContext): Doc => {
         const name = node.varBinding() ? this.v(node.varBinding()) : NIL;
-        const kwAs = node.KW_AS() ? this.kw(node.KW_AS(), XQueryParser.KW_AS) : null;
         const typeSeq = node.sequenceType()
-            ? concat([space, kwAs ?? text("as"), space, this.v(node.sequenceType())])
+            ? concat([
+                  space,
+                  this.kw(node.KW_AS(), XQueryParser.KW_AS),
+                  space,
+                  this.v(node.sequenceType()),
+              ])
             : NIL;
         return concat([name, typeSeq]);
     };
@@ -353,7 +263,13 @@ export class XQueryFormatterVisitor extends XQueryParserVisitor<Doc> {
         if (lits.length > 0) {
             const lp = this.kw(node.LPAREN(), XQueryParser.LPAREN);
             const rp = this.kw(node.RPAREN(), XQueryParser.RPAREN);
-            return concat([pct, name, lp, formatCommaSeparatedDocs(lits), rp]);
+            return concat([
+                pct,
+                name,
+                lp,
+                this.joinWithCommas(lits, node.getTokens(XQueryParser.COMMA)),
+                rp,
+            ]);
         }
         return concat([pct, name]);
     };
@@ -361,263 +277,115 @@ export class XQueryFormatterVisitor extends XQueryParserVisitor<Doc> {
     // ─── FLWOR Expressions ───────────────────────────────────────────────────
 
     public override visitFlworExpr = (node: ctx.FlworExprContext): Doc => {
-        const clauses: Doc[] = [];
-        const count = node.getChildCount();
-        for (let i = 0; i < count; i++) {
-            const child = node.getChild(i);
-            if (child === null || child === node.KW_RETURN() || child === node._return_expr) {
-                continue;
-            }
-            const res = this.v(child);
-            if (res.kind !== "text" || res.text !== "") {
-                clauses.push(res);
-            }
-        }
-        const returnKw = this.kw(node.KW_RETURN(), XQueryParser.KW_RETURN);
-        const returnExpr = node._return_expr ? this.v(node._return_expr) : NIL;
-        return group(formatFlworExpressionDoc(clauses, returnKw, returnExpr));
+        return formatFlworExpression(node, this.v, (terminal, expectedToken) =>
+            this.kw(terminal, expectedToken),
+        );
     };
 
     public override visitForClause = (node: ctx.ForClauseContext): Doc => {
-        const kw = this.kw(node.KW_FOR(), XQueryParser.KW_FOR);
-        const vars = node._vars.map((v) => this.v(v));
-        return group(concat([kw, space, formatCommaSeparatedDocs(vars)]));
+        return formatForClause(node, XQueryParser.COMMA, this.v, (terminal, expectedToken) =>
+            this.kw(terminal, expectedToken),
+        );
     };
 
     public override visitForVar = (node: ctx.ForVarContext): Doc => {
-        const varRef = node._var_ref ? this.v(node._var_ref) : NIL;
-        const kwAs = node.KW_AS() ? this.kw(node.KW_AS(), XQueryParser.KW_AS) : null;
-        const seq = node._seq && kwAs ? concat([space, kwAs, space, this.v(node._seq)]) : NIL;
-        const kwAllowing = node.allowingEmpty() ? this.v(node.allowingEmpty()) : NIL;
-        const allowingEmpty = kwAllowing !== NIL ? concat([space, kwAllowing]) : NIL;
-        const kwAt = node.KW_AT() ? this.kw(node.KW_AT(), XQueryParser.KW_AT) : null;
-        const at = node._at && kwAt ? concat([space, kwAt, space, this.v(node._at)]) : NIL;
-        const kwIn = this.kw(node.KW_IN(), XQueryParser.KW_IN);
-        const inExpr = node._ex ? this.v(node._ex) : NIL;
-        return concat([varRef, seq, allowingEmpty, at, space, kwIn, space, inExpr]);
+        return formatForVariable(node, this.v, (terminal, expectedToken) =>
+            this.kw(terminal, expectedToken),
+        );
     };
 
     public override visitLetClause = (node: ctx.LetClauseContext): Doc => {
-        const kw = this.kw(node.KW_LET(), XQueryParser.KW_LET);
-        const vars = node._vars.map((v) => this.v(v));
-        return group(concat([kw, space, formatCommaSeparatedDocs(vars)]));
+        return formatLetClause(node, XQueryParser.COMMA, this.v, (terminal, expectedToken) =>
+            this.kw(terminal, expectedToken),
+        );
     };
 
     public override visitLetVar = (node: ctx.LetVarContext): Doc => {
-        const varRef = node._var_ref ? this.v(node._var_ref) : NIL;
-        const kwAs = node.KW_AS() ? this.kw(node.KW_AS(), XQueryParser.KW_AS) : null;
-        const seq = node._seq && kwAs ? concat([space, kwAs, space, this.v(node._seq)]) : NIL;
-        const assign = this.kw(node.COLON_EQ(), XQueryParser.COLON_EQ);
-        const expr = node._ex ? this.v(node._ex) : NIL;
-        return concat([varRef, seq, space, assign, space, expr]);
+        return formatLetVariable(node, this.v, (terminal, expectedToken) =>
+            this.kw(terminal, expectedToken),
+        );
     };
 
     public override visitWhereClause = (node: ctx.WhereClauseContext): Doc => {
-        const kw = this.kw(node.KW_WHERE(), XQueryParser.KW_WHERE);
-        const expr = node.exprSingle() ? this.v(node.exprSingle()) : NIL;
-        return concat([kw, space, expr]);
+        return formatWhereClause(node, this.v, (terminal, expectedToken) =>
+            this.kw(terminal, expectedToken),
+        );
     };
 
     public override visitGroupByClause = (node: ctx.GroupByClauseContext): Doc => {
-        const kwGroup = this.kw(node.KW_GROUP(), XQueryParser.KW_GROUP);
-        const kwBy = this.kw(node.KW_BY(), XQueryParser.KW_BY);
-        const vars = node._vars.map((v) => this.v(v));
-        return group(concat([kwGroup, space, kwBy, space, formatCommaSeparatedDocs(vars)]));
+        return formatGroupByClause(node, XQueryParser.COMMA, this.v, (terminal, expectedToken) =>
+            this.kw(terminal, expectedToken),
+        );
     };
 
     public override visitGroupByVar = (node: ctx.GroupByVarContext): Doc => {
-        const varRef = node._var_ref ? this.v(node._var_ref) : NIL;
-        const kwAs = node.KW_AS() ? this.kw(node.KW_AS(), XQueryParser.KW_AS) : null;
-        const seq = node._seq && kwAs ? concat([space, kwAs, space, this.v(node._seq)]) : NIL;
-        const assign = node.COLON_EQ() ? this.kw(node.COLON_EQ(), XQueryParser.COLON_EQ) : null;
-        const expr = node._ex && assign ? concat([space, assign, space, this.v(node._ex)]) : NIL;
-        return concat([varRef, seq, expr]);
+        return formatGroupByVariable(node, this.v, (terminal, expectedToken) =>
+            this.kw(terminal, expectedToken),
+        );
     };
 
     public override visitOrderByClause = (node: ctx.OrderByClauseContext): Doc => {
-        const specs = node._specs.map((s) => this.v(s));
-        const kwStable = node.KW_STABLE()
-            ? concat([this.kw(node.KW_STABLE(), XQueryParser.KW_STABLE), space])
-            : NIL;
-        const kwOrder = this.kw(node.KW_ORDER(), XQueryParser.KW_ORDER);
-        const kwBy = this.kw(node.KW_BY(), XQueryParser.KW_BY);
-        return group(
-            concat([kwStable, kwOrder, space, kwBy, space, formatCommaSeparatedDocs(specs)]),
+        return formatOrderByClause(node, XQueryParser.COMMA, this.v, (terminal, expectedToken) =>
+            this.kw(terminal, expectedToken),
         );
     };
 
     public override visitCountClause = (node: ctx.CountClauseContext): Doc => {
-        const kw = this.kw(node.KW_COUNT(), XQueryParser.KW_COUNT);
-        const varBinding = node.varBinding() ? this.v(node.varBinding()) : NIL;
-        return concat([kw, space, varBinding]);
+        return formatCountClause(node, this.v, (terminal, expectedToken) =>
+            this.kw(terminal, expectedToken),
+        );
     };
 
     // ─── Expressions ──────────────────────────────────────────────────────────
 
     public override visitExpr = (node: ctx.ExprContext): Doc => {
-        return group(formatCommaSeparatedDocs(node.exprSingle().map((e) => this.v(e))));
+        return formatExpressionSequence(
+            node,
+            XQueryParser.COMMA,
+            this.v,
+            (terminal, expectedToken) => this.kw(terminal, expectedToken),
+        );
     };
 
     public override visitIfExpr = (node: ctx.IfExprContext): Doc => {
-        const kwIf = this.kw(node.KW_IF(), XQueryParser.KW_IF);
-        const lparen = this.kw(node.LPAREN(), XQueryParser.LPAREN);
-        const rparen = this.kw(node.RPAREN(), XQueryParser.RPAREN);
-        const kwThen = this.kw(node.KW_THEN(), XQueryParser.KW_THEN);
-        const kwElse = this.kw(node.KW_ELSE(), XQueryParser.KW_ELSE);
-        const cond = node._test_condition ? this.v(node._test_condition) : NIL;
-        const thenBranch = node._branch ? this.v(node._branch) : NIL;
-        const elseBranch = node._else_branch ? this.v(node._else_branch) : NIL;
-        return formatIfExpressionDoc(
-            kwIf,
-            lparen,
-            cond,
-            rparen,
-            kwThen,
-            thenBranch,
-            kwElse,
-            elseBranch,
+        return formatIfExpression(node, this.v, (terminal, expectedToken) =>
+            this.kw(terminal, expectedToken),
         );
     };
 
     public override visitTryCatchExpr = (node: ctx.TryCatchExprContext): Doc => {
-        const kwTry = this.kw(node.KW_TRY(), XQueryParser.KW_TRY);
-        const tryExpr = node._try_expression ? this.v(node._try_expression) : NIL;
-        const catches = node.catchClause().map((c) => this.v(c));
-        return formatTryCatchDoc(
-            kwTry,
-            this.kw(node.LBRACE(), XQueryParser.LBRACE),
-            tryExpr,
-            this.kw(node.RBRACE(), XQueryParser.RBRACE),
-            catches,
+        return formatTryCatchExpression(node, this.v, (terminal, expectedToken) =>
+            this.kw(terminal, expectedToken),
         );
     };
 
     public override visitCatchClause = (node: ctx.CatchClauseContext): Doc => {
-        const kwCatch = this.kw(node.KW_CATCH(), XQueryParser.KW_CATCH);
-        const catchExpr = node._catch_expression ? this.v(node._catch_expression) : NIL;
-        let catchTarget: Doc = NIL;
-        if (node._catch_var) {
-            const lp = this.kw(node.LPAREN(), XQueryParser.LPAREN);
-            const rp = this.kw(node.RPAREN(), XQueryParser.RPAREN);
-            catchTarget = concat([space, lp, this.v(node._catch_var), rp]);
-        } else {
-            const targets: Doc[] = [];
-            if (node._jokers && node._jokers.length > 0) {
-                for (const j of node._jokers) {
-                    targets.push(this.v(j));
-                }
-            }
-            if (node._errors && node._errors.length > 0) {
-                for (const e of node._errors) {
-                    targets.push(this.v(e));
-                }
-            }
-            if (targets.length > 0) {
-                const vbar = this.kw(node.VBAR(), XQueryParser.VBAR);
-                catchTarget = concat([space, join(concat([space, vbar, space]), targets)]);
-            }
-        }
-        const body = formatBlockDoc(
-            this.kw(node.LBRACE(), XQueryParser.LBRACE),
-            catchExpr,
-            this.kw(node.RBRACE(), XQueryParser.RBRACE),
+        return formatCatchClause(node, this.v, (terminal, expectedToken) =>
+            this.kw(terminal, expectedToken),
         );
-        return concat([kwCatch, catchTarget, space, body]);
     };
 
     public override visitSwitchExpr = (node: ctx.SwitchExprContext): Doc => {
-        const kwSwitch = this.kw(node.KW_SWITCH(), XQueryParser.KW_SWITCH);
-        const lp = this.kw(node.LPAREN(), XQueryParser.LPAREN);
-        const rp = this.kw(node.RPAREN(), XQueryParser.RPAREN);
-        const cond = node._cond ? this.v(node._cond) : NIL;
-        const cases = node.switchCaseClause().map((c) => this.v(c));
-        const kwDefault = this.kw(node.KW_DEFAULT(), XQueryParser.KW_DEFAULT);
-        const kwReturn = this.kw(node.KW_RETURN(), XQueryParser.KW_RETURN);
-        const defExpr = node._def ? this.v(node._def) : NIL;
-        const defaultClause = group(
-            concat([kwDefault, space, kwReturn, space, indent(concat([softline, defExpr]))]),
-        );
-        return group(
-            concat([
-                kwSwitch,
-                space,
-                lp,
-                cond,
-                rp,
-                indent(concat([hardline, join(hardline, cases), hardline, defaultClause])),
-            ]),
+        return formatSwitchExpression(node, this.v, (terminal, expectedToken) =>
+            this.kw(terminal, expectedToken),
         );
     };
 
     public override visitSwitchCaseClause = (node: ctx.SwitchCaseClauseContext): Doc => {
-        const cases = node.KW_CASE();
-        const conds = node._cond ? node._cond.map((c) => this.v(c)) : [];
-        const retExpr = node._ret ? this.v(node._ret) : NIL;
-        const caseParts: Doc[] = [];
-        for (let i = 0; i < conds.length; i++) {
-            const kw = this.kw(cases[i] ?? null, XQueryParser.KW_CASE);
-            caseParts.push(concat([kw, space, conds[i]!]));
-        }
-        const kwReturn = this.kw(node.KW_RETURN(), XQueryParser.KW_RETURN);
-        const caseHeader = join(space, caseParts);
-        return group(
-            concat([caseHeader, space, kwReturn, space, indent(concat([softline, retExpr]))]),
+        return formatSwitchCaseClause(node, this.v, (terminal, expectedToken) =>
+            this.kw(terminal, expectedToken),
         );
     };
 
     public override visitTypeswitchExpr = (node: ctx.TypeswitchExprContext): Doc => {
-        const kwTypeswitch = this.kw(node.KW_TYPESWITCH(), XQueryParser.KW_TYPESWITCH);
-        const lp = this.kw(node.LPAREN(), XQueryParser.LPAREN);
-        const rp = this.kw(node.RPAREN(), XQueryParser.RPAREN);
-        const cond = node._cond ? this.v(node._cond) : NIL;
-        const cases = node.caseClause().map((c) => this.v(c));
-        const kwDefault = this.kw(node.KW_DEFAULT(), XQueryParser.KW_DEFAULT);
-        const defVar = node._var_ref ? concat([space, this.v(node._var_ref)]) : NIL;
-        const kwReturn = this.kw(node.KW_RETURN(), XQueryParser.KW_RETURN);
-        const defExpr = node._def ? this.v(node._def) : NIL;
-        const defaultClause = group(
-            concat([
-                kwDefault,
-                defVar,
-                space,
-                kwReturn,
-                space,
-                indent(concat([softline, defExpr])),
-            ]),
-        );
-        return group(
-            concat([
-                kwTypeswitch,
-                space,
-                lp,
-                cond,
-                rp,
-                indent(concat([hardline, join(hardline, cases), hardline, defaultClause])),
-            ]),
+        return formatTypeswitchExpression(node, this.v, (terminal, expectedToken) =>
+            this.kw(terminal, expectedToken),
         );
     };
 
     public override visitCaseClause = (node: ctx.CaseClauseContext): Doc => {
-        const kwCase = this.kw(node.KW_CASE(), XQueryParser.KW_CASE);
-        const kwAs = node.KW_AS() ? this.kw(node.KW_AS(), XQueryParser.KW_AS) : null;
-        const varRef =
-            node._var_ref && kwAs ? concat([this.v(node._var_ref), space, kwAs, space]) : NIL;
-        const unions = node._union ? node._union.map((u) => this.v(u)) : [];
-        const vbar = this.kw(node.VBAR(), XQueryParser.VBAR);
-        const unionTypes = join(concat([space, vbar, space]), unions);
-        const kwReturn = this.kw(node.KW_RETURN(), XQueryParser.KW_RETURN);
-        const retExpr = node._ret ? this.v(node._ret) : NIL;
-        return group(
-            concat([
-                kwCase,
-                space,
-                varRef,
-                unionTypes,
-                space,
-                kwReturn,
-                space,
-                indent(concat([softline, retExpr])),
-            ]),
+        return formatCaseClause(node, this.v, (terminal, expectedToken) =>
+            this.kw(terminal, expectedToken),
         );
     };
 
@@ -628,6 +396,7 @@ export class XQueryFormatterVisitor extends XQueryParserVisitor<Doc> {
         const lb = this.kw(node.LBRACE(), XQueryParser.LBRACE);
         const rb = this.kw(node.RBRACE(), XQueryParser.RBRACE);
         const pairs = node.pairConstructor().map((p) => this.v(p));
+        const commas = node.getTokens(XQueryParser.COMMA);
         if (pairs.length === 0) {
             return concat([composeTokenDoc(kwMap), space, lb, rb]);
         }
@@ -637,7 +406,7 @@ export class XQueryFormatterVisitor extends XQueryParserVisitor<Doc> {
                 composeTokenDoc(kwMap),
                 space,
                 lb,
-                indent(concat([hardline, join(concat([text(","), hardline]), pairs)])),
+                indent(concat([hardline, this.joinWithCommas(pairs, commas, hardline)])),
                 hardline,
                 rb,
             ]);
@@ -648,7 +417,7 @@ export class XQueryFormatterVisitor extends XQueryParserVisitor<Doc> {
             concat([
                 space,
                 lb,
-                indent(concat([line, join(concat([text(","), line]), pairs)])),
+                indent(concat([line, this.joinWithCommas(pairs, commas)])),
                 line,
                 rb,
             ]),
@@ -656,10 +425,9 @@ export class XQueryFormatterVisitor extends XQueryParserVisitor<Doc> {
     };
 
     public override visitPairConstructor = (node: ctx.PairConstructorContext): Doc => {
-        const lhs = node._lhs ? this.v(node._lhs) : NIL;
-        const colon = this.kw(node.COLON(), XQueryParser.COLON);
-        const rhs = node._rhs ? this.v(node._rhs) : NIL;
-        return concat([lhs, colon, space, rhs]);
+        return formatPairConstructor(node, this.v, (terminal, expectedToken) =>
+            this.kw(terminal, expectedToken),
+        );
     };
 
     public override visitSquareArrayConstructor = (
@@ -676,7 +444,9 @@ export class XQueryFormatterVisitor extends XQueryParserVisitor<Doc> {
         return groupStartingWith(
             lbracket,
             concat([
-                indent(concat([line, join(concat([text(","), line]), items)])),
+                indent(
+                    concat([line, this.joinWithCommas(items, node.getTokens(XQueryParser.COMMA))]),
+                ),
                 line,
                 rbracket,
             ]),
@@ -685,7 +455,7 @@ export class XQueryFormatterVisitor extends XQueryParserVisitor<Doc> {
 
     public override visitCurlyArrayConstructor = (node: ctx.CurlyArrayConstructorContext): Doc => {
         const kwArray = this.kw(node.KW_ARRAY(), XQueryParser.KW_ARRAY);
-        const enclosed = node.enclosedExpression() ? this.v(node.enclosedExpression()) : text("{}");
+        const enclosed = node.enclosedExpression() ? this.v(node.enclosedExpression()) : NIL;
         return concat([kwArray, space, enclosed]);
     };
 
@@ -702,10 +472,9 @@ export class XQueryFormatterVisitor extends XQueryParserVisitor<Doc> {
     };
 
     public override visitPredicate = (node: ctx.PredicateContext): Doc => {
-        const lb = this.kw(node.LBRACKET(), XQueryParser.LBRACKET);
-        const rb = this.kw(node.RBRACKET(), XQueryParser.RBRACKET);
-        const expr = node.expr() ? this.v(node.expr()) : NIL;
-        return concat([lb, expr, rb]);
+        return formatPredicate(node, this.v, (terminal, expectedToken) =>
+            this.kw(terminal, expectedToken),
+        );
     };
 
     public override visitContextItemExpr = (node: ctx.ContextItemExprContext): Doc => {
@@ -734,7 +503,12 @@ export class XQueryFormatterVisitor extends XQueryParserVisitor<Doc> {
             lp,
             group(
                 concat([
-                    indent(concat([softline, join(concat([text(","), line]), items)])),
+                    indent(
+                        concat([
+                            softline,
+                            this.joinWithCommas(items, node.getTokens(XQueryParser.COMMA)),
+                        ]),
+                    ),
                     softline,
                     rp,
                 ]),
@@ -744,7 +518,7 @@ export class XQueryFormatterVisitor extends XQueryParserVisitor<Doc> {
 
     public override visitFunctionCall = (node: ctx.FunctionCallContext): Doc => {
         const fnName = node._fn_name ? this.v(node._fn_name) : NIL;
-        const args = node.argumentList() ? this.v(node.argumentList()) : text("()");
+        const args = node.argumentList() ? this.v(node.argumentList()) : NIL;
         return concat([fnName, args]);
     };
 
@@ -760,7 +534,12 @@ export class XQueryFormatterVisitor extends XQueryParserVisitor<Doc> {
             lp,
             group(
                 concat([
-                    indent(concat([softline, join(concat([text(","), line]), args)])),
+                    indent(
+                        concat([
+                            softline,
+                            this.joinWithCommas(args, node.getTokens(XQueryParser.COMMA)),
+                        ]),
+                    ),
                     softline,
                     rp,
                 ]),
@@ -776,42 +555,26 @@ export class XQueryFormatterVisitor extends XQueryParserVisitor<Doc> {
     };
 
     public override visitVarRef = (node: ctx.VarRefContext): Doc => {
-        const dollar = this.kw(node.DOLLAR(), XQueryParser.DOLLAR);
-        const name = node._var_name ? this.v(node._var_name) : NIL;
-        return concat([dollar, name]);
+        return formatVariableName(node, this.v, (terminal, expectedToken) =>
+            this.kw(terminal, expectedToken),
+        );
     };
 
     public override visitVarBinding = (node: ctx.VarBindingContext): Doc => {
-        const dollar = this.kw(node.DOLLAR(), XQueryParser.DOLLAR);
-        const name = node._var_name ? this.v(node._var_name) : NIL;
-        return concat([dollar, name]);
+        return formatVariableName(node, this.v, (terminal, expectedToken) =>
+            this.kw(terminal, expectedToken),
+        );
     };
 
     public override visitEnclosedExpression = (node: ctx.EnclosedExpressionContext): Doc => {
-        const expr = node.expr() ? this.v(node.expr()) : NIL;
-        return formatBlockDoc(
-            this.kw(node.LBRACE(), XQueryParser.LBRACE),
-            expr,
-            this.kw(node.RBRACE(), XQueryParser.RBRACE),
+        return formatEnclosedExpression(node, this.v, (terminal, expectedToken) =>
+            this.kw(terminal, expectedToken),
         );
     };
 
     public override visitSequenceType = (node: ctx.SequenceTypeContext): Doc => {
-        if (node.KW_EMPTY_SEQUENCE()) {
-            const kw = this.kw(node.KW_EMPTY_SEQUENCE(), XQueryParser.KW_EMPTY_SEQUENCE);
-            const lp = this.kw(node.LPAREN(), XQueryParser.LPAREN);
-            const rp = this.kw(node.RPAREN(), XQueryParser.RPAREN);
-            return concat([kw, lp, rp]);
-        }
-        const item = node._item ? this.v(node._item) : NIL;
-        let occurrenceDoc: Doc = NIL;
-        if (node._question && node._question.length > 0) {
-            occurrenceDoc = this.kw(node.QUESTION(), XQueryParser.QUESTION);
-        } else if (node._star && node._star.length > 0) {
-            occurrenceDoc = this.kw(node.STAR(), XQueryParser.STAR);
-        } else if (node._plus && node._plus.length > 0) {
-            occurrenceDoc = this.kw(node.PLUS(), XQueryParser.PLUS);
-        }
-        return concat([item, occurrenceDoc]);
+        return formatSequenceType(node, this.v, (terminal, expectedToken) =>
+            this.kw(terminal, expectedToken),
+        );
     };
 }
