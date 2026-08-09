@@ -59,51 +59,40 @@ export function buildCommentAttachmentMap(tokenStream: CommonTokenStream): Comme
         return { leading, trailing, dangling };
     }
 
+    let previousDefaultIndex = -1;
+    let pendingLeading: Token[] = [];
+
     for (let i = 0; i < size; i++) {
         const tok = tokenStream.get(i);
+        if (tok.channel === Token.DEFAULT_CHANNEL && tok.type !== Token.EOF) {
+            if (pendingLeading.length > 0) {
+                leading.set(i, pendingLeading);
+                pendingLeading = [];
+            }
+            previousDefaultIndex = i;
+            continue;
+        }
         if (tok.channel !== Token.HIDDEN_CHANNEL || !tok.text?.trim().startsWith("(:")) {
             continue;
         }
 
-        // Find preceding default token
-        let prevIdx = -1;
-        for (let j = i - 1; j >= 0; j--) {
-            const t = tokenStream.get(j);
-            if (t.channel === Token.DEFAULT_CHANNEL && t.type !== Token.EOF) {
-                prevIdx = j;
-                break;
-            }
-        }
-
-        // Find succeeding default token
-        let nextIdx = -1;
-        for (let j = i + 1; j < size; j++) {
-            const t = tokenStream.get(j);
-            if (t.channel === Token.DEFAULT_CHANNEL && t.type !== Token.EOF) {
-                nextIdx = j;
-                break;
-            }
-        }
-
-        if (prevIdx !== -1 && !hasNewlineBetween(tokenStream, prevIdx, i)) {
+        if (
+            previousDefaultIndex !== -1 &&
+            !hasNewlineBetween(tokenStream, previousDefaultIndex, i)
+        ) {
             // Trailing comment: same line as preceding token
-            const list = trailing.get(prevIdx) ?? [];
+            const list = trailing.get(previousDefaultIndex) ?? [];
             list.push(tok);
-            trailing.set(prevIdx, list);
+            trailing.set(previousDefaultIndex, list);
             continue;
         }
 
-        if (nextIdx !== -1) {
-            // Leading comment: belongs to the next token
-            const list = leading.get(nextIdx) ?? [];
-            list.push(tok);
-            leading.set(nextIdx, list);
-            continue;
-        }
-
-        // Dangling: no succeeding default token (end of file)
-        dangling.push(tok);
+        // The next default-channel token will claim this leading comment.
+        pendingLeading.push(tok);
     }
+
+    // No default-channel token followed these comments.
+    dangling.push(...pendingLeading);
 
     return { leading, trailing, dangling };
 }

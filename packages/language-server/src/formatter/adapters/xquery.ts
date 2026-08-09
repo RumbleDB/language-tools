@@ -1,27 +1,63 @@
 import { ParseTree, TerminalNode, Token } from "antlr4ng";
 import {
-    formatBoundarySpaceDeclaration,
-    formatAnnotation,
-    formatAnnotatedDeclaration,
-    formatAnnotations,
     formatArgument,
     formatArgumentList,
-    formatCaseClause,
-    formatCatchClause,
-    formatEnclosedExpression,
+    formatCurlyArrayConstructor,
+    formatFunctionCall,
+    formatPairObjectConstructor,
+    formatParenthesizedExpression,
+    formatPostfixExpression,
+    formatSquareArrayConstructor,
+} from "server/formatter/adapters/collections.js";
+import {
+    formatCountClause,
     formatExpressionSequence,
     formatFlworExpression,
     formatForClause,
     formatForVariable,
-    formatFunctionDeclaration,
     formatGroupByClause,
     formatGroupByVariable,
-    formatIfExpression,
     formatLetClause,
     formatLetVariable,
+    formatOrderByClause,
+    formatWhereClause,
+} from "server/formatter/adapters/flwor.js";
+import {
+    formatApplyStatement,
+    formatAssignStatement,
+    formatBlockExpression,
+    formatBlockStatement,
+    formatBreakStatement,
+    formatCaseStatement,
+    formatCatchCaseStatement,
+    formatContinueStatement,
+    formatExitStatement,
+    formatFlworStatement,
+    formatIfStatement,
+    formatProgram,
+    formatStatements,
+    formatStatementsAndExpression,
+    formatStatementsAndOptionalExpression,
+    formatSwitchCaseStatement,
+    formatSwitchStatement,
+    formatTryCatchStatement,
+    formatTypeswitchStatement,
+    formatVariableDeclarationForStatement,
+    formatVariableDeclarationStatement,
+    formatWhileStatement,
+} from "server/formatter/adapters/scripting.js";
+import {
+    formatBoundarySpaceDeclaration,
+    formatAnnotation,
+    formatAnnotatedDeclaration,
+    formatAnnotations,
+    formatCaseClause,
+    formatCatchClause,
+    formatEnclosedExpression,
+    formatFunctionDeclaration,
+    formatIfExpression,
     formatLibraryModule,
     formatMainModule,
-    formatOrderByClause,
     formatPairConstructor,
     formatPredicate,
     formatProlog,
@@ -32,19 +68,12 @@ import {
     formatTypeswitchExpression,
     formatVariableDeclaration,
     formatVariableName,
-    formatWhereClause,
-    formatCountClause,
-    formatCurlyArrayConstructor,
     formatDocumentRoot,
-    formatFunctionCall,
     formatModule,
-    formatPairObjectConstructor,
     formatParameter,
     formatParameterList,
-    formatParenthesizedExpression,
-    formatPostfixExpression,
-    formatSquareArrayConstructor,
 } from "server/formatter/adapters/shared.js";
+import { formatStringConstructor } from "server/formatter/adapters/string-constructor.js";
 import {
     formatSourceRange,
     formatSourceTerminal,
@@ -115,6 +144,10 @@ export class XQueryFormatterVisitor extends XQueryParserVisitor<Doc> {
         return formatSourceRange(this.ctx, node);
     };
 
+    public override visitStringConstructor = (node: ctx.StringConstructorContext): Doc => {
+        return formatStringConstructor(this.ctx, node, this.v);
+    };
+
     /** Formats XML tags and expressions while preserving semantic text gaps. */
     public override visitDirectConstructor = (node: ctx.DirectConstructorContext): Doc => {
         return formatDirectConstructor(
@@ -156,7 +189,7 @@ export class XQueryFormatterVisitor extends XQueryParserVisitor<Doc> {
     };
 
     public override visitProlog = (node: ctx.PrologContext): Doc => {
-        return formatProlog(this.ctx, node, this.v);
+        return formatProlog(this.ctx, node, XQueryParser, this.v);
     };
 
     public override visitAnnotatedDecl = (node: ctx.AnnotatedDeclContext): Doc => {
@@ -187,6 +220,102 @@ export class XQueryFormatterVisitor extends XQueryParserVisitor<Doc> {
 
     public override visitAnnotation = (node: ctx.AnnotationContext): Doc => {
         return formatAnnotation(node, XQueryParser.COMMA, this.v, this.kw);
+    };
+
+    // ─── Scripting Statements ────────────────────────────────────────────────
+
+    public override visitProgram = (node: ctx.ProgramContext): Doc => {
+        return formatProgram(node, this.v);
+    };
+
+    public override visitStatements = (node: ctx.StatementsContext): Doc => {
+        return formatStatements(node, this.v);
+    };
+
+    public override visitStatementsAndExpr = (node: ctx.StatementsAndExprContext): Doc => {
+        return formatStatementsAndExpression(node, this.v);
+    };
+
+    public override visitStatementsAndOptionalExpr = (
+        node: ctx.StatementsAndOptionalExprContext,
+    ): Doc => {
+        return formatStatementsAndOptionalExpression(node, this.v);
+    };
+
+    public override visitStatement = (node: ctx.StatementContext): Doc => {
+        return this.visitChildren(node) ?? NIL;
+    };
+
+    public override visitApplyStatement = (node: ctx.ApplyStatementContext): Doc => {
+        return formatApplyStatement(node, this.v, this.kw);
+    };
+
+    public override visitAssignStatement = (node: ctx.AssignStatementContext): Doc => {
+        return formatAssignStatement(node, this.v, this.kw);
+    };
+
+    public override visitBlockStatement = (node: ctx.BlockStatementContext): Doc => {
+        return formatBlockStatement(node, this.v, this.kw);
+    };
+
+    public override visitBreakStatement = (node: ctx.BreakStatementContext): Doc => {
+        return formatBreakStatement(node, this.kw);
+    };
+
+    public override visitContinueStatement = (node: ctx.ContinueStatementContext): Doc => {
+        return formatContinueStatement(node, this.kw);
+    };
+
+    public override visitExitStatement = (node: ctx.ExitStatementContext): Doc => {
+        return formatExitStatement(node, this.v, this.kw);
+    };
+
+    public override visitFlworStatement = (node: ctx.FlworStatementContext): Doc => {
+        return formatFlworStatement(node, this.v, this.kw);
+    };
+
+    public override visitIfStatement = (node: ctx.IfStatementContext): Doc => {
+        return formatIfStatement(node, this.v, this.kw);
+    };
+
+    public override visitSwitchStatement = (node: ctx.SwitchStatementContext): Doc => {
+        return formatSwitchStatement(node, this.v, this.kw);
+    };
+
+    public override visitSwitchCaseStatement = (node: ctx.SwitchCaseStatementContext): Doc => {
+        return formatSwitchCaseStatement(node, this.v, this.kw);
+    };
+
+    public override visitTryCatchStatement = (node: ctx.TryCatchStatementContext): Doc => {
+        return formatTryCatchStatement(node, this.v, this.kw);
+    };
+
+    public override visitCatchCaseStatement = (node: ctx.CatchCaseStatementContext): Doc => {
+        return formatCatchCaseStatement(node, this.v, this.kw);
+    };
+
+    public override visitTypeSwitchStatement = (node: ctx.TypeSwitchStatementContext): Doc => {
+        return formatTypeswitchStatement(node, this.v, this.kw);
+    };
+
+    public override visitCaseStatement = (node: ctx.CaseStatementContext): Doc => {
+        return formatCaseStatement(node, this.v, this.kw);
+    };
+
+    public override visitVarDeclStatement = (node: ctx.VarDeclStatementContext): Doc => {
+        return formatVariableDeclarationStatement(node, XQueryParser.COMMA, this.v, this.kw);
+    };
+
+    public override visitVarDeclForStatement = (node: ctx.VarDeclForStatementContext): Doc => {
+        return formatVariableDeclarationForStatement(node, this.v, this.kw);
+    };
+
+    public override visitWhileStatement = (node: ctx.WhileStatementContext): Doc => {
+        return formatWhileStatement(node, this.v, this.kw);
+    };
+
+    public override visitBlockExpr = (node: ctx.BlockExprContext): Doc => {
+        return formatBlockExpression(node, this.v, this.kw);
     };
 
     // ─── FLWOR Expressions ───────────────────────────────────────────────────

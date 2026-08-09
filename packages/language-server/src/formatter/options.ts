@@ -10,8 +10,6 @@ export interface FormatterOptions {
     readonly useTabs: boolean;
     /** Insert a blank line between unrelated top-level declarations. Default: true */
     readonly blankLineBetweenDeclarations: boolean;
-    /** Maximum consecutive blank lines allowed. Default: 1 */
-    readonly maxConsecutiveBlankLines: number;
     /** Ensure the file ends with exactly one newline. Default: true */
     readonly insertFinalNewline: boolean;
 }
@@ -21,7 +19,6 @@ export const DEFAULT_FORMATTER_OPTIONS: Readonly<FormatterOptions> = {
     maxLineWidth: 100,
     useTabs: false,
     blankLineBetweenDeclarations: true,
-    maxConsecutiveBlankLines: 1,
     insertFinalNewline: true,
 };
 

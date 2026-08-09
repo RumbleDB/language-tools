@@ -8,7 +8,6 @@ import { JsoniqFormatterVisitor } from "./adapters/jsoniq.js";
 import { XQueryFormatterVisitor } from "./adapters/xquery.js";
 import { FormatterContext } from "./context.js";
 import { NIL, Doc } from "./doc.js";
-import { normalizeBlankLines } from "./helpers.js";
 import { type FormatterOptions, resolveFormatterOptions } from "./options.js";
 import { printDocToString } from "./printer.js";
 
@@ -51,9 +50,6 @@ export function formatDocument(
     }
 
     let formatted = printDocToString(docTree, resolvedOptions);
-
-    // Post-process: normalize blank lines and trailing whitespace
-    formatted = normalizeBlankLines(formatted, resolvedOptions.maxConsecutiveBlankLines);
 
     // Ensure final newline
     if (resolvedOptions.insertFinalNewline) {

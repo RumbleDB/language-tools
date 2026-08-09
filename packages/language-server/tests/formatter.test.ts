@@ -28,6 +28,35 @@ function formatText(
     return edits[0]!.newText;
 }
 
+function semanticAst(value: unknown): unknown {
+    return JSON.parse(
+        JSON.stringify(value, (key, nestedValue: unknown) =>
+            key === "range" || key === "selectionRange" || key === "visibleFrom"
+                ? undefined
+                : nestedValue,
+        ),
+    );
+}
+
+function expectFormattingInvariant(source: string, languageId: "jsoniq" | "xquery"): void {
+    const original = testDocumentFromUri(source, {
+        uri: `file:///invariant-original-${docId}.${languageId === "xquery" ? "xq" : "jq"}`,
+        languageId,
+    });
+    const originalParse = parseDocument(original);
+    expect(originalParse.diagnostics).toEqual([]);
+
+    const formatted = formatText(source, languageId);
+    const result = testDocumentFromUri(formatted, {
+        uri: `file:///invariant-formatted-${docId}.${languageId === "xquery" ? "xq" : "jq"}`,
+        languageId,
+    });
+    const formattedParse = parseDocument(result);
+    expect(formattedParse.diagnostics).toEqual([]);
+    expect(semanticAst(formattedParse.ast)).toEqual(semanticAst(originalParse.ast));
+    expect(formatText(formatted, languageId)).toBe(formatted);
+}
+
 describe("JSONiq & XQuery Formatter", () => {
     describe("Formatter options", () => {
         it.each(["jsoniq", "xquery"] as const)(
@@ -38,6 +67,17 @@ describe("JSONiq & XQuery Formatter", () => {
                 );
             },
         );
+
+        it("can keep related and unrelated prolog declarations adjacent", () => {
+            const input = "declare variable $a := 1; declare function local:f() { $a }; local:f()";
+            expect(formatText(input, "jsoniq", { blankLineBetweenDeclarations: false })).toBe(
+                "declare variable $a := 1;\ndeclare function local:f() { $a };\n\nlocal:f()\n",
+            );
+        });
+
+        it("can omit the final newline", () => {
+            expect(formatText("[1,2]", "jsoniq", { insertFinalNewline: false })).toBe("[ 1, 2 ]");
+        });
 
         it.each(["jsoniq", "xquery"] as const)(
             "uses tabs for requested %s indentation",
@@ -455,6 +495,51 @@ describe("JSONiq & XQuery Formatter", () => {
                 "declare variable $a := 1;\n\ndeclare function local:foo($x) { $x + 1 };\n",
             );
         });
+
+        it("groups annotated declarations by their grammar production", () => {
+            const input = [
+                "declare function local:first() { 1 };",
+                "(: documentation :)",
+                "declare %private function local:second() { 2 };",
+                "local:second()",
+            ].join("\n");
+
+            expect(formatText(input)).toBe(
+                [
+                    "declare function local:first() { 1 };",
+                    "(: documentation :)",
+                    "declare %private function local:second() { 2 };",
+                    "",
+                    "local:second()",
+                    "",
+                ].join("\n"),
+            );
+        });
+
+        it.each(["jsoniq", "xquery"] as const)(
+            "does not normalize semantic whitespace in %s XML content",
+            (languageId) => {
+                const input = [
+                    "declare boundary-space preserve;",
+                    "<root>first  ",
+                    "",
+                    "",
+                    "second</root>",
+                ].join("\n");
+
+                expect(formatText(input, languageId)).toBe(
+                    [
+                        "declare boundary-space preserve;",
+                        "",
+                        "<root>first  ",
+                        "",
+                        "",
+                        "second</root>",
+                        "",
+                    ].join("\n"),
+                );
+            },
+        );
     });
 
     describe("FLWOR expressions", () => {
@@ -473,61 +558,72 @@ describe("JSONiq & XQuery Formatter", () => {
         });
     });
 
-    describe("JSONiq scripting statements", () => {
-        it("formats statement sequences, assignments, loops, branches, and exits", () => {
-            const input = [
-                "variable $x:=0;",
-                "while($x lt 3){$x:=$x+1;}",
-                "if($x eq 3)then{break loop;}else{continue loop;}",
-                "exit returning $x;",
-            ].join("\n");
+    describe("Scripting statements", () => {
+        it.each(["jsoniq", "xquery"] as const)(
+            "formats %s statement sequences, assignments, loops, branches, and exits",
+            (languageId) => {
+                const input = [
+                    "variable $x:=0;",
+                    "while($x lt 3){$x:=$x+1;}",
+                    "if($x eq 3)then{break loop;}else{continue loop;}",
+                    "exit returning $x;",
+                ].join("\n");
 
-            expect(formatText(input)).toBe(
-                [
-                    "variable $x := 0;",
-                    "while ($x lt 3) {",
-                    "    $x := $x + 1;",
-                    "}",
-                    "if ($x eq 3) then {",
-                    "    break loop;",
-                    "} else {",
-                    "    continue loop;",
-                    "}",
-                    "exit returning $x;\n",
-                ].join("\n"),
-            );
-        });
+                expect(formatText(input, languageId)).toBe(
+                    [
+                        "variable $x := 0;",
+                        "while ($x lt 3) {",
+                        "    $x := $x + 1;",
+                        "}",
+                        "if ($x eq 3) then {",
+                        "    break loop;",
+                        "} else {",
+                        "    continue loop;",
+                        "}",
+                        "exit returning $x;\n",
+                    ].join("\n"),
+                );
+            },
+        );
 
-        it("formats FLWOR statements with a statement return branch", () => {
-            const input = "for $x in (1,2) return $x := $x + 1;";
+        it.each(["jsoniq", "xquery"] as const)(
+            "formats %s FLWOR statements with a statement return branch",
+            (languageId) => {
+                const input = "for $x in (1,2) return $x := $x + 1;";
 
-            expect(formatText(input)).toBe("for $x in (1, 2)\nreturn $x := $x + 1;\n");
-        });
+                expect(formatText(input, languageId)).toBe(
+                    "for $x in (1, 2)\nreturn $x := $x + 1;\n",
+                );
+            },
+        );
 
-        it("formats switch, try/catch, and typeswitch statement forms", () => {
-            const input = [
-                "switch($x)case 1 return break loop;default return continue loop;",
-                "try{$x:=1;}catch * {$x:=2;}",
-                "typeswitch($x)case $n as integer return break loop;default return continue loop;",
-            ].join("\n");
+        it.each(["jsoniq", "xquery"] as const)(
+            "formats %s switch, try/catch, and typeswitch statement forms",
+            (languageId) => {
+                const input = [
+                    "switch($x)case 1 return break loop;default return continue loop;",
+                    "try{$x:=1;}catch * {$x:=2;}",
+                    "typeswitch($x)case $n as integer return break loop;default return continue loop;",
+                ].join("\n");
 
-            expect(formatText(input)).toBe(
-                [
-                    "switch ($x)",
-                    "    case 1 return break loop;",
-                    "    default return continue loop;",
-                    "try {",
-                    "    $x := 1;",
-                    "}",
-                    "catch * {",
-                    "    $x := 2;",
-                    "}",
-                    "typeswitch ($x)",
-                    "    case $n as integer return break loop;",
-                    "    default return continue loop;\n",
-                ].join("\n"),
-            );
-        });
+                expect(formatText(input, languageId)).toBe(
+                    [
+                        "switch ($x)",
+                        "    case 1 return break loop;",
+                        "    default return continue loop;",
+                        "try {",
+                        "    $x := 1;",
+                        "}",
+                        "catch * {",
+                        "    $x := 2;",
+                        "}",
+                        "typeswitch ($x)",
+                        "    case $n as integer return break loop;",
+                        "    default return continue loop;\n",
+                    ].join("\n"),
+                );
+            },
+        );
     });
 
     describe("If-Then-Else expressions", () => {
@@ -875,6 +971,51 @@ describe("JSONiq & XQuery Formatter", () => {
 
             expect(fmtAst.kind).toBe(origAst.kind);
             expect(fmtAst.children.length).toBe(origAst.children.length);
+        });
+    });
+
+    describe("Grammar-family coverage", () => {
+        const sharedCases = [
+            ["inline functions", "function($x as integer) as integer { $x + 1 }(1)"],
+            ["quantified expressions", "some $x in (1,2) satisfies $x gt 1"],
+            ["path and axis expressions", '/root/child::item[@id = "x"]'],
+            [
+                "type expressions",
+                '(1 treat as integer, 1 instance of integer, "1" cast as integer)',
+            ],
+            ["computed constructors", 'element root { "text" }'],
+            ["module imports", 'import module namespace local = "urn:local"; 1'],
+            [
+                "namespace declarations and setters",
+                'declare boundary-space strip; declare namespace local = "urn:local"; 1',
+            ],
+            ["ordered expressions", "ordered { (3,2,1) }"],
+            ["arrow and named function expressions", "(1,2,3) => count() + count#1((1,2))"],
+            ["window clauses", "for tumbling window $w in (1,2,3) start $s when true() return $w"],
+            ["updating expressions", "copy $x := $source modify append json 1 into $x return $x"],
+        ] as const;
+
+        it.each(["jsoniq", "xquery"] as const)(
+            "preserves parse and AST invariants across shared %s grammar families",
+            (languageId) => {
+                for (const [, source] of sharedCases) {
+                    expectFormattingInvariant(source, languageId);
+                }
+            },
+        );
+
+        it.each(["jsoniq", "xquery"] as const)(
+            "preserves parse and AST invariants for %s scripting",
+            (languageId) => {
+                expectFormattingInvariant(
+                    "variable $x := 0; while ($x lt 2) { $x := $x + 1; } $x",
+                    languageId,
+                );
+            },
+        );
+
+        it("preserves parse and AST invariants for JSONiq string constructors", () => {
+            expectFormattingInvariant("``[value: `{1 + 2}`]``", "jsoniq");
         });
     });
 

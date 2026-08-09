@@ -1,8 +1,8 @@
-import { TerminalNode, type ParseTree, type ParserRuleContext, type Token } from "antlr4ng";
+import { ParserRuleContext, TerminalNode, type ParseTree, type Token } from "antlr4ng";
 import type * as jsoniq from "server/parser/adapters/jsoniq/grammar/JsoniqParser.js";
 import type * as xquery from "server/parser/adapters/xquery/grammar/XQueryParser.js";
 
-import { composeTokenDoc, type FormatterContext, type TokenDoc } from "../context.js";
+import type { FormatterContext } from "../context.js";
 import {
     concat,
     type Doc,
@@ -10,26 +10,16 @@ import {
     hardline,
     indent,
     join,
-    line,
     NIL,
     softline,
     space,
     spacedDocs,
 } from "../doc.js";
-import {
-    formatBlockDoc,
-    formatFlworExpressionDoc,
-    formatIfExpressionDoc,
-    formatTryCatchDoc,
-    groupStartingWith,
-    shouldSeparateDeclarations,
-} from "../helpers.js";
-import { printDocToString } from "../printer.js";
+import { formatBlockDoc, formatIfExpressionDoc, formatTryCatchDoc } from "../helpers.js";
 import { formatTokenSeparatedDocs } from "./tokens.js";
 
 type SourceTerminal = TerminalNode | TerminalNode[] | Token | null | undefined;
 type FormatTerminal = (terminal: SourceTerminal, expectedToken: number | string) => Doc;
-type FormatToken = (terminal: SourceTerminal, expectedToken: number | string) => TokenDoc;
 type Visit = (node: ParseTree | null | undefined) => Doc;
 
 type BoundarySpaceDeclaration = jsoniq.BoundarySpaceDeclContext | xquery.BoundarySpaceDeclContext;
@@ -51,17 +41,6 @@ type SwitchExpression = jsoniq.SwitchExprContext | xquery.SwitchExprContext;
 type SwitchCaseClause = jsoniq.SwitchCaseClauseContext | xquery.SwitchCaseClauseContext;
 type TypeswitchExpression = jsoniq.TypeswitchExprContext | xquery.TypeswitchExprContext;
 type CaseClause = jsoniq.CaseClauseContext | xquery.CaseClauseContext;
-type FlworExpression = jsoniq.FlworExprContext | xquery.FlworExprContext;
-type ForClause = jsoniq.ForClauseContext | xquery.ForClauseContext;
-type ForVariable = jsoniq.ForVarContext | xquery.ForVarContext;
-type LetClause = jsoniq.LetClauseContext | xquery.LetClauseContext;
-type LetVariable = jsoniq.LetVarContext | xquery.LetVarContext;
-type WhereClause = jsoniq.WhereClauseContext | xquery.WhereClauseContext;
-type GroupByClause = jsoniq.GroupByClauseContext | xquery.GroupByClauseContext;
-type GroupByVariable = jsoniq.GroupByVarContext | xquery.GroupByVarContext;
-type OrderByClause = jsoniq.OrderByClauseContext | xquery.OrderByClauseContext;
-type CountClause = jsoniq.CountClauseContext | xquery.CountClauseContext;
-type ExpressionSequence = jsoniq.ExprContext | xquery.ExprContext;
 type LibraryModule = jsoniq.LibraryModuleContext | xquery.LibraryModuleContext;
 type MainModule = jsoniq.MainModuleContext | xquery.MainModuleContext;
 type Prolog = jsoniq.PrologContext | xquery.PrologContext;
@@ -70,19 +49,32 @@ type ParameterList = jsoniq.ParamListContext | xquery.ParamListContext;
 type Parameter = jsoniq.ParamContext | xquery.ParamContext;
 type Annotations = jsoniq.AnnotationsContext | xquery.AnnotationsContext;
 type Annotation = jsoniq.AnnotationContext | xquery.AnnotationContext;
-type SquareArrayConstructor =
-    | jsoniq.SquareArrayConstructorContext
-    | xquery.SquareArrayConstructorContext;
-type CurlyArrayConstructor =
-    | jsoniq.CurlyArrayConstructorContext
-    | xquery.CurlyArrayConstructorContext;
-type PostfixExpression = jsoniq.PostfixExprContext | xquery.PostfixExprContext;
-type ParenthesizedExpression = jsoniq.ParenthesizedExprContext | xquery.ParenthesizedExprContext;
-type FunctionCall = jsoniq.FunctionCallContext | xquery.FunctionCallContext;
-type ArgumentList = jsoniq.ArgumentListContext | xquery.ArgumentListContext;
-type Argument = jsoniq.ArgumentContext | xquery.ArgumentContext;
 
 type QueryModule = jsoniq.ModuleContext | xquery.ModuleContext;
+
+interface PrologRuleTypes {
+    readonly RULE_moduleImport: number;
+    readonly RULE_schemaImport: number;
+    readonly RULE_defaultNamespaceDecl: number;
+    readonly RULE_namespaceDecl: number;
+    readonly RULE_setter: number;
+    readonly RULE_functionDecl: number;
+    readonly RULE_varDecl: number;
+    readonly RULE_typeDecl?: number;
+    readonly RULE_contextItemDecl: number;
+    readonly RULE_optionDecl: number;
+}
+
+type DeclarationType =
+    | "import"
+    | "namespace"
+    | "setter"
+    | "function"
+    | "variable"
+    | "type"
+    | "context"
+    | "option"
+    | "other";
 
 export function formatDocumentRoot(context: FormatterContext, body: Doc): Doc {
     return concat([body, context.formatDanglingDoc()]);
@@ -179,163 +171,6 @@ export function formatAnnotation(
     ]);
 }
 
-export function formatPairObjectConstructor(
-    firstToken: TokenDoc,
-    afterFirstToken: Doc,
-    rightBrace: Doc,
-    pairs: readonly Doc[],
-    commas: readonly TerminalNode[],
-    formatTerminal: FormatTerminal,
-): Doc {
-    const opening = concat([composeTokenDoc(firstToken), afterFirstToken]);
-    if (pairs.length === 0) {
-        return concat([opening, rightBrace]);
-    }
-
-    const formatPairs = (breakDoc: Doc): Doc =>
-        formatTokenSeparatedDocs(pairs, commas, (comma) => formatTerminal(comma, ","), breakDoc);
-    if (pairs.length > 2) {
-        return concat([
-            opening,
-            indent(concat([hardline, formatPairs(hardline)])),
-            hardline,
-            rightBrace,
-        ]);
-    }
-
-    return groupStartingWith(
-        firstToken,
-        concat([afterFirstToken, indent(concat([line, formatPairs(line)])), line, rightBrace]),
-    );
-}
-
-export function formatSquareArrayConstructor(
-    node: SquareArrayConstructor,
-    commaTokenType: number,
-    visit: Visit,
-    formatToken: FormatToken,
-    formatTerminal: FormatTerminal,
-): Doc {
-    const leftBracket = formatToken(node.LBRACKET(), "[");
-    const rightBracket = formatTerminal(node.RBRACKET(), "]");
-    const items = node.exprSingle().map(visit);
-    if (items.length === 0) {
-        return concat([composeTokenDoc(leftBracket), rightBracket]);
-    }
-    return groupStartingWith(
-        leftBracket,
-        concat([
-            indent(
-                concat([
-                    line,
-                    formatTokenSeparatedDocs(items, node.getTokens(commaTokenType), (comma) =>
-                        formatTerminal(comma, ","),
-                    ),
-                ]),
-            ),
-            line,
-            rightBracket,
-        ]),
-    );
-}
-
-export function formatCurlyArrayConstructor(
-    node: CurlyArrayConstructor,
-    visit: Visit,
-    formatTerminal: FormatTerminal,
-): Doc {
-    return concat([
-        formatTerminal(node.KW_ARRAY(), "array"),
-        space,
-        visit(node.enclosedExpression()),
-    ]);
-}
-
-export function formatPostfixExpression(node: PostfixExpression, visit: Visit): Doc {
-    const parts: Doc[] = [];
-    for (let index = 0; index < node.getChildCount(); index++) {
-        parts.push(visit(node.getChild(index)));
-    }
-    return concat(parts);
-}
-
-function formatParenthesizedList(
-    leftParenthesis: SourceTerminal,
-    rightParenthesis: SourceTerminal,
-    items: Doc[],
-    commas: TerminalNode[],
-    formatTerminal: FormatTerminal,
-): Doc {
-    const left = formatTerminal(leftParenthesis, "(");
-    const right = formatTerminal(rightParenthesis, ")");
-    if (items.length === 0) {
-        return concat([left, right]);
-    }
-    return concat([
-        left,
-        group(
-            concat([
-                indent(
-                    concat([
-                        softline,
-                        formatTokenSeparatedDocs(items, commas, (comma) =>
-                            formatTerminal(comma, ","),
-                        ),
-                    ]),
-                ),
-                softline,
-                right,
-            ]),
-        ),
-    ]);
-}
-
-export function formatParenthesizedExpression(
-    node: ParenthesizedExpression,
-    commaTokenType: number,
-    visit: Visit,
-    formatTerminal: FormatTerminal,
-): Doc {
-    const expression = node.expr();
-    const items = expression
-        ? "exprSingle" in expression && typeof expression.exprSingle === "function"
-            ? expression.exprSingle().map(visit)
-            : [visit(expression)]
-        : [];
-    return formatParenthesizedList(
-        node.LPAREN(),
-        node.RPAREN(),
-        items,
-        node.getTokens(commaTokenType),
-        formatTerminal,
-    );
-}
-
-export function formatFunctionCall(node: FunctionCall, visit: Visit): Doc {
-    return concat([visit(node._fn_name), visit(node.argumentList())]);
-}
-
-export function formatArgumentList(
-    node: ArgumentList,
-    commaTokenType: number,
-    visit: Visit,
-    formatTerminal: FormatTerminal,
-): Doc {
-    return formatParenthesizedList(
-        node.LPAREN(),
-        node.RPAREN(),
-        node.argument().map(visit),
-        node.getTokens(commaTokenType),
-        formatTerminal,
-    );
-}
-
-export function formatArgument(node: Argument, visit: Visit, formatTerminal: FormatTerminal): Doc {
-    return node.QUESTION() !== null
-        ? formatTerminal(node.QUESTION(), "?")
-        : visit(node.exprSingle());
-}
-
 export function formatBoundarySpaceDeclaration(
     context: FormatterContext,
     node: BoundarySpaceDeclaration,
@@ -386,8 +221,13 @@ export function formatMainModule(node: MainModule, visit: Visit): Doc {
     return prolog.kind !== "text" ? prolog : program;
 }
 
-export function formatProlog(context: FormatterContext, node: Prolog, visit: Visit): Doc {
-    const parts: Doc[] = [];
+export function formatProlog(
+    context: FormatterContext,
+    node: Prolog,
+    rules: PrologRuleTypes,
+    visit: Visit,
+): Doc {
+    const declarations: { doc: Doc; type: DeclarationType }[] = [];
     for (let index = 0; index < node.getChildCount(); index++) {
         const child = node.getChild(index);
         if (child === null || child instanceof TerminalNode) {
@@ -395,26 +235,65 @@ export function formatProlog(context: FormatterContext, node: Prolog, visit: Vis
         }
         const declaration = visit(child);
         if (declaration.kind !== "text" || declaration.text !== "") {
-            parts.push(declaration);
+            declarations.push({ doc: declaration, type: findDeclarationType(child, rules) });
         }
     }
-    if (parts.length === 0) {
+    if (declarations.length === 0) {
         return NIL;
     }
 
-    const docs: Doc[] = [parts[0]!];
-    for (let index = 1; index < parts.length; index++) {
-        const previous = printDocToString(parts[index - 1]!, context.options);
-        const current = printDocToString(parts[index]!, context.options);
+    const docs: Doc[] = [declarations[0]!.doc];
+    for (let index = 1; index < declarations.length; index++) {
+        const previous = declarations[index - 1]!;
+        const current = declarations[index]!;
         docs.push(
-            context.options.blankLineBetweenDeclarations &&
-                shouldSeparateDeclarations(previous, current)
+            context.options.blankLineBetweenDeclarations && previous.type !== current.type
                 ? concat([hardline, hardline])
                 : hardline,
-            parts[index]!,
+            current.doc,
         );
     }
     return concat(docs);
+}
+
+function findDeclarationType(node: ParseTree, rules: PrologRuleTypes): DeclarationType {
+    if (node instanceof ParserRuleContext) {
+        const rule = node.ruleIndex;
+        if (rule === rules.RULE_moduleImport || rule === rules.RULE_schemaImport) {
+            return "import";
+        }
+        if (rule === rules.RULE_defaultNamespaceDecl || rule === rules.RULE_namespaceDecl) {
+            return "namespace";
+        }
+        if (rule === rules.RULE_setter) {
+            return "setter";
+        }
+        if (rule === rules.RULE_functionDecl) {
+            return "function";
+        }
+        if (rule === rules.RULE_varDecl) {
+            return "variable";
+        }
+        if (rules.RULE_typeDecl !== undefined && rule === rules.RULE_typeDecl) {
+            return "type";
+        }
+        if (rule === rules.RULE_contextItemDecl) {
+            return "context";
+        }
+        if (rule === rules.RULE_optionDecl) {
+            return "option";
+        }
+    }
+    for (let index = 0; index < node.getChildCount(); index++) {
+        const child = node.getChild(index);
+        if (child && !(child instanceof TerminalNode)) {
+            const type = findDeclarationType(child, rules);
+            if (type !== "other") {
+                return type;
+            }
+        }
+    }
+    return "other";
 }
 
 export function formatAnnotatedDeclaration(node: AnnotatedDeclaration, visit: Visit): Doc {
@@ -762,201 +641,5 @@ export function formatCaseClause(
             space,
             indent(concat([softline, visit(node._ret)])),
         ]),
-    );
-}
-
-export function formatFlworExpression(
-    node: FlworExpression,
-    visit: Visit,
-    formatTerminal: FormatTerminal,
-): Doc {
-    const clauses: Doc[] = [];
-    for (let index = 0; index < node.getChildCount(); index++) {
-        const child = node.getChild(index);
-        if (child === null || child === node.KW_RETURN() || child === node._return_expr) {
-            continue;
-        }
-        const clause = visit(child);
-        if (clause.kind !== "text" || clause.text !== "") {
-            clauses.push(clause);
-        }
-    }
-    return group(
-        formatFlworExpressionDoc(
-            clauses,
-            formatTerminal(node.KW_RETURN(), "return"),
-            visit(node._return_expr),
-        ),
-    );
-}
-
-function formatCommaSeparatedChildren(
-    node: ParserRuleContext,
-    items: readonly ParseTree[],
-    commaTokenType: number,
-    visit: Visit,
-    formatTerminal: FormatTerminal,
-): Doc {
-    return formatTokenSeparatedDocs(
-        items.map((item) => visit(item)),
-        node.getTokens(commaTokenType),
-        (comma) => formatTerminal(comma, ","),
-    );
-}
-
-export function formatForClause(
-    node: ForClause,
-    commaTokenType: number,
-    visit: Visit,
-    formatTerminal: FormatTerminal,
-): Doc {
-    return group(
-        concat([
-            formatTerminal(node.KW_FOR(), "for"),
-            space,
-            formatCommaSeparatedChildren(node, node._vars, commaTokenType, visit, formatTerminal),
-        ]),
-    );
-}
-
-export function formatForVariable(
-    node: ForVariable,
-    visit: Visit,
-    formatTerminal: FormatTerminal,
-): Doc {
-    const sequenceType = node._seq
-        ? concat([space, formatTerminal(node.KW_AS(), "as"), space, visit(node._seq)])
-        : NIL;
-    const allowingEmpty = node.allowingEmpty() ? concat([space, visit(node.allowingEmpty())]) : NIL;
-    const positionalVariable = node._at
-        ? concat([space, formatTerminal(node.KW_AT(), "at"), space, visit(node._at)])
-        : NIL;
-    return concat([
-        visit(node._var_ref),
-        sequenceType,
-        allowingEmpty,
-        positionalVariable,
-        space,
-        formatTerminal(node.KW_IN(), "in"),
-        space,
-        visit(node._ex),
-    ]);
-}
-
-export function formatLetClause(
-    node: LetClause,
-    commaTokenType: number,
-    visit: Visit,
-    formatTerminal: FormatTerminal,
-): Doc {
-    return group(
-        concat([
-            formatTerminal(node.KW_LET(), "let"),
-            space,
-            formatCommaSeparatedChildren(node, node._vars, commaTokenType, visit, formatTerminal),
-        ]),
-    );
-}
-
-export function formatLetVariable(
-    node: LetVariable,
-    visit: Visit,
-    formatTerminal: FormatTerminal,
-): Doc {
-    const sequenceType = node._seq
-        ? concat([space, formatTerminal(node.KW_AS(), "as"), space, visit(node._seq)])
-        : NIL;
-    return concat([
-        visit(node._var_ref),
-        sequenceType,
-        space,
-        formatTerminal(node.COLON_EQ(), ":="),
-        space,
-        visit(node._ex),
-    ]);
-}
-
-export function formatWhereClause(
-    node: WhereClause,
-    visit: Visit,
-    formatTerminal: FormatTerminal,
-): Doc {
-    return concat([formatTerminal(node.KW_WHERE(), "where"), space, visit(node.exprSingle())]);
-}
-
-export function formatGroupByClause(
-    node: GroupByClause,
-    commaTokenType: number,
-    visit: Visit,
-    formatTerminal: FormatTerminal,
-): Doc {
-    return group(
-        concat([
-            formatTerminal(node.KW_GROUP(), "group"),
-            space,
-            formatTerminal(node.KW_BY(), "by"),
-            space,
-            formatCommaSeparatedChildren(node, node._vars, commaTokenType, visit, formatTerminal),
-        ]),
-    );
-}
-
-export function formatGroupByVariable(
-    node: GroupByVariable,
-    visit: Visit,
-    formatTerminal: FormatTerminal,
-): Doc {
-    const sequenceType = node._seq
-        ? concat([space, formatTerminal(node.KW_AS(), "as"), space, visit(node._seq)])
-        : NIL;
-    const expression = node._ex
-        ? concat([space, formatTerminal(node.COLON_EQ(), ":="), space, visit(node._ex)])
-        : NIL;
-    return concat([visit(node._var_ref), sequenceType, expression]);
-}
-
-export function formatOrderByClause(
-    node: OrderByClause,
-    commaTokenType: number,
-    visit: Visit,
-    formatTerminal: FormatTerminal,
-): Doc {
-    const stable = node.KW_STABLE()
-        ? concat([formatTerminal(node.KW_STABLE(), "stable"), space])
-        : NIL;
-    return group(
-        concat([
-            stable,
-            formatTerminal(node.KW_ORDER(), "order"),
-            space,
-            formatTerminal(node.KW_BY(), "by"),
-            space,
-            formatCommaSeparatedChildren(node, node._specs, commaTokenType, visit, formatTerminal),
-        ]),
-    );
-}
-
-export function formatCountClause(
-    node: CountClause,
-    visit: Visit,
-    formatTerminal: FormatTerminal,
-): Doc {
-    return concat([formatTerminal(node.KW_COUNT(), "count"), space, visit(node.varBinding())]);
-}
-
-export function formatExpressionSequence(
-    node: ExpressionSequence,
-    commaTokenType: number,
-    visit: Visit,
-    formatTerminal: FormatTerminal,
-): Doc {
-    return group(
-        formatCommaSeparatedChildren(
-            node,
-            node.exprSingle(),
-            commaTokenType,
-            visit,
-            formatTerminal,
-        ),
     );
 }
