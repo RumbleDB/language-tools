@@ -36,6 +36,8 @@ export type BaseDefinition<K extends DefinitionKind = DefinitionKind> = K extend
 export interface BaseSourceDefinition<
     K extends DeclarationKind = DeclarationKind,
 > extends AbstractDefinition<K> {
+    /** URI of the module that owns this declaration. */
+    uri: string;
     // Entire range of the declaration.
     range: Range;
 
@@ -134,6 +136,7 @@ interface DefinitionBaseInput {
 
 function createBaseDefinition(document: TextDocument, input: DefinitionBaseInput) {
     return {
+        uri: document.uri,
         range: input.range,
         selectionRange: input.selectionRange,
         visibleFrom: input.visibleFrom ?? document.offsetAt(input.range.end),

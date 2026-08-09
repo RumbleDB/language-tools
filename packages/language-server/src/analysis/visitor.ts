@@ -4,6 +4,7 @@ import type {
     DeclarationNode,
     FunctionCallNode,
     ModuleNode,
+    // Import nodes are parser-only metadata and do not appear in the semantic AST.
     ReferenceNode,
 } from "./ast.js";
 

@@ -11,6 +11,8 @@ import type {
     FunctionCallAstNode,
     FunctionDeclarationAstNode,
     NamespaceDeclarationAstNode,
+    ModuleDeclarationAstNode,
+    ModuleImportAstNode,
     NamedFunctionReferenceAstNode,
     TypeDeclarationAstNode,
     VariableDeclarationAstNode,
@@ -75,6 +77,13 @@ export interface AnalysisResult {
     diagnostics: Diagnostic[];
 }
 
+/** Declarations made visible by a directly imported library module. */
+export interface ImportedModule {
+    readonly namespaceUri: string;
+    readonly prefix?: Prefix;
+    readonly declarations: readonly SourceDefinition[];
+}
+
 class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
     private readonly result: AnalysisResult;
 
@@ -84,7 +93,7 @@ class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
 
     private readonly parserAst: ParserAstNode;
 
-    public constructor(document: TextDocument) {
+    public constructor(document: TextDocument, importedModules: readonly ImportedModule[] = []) {
         super();
         this.document = document;
 
@@ -115,6 +124,24 @@ class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
         };
 
         this.currentScope = moduleScope;
+        for (const imported of importedModules) {
+            if (imported.prefix !== undefined) {
+                const definition = createNamespaceDefinition(
+                    document,
+                    imported.prefix,
+                    imported.namespaceUri,
+                    Range.create(Position.create(0, 0), Position.create(0, 0)),
+                    Range.create(Position.create(0, 0), Position.create(0, 0)),
+                );
+                this.result.namespaces.set(imported.prefix, definition);
+                this.declareDefinition(definition);
+            }
+            for (const declaration of imported.declarations) {
+                if (declaration.kind === "function" || declaration.kind === "variable") {
+                    this.declareDefinition(declaration);
+                }
+            }
+        }
     }
 
     public build(): AnalysisResult {
@@ -137,6 +164,24 @@ class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
         this.declareDefinition(definition);
         this.result.namespaces.set(definition.name.prefix, definition);
         return [this.createDeclarationNode(definition)];
+    }
+
+    protected override visitModuleDeclaration(node: ModuleDeclarationAstNode): AstNode[] {
+        const definition = createNamespaceDefinition(
+            this.document,
+            node.prefix,
+            node.namespaceUri,
+            node.range,
+            node.selectionRange,
+        );
+        this.declareDefinition(definition);
+        this.result.namespaces.set(definition.name.prefix, definition);
+        return [this.createDeclarationNode(definition)];
+    }
+
+    protected override visitModuleImport(_node: ModuleImportAstNode): AstNode[] {
+        // Imports are resolved by WorkspaceModuleService before this local analysis runs.
+        return [];
     }
 
     protected override visitContextItemDeclaration(node: ContextItemDeclarationAstNode): AstNode[] {
@@ -418,6 +463,9 @@ class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
     }
 }
 
-export function buildAnalysis(document: TextDocument): AnalysisResult {
-    return new AnalysisBuilder(document).build();
+export function buildAnalysis(
+    document: TextDocument,
+    importedModules: readonly ImportedModule[] = [],
+): AnalysisResult {
+    return new AnalysisBuilder(document, importedModules).build();
 }

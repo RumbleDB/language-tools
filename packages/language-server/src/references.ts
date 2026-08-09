@@ -30,14 +30,14 @@ export function findReferenceLocations(
 
     if (includeDeclaration) {
         locations.push({
-            uri: document.uri,
+            uri: targetDeclaration.uri,
             range: targetDeclaration.selectionRange,
         });
     }
 
     for (const reference of targetDeclaration.references) {
         locations.push({
-            uri: document.uri,
+            uri: targetDeclaration.uri,
             range: reference.range,
         });
     }

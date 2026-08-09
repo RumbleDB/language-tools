@@ -8,6 +8,7 @@ import {
     type InitializeResult,
 } from "vscode-languageserver/node";
 
+import { removeOpenDocument, updateOpenDocument } from "./analysis/service.js";
 import { findCompletionsWithTypeInfo } from "./completion.js";
 import { config, InitializationOptions, mergeConfiguration } from "./config.js";
 import { findDefinitionLocation } from "./definitions.js";
@@ -229,14 +230,17 @@ connection.onDocumentFormatting((params) => {
 });
 
 documents.onDidOpen(async (event) => {
+    updateOpenDocument(event.document);
     await refreshDiagnostics(event.document.uri);
 });
 
 documents.onDidChangeContent(async (event) => {
+    updateOpenDocument(event.document);
     await refreshDiagnostics(event.document.uri);
 });
 
 documents.onDidClose((event) => {
+    removeOpenDocument(event.document.uri);
     clearStaticTypecheckCache(event.document.uri);
     connection.sendDiagnostics({
         uri: event.document.uri,
