@@ -1,4 +1,6 @@
 import { ParseTree, TerminalNode, Token } from "antlr4ng";
+import { composeTokenDoc, FormatterContext, type TokenDoc } from "server/formatter/context.js";
+import { concat, Doc, NIL, space, spacedDocs } from "server/formatter/doc.js";
 import {
     formatArgument,
     formatArgumentList,
@@ -8,7 +10,7 @@ import {
     formatParenthesizedExpression,
     formatPostfixExpression,
     formatSquareArrayConstructor,
-} from "server/formatter/adapters/collections.js";
+} from "server/formatter/shared/collections.js";
 import {
     formatCountClause,
     formatExpressionSequence,
@@ -21,31 +23,7 @@ import {
     formatLetVariable,
     formatOrderByClause,
     formatWhereClause,
-} from "server/formatter/adapters/flwor.js";
-import {
-    formatApplyStatement,
-    formatAssignStatement,
-    formatBlockExpression,
-    formatBlockStatement,
-    formatBreakStatement,
-    formatCaseStatement,
-    formatCatchCaseStatement,
-    formatContinueStatement,
-    formatExitStatement,
-    formatFlworStatement,
-    formatIfStatement,
-    formatProgram,
-    formatStatements,
-    formatStatementsAndExpression,
-    formatStatementsAndOptionalExpression,
-    formatSwitchCaseStatement,
-    formatSwitchStatement,
-    formatTryCatchStatement,
-    formatTypeswitchStatement,
-    formatVariableDeclarationForStatement,
-    formatVariableDeclarationStatement,
-    formatWhileStatement,
-} from "server/formatter/adapters/scripting.js";
+} from "server/formatter/shared/flwor.js";
 import {
     formatBoundarySpaceDeclaration,
     formatAnnotation,
@@ -72,16 +50,38 @@ import {
     formatModule,
     formatParameter,
     formatParameterList,
-} from "server/formatter/adapters/shared.js";
-import { formatStringConstructor } from "server/formatter/adapters/string-constructor.js";
+} from "server/formatter/shared/query.js";
+import {
+    formatApplyStatement,
+    formatAssignStatement,
+    formatBlockExpression,
+    formatBlockStatement,
+    formatBreakStatement,
+    formatCaseStatement,
+    formatCatchCaseStatement,
+    formatContinueStatement,
+    formatExitStatement,
+    formatFlworStatement,
+    formatIfStatement,
+    formatProgram,
+    formatStatements,
+    formatStatementsAndExpression,
+    formatStatementsAndOptionalExpression,
+    formatSwitchCaseStatement,
+    formatSwitchStatement,
+    formatTryCatchStatement,
+    formatTypeswitchStatement,
+    formatVariableDeclarationForStatement,
+    formatVariableDeclarationStatement,
+    formatWhileStatement,
+} from "server/formatter/shared/scripting.js";
+import { formatStringConstructor } from "server/formatter/shared/string-constructor.js";
 import {
     formatSourceRange,
     formatSourceTerminal,
     formatTokenDoc,
-} from "server/formatter/adapters/tokens.js";
-import { formatDirectConstructor } from "server/formatter/adapters/xml.js";
-import { composeTokenDoc, FormatterContext, type TokenDoc } from "server/formatter/context.js";
-import { concat, Doc, NIL, space, spacedDocs } from "server/formatter/doc.js";
+} from "server/formatter/shared/tokens.js";
+import { formatDirectConstructor } from "server/formatter/shared/xml.js";
 import { XQueryLexer } from "server/parser/adapters/xquery/grammar/XQueryLexer.js";
 import { XQueryParser } from "server/parser/adapters/xquery/grammar/XQueryParser.js";
 import type * as ctx from "server/parser/adapters/xquery/grammar/XQueryParser.js";
