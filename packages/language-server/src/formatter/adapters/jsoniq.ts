@@ -1,4 +1,5 @@
 import { ParseTree, TerminalNode, Token } from "antlr4ng";
+import { formatDirectConstructor, formatTokenDoc } from "server/formatter/adapters/common.js";
 import { composeTokenDoc, FormatterContext, type TokenDoc } from "server/formatter/context.js";
 import {
     concat,
@@ -18,7 +19,6 @@ import {
     formatFlworExpressionDoc,
     formatIfExpressionDoc,
     formatTryCatchDoc,
-    getTokenLiteral,
     groupStartingWith,
     shouldSeparateDeclarations,
 } from "server/formatter/helpers.js";
@@ -55,17 +55,7 @@ export class JsoniqFormatterVisitor extends JsoniqParserVisitor<Doc> {
         terminal: TerminalNode | TerminalNode[] | Token | null | undefined,
         expectedToken: number | string,
     ): TokenDoc {
-        if (Array.isArray(terminal)) {
-            terminal = terminal[0] ?? null;
-        }
-        if (terminal) {
-            return this.ctx.formatToken(terminal);
-        }
-        const expected =
-            typeof expectedToken === "number"
-                ? getTokenLiteral(expectedToken, JsoniqLexer.literalNames)
-                : expectedToken;
-        return this.ctx.formatSyntheticToken(expected);
+        return formatTokenDoc(this.ctx, terminal, expectedToken, JsoniqLexer.literalNames);
     }
 
     private kw(
@@ -138,68 +128,16 @@ export class JsoniqFormatterVisitor extends JsoniqParserVisitor<Doc> {
      * (including enclosed expressions) can alter the query result.
      */
     public override visitDirectConstructor = (node: ctx.DirectConstructorContext): Doc => {
-        const openAngle = node.LANGLE();
-        const name = node.qname();
-        const attributes = node.dirAttributeList();
-        const openClose = node.dirElemConstructorOpenClose();
-        const singleTag = node.dirElemConstructorSingleTag();
-
-        if (!openAngle || !name || !attributes || (!openClose && !singleTag)) {
-            return composeTokenDoc(this.ctx.formatTokenRange(node.start!, node.stop!));
-        }
-
-        const tagStart = concat([
-            this.kw(openAngle, JsoniqParser.LANGLE),
-            this.ctx.formatVerbatimRange(name.start!, name.stop!),
-        ]);
-        const attributeDocs = this.formatDirectAttributes(attributes);
-
-        if (singleTag) {
-            return this.formatDirectTag(
-                tagStart,
-                attributeDocs,
-                concat([
-                    this.kw(singleTag.SLASH(), JsoniqParser.SLASH),
-                    this.kw(singleTag.RANGLE(), JsoniqParser.RANGLE),
-                ]),
-            );
-        }
-
-        if (!openClose) {
-            return composeTokenDoc(this.ctx.formatTokenRange(node.start!, node.stop!));
-        }
-
-        const openingTag = this.formatDirectTag(
-            tagStart,
-            attributeDocs,
-            this.kw(openClose.RANGLE(0), JsoniqParser.RANGLE),
-        );
-        const content = openClose.dirElemContent();
-        const bodyStart = content[0]?.start ?? openClose.LANGLE().symbol;
-
-        return concat([openingTag, this.ctx.formatVerbatimRange(bodyStart, openClose.stop!)]);
-    };
-
-    private formatDirectAttributes = (node: ctx.DirAttributeListContext): Doc[] => {
-        const names = node.qname();
-        const values = node.dirAttributeValue();
-
-        return names.map((name, index) =>
-            concat([
-                this.ctx.formatVerbatimRange(name.start!, name.stop!),
-                this.kw(node.EQUAL(index), JsoniqParser.EQUAL),
-                this.ctx.formatVerbatimRange(values[index]!.start!, values[index]!.stop!),
-            ]),
-        );
-    };
-
-    private formatDirectTag = (tagStart: Doc, attributes: readonly Doc[], close: Doc): Doc => {
-        if (attributes.length === 0) {
-            return concat([tagStart, close]);
-        }
-
-        return group(
-            concat([tagStart, indent(concat([line, join(line, attributes)])), softline, close]),
+        return formatDirectConstructor(
+            this.ctx,
+            {
+                LANGLE: JsoniqParser.LANGLE,
+                RANGLE: JsoniqParser.RANGLE,
+                EQUAL: JsoniqParser.EQUAL,
+                SLASH: JsoniqParser.SLASH,
+            },
+            node,
+            (terminal, expectedToken) => this.kw(terminal, expectedToken),
         );
     };
 
