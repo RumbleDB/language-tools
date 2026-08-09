@@ -100,11 +100,7 @@ export class XQueryFormatterVisitor extends XQueryParserVisitor<Doc> {
         return composeTokenDoc(this.ctx.formatTokenRange(node.start!, node.stop!));
     };
 
-    /**
-     * Direct XML constructors are semantic text boundaries. Their whitespace
-     * contributes to the resulting XML node, so formatting their children
-     * (including enclosed expressions) can alter the query result.
-     */
+    /** Formats XML tags and expressions while preserving semantic text gaps. */
     public override visitDirectConstructor = (node: ctx.DirectConstructorContext): Doc => {
         return formatDirectConstructor(
             this.ctx,
@@ -116,6 +112,17 @@ export class XQueryFormatterVisitor extends XQueryParserVisitor<Doc> {
             },
             node,
             (terminal, expectedToken) => this.kw(terminal, expectedToken),
+            (content) => {
+                const commonContent = content as ctx.CommonContentContext;
+                const expr = commonContent.expr();
+                return expr
+                    ? formatBlockDoc(
+                          this.kw(commonContent.LBRACE(0), XQueryParser.LBRACE),
+                          this.v(expr),
+                          this.kw(commonContent.RBRACE(0), XQueryParser.RBRACE),
+                      )
+                    : null;
+            },
         );
     };
 

@@ -39,11 +39,13 @@ describe("JSONiq & XQuery Formatter", () => {
 
     describe("Direct XML constructors", () => {
         it.each(["jsoniq", "xquery"] as const)(
-            "preserves %s XML markup, text, attributes, and enclosed expressions",
+            "formats %s XML markup and expressions while preserving text content",
             (languageId) => {
                 const input = `<root id="primary"><child>{1+2}</child><!-- note --><![CDATA[ raw ]]></root>`;
 
-                expect(formatText(input, languageId)).toBe(`${input}\n`);
+                expect(formatText(input, languageId)).toBe(
+                    `<root id="primary"><child>{ 1 + 2 }</child><!-- note --><![CDATA[ raw ]]></root>\n`,
+                );
             },
         );
 
@@ -153,6 +155,17 @@ describe("JSONiq & XQuery Formatter", () => {
                     ['<root xml:space="preserve">', '    <child id="one"/>', "</root>", ""].join(
                         "\n",
                     ),
+                );
+            },
+        );
+
+        it.each(["jsoniq", "xquery"] as const)(
+            "formats %s enclosed expressions without changing mixed text spacing",
+            (languageId) => {
+                const input = `<paragraph>Hello <em>{1+2}</em>!</paragraph>`;
+
+                expect(formatText(input, languageId)).toBe(
+                    `<paragraph>Hello <em>{ 1 + 2 }</em>!</paragraph>\n`,
                 );
             },
         );

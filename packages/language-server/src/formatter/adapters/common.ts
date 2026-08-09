@@ -76,6 +76,7 @@ export function formatDirectConstructor(
     tokens: XmlTokenTypes,
     node: DirectConstructor,
     formatTerminal: (terminal: SourceTerminal, expectedToken: number) => Doc,
+    formatEnclosedExpression: (node: ParserRuleContext) => Doc | null,
 ): Doc {
     const openAngle = node.LANGLE();
     const name = node.qname();
@@ -113,7 +114,10 @@ export function formatDirectConstructor(
         attributeDocs,
         formatTerminal(openClose.RANGLE(0), tokens.RANGLE),
     );
-    return concat([openingTag, formatDirectBody(context, tokens, openClose, formatTerminal)]);
+    return concat([
+        openingTag,
+        formatDirectBody(context, tokens, openClose, formatTerminal, formatEnclosedExpression),
+    ]);
 }
 
 function formatDirectBody(
@@ -121,6 +125,7 @@ function formatDirectBody(
     tokens: XmlTokenTypes,
     node: DirectElementOpenClose,
     formatTerminal: (terminal: SourceTerminal, expectedToken: number) => Doc,
+    formatEnclosedExpression: (node: ParserRuleContext) => Doc | null,
 ): Doc {
     const contents = node.dirElemContent();
     if (
@@ -129,7 +134,7 @@ function formatDirectBody(
         hasOnlyStructuralContent(context, node, contents)
     ) {
         const childDocs = contents.map((content) =>
-            formatDirectContent(context, tokens, content, formatTerminal),
+            formatDirectContent(context, tokens, content, formatTerminal, formatEnclosedExpression),
         );
         const closingTag = context.formatVerbatimRange(node.LANGLE().symbol, node.stop!);
 
@@ -140,7 +145,14 @@ function formatDirectBody(
         ]);
     }
 
-    return formatBodyWithOriginalWhitespace(context, tokens, node, contents, formatTerminal);
+    return formatBodyWithOriginalWhitespace(
+        context,
+        tokens,
+        node,
+        contents,
+        formatTerminal,
+        formatEnclosedExpression,
+    );
 }
 
 function formatBodyWithOriginalWhitespace(
@@ -149,6 +161,7 @@ function formatBodyWithOriginalWhitespace(
     node: DirectElementOpenClose,
     contents: readonly DirectElementContent[],
     formatTerminal: (terminal: SourceTerminal, expectedToken: number) => Doc,
+    formatEnclosedExpression: (node: ParserRuleContext) => Doc | null,
 ): Doc {
     const openingEnd = node.RANGLE(0)?.symbol;
     if (!openingEnd) {
@@ -159,7 +172,9 @@ function formatBodyWithOriginalWhitespace(
     let previous = openingEnd;
     for (const content of contents) {
         docs.push(context.formatVerbatimBetween(previous, content.start!));
-        docs.push(formatDirectContent(context, tokens, content, formatTerminal));
+        docs.push(
+            formatDirectContent(context, tokens, content, formatTerminal, formatEnclosedExpression),
+        );
         previous = content.stop!;
     }
     docs.push(context.formatVerbatimBetween(previous, node.LANGLE().symbol));
@@ -172,11 +187,24 @@ function formatDirectContent(
     tokens: XmlTokenTypes,
     content: DirectElementContent,
     formatTerminal: (terminal: SourceTerminal, expectedToken: number) => Doc,
+    formatEnclosedExpression: (node: ParserRuleContext) => Doc | null,
 ): Doc {
     const childElement = content.directConstructor();
-    return childElement
-        ? formatDirectConstructor(context, tokens, childElement, formatTerminal)
-        : context.formatVerbatimRange(content.start!, content.stop!);
+    if (childElement) {
+        return formatDirectConstructor(
+            context,
+            tokens,
+            childElement,
+            formatTerminal,
+            formatEnclosedExpression,
+        );
+    }
+
+    const commonContent = content.commonContent();
+    return (
+        (commonContent && formatEnclosedExpression(commonContent)) ??
+        context.formatVerbatimRange(content.start!, content.stop!)
+    );
 }
 
 function hasOnlyStructuralContent(
