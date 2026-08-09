@@ -237,7 +237,17 @@ describe("JSONiq & XQuery Formatter", () => {
             (languageId) => {
                 const input = `<message>Result: {format-message("a very long value", "another long value")}</message>`;
 
-                expect(formatText(input, languageId, { maxLineWidth: 30 })).toContain("\n");
+                expect(formatText(input, languageId, { maxLineWidth: 30 })).toBe(
+                    [
+                        "<message>Result: {",
+                        "    format-message(",
+                        '        "a very long value",',
+                        '        "another long value"',
+                        "    )",
+                        "}</message>",
+                        "",
+                    ].join("\n"),
+                );
             },
         );
 
