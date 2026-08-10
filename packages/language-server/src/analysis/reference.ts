@@ -4,14 +4,14 @@ import type { DefinitionByReferenceKind } from "./definitions.js";
 import type { ReferenceNameByKind } from "./names.js";
 
 export interface Reference<K extends keyof ReferenceNameByKind> {
-    name: ReferenceNameByKind[K];
-    kind: K;
-    uri: string;
-    range: Range;
+    readonly name: ReferenceNameByKind[K];
+    readonly kind: K;
+    readonly uri: string;
+    readonly range: Range;
 }
 
 export interface ResolvedReference<K extends keyof ReferenceNameByKind> extends Reference<K> {
-    declaration: DefinitionByReferenceKind[K];
+    readonly declaration: DefinitionByReferenceKind[K];
 }
 
 export type AnyResolvedReference = {

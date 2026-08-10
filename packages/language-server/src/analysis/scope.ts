@@ -6,22 +6,36 @@ interface ScopeEntry {
     visibleFrom: number;
 }
 
-export class Scope {
+export interface Scope {
+    readonly parent: Scope | undefined;
+    readonly startOffset: number;
+    readonly endOffset: number;
+    resolve<K extends keyof ReferenceNameByKind>(
+        kind: K,
+        name: ReferenceNameByKind[K],
+        offset: number,
+    ): ScopeDefinitionByReferenceKind[K] | undefined;
+    contains(offset: number): boolean;
+    findInnermostScope(offset: number): Scope;
+    listVisibleDefinitions(offset: number): Map<string, ScopeDefinition>;
+}
+
+export class ScopeBuilder implements Scope {
     private readonly entriesByName = new Map<string, ScopeEntry[]>();
     private readonly children: Scope[] = [];
 
     private constructor(
-        public readonly parent: Scope | undefined,
+        public readonly parent: ScopeBuilder | undefined,
         public readonly startOffset: number,
         public readonly endOffset: number,
     ) {}
 
-    public static module(documentLength: number): Scope {
-        return new Scope(undefined, 0, documentLength);
+    public static module(documentLength: number): ScopeBuilder {
+        return new ScopeBuilder(undefined, 0, documentLength);
     }
 
-    public enter(startOffset: number, endOffset: number): Scope {
-        const child = new Scope(this, startOffset, endOffset);
+    public enter(startOffset: number, endOffset: number): ScopeBuilder {
+        const child = new ScopeBuilder(this, startOffset, endOffset);
         this.children.push(child);
         return child;
     }

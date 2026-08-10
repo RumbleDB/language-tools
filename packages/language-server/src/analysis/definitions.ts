@@ -8,9 +8,9 @@ export type DefinitionKind = "variable" | "namespace" | "type" | "parameter" | "
 export type DefinitionOrigin = "source" | "implicit" | "builtin";
 
 interface AbstractDefinition<K extends DefinitionKind> {
-    name: DeclarationNameByKind[K];
-    kind: K;
-    origin: DefinitionOrigin;
+    readonly name: DeclarationNameByKind[K];
+    readonly kind: K;
+    readonly origin: DefinitionOrigin;
 }
 
 export type BaseDefinition<K extends DefinitionKind = DefinitionKind> = K extends DefinitionKind
@@ -21,41 +21,39 @@ export interface BaseSourceDefinition<
     K extends DefinitionKind = DefinitionKind,
 > extends AbstractDefinition<K> {
     /** URI of the module that owns this declaration. */
-    uri: string;
+    readonly uri: string;
     // Entire range of the declaration.
-    range: Range;
+    readonly range: Range;
 
     // Range of the declaration name token.
-    selectionRange: Range;
+    readonly selectionRange: Range;
 
-    origin: "source";
+    readonly origin: "source";
 }
 
 export interface SourceVariableDefinition extends BaseSourceDefinition<"variable"> {
-    kind: "variable";
-    isPrivate: boolean;
+    readonly kind: "variable";
 }
 
 export interface SourceParameterDefinition extends BaseSourceDefinition<"parameter"> {
-    kind: "parameter";
-    function: SourceFunctionDefinition;
+    readonly kind: "parameter";
+    readonly function: SourceFunctionDefinition;
 }
 
 export interface SourceFunctionDefinition extends BaseSourceDefinition<"function"> {
-    kind: "function";
-    parameters: SourceParameterDefinition[];
-    isPrivate: boolean;
+    readonly kind: "function";
+    readonly parameters: readonly SourceParameterDefinition[];
 }
 
 export type SourceModuleExportDefinition = SourceVariableDefinition | SourceFunctionDefinition;
 
 export interface SourceNamespaceDefinition extends BaseSourceDefinition<"namespace"> {
-    kind: "namespace";
-    namespaceUri: string;
+    readonly kind: "namespace";
+    readonly namespaceUri: string;
 }
 
 export interface SourceTypeDefinition extends BaseSourceDefinition<"type"> {
-    kind: "type";
+    readonly kind: "type";
 }
 
 export type SourceDefinition =
@@ -66,14 +64,14 @@ export type SourceDefinition =
     | SourceTypeDefinition;
 
 export interface ImplicitVariableDefinition extends AbstractDefinition<"variable"> {
-    kind: "variable";
-    origin: "implicit";
+    readonly kind: "variable";
+    readonly origin: "implicit";
 }
 
 export interface ImplicitNamespaceDefinition extends AbstractDefinition<"namespace"> {
-    kind: "namespace";
-    origin: "implicit";
-    namespaceUri: string;
+    readonly kind: "namespace";
+    readonly origin: "implicit";
+    readonly namespaceUri: string;
 }
 
 export type NamespaceDefinition = SourceNamespaceDefinition | ImplicitNamespaceDefinition;

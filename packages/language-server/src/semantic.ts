@@ -18,7 +18,7 @@ export const legend: SemanticTokensLegend = {
     tokenModifiers: ["definition", "defaultLibrary"],
 };
 
-export function collectSemanticDiagnostics(document: TextDocument): Diagnostic[] {
+export function collectSemanticDiagnostics(document: TextDocument): readonly Diagnostic[] {
     const analysis = getAnalysis(document);
     return analysis.diagnostics;
 }

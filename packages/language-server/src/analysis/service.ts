@@ -2,7 +2,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
 import { clearParsedDocument } from "server/parser/index.js";
-import { DiagnosticSeverity, type DocumentUri } from "vscode-languageserver";
+import { DiagnosticSeverity, type Diagnostic, type DocumentUri } from "vscode-languageserver";
 import { TextDocument } from "vscode-languageserver-textdocument";
 
 import { analyzeDocument, type AnalysisResult, type ResolvedModuleImport } from "./builder.js";
@@ -70,7 +70,7 @@ class WorkspaceModuleService {
         const nextVisiting = new Set(visiting).add(document.uri);
         const index = this.getDocumentIndex(document);
         const resolvedImports: ResolvedModuleImport[] = [];
-        const importDiagnostics: AnalysisResult["diagnostics"] = [];
+        const importDiagnostics: Diagnostic[] = [];
         const importedNamespaces = new Set<string>();
 
         for (const imported of index.moduleDeclaration.imports) {
@@ -170,8 +170,10 @@ class WorkspaceModuleService {
             }
         }
 
-        const analysis = analyzeDocument(index, { resolvedImports });
-        analysis.diagnostics.unshift(...importDiagnostics);
+        const analysis = analyzeDocument(index, {
+            resolvedImports,
+            diagnostics: importDiagnostics,
+        });
         this.cache.set(document.uri, { version: document.version, analysis });
         return analysis;
     }

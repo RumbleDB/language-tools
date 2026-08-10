@@ -55,7 +55,7 @@ import {
     type ReferenceNameByKind,
 } from "./names.js";
 import { AnyResolvedReference, ResolvedReference } from "./reference.js";
-import { Scope } from "./scope.js";
+import { ScopeBuilder, type Scope } from "./scope.js";
 
 const CATCH_VARIABLES = [
     { kind: "prefixed-qname", prefix: "err", localName: "code" },
@@ -68,15 +68,15 @@ const CATCH_VARIABLES = [
 ] as const;
 
 export interface AnalysisResult {
-    ast: ModuleNode;
-    moduleDeclaration: ModuleDeclaration;
-    moduleInterface?: ModuleInterface;
-    scope: Scope;
-    namespaces: ReadonlyMap<Prefix, NamespaceDefinition>;
-    definitions: readonly SourceDefinition[];
-    references: readonly AnyResolvedReference[];
-    referencesByDefinition: ReadonlyMap<Definition, readonly AnyResolvedReference[]>;
-    diagnostics: Diagnostic[];
+    readonly ast: ModuleNode;
+    readonly moduleDeclaration: ModuleDeclaration;
+    readonly moduleInterface?: ModuleInterface;
+    readonly scope: Scope;
+    readonly namespaces: ReadonlyMap<Prefix, NamespaceDefinition>;
+    readonly definitions: readonly SourceDefinition[];
+    readonly references: readonly AnyResolvedReference[];
+    readonly referencesByDefinition: ReadonlyMap<Definition, readonly AnyResolvedReference[]>;
+    readonly diagnostics: readonly Diagnostic[];
 }
 
 /** Declarations made visible by a directly imported library module. */
@@ -87,6 +87,7 @@ export interface ResolvedModuleImport {
 
 export interface AnalysisEnvironment {
     readonly resolvedImports?: readonly ResolvedModuleImport[];
+    readonly diagnostics?: readonly Diagnostic[];
 }
 
 class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
@@ -94,9 +95,11 @@ class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
 
     private readonly referencesByDefinition = new Map<Definition, AnyResolvedReference[]>();
 
+    private readonly diagnostics: Diagnostic[];
+
     private readonly result: AnalysisResult;
 
-    private currentScope: Scope;
+    private currentScope: ScopeBuilder;
 
     private readonly parserAst: ParserAstNode;
 
@@ -104,18 +107,19 @@ class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
 
     private readonly resolvedImportsByNamespace: ReadonlyMap<string, ResolvedModuleImport>;
 
-    public constructor(
-        index: DocumentIndex,
-        resolvedImports: readonly ResolvedModuleImport[] = [],
-    ) {
+    public constructor(index: DocumentIndex, environment: AnalysisEnvironment) {
         super();
         this.index = index;
         this.resolvedImportsByNamespace = new Map(
-            resolvedImports.map((moduleImport) => [moduleImport.targetNamespaceUri, moduleImport]),
+            (environment.resolvedImports ?? []).map((moduleImport) => [
+                moduleImport.targetNamespaceUri,
+                moduleImport,
+            ]),
         );
+        this.diagnostics = [...(environment.diagnostics ?? []), ...index.diagnostics];
 
         this.parserAst = index.ast;
-        const moduleScope = Scope.module(index.document.getText().length);
+        const moduleScope = ScopeBuilder.module(index.document.getText().length);
 
         this.result = {
             ast: {
@@ -132,15 +136,17 @@ class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
             definitions: index.definitions,
             references: this.references,
             referencesByDefinition: this.referencesByDefinition,
-            diagnostics: [...index.diagnostics],
+            diagnostics: this.diagnostics,
         };
 
         this.currentScope = moduleScope;
     }
 
     public build(): AnalysisResult {
-        this.adoptChildren(this.result.ast, this.visitChildrenAsNodes(this.parserAst));
-        return this.result;
+        return {
+            ...this.result,
+            ast: this.adoptChildren(this.result.ast, this.visitChildrenAsNodes(this.parserAst)),
+        };
     }
 
     protected override defaultVisit(node: ParserAstNode): AstNode[] {
@@ -313,11 +319,7 @@ class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
     }
 
     private adoptChildren<T extends AstNode>(parent: T, children: AstNode[]): T {
-        parent.children = children;
-        for (const child of children) {
-            child.parent = parent;
-        }
-        return parent;
+        return { ...parent, children };
     }
 
     private enterScope<T>(range: Range, callback: () => T): T {
@@ -377,7 +379,7 @@ class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
                   } satisfies ResolvedReference<K>);
 
         if (declaration === undefined) {
-            this.result.diagnostics.push({
+            this.diagnostics.push({
                 severity: DiagnosticSeverity.Error,
                 message: `Reference to undefined ${kind} '${lookupName}'`,
                 range,
@@ -442,7 +444,7 @@ class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
               : undefined;
 
         if (namespaceUri === undefined && isPrefixedQName(qname)) {
-            this.result.diagnostics.push({
+            this.diagnostics.push({
                 severity: DiagnosticSeverity.Warning,
                 message: `Undefined namespace prefix '${qname.prefix}'`,
                 range,
@@ -462,5 +464,5 @@ export function analyzeDocument(
     index: DocumentIndex,
     environment: AnalysisEnvironment = {},
 ): AnalysisResult {
-    return new AnalysisBuilder(index, environment.resolvedImports).build();
+    return new AnalysisBuilder(index, environment).build();
 }

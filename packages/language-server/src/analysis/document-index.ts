@@ -240,12 +240,12 @@ class DocumentIndexBuilder extends ParserAstVisitor<void> {
     }
 
     protected override visitFunctionDeclaration(node: FunctionDeclarationAstNode): void {
+        const parameters: SourceParameterDefinition[] = [];
         const definition: SourceFunctionDefinition = {
             ...this.sourceDefinitionBase(node.range, node.selectionRange),
             kind: "function",
             name: this.resolveFunctionName(node.name, node.selectionRange),
-            parameters: [],
-            isPrivate: node.isPrivate,
+            parameters,
         };
         this.definitions.push(definition);
         this.indexedDefinitions.functions.set(node, definition);
@@ -260,7 +260,7 @@ class DocumentIndexBuilder extends ParserAstVisitor<void> {
             };
             this.definitions.push(parameterDefinition);
             this.indexedDefinitions.parameters.set(parameter, parameterDefinition);
-            definition.parameters.push(parameterDefinition);
+            parameters.push(parameterDefinition);
         }
         this.visitChildren(node);
     }
@@ -270,7 +270,6 @@ class DocumentIndexBuilder extends ParserAstVisitor<void> {
             this.resolveQName(node.name, node.selectionRange),
             node.range,
             node.selectionRange,
-            node.isPrivate,
         );
         this.definitions.push(definition);
         this.indexedDefinitions.variables.set(node, definition);
@@ -290,7 +289,7 @@ class DocumentIndexBuilder extends ParserAstVisitor<void> {
                 ? definition.name.qname.namespaceUri
                 : definition.name.namespaceUri;
         if (namespaceUri === this.moduleDeclaration.targetNamespace.namespaceUri) {
-            if (!definition.isPrivate) this.exports.push(definition);
+            if (!node.isPrivate) this.exports.push(definition);
             return;
         }
         this.diagnostics.push({
@@ -314,13 +313,11 @@ class DocumentIndexBuilder extends ParserAstVisitor<void> {
         name: QName,
         range: Range,
         selectionRange: Range,
-        isPrivate: boolean = false,
     ): SourceVariableDefinition {
         return {
             ...this.sourceDefinitionBase(range, selectionRange),
             kind: "variable",
             name,
-            isPrivate,
         };
     }
 
