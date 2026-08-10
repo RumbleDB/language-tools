@@ -2,10 +2,9 @@ import type { Position } from "vscode-languageserver";
 
 import type { ArgumentNode, FunctionCallNode } from "../analysis/ast.js";
 import type { AnalysisResult } from "../analysis/builder.js";
-import {
-    isSourceFunctionDefinition,
-    type Definition,
-    type SourceFunctionDefinition,
+import type {
+    DefinitionByReferenceKind,
+    SourceFunctionDefinition,
 } from "../analysis/definitions.js";
 import { findNodesThatContainPosition } from "../analysis/queries.js";
 
@@ -36,15 +35,19 @@ export function chooseBestSignatureIndex(
     return smallestMatchingIndex ?? largestIndex;
 }
 
-export function findResolvedFunctionDeclaration(call: FunctionCallNode): Definition | undefined {
-    return call.reference?.resolution?.declaration;
+export function findResolvedFunctionDeclaration(
+    call: FunctionCallNode,
+): DefinitionByReferenceKind["function"] | undefined {
+    return call.reference.resolution?.declaration;
 }
 
 export function findResolvedSourceFunction(
     call: FunctionCallNode,
 ): SourceFunctionDefinition | undefined {
     const declaration = findResolvedFunctionDeclaration(call);
-    return isSourceFunctionDefinition(declaration) ? declaration : undefined;
+    return declaration?.origin === "source" && declaration.kind === "function"
+        ? declaration
+        : undefined;
 }
 
 export function findCurrentArgument(

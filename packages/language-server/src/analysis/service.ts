@@ -7,8 +7,14 @@ import { DiagnosticSeverity, type DocumentUri } from "vscode-languageserver";
 import { TextDocument } from "vscode-languageserver-textdocument";
 
 import { buildAnalysis, type AnalysisResult, type ResolvedModuleImport } from "./builder.js";
-import { definitionNameToString, type SourceModuleExportDefinition } from "./definitions.js";
+import {
+    definitionNameToString,
+    type Definition,
+    type SourceDefinition,
+    type SourceModuleExportDefinition,
+} from "./definitions.js";
 import { collectModuleExports } from "./queries.js";
+import type { AnyResolvedReference } from "./reference.js";
 
 interface CachedAnalysis {
     version: number;
@@ -165,33 +171,27 @@ class WorkspaceModuleService {
 
         const analysis = buildAnalysis(document, resolvedImports);
         analysis.diagnostics.unshift(...importDiagnostics);
-        this.reconcileProvisionalReferences(document.uri, analysis);
+        this.provisionalAnalyses.delete(document.uri);
         this.cache.set(document.uri, { version: document.version, analysis });
         return analysis;
     }
 
-    private reconcileProvisionalReferences(uri: DocumentUri, analysis: AnalysisResult): void {
-        const provisional = this.provisionalAnalyses.get(uri);
-        if (provisional === undefined) return;
+    public getReferencesToDefinition(definition: Definition): readonly AnyResolvedReference[] {
+        if (definition.origin !== "source") return [];
 
-        const finalExports = new Map(
-            collectModuleExports(analysis).map((definition) => [
-                definitionNameToString(definition, true),
-                definition,
-            ]),
-        );
-        for (const provisionalDefinition of collectModuleExports(provisional)) {
-            const finalDefinition = finalExports.get(
-                definitionNameToString(provisionalDefinition, true),
-            );
-            if (finalDefinition === undefined) continue;
-            for (const reference of provisionalDefinition.references) {
-                if (reference.uri === uri) continue;
-                reference.declaration = finalDefinition;
-                finalDefinition.references.push(reference);
+        const targetKey = sourceDefinitionKey(definition);
+        const references: AnyResolvedReference[] = [];
+        for (const { analysis } of this.cache.values()) {
+            for (const reference of analysis.references) {
+                if (
+                    reference.declaration.origin === "source" &&
+                    sourceDefinitionKey(reference.declaration) === targetKey
+                ) {
+                    references.push(reference);
+                }
             }
         }
-        this.provisionalAnalyses.delete(uri);
+        return references;
     }
 
     private loadImports(
@@ -225,6 +225,11 @@ class WorkspaceModuleService {
     }
 }
 
+function sourceDefinitionKey(definition: SourceDefinition): string {
+    const { start, end } = definition.selectionRange;
+    return `${definition.uri}:${definition.kind}:${start.line}:${start.character}:${end.line}:${end.character}`;
+}
+
 function languageIdFor(path: string): string {
     return path.endsWith(".xq") || path.endsWith(".xqm") ? "xquery" : "jsoniq";
 }
@@ -252,4 +257,9 @@ export function removeOpenDocument(uri: DocumentUri): void {
 }
 export function invalidateModuleDocuments(uris: readonly DocumentUri[]): void {
     workspaceModules.invalidateDocuments(uris);
+}
+export function getWorkspaceReferencesToDefinition(
+    definition: Definition,
+): readonly AnyResolvedReference[] {
+    return workspaceModules.getReferencesToDefinition(definition);
 }

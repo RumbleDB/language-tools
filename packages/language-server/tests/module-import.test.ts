@@ -15,8 +15,7 @@ describe("module imports", () => {
         const document = testDocumentFromUri(
             [
                 'import module namespace use = "urn:language-server:test" at "imported.xqm";',
-                "use:double($use:answer)",
-                "$value",
+                "use:double($use:answer) + $value",
             ],
             { uri: pathToFileURL(path.join(path.dirname(fixture), "main.jq")).toString() },
         );
@@ -25,7 +24,7 @@ describe("module imports", () => {
         expect(analysis.diagnostics).toEqual([
             expect.objectContaining({
                 code: "unresolved-variable",
-                message: "Reference to undefined variable '$value'",
+                message: "Reference to undefined variable 'value'",
             }),
         ]);
         expect(findDefinitionLocation(document, positionAt(document, "use:double"))?.uri).toBe(

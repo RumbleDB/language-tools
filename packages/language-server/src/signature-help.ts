@@ -8,11 +8,7 @@ import {
 import { TextDocument } from "vscode-languageserver-textdocument";
 
 import type { ArgumentNode, AstNode, FunctionCallNode } from "./analysis/ast.js";
-import {
-    definitionNameToString,
-    isSourceFunctionDefinition,
-    type Definition,
-} from "./analysis/definitions.js";
+import { definitionNameToString, type DefinitionByReferenceKind } from "./analysis/definitions.js";
 import { findNodesThatContainPosition } from "./analysis/queries.js";
 import { getAnalysis } from "./analysis/service.js";
 import { FunctionDocEntry, getBuiltinFunctionDocumentation } from "./assets/function-docs.js";
@@ -86,9 +82,9 @@ function getBuiltinSignatures(functionName: FunctionName): SignatureInformation[
 }
 
 function getSourceSignatures(
-    functionDeclaration: Definition | undefined,
+    functionDeclaration: DefinitionByReferenceKind["function"] | undefined,
 ): SignatureInformation[] | null {
-    if (!isSourceFunctionDefinition(functionDeclaration)) {
+    if (functionDeclaration?.origin !== "source" || functionDeclaration.kind !== "function") {
         return null;
     }
 
@@ -107,7 +103,7 @@ function resolveSignatures(
     call: FunctionCallNode,
     activeParameter: number,
 ): { signatures: SignatureInformation[]; activeSignature: number } {
-    const resolvedDeclaration = call.reference?.resolution?.declaration;
+    const resolvedDeclaration = call.reference.resolution?.declaration;
     const builtinSignatures = getBuiltinSignatures(call.name);
     if (builtinSignatures) {
         return {

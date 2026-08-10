@@ -1,32 +1,16 @@
-import { BuiltinFunctionDefinition } from "server/assets/builtin-functions.js";
+import type { BuiltinFunctionDefinition } from "server/assets/builtin-functions.js";
 import type { Range } from "vscode-languageserver";
-import { TextDocument } from "vscode-languageserver-textdocument";
 
-import {
-    functionNameToString,
-    QNameToString,
-    type DeclarationNameByKind,
-    type FunctionName,
-    type QName,
-} from "./names.js";
-import { ResolvedReference } from "./reference.js";
+import { functionNameToString, QNameToString, type DeclarationNameByKind } from "./names.js";
 
-export type DeclarationKind = "variable" | "namespace" | "type" | "parameter" | "function";
+export type DefinitionKind = "variable" | "namespace" | "type" | "parameter" | "function";
 
-export type DefinitionKind = DeclarationKind | "builtin-function";
-
-export type DefinitionNameByKind = DeclarationNameByKind & {
-    "builtin-function": FunctionName;
-};
+export type DefinitionOrigin = "source" | "implicit" | "builtin";
 
 interface AbstractDefinition<K extends DefinitionKind> {
-    name: DefinitionNameByKind[K];
+    name: DeclarationNameByKind[K];
     kind: K;
-
-    // List of references that resolve to this declaration.
-    references: ResolvedReference[];
-
-    isBuiltin: boolean;
+    origin: DefinitionOrigin;
 }
 
 export type BaseDefinition<K extends DefinitionKind = DefinitionKind> = K extends DefinitionKind
@@ -34,7 +18,7 @@ export type BaseDefinition<K extends DefinitionKind = DefinitionKind> = K extend
     : never;
 
 export interface BaseSourceDefinition<
-    K extends DeclarationKind = DeclarationKind,
+    K extends DefinitionKind = DefinitionKind,
 > extends AbstractDefinition<K> {
     /** URI of the module that owns this declaration. */
     uri: string;
@@ -44,10 +28,7 @@ export interface BaseSourceDefinition<
     // Range of the declaration name token.
     selectionRange: Range;
 
-    // Offset from which the declaration is visible to position-based queries.
-    visibleFrom: number;
-
-    isBuiltin: false;
+    origin: "source";
 }
 
 export interface SourceVariableDefinition extends BaseSourceDefinition<"variable"> {
@@ -73,44 +54,59 @@ export interface SourceNamespaceDefinition extends BaseSourceDefinition<"namespa
     namespaceUri: string;
 }
 
+export interface SourceTypeDefinition extends BaseSourceDefinition<"type"> {
+    kind: "type";
+}
+
 export type SourceDefinition =
     | SourceVariableDefinition
     | SourceParameterDefinition
     | SourceFunctionDefinition
     | SourceNamespaceDefinition
-    | BaseSourceDefinition<"type">;
+    | SourceTypeDefinition;
 
-export type Definition = SourceDefinition | BuiltinFunctionDefinition;
-
-export function isSourceDefinition(
-    declaration: BaseDefinition | undefined,
-): declaration is SourceDefinition {
-    return declaration !== undefined && declaration.isBuiltin === false;
+export interface ImplicitVariableDefinition extends AbstractDefinition<"variable"> {
+    kind: "variable";
+    origin: "implicit";
 }
 
-export function isSourceVariableDefinition(
-    declaration: BaseDefinition | undefined,
-): declaration is SourceVariableDefinition {
-    return isSourceDefinition(declaration) && declaration.kind === "variable";
+export interface ImplicitNamespaceDefinition extends AbstractDefinition<"namespace"> {
+    kind: "namespace";
+    origin: "implicit";
+    namespaceUri: string;
 }
 
-export function isSourceParameterDefinition(
-    declaration: BaseDefinition | undefined,
-): declaration is SourceParameterDefinition {
-    return isSourceDefinition(declaration) && declaration.kind === "parameter";
+export type NamespaceDefinition = SourceNamespaceDefinition | ImplicitNamespaceDefinition;
+
+export type ScopeDefinition =
+    | SourceVariableDefinition
+    | SourceParameterDefinition
+    | SourceFunctionDefinition
+    | SourceTypeDefinition
+    | ImplicitVariableDefinition;
+
+export type VariableDefinition =
+    | SourceVariableDefinition
+    | SourceParameterDefinition
+    | ImplicitVariableDefinition;
+
+export interface ScopeDefinitionByReferenceKind {
+    variable: VariableDefinition;
+    function: SourceFunctionDefinition;
+    type: SourceTypeDefinition;
 }
 
-export function isSourceFunctionDefinition(
-    declaration: BaseDefinition | undefined,
-): declaration is SourceFunctionDefinition {
-    return isSourceDefinition(declaration) && declaration.kind === "function";
+export interface DefinitionByReferenceKind {
+    variable: VariableDefinition;
+    function: SourceFunctionDefinition | BuiltinFunctionDefinition;
+    type: SourceTypeDefinition;
 }
 
-export function isSourceTypeDefinition(
-    declaration: BaseDefinition | undefined,
-): declaration is Extract<SourceDefinition, { kind: "type" }> {
-    return isSourceDefinition(declaration) && declaration.kind === "type";
-}
+export type Definition =
+    | SourceDefinition
+    | ImplicitVariableDefinition
+    | ImplicitNamespaceDefinition
+    | BuiltinFunctionDefinition;
 
 export function definitionNameToString(
     definition: BaseDefinition,
@@ -120,7 +116,6 @@ export function definitionNameToString(
         case "namespace":
             return definition.name.prefix;
         case "function":
-        case "builtin-function":
             return functionNameToString(definition.name, expanded);
         case "type":
             return QNameToString(definition.name, expanded);
@@ -130,104 +125,4 @@ export function definitionNameToString(
         default:
             throw definition satisfies never;
     }
-}
-
-interface DefinitionBaseInput {
-    range: Range;
-    selectionRange: Range;
-    visibleFrom?: number;
-}
-
-function createBaseDefinition(document: TextDocument, input: DefinitionBaseInput) {
-    return {
-        uri: document.uri,
-        range: input.range,
-        selectionRange: input.selectionRange,
-        visibleFrom: input.visibleFrom ?? document.offsetAt(input.range.end),
-        references: [],
-        isBuiltin: false as const,
-    };
-}
-
-export function createVariableDefinition(
-    document: TextDocument,
-    name: QName,
-    range: Range,
-    selectionRange: Range,
-    visibleFrom?: number,
-    isPrivate: boolean = false,
-): SourceVariableDefinition {
-    return {
-        ...createBaseDefinition(document, {
-            range,
-            selectionRange,
-            ...(visibleFrom === undefined ? {} : { visibleFrom }),
-        }),
-        kind: "variable",
-        name,
-        isPrivate,
-    };
-}
-
-export function createFunctionDefinition(
-    document: TextDocument,
-    name: FunctionName,
-    range: Range,
-    selectionRange: Range,
-    isPrivate: boolean = false,
-): SourceFunctionDefinition {
-    return {
-        ...createBaseDefinition(document, {
-            range,
-            selectionRange,
-            visibleFrom: document.offsetAt(selectionRange.end),
-        }),
-        kind: "function",
-        name,
-        parameters: [],
-        isPrivate,
-    };
-}
-
-export function createParameterDefinition(
-    document: TextDocument,
-    name: QName,
-    range: Range,
-    selectionRange: Range,
-    containingFunction: SourceFunctionDefinition,
-): SourceParameterDefinition {
-    return {
-        ...createBaseDefinition(document, { range, selectionRange }),
-        kind: "parameter",
-        name,
-        function: containingFunction,
-    };
-}
-
-export function createNamespaceDefinition(
-    document: TextDocument,
-    prefix: string,
-    namespaceUri: string,
-    range: Range,
-    selectionRange: Range,
-): SourceNamespaceDefinition {
-    return {
-        ...createBaseDefinition(document, { range, selectionRange }),
-        kind: "namespace",
-        name: { prefix },
-        namespaceUri,
-    };
-}
-
-export function createTypeDefinition(
-    document: TextDocument,
-    name: QName,
-    range: Range,
-    selectionRange: Range,
-): Extract<SourceDefinition, { kind: "type" }> {
-    return {
-        ...createBaseDefinition(document, { range, selectionRange }),
-        kind: "type" satisfies DeclarationKind,
-        name,
-    };
 }

@@ -11,11 +11,11 @@ import { type StaticFunctionSignature } from "server/static-typecheck/types.js";
 
 import { loadJsonAsset } from "./loader.js";
 
-export interface BuiltinFunctionDefinition extends BaseDefinition<"builtin-function"> {
+export interface BuiltinFunctionDefinition extends BaseDefinition<"function"> {
     name: FunctionName;
-    kind: "builtin-function";
+    kind: "function";
     signature: StaticFunctionSignature;
-    isBuiltin: true;
+    origin: "builtin";
 }
 
 const BUILTIN_FUNCTION_NAMESPACES = [
@@ -73,10 +73,9 @@ for (const func of catalog) {
     const name = func.name;
     map.set(functionNameToString(name, true), {
         name,
-        kind: "builtin-function",
+        kind: "function",
         signature: func.signature,
-        references: [],
-        isBuiltin: true,
+        origin: "builtin",
     });
 }
 

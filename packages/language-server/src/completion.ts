@@ -9,14 +9,7 @@ import {
 import { TextDocument } from "vscode-languageserver-textdocument";
 
 import { defaultNamespaces } from "./analysis/default-namespaces.js";
-import {
-    BaseDefinition,
-    definitionNameToString,
-    isSourceFunctionDefinition,
-    isSourceParameterDefinition,
-    isSourceTypeDefinition,
-    isSourceVariableDefinition,
-} from "./analysis/definitions.js";
+import { definitionNameToString, type ScopeDefinition } from "./analysis/definitions.js";
 import { QNameToString } from "./analysis/names.js";
 import { getVisibleDeclarationsAtPosition } from "./analysis/queries.js";
 import { BuiltinFunctionDefinition, builtinFunctions } from "./assets/builtin-functions.js";
@@ -71,18 +64,14 @@ export function findCompletions(document: TextDocument, position: Position): Com
                   end: position,
               };
 
-    const availableSourceDeclarations = getVisibleDeclarationsAtPosition(document, position);
+    const availableDeclarations = getVisibleDeclarationsAtPosition(document, position);
     const variables = intent.allowVariableReferences
-        ? availableSourceDeclarations.filter(
-              (v) => isSourceVariableDefinition(v) || isSourceParameterDefinition(v),
-          )
+        ? availableDeclarations.filter((v) => v.kind === "variable" || v.kind === "parameter")
         : [];
     const functions = intent.allowFunctions
-        ? availableSourceDeclarations.filter(isSourceFunctionDefinition)
+        ? availableDeclarations.filter((v) => v.kind === "function")
         : [];
-    const types = intent.allowTypes
-        ? availableSourceDeclarations.filter(isSourceTypeDefinition)
-        : [];
+    const types = intent.allowTypes ? availableDeclarations.filter((v) => v.kind === "type") : [];
     const builtinFunctions = intent.allowFunctions ? getBuiltinFunctionCompletionItems() : [];
     const builtinTypeItems = intent.allowTypes ? getBuiltinTypeCompletionItems() : [];
     const keywords = keywordCompletions(intent.keywords);
@@ -194,9 +183,9 @@ function getDotCompletionContext(
     };
 }
 
-function toCompletionItem(declaration: BaseDefinition): CompletionItem {
+function toCompletionItem(declaration: ScopeDefinition): CompletionItem {
     const name = definitionNameToString(declaration);
-    if (isSourceFunctionDefinition(declaration)) {
+    if (declaration.origin === "source" && declaration.kind === "function") {
         const label = QNameToString(declaration.name.qname, false);
         const parameterNames = declaration.parameters.map((parameter) =>
             definitionNameToString(parameter),
@@ -221,7 +210,7 @@ function toCompletionItem(declaration: BaseDefinition): CompletionItem {
         };
     }
 
-    if (isSourceTypeDefinition(declaration)) {
+    if (declaration.origin === "source" && declaration.kind === "type") {
         const label = QNameToString(declaration.name, false);
         const expandedName = QNameToString(declaration.name, true);
 

@@ -9,13 +9,12 @@ import { TextDocument } from "vscode-languageserver-textdocument";
 import { AnalysisResult } from "./analysis/builder.js";
 import {
     definitionNameToString,
-    isSourceDefinition,
     type SourceParameterDefinition,
     type SourceVariableDefinition,
 } from "./analysis/definitions.js";
 import type { QName } from "./analysis/names.js";
 import { findSymbolAtPosition } from "./analysis/queries.js";
-import { getAnalysis } from "./analysis/service.js";
+import { getAnalysis, getWorkspaceReferencesToDefinition } from "./analysis/service.js";
 
 interface RenameTarget {
     declaration: SourceVariableDefinition | SourceParameterDefinition;
@@ -88,7 +87,7 @@ export function buildRenameWorkspaceEdit(
         ],
     };
 
-    for (const reference of target.declaration.references) {
+    for (const reference of getWorkspaceReferencesToDefinition(target.declaration)) {
         if (reference.kind !== "variable") continue;
         (editsByUri[reference.uri] ??= []).push({
             range: reference.range,
@@ -114,7 +113,7 @@ function findRenameTarget(analysis: AnalysisResult, position: Position): RenameT
     }
 
     if (
-        !isSourceDefinition(occurrence.declaration) ||
+        occurrence.declaration.origin !== "source" ||
         (occurrence.declaration.kind !== "variable" && occurrence.declaration.kind !== "parameter")
     ) {
         return null;

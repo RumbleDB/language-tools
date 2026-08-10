@@ -89,7 +89,9 @@ export interface VariableDeclarationAstNode extends AstNodeBase<"variable-declar
 
 export interface FlowrExpressionAstNode extends AstNodeBase<"flowr-expression"> {}
 
-export interface CatchClauseAstNode extends AstNodeBase<"catch-clause"> {}
+export interface CatchClauseAstNode extends AstNodeBase<"catch-clause"> {
+    readonly bodyStart: Position;
+}
 
 export interface FunctionCallAstNode extends AstNodeBase<"function-call"> {
     readonly name: LexicalFunctionName;

@@ -1,9 +1,8 @@
 import { type Location, type Position } from "vscode-languageserver";
 import { TextDocument } from "vscode-languageserver-textdocument";
 
-import { isSourceDefinition } from "./analysis/definitions.js";
 import { findSymbolAtPosition } from "./analysis/queries.js";
-import { getAnalysis } from "./analysis/service.js";
+import { getAnalysis, getWorkspaceReferencesToDefinition } from "./analysis/service.js";
 
 /**
  * Finds all reference locations for the variable at the given position in the document, optionally including the declaration location.
@@ -22,7 +21,7 @@ export function findReferenceLocations(
     const occurrence = findSymbolAtPosition(analysis, position);
     const targetDeclaration = occurrence?.declaration;
 
-    if (!isSourceDefinition(targetDeclaration)) {
+    if (targetDeclaration?.origin !== "source") {
         return [];
     }
 
@@ -35,7 +34,7 @@ export function findReferenceLocations(
         });
     }
 
-    for (const reference of targetDeclaration.references) {
+    for (const reference of getWorkspaceReferencesToDefinition(targetDeclaration)) {
         locations.push({
             uri: reference.uri,
             range: reference.range,
