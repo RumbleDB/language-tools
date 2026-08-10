@@ -1,5 +1,4 @@
 import { buildAnalysis } from "server/analysis/builder.js";
-import { isSourceDefinition } from "server/analysis/definitions.js";
 import {
     findNodesThatContainPosition,
     findNodeThatContainsPosition,
@@ -396,8 +395,15 @@ describe("JSONiq variable scope analysis", () => {
         const analysis = await buildAnalysis(document);
 
         expect(
-            collectDefinitions(analysis)
-                .filter((definition) => definition.kind === "variable")
+            collectDefinitions(analysis).filter((definition) => definition.kind === "variable"),
+        ).toEqual([]);
+
+        expect(
+            getVisibleDeclarationsAtPosition(document, positionAt(document, "$err:code"))
+                .filter(
+                    (definition) =>
+                        definition.origin === "implicit" && definition.kind === "variable",
+                )
                 .map((definition) => definition.name),
         ).toMatchObject([
             { prefix: "err", localName: "code" },
@@ -614,7 +620,7 @@ describe("JSONiq variable scope analysis", () => {
                 (reference) => reference.kind === "variable" && reference.name.localName === "x",
             )
             .map((reference) => {
-                if (isSourceDefinition(reference.declaration)) {
+                if (reference.declaration.origin === "source") {
                     return {
                         line: reference.range.start.line,
                         declarationLine: reference.declaration.selectionRange.start.line,
