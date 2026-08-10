@@ -2,7 +2,7 @@ import type { Range } from "vscode-languageserver";
 
 import { Definition, SourceDefinition } from "./definitions.js";
 import type { FunctionName, ReferenceNameByKind } from "./names.js";
-import { ResolvedReference } from "./reference.js";
+import { AnyResolvedReference, ResolvedReference } from "./reference.js";
 
 export type AstNodeKind = "module" | "declaration" | "reference" | "function-call" | "argument";
 
@@ -48,5 +48,5 @@ export type AstNode =
 export interface SymbolOccurrence {
     range: Range;
     declaration: Definition;
-    reference: ResolvedReference | undefined;
+    reference: AnyResolvedReference | undefined;
 }

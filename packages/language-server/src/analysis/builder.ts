@@ -39,10 +39,11 @@ import type {
 import { defaultNamespaces } from "./default-namespaces.js";
 import {
     Definition,
+    DefinitionByReferenceKind,
     ImplicitNamespaceDefinition,
     ImplicitVariableDefinition,
     NamespaceDefinition,
-    ScopedDefinition,
+    ScopeDefinition,
     SourceDefinition,
     SourceFunctionDefinition,
     SourceNamespaceDefinition,
@@ -55,7 +56,7 @@ import {
     type QName,
     type ReferenceNameByKind,
 } from "./names.js";
-import { ResolvedReference } from "./reference.js";
+import { AnyResolvedReference, ResolvedReference } from "./reference.js";
 import { Scope } from "./scope.js";
 
 const CATCH_VARIABLES = [
@@ -72,10 +73,19 @@ export interface AnalysisResult {
     ast: ModuleNode;
     scope: Scope;
     namespaces: Map<Prefix, NamespaceDefinition>;
+    definitions: readonly SourceDefinition[];
+    references: readonly AnyResolvedReference[];
+    referencesByDefinition: ReadonlyMap<Definition, readonly AnyResolvedReference[]>;
     diagnostics: Diagnostic[];
 }
 
 class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
+    private readonly definitions: SourceDefinition[] = [];
+
+    private readonly references: AnyResolvedReference[] = [];
+
+    private readonly referencesByDefinition = new Map<Definition, AnyResolvedReference[]>();
+
     private readonly result: AnalysisResult;
 
     private currentScope: Scope;
@@ -95,7 +105,6 @@ class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
                     kind: "namespace",
                     name: { prefix: ns[0] },
                     namespaceUri: ns[1],
-                    references: [],
                     origin: "implicit",
                 };
                 return [ns[0], definition] as const;
@@ -111,6 +120,9 @@ class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
             },
             scope: moduleScope,
             namespaces,
+            definitions: this.definitions,
+            references: this.references,
+            referencesByDefinition: this.referencesByDefinition,
             diagnostics: [],
         };
 
@@ -202,7 +214,6 @@ class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
                     kind: "variable",
                     name: this.resolveQName(name, node.range),
                     visibleFrom: this.document.offsetAt(node.bodyStart),
-                    references: [],
                     origin: "implicit",
                 };
                 this.declareDefinition(definition);
@@ -299,7 +310,6 @@ class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
             range,
             selectionRange,
             visibleFrom,
-            references: [],
             origin: "source" as const,
         };
     }
@@ -342,19 +352,22 @@ class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
         }
     }
 
-    private declareDefinition(definition: ScopedDefinition): void {
+    private declareDefinition(definition: ScopeDefinition): void {
         this.currentScope.declare(definition);
+        if (definition.origin === "source") {
+            this.definitions.push(definition);
+        }
     }
 
     private resolve<K extends keyof ReferenceNameByKind>(
         kind: K,
         name: ReferenceNameByKind[K],
         offset: number,
-    ): Definition | undefined {
+    ): DefinitionByReferenceKind[K] | undefined {
         if (kind === "function") {
             const builtinDefinition = builtinFunctions.find(name as FunctionName);
             if (builtinDefinition !== undefined) {
-                return builtinDefinition;
+                return builtinDefinition as DefinitionByReferenceKind[K];
             }
         }
 
@@ -376,7 +389,7 @@ class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
                       name,
                       range,
                       declaration,
-                  } as unknown as ResolvedReference<K>);
+                  } satisfies ResolvedReference<K>);
 
         if (declaration === undefined) {
             this.result.diagnostics.push({
@@ -385,8 +398,11 @@ class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
                 range,
                 code: `unresolved-${kind}`,
             });
-        } else if (declaration.origin !== "builtin" && resolvedReference !== undefined) {
-            declaration.references.push(resolvedReference);
+        } else if (resolvedReference !== undefined) {
+            this.references.push(resolvedReference);
+            const referencesToDefinition = this.referencesByDefinition.get(declaration) ?? [];
+            referencesToDefinition.push(resolvedReference);
+            this.referencesByDefinition.set(declaration, referencesToDefinition);
         }
 
         return {

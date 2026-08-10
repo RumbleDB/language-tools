@@ -2,11 +2,16 @@ import { type Prefix } from "server/parser/types/name.js";
 import { getDocumentText } from "server/parser/utils.js";
 import { TextDocument } from "vscode-languageserver-textdocument";
 
-import { BaseDefinition, NamespaceDefinition, ScopedDefinition } from "./definitions.js";
+import {
+    BaseDefinition,
+    NamespaceDefinition,
+    ScopeDefinition,
+    ScopeDefinitionByReferenceKind,
+} from "./definitions.js";
 import { QName, QNameToString, type FunctionName, type ReferenceNameByKind } from "./names.js";
 
 export class Scope {
-    private readonly definitionByName = new Map<string, ScopedDefinition[]>();
+    private readonly definitionByName = new Map<string, ScopeDefinition[]>();
     private readonly children: Scope[] = [];
 
     private constructor(
@@ -29,7 +34,7 @@ export class Scope {
         return child;
     }
 
-    public declare(newDefinition: ScopedDefinition): void {
+    public declare(newDefinition: ScopeDefinition): void {
         const name = this.definitionLookupKey(newDefinition);
         if (!this.definitionByName.has(name)) {
             this.definitionByName.set(name, []);
@@ -43,11 +48,13 @@ export class Scope {
         kind: K,
         name: ReferenceNameByKind[K],
         offset: number,
-    ): ScopedDefinition | undefined {
+    ): ScopeDefinitionByReferenceKind[K] | undefined {
         const declarations = this.definitionByName.get(this.referenceLookupKey(name, kind));
         const declaration = declarations?.findLast((candidate) => candidate.visibleFrom <= offset);
         if (declaration !== undefined) {
-            return declaration;
+            // Definitions and references use the same kind-prefixed lookup keys, so a
+            // successful lookup has the definition type associated with K.
+            return declaration as ScopeDefinitionByReferenceKind[K];
         }
 
         return this.parent?.resolve(kind, name, offset);
@@ -77,8 +84,8 @@ export class Scope {
      *
      * This method should be called on the innermost scope at the given offset
      */
-    public listVisibleDefinitions(offset: number): Map<string, ScopedDefinition> {
-        const visible = new Map<string, ScopedDefinition>();
+    public listVisibleDefinitions(offset: number): Map<string, ScopeDefinition> {
+        const visible = new Map<string, ScopeDefinition>();
 
         for (const [name, definitions] of this.definitionByName.entries()) {
             const definition = definitions.findLast((candidate) => candidate.visibleFrom <= offset);
@@ -116,15 +123,15 @@ export class Scope {
     private definitionLookupKey(definition: BaseDefinition): string {
         switch (definition.kind) {
             case "namespace":
-                return definition.name.prefix;
+                return `namespace:${definition.name.prefix}`;
             case "function":
             case "builtin-function":
-                return this.functionLookupKey(definition.name);
+                return `function:${this.functionLookupKey(definition.name)}`;
             case "type":
-                return QNameToString(definition.name, true);
+                return `type:${QNameToString(definition.name, true)}`;
             case "parameter":
             case "variable":
-                return QNameToString(definition.name, true);
+                return `variable:${QNameToString(definition.name, true)}`;
             default:
                 throw definition satisfies never;
         }
@@ -136,11 +143,11 @@ export class Scope {
     ): string {
         switch (kind) {
             case "function":
-                return this.functionLookupKey(name as FunctionName);
+                return `function:${this.functionLookupKey(name as FunctionName)}`;
             case "variable":
-                return QNameToString(name as QName, true);
+                return `variable:${QNameToString(name as QName, true)}`;
             case "type":
-                return QNameToString(name as QName, true);
+                return `type:${QNameToString(name as QName, true)}`;
             default:
                 throw kind satisfies never;
         }

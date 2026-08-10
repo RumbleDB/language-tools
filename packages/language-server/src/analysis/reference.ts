@@ -1,7 +1,7 @@
 import { Range } from "vscode-languageserver";
 
-import { Definition } from "./definitions.js";
-import { ReferenceNameByKind } from "./names.js";
+import type { DefinitionByReferenceKind } from "./definitions.js";
+import type { ReferenceNameByKind } from "./names.js";
 
 export interface Reference<K extends keyof ReferenceNameByKind> {
     name: ReferenceNameByKind[K];
@@ -9,8 +9,8 @@ export interface Reference<K extends keyof ReferenceNameByKind> {
     range: Range;
 }
 
-export type AnyReference<K extends keyof ReferenceNameByKind = keyof ReferenceNameByKind> =
-    K extends keyof ReferenceNameByKind ? Reference<K> : never;
+export interface ResolvedReference<K extends keyof ReferenceNameByKind> extends Reference<K> {
+    declaration: DefinitionByReferenceKind[K];
+}
 
-export type ResolvedReference<K extends keyof ReferenceNameByKind = keyof ReferenceNameByKind> =
-    AnyReference<K> & { declaration: Definition };
+export type AnyResolvedReference = ResolvedReference<keyof ReferenceNameByKind>;

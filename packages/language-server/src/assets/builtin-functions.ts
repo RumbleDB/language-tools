@@ -75,7 +75,6 @@ for (const func of catalog) {
         name,
         kind: "builtin-function",
         signature: func.signature,
-        references: [],
         origin: "builtin",
     });
 }

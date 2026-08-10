@@ -1,4 +1,4 @@
-import { BuiltinFunctionDefinition } from "server/assets/builtin-functions.js";
+import type { BuiltinFunctionDefinition } from "server/assets/builtin-functions.js";
 import type { Range } from "vscode-languageserver";
 
 import {
@@ -7,8 +7,6 @@ import {
     type DeclarationNameByKind,
     type FunctionName,
 } from "./names.js";
-import { ResolvedReference } from "./reference.js";
-
 export type DeclarationKind = "variable" | "namespace" | "type" | "parameter" | "function";
 
 export type DefinitionKind = DeclarationKind | "builtin-function";
@@ -22,10 +20,6 @@ export type DefinitionNameByKind = DeclarationNameByKind & {
 interface AbstractDefinition<K extends DefinitionKind> {
     name: DefinitionNameByKind[K];
     kind: K;
-
-    // List of references that resolve to this declaration.
-    references: ResolvedReference[];
-
     origin: DefinitionOrigin;
 }
 
@@ -67,12 +61,16 @@ export interface SourceNamespaceDefinition extends BaseSourceDefinition<"namespa
     namespaceUri: string;
 }
 
+export interface SourceTypeDefinition extends BaseSourceDefinition<"type"> {
+    kind: "type";
+}
+
 export type SourceDefinition =
     | SourceVariableDefinition
     | SourceParameterDefinition
     | SourceFunctionDefinition
     | SourceNamespaceDefinition
-    | BaseSourceDefinition<"type">;
+    | SourceTypeDefinition;
 
 export interface ImplicitVariableDefinition extends AbstractDefinition<"variable"> {
     kind: "variable";
@@ -90,9 +88,26 @@ export interface ImplicitNamespaceDefinition extends AbstractDefinition<"namespa
 
 export type NamespaceDefinition = SourceNamespaceDefinition | ImplicitNamespaceDefinition;
 
-export type ScopedDefinition = SourceDefinition | ImplicitVariableDefinition;
+export type ScopeDefinition = SourceDefinition | ImplicitVariableDefinition;
 
-export type Definition = ScopedDefinition | ImplicitNamespaceDefinition | BuiltinFunctionDefinition;
+export type VariableDefinition =
+    | SourceVariableDefinition
+    | SourceParameterDefinition
+    | ImplicitVariableDefinition;
+
+export interface ScopeDefinitionByReferenceKind {
+    variable: VariableDefinition;
+    function: SourceFunctionDefinition;
+    type: SourceTypeDefinition;
+}
+
+export interface DefinitionByReferenceKind {
+    variable: VariableDefinition;
+    function: SourceFunctionDefinition | BuiltinFunctionDefinition;
+    type: SourceTypeDefinition;
+}
+
+export type Definition = ScopeDefinition | ImplicitNamespaceDefinition | BuiltinFunctionDefinition;
 
 export function definitionNameToString(
     definition: BaseDefinition,
