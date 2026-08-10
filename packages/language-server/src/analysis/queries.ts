@@ -5,14 +5,14 @@ import { TextDocument } from "vscode-languageserver-textdocument";
 
 import type { AstNode, SymbolOccurrence } from "./ast.js";
 import { AnalysisResult } from "./builder.js";
-import { BaseDefinition, SourceDefinition } from "./definitions.js";
+import { ScopedDefinition, SourceDefinition } from "./definitions.js";
 import { ResolvedReference } from "./reference.js";
 import { getAnalysis } from "./service.js";
 
 export function getVisibleDeclarationsAtPosition(
     document: TextDocument,
     position: Position,
-): BaseDefinition[] {
+): ScopedDefinition[] {
     const analysis = getAnalysis(document);
     const positionOffset = document.offsetAt(position);
     const scope = analysis.scope.findInnermostScope(positionOffset);

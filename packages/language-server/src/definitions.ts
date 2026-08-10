@@ -1,7 +1,6 @@
 import { type Location, type Position } from "vscode-languageserver";
 import { TextDocument } from "vscode-languageserver-textdocument";
 
-import { isSourceDefinition } from "./analysis/definitions.js";
 import { findSymbolAtPosition } from "./analysis/queries.js";
 import { getAnalysis } from "./analysis/service.js";
 
@@ -20,7 +19,7 @@ export function findDefinitionLocation(
     const occurrence = findSymbolAtPosition(analysis, position);
     const declaration = occurrence?.declaration;
 
-    if (!isSourceDefinition(declaration)) {
+    if (declaration?.origin !== "source") {
         return null;
     }
 

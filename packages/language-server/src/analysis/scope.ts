@@ -2,23 +2,23 @@ import { type Prefix } from "server/parser/types/name.js";
 import { getDocumentText } from "server/parser/utils.js";
 import { TextDocument } from "vscode-languageserver-textdocument";
 
-import { BaseDefinition, SourceDefinition, SourceNamespaceDefinition } from "./definitions.js";
+import { BaseDefinition, NamespaceDefinition, ScopedDefinition } from "./definitions.js";
 import { QName, QNameToString, type FunctionName, type ReferenceNameByKind } from "./names.js";
 
 export class Scope {
-    private readonly definitionByName = new Map<string, SourceDefinition[]>();
+    private readonly definitionByName = new Map<string, ScopedDefinition[]>();
     private readonly children: Scope[] = [];
 
     private constructor(
         public readonly parent: Scope | undefined,
         public readonly startOffset: number,
         public readonly endOffset: number,
-        private readonly namespaces: ReadonlyMap<Prefix, SourceNamespaceDefinition>,
+        private readonly namespaces: ReadonlyMap<Prefix, NamespaceDefinition>,
     ) {}
 
     public static module(
         document: TextDocument,
-        namespaces: ReadonlyMap<Prefix, SourceNamespaceDefinition>,
+        namespaces: ReadonlyMap<Prefix, NamespaceDefinition>,
     ): Scope {
         return new Scope(undefined, 0, getDocumentText(document).length, namespaces);
     }
@@ -29,7 +29,7 @@ export class Scope {
         return child;
     }
 
-    public declare(newDefinition: SourceDefinition): void {
+    public declare(newDefinition: ScopedDefinition): void {
         const name = this.definitionLookupKey(newDefinition);
         if (!this.definitionByName.has(name)) {
             this.definitionByName.set(name, []);
@@ -43,7 +43,7 @@ export class Scope {
         kind: K,
         name: ReferenceNameByKind[K],
         offset: number,
-    ): SourceDefinition | undefined {
+    ): ScopedDefinition | undefined {
         const declarations = this.definitionByName.get(this.referenceLookupKey(name, kind));
         const declaration = declarations?.findLast((candidate) => candidate.visibleFrom <= offset);
         if (declaration !== undefined) {
@@ -77,8 +77,8 @@ export class Scope {
      *
      * This method should be called on the innermost scope at the given offset
      */
-    public listVisibleDefinitions(offset: number): Map<string, SourceDefinition> {
-        const visible = new Map<string, SourceDefinition>();
+    public listVisibleDefinitions(offset: number): Map<string, ScopedDefinition> {
+        const visible = new Map<string, ScopedDefinition>();
 
         for (const [name, definitions] of this.definitionByName.entries()) {
             const definition = definitions.findLast((candidate) => candidate.visibleFrom <= offset);

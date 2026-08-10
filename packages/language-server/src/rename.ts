@@ -7,11 +7,7 @@ import {
 import { TextDocument } from "vscode-languageserver-textdocument";
 
 import { AnalysisResult } from "./analysis/builder.js";
-import {
-    definitionNameToString,
-    isSourceDefinition,
-    SourceDefinition,
-} from "./analysis/definitions.js";
+import { definitionNameToString, SourceDefinition } from "./analysis/definitions.js";
 import { findSymbolAtPosition } from "./analysis/queries.js";
 import { getAnalysis } from "./analysis/service.js";
 
@@ -109,7 +105,7 @@ function findRenameTarget(analysis: AnalysisResult, position: Position): RenameT
         return null;
     }
 
-    if (!isSourceDefinition(occurrence.declaration) || occurrence.declaration.kind === "function") {
+    if (occurrence.declaration.origin !== "source" || occurrence.declaration.kind === "function") {
         return null;
     }
 
