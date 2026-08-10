@@ -65,7 +65,7 @@ class DocumentIndexBuilder extends ParserAstVisitor<void> {
     );
     private moduleDeclaration: ModuleDeclaration = { kind: "main", imports: this.imports };
     private moduleInterface: ModuleInterface | undefined;
-    private atModuleLevel = false;
+    private readonly moduleLevelDeclarations = new Set<ParserAstNode>();
 
     public constructor(
         private readonly document: TextDocument,
@@ -75,6 +75,7 @@ class DocumentIndexBuilder extends ParserAstVisitor<void> {
     }
 
     public build(): DocumentIndex {
+        this.indexStaticContext(this.ast);
         this.visit(this.ast);
         return {
             document: this.document,
@@ -91,6 +92,32 @@ class DocumentIndexBuilder extends ParserAstVisitor<void> {
     }
 
     protected override visitModuleDeclaration(node: ModuleDeclarationAstNode): void {
+        this.visitChildren(node);
+    }
+
+    protected override visitModuleImport(_node: ModuleImportAstNode): void {}
+
+    protected override visitNamespaceDeclaration(_node: NamespaceDeclarationAstNode): void {}
+
+    private indexStaticContext(node: ParserAstNode): void {
+        switch (node.kind) {
+            case "module-declaration":
+                this.indexModuleDeclaration(node);
+                break;
+            case "module-import":
+                this.indexModuleImport(node);
+                return;
+            case "namespace-declaration":
+                this.indexNamespaceDeclaration(node);
+                return;
+            case "function-declaration":
+            case "variable-declaration":
+                return;
+        }
+        for (const child of node.children) this.indexStaticContext(child);
+    }
+
+    private indexModuleDeclaration(node: ModuleDeclarationAstNode): void {
         if (node.namespaceUri.length === 0) {
             this.diagnostics.push({
                 severity: DiagnosticSeverity.Error,
@@ -125,10 +152,14 @@ class DocumentIndexBuilder extends ParserAstVisitor<void> {
             namespaceUri: definition.namespaceUri,
             exports: this.exports,
         };
-        this.visitChildrenAtModuleLevel(node);
+        for (const child of node.children) {
+            if (child.kind === "function-declaration" || child.kind === "variable-declaration") {
+                this.moduleLevelDeclarations.add(child);
+            }
+        }
     }
 
-    protected override visitModuleImport(node: ModuleImportAstNode): void {
+    private indexModuleImport(node: ModuleImportAstNode): void {
         this.imports.push({
             ...(node.prefix === undefined ? {} : { prefix: node.prefix }),
             ...(node.prefixRange === undefined ? {} : { prefixRange: node.prefixRange }),
@@ -149,7 +180,7 @@ class DocumentIndexBuilder extends ParserAstVisitor<void> {
         this.namespaces.set(node.prefix, definition);
     }
 
-    protected override visitNamespaceDeclaration(node: NamespaceDeclarationAstNode): void {
+    private indexNamespaceDeclaration(node: NamespaceDeclarationAstNode): void {
         const definition: SourceNamespaceDefinition = {
             ...this.sourceDefinitionBase(node.range, node.selectionRange),
             kind: "namespace",
@@ -188,7 +219,7 @@ class DocumentIndexBuilder extends ParserAstVisitor<void> {
             isPrivate: node.isPrivate,
         };
         this.recordDefinition(node, definition);
-        this.recordLibraryDeclaration(definition);
+        this.recordLibraryDeclaration(node, definition);
 
         for (const parameter of node.parameters) {
             const parameterDefinition: SourceParameterDefinition = {
@@ -200,7 +231,7 @@ class DocumentIndexBuilder extends ParserAstVisitor<void> {
             this.recordDefinition(parameter, parameterDefinition);
             definition.parameters.push(parameterDefinition);
         }
-        this.visitChildrenBelowModuleLevel(node);
+        this.visitChildren(node);
     }
 
     protected override visitVariableDeclaration(node: VariableDeclarationAstNode): void {
@@ -211,22 +242,8 @@ class DocumentIndexBuilder extends ParserAstVisitor<void> {
             node.isPrivate,
         );
         this.recordDefinition(node, definition);
-        this.recordLibraryDeclaration(definition);
-        this.visitChildrenBelowModuleLevel(node);
-    }
-
-    private visitChildrenAtModuleLevel(node: ParserAstNode): void {
-        const previous = this.atModuleLevel;
-        this.atModuleLevel = true;
+        this.recordLibraryDeclaration(node, definition);
         this.visitChildren(node);
-        this.atModuleLevel = previous;
-    }
-
-    private visitChildrenBelowModuleLevel(node: ParserAstNode): void {
-        const previous = this.atModuleLevel;
-        this.atModuleLevel = false;
-        this.visitChildren(node);
-        this.atModuleLevel = previous;
     }
 
     private recordDefinition(
@@ -238,9 +255,11 @@ class DocumentIndexBuilder extends ParserAstVisitor<void> {
     }
 
     private recordLibraryDeclaration(
+        node: FunctionDeclarationAstNode | VariableDeclarationAstNode,
         definition: SourceFunctionDefinition | SourceVariableDefinition,
     ): void {
-        if (this.moduleDeclaration.kind !== "library" || !this.atModuleLevel) return;
+        if (this.moduleDeclaration.kind !== "library" || !this.moduleLevelDeclarations.has(node))
+            return;
 
         const namespaceUri =
             definition.kind === "function"
