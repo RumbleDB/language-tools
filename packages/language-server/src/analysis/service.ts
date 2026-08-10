@@ -1,8 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
-import { clearParsedDocument, parseDocument } from "server/parser/index.js";
-import type { AstNode as ParserAstNode } from "server/parser/types/ast.js";
+import { clearParsedDocument } from "server/parser/index.js";
 import { DiagnosticSeverity, type DocumentUri } from "vscode-languageserver";
 import { TextDocument } from "vscode-languageserver-textdocument";
 
@@ -13,11 +12,18 @@ import {
     type SourceDefinition,
     type SourceModuleExportDefinition,
 } from "./definitions.js";
+import { buildDocumentIndex, type DocumentIndex } from "./document-index.js";
+import type { ModuleImport } from "./module-info.js";
 import type { AnyResolvedReference } from "./reference.js";
 
 interface CachedAnalysis {
     version: number;
     analysis: AnalysisResult;
+}
+
+interface CachedDocumentIndex {
+    version: number;
+    index: DocumentIndex;
 }
 
 /**
@@ -27,7 +33,7 @@ interface CachedAnalysis {
 class WorkspaceModuleService {
     private readonly openDocuments = new Map<DocumentUri, TextDocument>();
     private readonly cache = new Map<DocumentUri, CachedAnalysis>();
-    private readonly provisionalAnalyses = new Map<DocumentUri, AnalysisResult>();
+    private readonly indexes = new Map<DocumentUri, CachedDocumentIndex>();
 
     public updateOpenDocument(document: TextDocument): void {
         const current = this.openDocuments.get(document.uri);
@@ -37,19 +43,19 @@ class WorkspaceModuleService {
         // Imports may reference this document from any open module. Until the
         // dependency graph has targeted invalidation, invalidate conservatively.
         this.cache.clear();
-        this.provisionalAnalyses.clear();
+        this.indexes.clear();
     }
 
     public removeOpenDocument(uri: DocumentUri): void {
         this.openDocuments.delete(uri);
         this.cache.clear();
-        this.provisionalAnalyses.clear();
+        this.indexes.clear();
     }
 
     public invalidateDocuments(uris: readonly DocumentUri[]): void {
         for (const uri of uris) clearParsedDocument(uri);
         this.cache.clear();
-        this.provisionalAnalyses.clear();
+        this.indexes.clear();
     }
 
     public getAnalysis(document: TextDocument): AnalysisResult {
@@ -61,19 +67,13 @@ class WorkspaceModuleService {
         const cached = this.cache.get(document.uri);
         if (cached?.version === document.version) return cached.analysis;
 
-        if (visiting.has(document.uri)) {
-            const provisional =
-                this.provisionalAnalyses.get(document.uri) ?? buildAnalysis(document);
-            this.provisionalAnalyses.set(document.uri, provisional);
-            return provisional;
-        }
         const nextVisiting = new Set(visiting).add(document.uri);
-        const imports = findNodes(parseDocument(document).ast, "module-import");
+        const index = this.getDocumentIndex(document);
         const resolvedImports: ResolvedModuleImport[] = [];
         const importDiagnostics: AnalysisResult["diagnostics"] = [];
         const importedNamespaces = new Set<string>();
 
-        for (const imported of imports) {
+        for (const imported of index.module.imports) {
             if (imported.namespaceUri.length === 0) {
                 importDiagnostics.push({
                     severity: DiagnosticSeverity.Error,
@@ -117,10 +117,13 @@ class WorkspaceModuleService {
             const exportNames = new Set<string>();
             let foundValidModule = false;
             for (const loaded of loadedModules) {
-                const dependency = this.analyse(loaded, nextVisiting);
+                const dependencyIndex = this.getDocumentIndex(loaded);
+                if (!nextVisiting.has(loaded.uri)) {
+                    this.analyse(loaded, nextVisiting);
+                }
                 if (
-                    dependency.module.kind !== "library" ||
-                    dependency.module.namespace.namespaceUri !== imported.namespaceUri
+                    dependencyIndex.module.kind !== "library" ||
+                    dependencyIndex.module.namespace.namespaceUri !== imported.namespaceUri
                 ) {
                     importDiagnostics.push({
                         severity: DiagnosticSeverity.Error,
@@ -131,7 +134,7 @@ class WorkspaceModuleService {
                     continue;
                 }
                 foundValidModule = true;
-                for (const exported of dependency.module.exports) {
+                for (const exported of dependencyIndex.module.exports) {
                     const namespaceUri =
                         exported.kind === "function"
                             ? exported.name.qname.namespaceUri
@@ -167,11 +170,19 @@ class WorkspaceModuleService {
             }
         }
 
-        const analysis = buildAnalysis(document, resolvedImports);
+        const analysis = buildAnalysis(document, { index, resolvedImports });
         analysis.diagnostics.unshift(...importDiagnostics);
-        this.provisionalAnalyses.delete(document.uri);
         this.cache.set(document.uri, { version: document.version, analysis });
         return analysis;
+    }
+
+    private getDocumentIndex(document: TextDocument): DocumentIndex {
+        const cached = this.indexes.get(document.uri);
+        if (cached?.version === document.version) return cached.index;
+
+        const index = buildDocumentIndex(document);
+        this.indexes.set(document.uri, { version: document.version, index });
+        return index;
     }
 
     public getReferencesToDefinition(definition: Definition): readonly AnyResolvedReference[] {
@@ -192,10 +203,7 @@ class WorkspaceModuleService {
         return references;
     }
 
-    private loadImports(
-        importer: TextDocument,
-        imported: Extract<ParserAstNode, { kind: "module-import" }>,
-    ): TextDocument[] {
+    private loadImports(importer: TextDocument, imported: ModuleImport): TextDocument[] {
         const modules: TextDocument[] = [];
         const seenUris = new Set<string>();
         for (const location of imported.locations) {
@@ -230,16 +238,6 @@ function sourceDefinitionKey(definition: SourceDefinition): string {
 
 function languageIdFor(path: string): string {
     return path.endsWith(".xq") || path.endsWith(".xqm") ? "xquery" : "jsoniq";
-}
-
-function findNodes<K extends ParserAstNode["kind"]>(
-    node: ParserAstNode,
-    kind: K,
-): Array<Extract<ParserAstNode, { kind: K }>> {
-    type MatchingNode = Extract<ParserAstNode, { kind: K }>;
-    const found: MatchingNode[] = node.kind === kind ? [node as MatchingNode] : [];
-    for (const child of node.children) found.push(...findNodes(child, kind));
-    return found;
 }
 
 const workspaceModules = new WorkspaceModuleService();

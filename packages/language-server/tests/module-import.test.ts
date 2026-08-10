@@ -3,6 +3,7 @@ import { pathToFileURL } from "node:url";
 
 import { buildAnalysis } from "server/analysis/builder.js";
 import { definitionNameToString } from "server/analysis/definitions.js";
+import { buildDocumentIndex } from "server/analysis/document-index.js";
 import { getAnalysis } from "server/analysis/service.js";
 import { findDefinitionLocation } from "server/definitions.js";
 import { findReferenceLocations } from "server/references.js";
@@ -13,16 +14,18 @@ import { positionAt, testDocument, testDocumentFromUri } from "./test-utils.js";
 
 describe("module imports", () => {
     it("records the library module interface explicitly", () => {
-        const analysis = buildAnalysis(
-            testDocument("module-interface", [
-                'module namespace lib = "urn:lib";',
-                'import module namespace dep = "urn:dep" at "dep.jq";',
-                "declare variable $lib:value := 1;",
-                "declare %private variable $lib:secret := 2;",
-                "declare function lib:identity($value) { $value };",
-            ]),
-        );
+        const document = testDocument("module-interface", [
+            'module namespace lib = "urn:lib";',
+            'import module namespace dep = "urn:dep" at "dep.jq";',
+            "declare variable $lib:value := 1;",
+            "declare %private variable $lib:secret := 2;",
+            "declare function lib:identity($value) { $value };",
+        ]);
+        const index = buildDocumentIndex(document);
+        const analysis = buildAnalysis(document, { index });
 
+        expect(analysis.module).toBe(index.module);
+        expect(analysis.definitions).toBe(index.definitions);
         expect(analysis.module).toMatchObject({
             kind: "library",
             namespace: { namespaceUri: "urn:lib" },
