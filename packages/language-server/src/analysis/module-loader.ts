@@ -1,13 +1,32 @@
 import { readFileSync, statSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
-import type { DocumentUri } from "vscode-languageserver";
+import type { DocumentUri, Range } from "vscode-languageserver";
 import { TextDocument } from "vscode-languageserver-textdocument";
 
 import type { ModuleImport } from "./module-info.js";
 
 export interface ModuleLoader {
     loadImport(importer: TextDocument, imported: ModuleImport): readonly TextDocument[];
+}
+
+export interface ResolvedModuleLocation {
+    readonly targetUri: DocumentUri;
+    readonly range: Range;
+}
+
+export function resolveModuleLocations(
+    importerUri: DocumentUri,
+    imported: ModuleImport,
+): readonly ResolvedModuleLocation[] {
+    const locations =
+        imported.locations.length === 0
+            ? [{ uri: imported.namespaceUri, range: imported.namespaceUriRange }]
+            : imported.locations;
+    return locations.flatMap((location) => {
+        const targetUri = resolveUri(location.uri, importerUri);
+        return targetUri === undefined ? [] : [{ targetUri, range: location.range }];
+    });
 }
 
 /**
@@ -33,21 +52,16 @@ export class WorkspaceDocumentStore implements ModuleLoader {
     public loadImport(importer: TextDocument, imported: ModuleImport): readonly TextDocument[] {
         const modules: TextDocument[] = [];
         const seenUris = new Set<DocumentUri>();
-        const locations =
-            imported.locations.length === 0
-                ? [imported.namespaceUri]
-                : imported.locations.map((location) => location.uri);
-        for (const location of locations) {
-            const uri = resolveUri(location, importer.uri);
-            if (uri === undefined || seenUris.has(uri)) continue;
-            seenUris.add(uri);
+        for (const { targetUri } of resolveModuleLocations(importer.uri, imported)) {
+            if (seenUris.has(targetUri)) continue;
+            seenUris.add(targetUri);
 
-            const open = this.openDocuments.get(uri);
+            const open = this.openDocuments.get(targetUri);
             if (open !== undefined) {
                 modules.push(open);
                 continue;
             }
-            const document = loadFileDocument(uri);
+            const document = loadFileDocument(targetUri);
             if (document !== undefined) modules.push(document);
         }
         return modules;

@@ -16,6 +16,7 @@ import {
 import { findCompletionsWithTypeInfo } from "./completion.js";
 import { config, InitializationOptions, mergeConfiguration } from "./config.js";
 import { findDefinitionLocation } from "./definitions.js";
+import { collectDocumentLinks } from "./document-links.js";
 import { formatDocument } from "./formatter/index.js";
 import { findHover } from "./hover.js";
 import { collectInlayHints } from "./inlay-hints.js";
@@ -97,6 +98,9 @@ connection.onInitialize((params: InitializeParams): InitializeResult => {
         capabilities: {
             textDocumentSync: TextDocumentSyncKind.Incremental,
             documentSymbolProvider: true,
+            documentLinkProvider: {
+                resolveProvider: false,
+            },
             definitionProvider: true,
             referencesProvider: true,
             hoverProvider: true,
@@ -131,6 +135,16 @@ connection.onDocumentSymbol((params) => {
     }
 
     return collectDocumentSymbols(document);
+});
+
+connection.onDocumentLinks((params) => {
+    const document = documents.get(params.textDocument.uri);
+
+    if (document === undefined || !supportsDocument(document)) {
+        return [];
+    }
+
+    return collectDocumentLinks(document);
 });
 
 connection.onDefinition((params) => {
