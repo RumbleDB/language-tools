@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from "node:fs";
+import { readFileSync, statSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
 import type { DocumentUri } from "vscode-languageserver";
@@ -60,9 +60,15 @@ function resolveUri(location: string, baseUri: DocumentUri): DocumentUri | undef
 
 function loadFileDocument(uri: DocumentUri): TextDocument | undefined {
     if (!uri.startsWith("file:")) return undefined;
-    const path = fileURLToPath(uri);
-    if (!existsSync(path)) return undefined;
-    return TextDocument.create(uri, languageIdFor(path), 0, readFileSync(path, "utf8"));
+    try {
+        const path = fileURLToPath(uri);
+        if (!statSync(path).isFile()) return undefined;
+        return TextDocument.create(uri, languageIdFor(path), 0, readFileSync(path, "utf8"));
+    } catch {
+        // Missing, unreadable, and invalid file locations are unresolved imports,
+        // not failures of the language-server request that triggered analysis.
+        return undefined;
+    }
 }
 
 function languageIdFor(path: string): string {

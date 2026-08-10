@@ -13,6 +13,17 @@ import { describe, expect, it } from "vitest";
 import { positionAt, testDocument, testDocumentFromUri } from "./test-utils.js";
 
 describe("module imports", () => {
+    it("reports a directory import location without failing analysis", () => {
+        const document = testDocument("directory-module-import", [
+            'import module namespace directory = "urn:directory" at ".";',
+            "1",
+        ]);
+
+        expect(getAnalysis(document).diagnostics).toContainEqual(
+            expect.objectContaining({ code: "XQST0059" }),
+        );
+    });
+
     it("records the library module interface explicitly", () => {
         const document = testDocument("module-interface", [
             'module namespace lib = "urn:lib";',
