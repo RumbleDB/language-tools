@@ -1,6 +1,3 @@
-import { existsSync, readFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
-
 import { clearParsedDocument } from "server/parser/index.js";
 import { DiagnosticSeverity, type Diagnostic, type DocumentUri } from "vscode-languageserver";
 import { TextDocument } from "vscode-languageserver-textdocument";
@@ -13,7 +10,8 @@ import {
     type SourceModuleExportDefinition,
 } from "./definitions.js";
 import { buildDocumentIndex, type DocumentIndex } from "./document-index.js";
-import type { ModuleImport } from "./module-info.js";
+import { ModuleGraph } from "./module-graph.js";
+import { WorkspaceDocumentStore, type ModuleLoader } from "./module-loader.js";
 import type { AnyResolvedReference } from "./reference.js";
 
 interface CachedAnalysis {
@@ -26,36 +24,29 @@ interface CachedDocumentIndex {
     index: DocumentIndex;
 }
 
-/**
- * Resolves local `at` locations and analyses direct library-module dependencies.
- * Open editor buffers always take precedence over their on-disk counterpart.
- */
-class WorkspaceModuleService {
-    private readonly openDocuments = new Map<DocumentUri, TextDocument>();
+class WorkspaceAnalysisCoordinator {
+    private readonly moduleGraph = new ModuleGraph();
     private readonly cache = new Map<DocumentUri, CachedAnalysis>();
     private readonly indexes = new Map<DocumentUri, CachedDocumentIndex>();
 
+    public constructor(
+        private readonly documents: WorkspaceDocumentStore = new WorkspaceDocumentStore(),
+        private readonly moduleLoader: ModuleLoader = documents,
+    ) {}
+
     public updateOpenDocument(document: TextDocument): void {
-        const current = this.openDocuments.get(document.uri);
-        if (current?.version === document.version && current.getText() === document.getText())
-            return;
-        this.openDocuments.set(document.uri, document);
-        // Imports may reference this document from any open module. Until the
-        // dependency graph has targeted invalidation, invalidate conservatively.
-        this.cache.clear();
-        this.indexes.clear();
+        if (!this.documents.update(document)) return;
+        this.invalidateAffected([document.uri], true);
     }
 
     public removeOpenDocument(uri: DocumentUri): void {
-        this.openDocuments.delete(uri);
-        this.cache.clear();
-        this.indexes.clear();
+        if (!this.documents.remove(uri)) return;
+        this.invalidateAffected([uri], true);
     }
 
     public invalidateDocuments(uris: readonly DocumentUri[]): void {
         for (const uri of uris) clearParsedDocument(uri);
-        this.cache.clear();
-        this.indexes.clear();
+        this.invalidateAffected(uris, true);
     }
 
     public getAnalysis(document: TextDocument): AnalysisResult {
@@ -72,6 +63,7 @@ class WorkspaceModuleService {
         const resolvedImports: ResolvedModuleImport[] = [];
         const importDiagnostics: Diagnostic[] = [];
         const importedNamespaces = new Set<string>();
+        const dependencies = new Set<DocumentUri>();
 
         for (const imported of index.moduleDeclaration.imports) {
             if (imported.namespaceUri.length === 0) {
@@ -103,7 +95,7 @@ class WorkspaceModuleService {
             }
             importedNamespaces.add(imported.namespaceUri);
 
-            const loadedModules = this.loadImports(document, imported);
+            const loadedModules = this.moduleLoader.loadImport(document, imported);
             if (loadedModules.length === 0) {
                 importDiagnostics.push({
                     severity: DiagnosticSeverity.Error,
@@ -117,6 +109,7 @@ class WorkspaceModuleService {
             const exportNames = new Set<string>();
             let foundValidModule = false;
             for (const loaded of loadedModules) {
+                dependencies.add(loaded.uri);
                 const dependencyIndex = this.getDocumentIndex(loaded);
                 if (!nextVisiting.has(loaded.uri)) {
                     this.analyse(loaded, nextVisiting);
@@ -170,6 +163,8 @@ class WorkspaceModuleService {
             }
         }
 
+        this.moduleGraph.replaceDependencies(document.uri, dependencies);
+
         const analysis = analyzeDocument(index, {
             resolvedImports,
             diagnostics: importDiagnostics,
@@ -205,31 +200,12 @@ class WorkspaceModuleService {
         return references;
     }
 
-    private loadImports(importer: TextDocument, imported: ModuleImport): TextDocument[] {
-        const modules: TextDocument[] = [];
-        const seenUris = new Set<string>();
-        for (const location of imported.locations) {
-            let uri: string;
-            try {
-                uri = new URL(location.uri, importer.uri).toString();
-            } catch {
-                continue;
-            }
-            if (seenUris.has(uri)) continue;
-            seenUris.add(uri);
-            const open = this.openDocuments.get(uri);
-            if (open !== undefined) {
-                modules.push(open);
-                continue;
-            }
-            if (!uri.startsWith("file:")) continue;
-            const path = fileURLToPath(uri);
-            if (!existsSync(path)) continue;
-            modules.push(
-                TextDocument.create(uri, languageIdFor(path), 0, readFileSync(path, "utf8")),
-            );
+    private invalidateAffected(uris: readonly DocumentUri[], invalidateIndexes: boolean): void {
+        const affected = this.moduleGraph.affectedBy(uris);
+        for (const uri of affected) this.cache.delete(uri);
+        if (invalidateIndexes) {
+            for (const uri of uris) this.indexes.delete(uri);
         }
-        return modules;
     }
 }
 
@@ -238,26 +214,22 @@ function sourceDefinitionKey(definition: SourceDefinition): string {
     return `${definition.uri}:${definition.kind}:${start.line}:${start.character}:${end.line}:${end.character}`;
 }
 
-function languageIdFor(path: string): string {
-    return path.endsWith(".xq") || path.endsWith(".xqm") ? "xquery" : "jsoniq";
-}
-
-const workspaceModules = new WorkspaceModuleService();
+const workspaceAnalysis = new WorkspaceAnalysisCoordinator();
 
 export function getAnalysis(document: TextDocument): AnalysisResult {
-    return workspaceModules.getAnalysis(document);
+    return workspaceAnalysis.getAnalysis(document);
 }
 export function updateOpenDocument(document: TextDocument): void {
-    workspaceModules.updateOpenDocument(document);
+    workspaceAnalysis.updateOpenDocument(document);
 }
 export function removeOpenDocument(uri: DocumentUri): void {
-    workspaceModules.removeOpenDocument(uri);
+    workspaceAnalysis.removeOpenDocument(uri);
 }
 export function invalidateModuleDocuments(uris: readonly DocumentUri[]): void {
-    workspaceModules.invalidateDocuments(uris);
+    workspaceAnalysis.invalidateDocuments(uris);
 }
 export function getWorkspaceReferencesToDefinition(
     definition: Definition,
 ): readonly AnyResolvedReference[] {
-    return workspaceModules.getReferencesToDefinition(definition);
+    return workspaceAnalysis.getReferencesToDefinition(definition);
 }
