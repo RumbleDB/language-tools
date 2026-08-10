@@ -12,10 +12,22 @@ export async function collectStaticTypecheckDiagnostics(
     const diagnostics: Diagnostic[] = [];
 
     for (const error of response.body.errors) {
+        if (!belongsToDocument(error, document)) continue;
         diagnostics.push(toDiagnostic(error));
     }
 
     return diagnostics;
+}
+
+function belongsToDocument(error: StaticTypecheckError, document: TextDocument): boolean {
+    const location = error.location.trim();
+    if (location.length === 0) return true;
+
+    try {
+        return new URL(location, document.uri).toString() === new URL(document.uri).toString();
+    } catch {
+        return location === document.uri;
+    }
 }
 
 function toDiagnostic(error: StaticTypecheckError): Diagnostic {
