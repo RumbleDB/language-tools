@@ -1,7 +1,7 @@
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 
-import { buildAnalysis } from "server/analysis/builder.js";
+import { analyzeDocument } from "server/analysis/builder.js";
 import { definitionNameToString } from "server/analysis/definitions.js";
 import { buildDocumentIndex } from "server/analysis/document-index.js";
 import { getAnalysis } from "server/analysis/service.js";
@@ -24,7 +24,7 @@ describe("module imports", () => {
             "declare function lib:identity($value) { $value };",
         ]);
         const index = buildDocumentIndex(document);
-        const analysis = buildAnalysis(document, { index });
+        const analysis = analyzeDocument(index);
 
         expect(analysis.moduleDeclaration).toBe(index.moduleDeclaration);
         expect(analysis.moduleInterface).toBe(index.moduleInterface);

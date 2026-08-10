@@ -36,6 +36,7 @@ import type { ModuleDeclaration, ModuleImport, ModuleInterface } from "./module-
 import type { FunctionName, QName } from "./names.js";
 
 export interface DocumentIndex {
+    readonly document: TextDocument;
     readonly ast: ParserAstNode;
     readonly moduleDeclaration: ModuleDeclaration;
     readonly moduleInterface?: ModuleInterface;
@@ -76,6 +77,7 @@ class DocumentIndexBuilder extends ParserAstVisitor<void> {
     public build(): DocumentIndex {
         this.visit(this.ast);
         return {
+            document: this.document,
             ast: this.ast,
             moduleDeclaration: this.moduleDeclaration,
             ...(this.moduleInterface === undefined

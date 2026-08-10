@@ -27,7 +27,6 @@ import {
 } from "server/parser/types/name.js";
 import { ParserAstVisitor } from "server/parser/types/visitor.js";
 import { Diagnostic, DiagnosticSeverity, Range } from "vscode-languageserver";
-import { TextDocument } from "vscode-languageserver-textdocument";
 
 import type {
     ArgumentNode,
@@ -48,7 +47,7 @@ import {
     SourceModuleExportDefinition,
     SourceParameterDefinition,
 } from "./definitions.js";
-import { buildDocumentIndex, type DocumentIndex } from "./document-index.js";
+import type { DocumentIndex } from "./document-index.js";
 import type { ModuleDeclaration, ModuleInterface } from "./module-info.js";
 import {
     referenceNameToString,
@@ -87,8 +86,7 @@ export interface ResolvedModuleImport {
     readonly exports: readonly SourceModuleExportDefinition[];
 }
 
-export interface AnalysisOptions {
-    readonly index?: DocumentIndex;
+export interface AnalysisEnvironment {
     readonly resolvedImports?: readonly ResolvedModuleImport[];
 }
 
@@ -101,8 +99,6 @@ class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
 
     private currentScope: Scope;
 
-    private readonly document: TextDocument;
-
     private readonly parserAst: ParserAstNode;
 
     private readonly index: DocumentIndex;
@@ -110,19 +106,17 @@ class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
     private readonly resolvedImportsByNamespace: ReadonlyMap<string, ResolvedModuleImport>;
 
     public constructor(
-        document: TextDocument,
         index: DocumentIndex,
         resolvedImports: readonly ResolvedModuleImport[] = [],
     ) {
         super();
-        this.document = document;
         this.index = index;
         this.resolvedImportsByNamespace = new Map(
             resolvedImports.map((moduleImport) => [moduleImport.targetNamespaceUri, moduleImport]),
         );
 
         this.parserAst = index.ast;
-        const moduleScope = Scope.module(document);
+        const moduleScope = Scope.module(index.document.getText().length);
 
         this.result = {
             ast: {
@@ -184,19 +178,19 @@ class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
     protected override visitContextItemDeclaration(node: ContextItemDeclarationAstNode): AstNode[] {
         const definition =
             this.getDefinition<Extract<SourceDefinition, { kind: "variable" }>>(node);
-        this.declareDefinition(definition, this.document.offsetAt(node.range.end));
+        this.declareDefinition(definition, this.index.document.offsetAt(node.range.end));
         return [this.createDeclarationNode(definition)];
     }
 
     protected override visitTypeDeclaration(node: TypeDeclarationAstNode): AstNode[] {
         const definition = this.getDefinition<Extract<SourceDefinition, { kind: "type" }>>(node);
-        this.declareDefinition(definition, this.document.offsetAt(node.range.end));
+        this.declareDefinition(definition, this.index.document.offsetAt(node.range.end));
         return [this.createDeclarationNode(definition)];
     }
 
     protected override visitFunctionDeclaration(node: FunctionDeclarationAstNode): AstNode[] {
         const definition = this.getDefinition<SourceFunctionDefinition>(node);
-        this.declareDefinition(definition, this.document.offsetAt(node.selectionRange.end));
+        this.declareDefinition(definition, this.index.document.offsetAt(node.selectionRange.end));
 
         const children = this.enterScope(node.range, () => [
             ...this.createFunctionParameterNodes(definition, node.parameters),
@@ -209,7 +203,7 @@ class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
     protected override visitVariableDeclaration(node: VariableDeclarationAstNode): AstNode[] {
         const definition =
             this.getDefinition<Extract<SourceDefinition, { kind: "variable" }>>(node);
-        this.declareDefinition(definition, this.document.offsetAt(node.visibleFrom));
+        this.declareDefinition(definition, this.index.document.offsetAt(node.visibleFrom));
         const children = this.visitChildrenAsNodes(node);
         return [this.createDeclarationNode(definition, children)];
     }
@@ -226,7 +220,7 @@ class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
                     name: this.resolveQName(name, node.range),
                     origin: "implicit",
                 };
-                this.declareDefinition(definition, this.document.offsetAt(node.bodyStart));
+                this.declareDefinition(definition, this.index.document.offsetAt(node.bodyStart));
             }
             return this.visitChildrenAsNodes(node);
         });
@@ -322,8 +316,8 @@ class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
     private enterScope<T>(range: Range, callback: () => T): T {
         const previousScope = this.currentScope;
         this.currentScope = this.currentScope.enter(
-            this.document.offsetAt(range.start),
-            this.document.offsetAt(range.end),
+            this.index.document.offsetAt(range.start),
+            this.index.document.offsetAt(range.end),
         );
         try {
             return callback();
@@ -369,14 +363,14 @@ class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
         range: Range,
     ): ReferenceNode<K> {
         const lookupName = referenceNameToString(name, kind, true);
-        const declaration = this.resolve(kind, name, this.document.offsetAt(range.start));
+        const declaration = this.resolve(kind, name, this.index.document.offsetAt(range.start));
         const resolvedReference =
             declaration === undefined
                 ? undefined
                 : ({
                       kind,
                       name,
-                      uri: this.document.uri,
+                      uri: this.index.document.uri,
                       range,
                       declaration,
                   } satisfies ResolvedReference<K>);
@@ -423,7 +417,7 @@ class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
             const parameterDefinition = this.getDefinition<SourceParameterDefinition>(parameter);
             this.declareDefinition(
                 parameterDefinition,
-                this.document.offsetAt(parameter.range.end),
+                this.index.document.offsetAt(parameter.range.end),
             );
             return this.createDeclarationNode(parameterDefinition);
         });
@@ -460,10 +454,9 @@ class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
     }
 }
 
-export function buildAnalysis(
-    document: TextDocument,
-    options: AnalysisOptions = {},
+export function analyzeDocument(
+    index: DocumentIndex,
+    environment: AnalysisEnvironment = {},
 ): AnalysisResult {
-    const index = options.index ?? buildDocumentIndex(document);
-    return new AnalysisBuilder(document, index, options.resolvedImports).build();
+    return new AnalysisBuilder(index, environment.resolvedImports).build();
 }

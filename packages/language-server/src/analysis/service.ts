@@ -5,7 +5,7 @@ import { clearParsedDocument } from "server/parser/index.js";
 import { DiagnosticSeverity, type DocumentUri } from "vscode-languageserver";
 import { TextDocument } from "vscode-languageserver-textdocument";
 
-import { buildAnalysis, type AnalysisResult, type ResolvedModuleImport } from "./builder.js";
+import { analyzeDocument, type AnalysisResult, type ResolvedModuleImport } from "./builder.js";
 import {
     definitionNameToString,
     type Definition,
@@ -170,7 +170,7 @@ class WorkspaceModuleService {
             }
         }
 
-        const analysis = buildAnalysis(document, { index, resolvedImports });
+        const analysis = analyzeDocument(index, { resolvedImports });
         analysis.diagnostics.unshift(...importDiagnostics);
         this.cache.set(document.uri, { version: document.version, analysis });
         return analysis;

@@ -1,6 +1,3 @@
-import { getDocumentText } from "server/parser/utils.js";
-import { TextDocument } from "vscode-languageserver-textdocument";
-
 import { ScopeDefinition, ScopeDefinitionByReferenceKind } from "./definitions.js";
 import { QName, QNameToString, type FunctionName, type ReferenceNameByKind } from "./names.js";
 
@@ -19,8 +16,8 @@ export class Scope {
         public readonly endOffset: number,
     ) {}
 
-    public static module(document: TextDocument): Scope {
-        return new Scope(undefined, 0, getDocumentText(document).length);
+    public static module(documentLength: number): Scope {
+        return new Scope(undefined, 0, documentLength);
     }
 
     public enter(startOffset: number, endOffset: number): Scope {
