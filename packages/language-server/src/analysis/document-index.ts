@@ -42,13 +42,38 @@ export interface DocumentIndex {
     readonly moduleInterface?: ModuleInterface;
     readonly namespaces: ReadonlyMap<Prefix, NamespaceDefinition>;
     readonly definitions: readonly SourceDefinition[];
-    readonly definitionsByNode: ReadonlyMap<ParserAstNode | AstParameter, SourceDefinition>;
+    readonly indexedDefinitions: IndexedDefinitions;
     readonly diagnostics: readonly Diagnostic[];
+}
+
+export interface IndexedDefinitions {
+    readonly namespaces: ReadonlyMap<
+        ModuleDeclarationAstNode | ModuleImportAstNode | NamespaceDeclarationAstNode,
+        SourceNamespaceDefinition
+    >;
+    readonly contextItems: ReadonlyMap<ContextItemDeclarationAstNode, SourceVariableDefinition>;
+    readonly types: ReadonlyMap<
+        TypeDeclarationAstNode,
+        Extract<SourceDefinition, { kind: "type" }>
+    >;
+    readonly functions: ReadonlyMap<FunctionDeclarationAstNode, SourceFunctionDefinition>;
+    readonly variables: ReadonlyMap<VariableDeclarationAstNode, SourceVariableDefinition>;
+    readonly parameters: ReadonlyMap<AstParameter, SourceParameterDefinition>;
 }
 
 class DocumentIndexBuilder extends ParserAstVisitor<void> {
     private readonly definitions: SourceDefinition[] = [];
-    private readonly definitionsByNode = new Map<ParserAstNode | AstParameter, SourceDefinition>();
+    private readonly indexedDefinitions = {
+        namespaces: new Map<
+            ModuleDeclarationAstNode | ModuleImportAstNode | NamespaceDeclarationAstNode,
+            SourceNamespaceDefinition
+        >(),
+        contextItems: new Map<ContextItemDeclarationAstNode, SourceVariableDefinition>(),
+        types: new Map<TypeDeclarationAstNode, Extract<SourceDefinition, { kind: "type" }>>(),
+        functions: new Map<FunctionDeclarationAstNode, SourceFunctionDefinition>(),
+        variables: new Map<VariableDeclarationAstNode, SourceVariableDefinition>(),
+        parameters: new Map<AstParameter, SourceParameterDefinition>(),
+    } satisfies IndexedDefinitions;
     private readonly diagnostics: Diagnostic[] = [];
     private readonly imports: ModuleImport[] = [];
     private readonly exports: SourceModuleExportDefinition[] = [];
@@ -86,7 +111,7 @@ class DocumentIndexBuilder extends ParserAstVisitor<void> {
                 : { moduleInterface: this.moduleInterface }),
             namespaces: this.namespaces,
             definitions: this.definitions,
-            definitionsByNode: this.definitionsByNode,
+            indexedDefinitions: this.indexedDefinitions,
             diagnostics: this.diagnostics,
         };
     }
@@ -141,7 +166,8 @@ class DocumentIndexBuilder extends ParserAstVisitor<void> {
             name: { prefix: node.prefix },
             namespaceUri: node.namespaceUri,
         };
-        this.recordDefinition(node, definition);
+        this.definitions.push(definition);
+        this.indexedDefinitions.namespaces.set(node, definition);
         this.namespaces.set(node.prefix, definition);
         this.moduleDeclaration = {
             kind: "library",
@@ -176,7 +202,8 @@ class DocumentIndexBuilder extends ParserAstVisitor<void> {
             name: { prefix: node.prefix },
             namespaceUri: node.namespaceUri,
         };
-        this.recordDefinition(node, definition);
+        this.definitions.push(definition);
+        this.indexedDefinitions.namespaces.set(node, definition);
         this.namespaces.set(node.prefix, definition);
     }
 
@@ -187,27 +214,29 @@ class DocumentIndexBuilder extends ParserAstVisitor<void> {
             name: { prefix: node.prefix },
             namespaceUri: node.namespaceUri,
         };
-        this.recordDefinition(node, definition);
+        this.definitions.push(definition);
+        this.indexedDefinitions.namespaces.set(node, definition);
         this.namespaces.set(node.prefix, definition);
     }
 
     protected override visitContextItemDeclaration(node: ContextItemDeclarationAstNode): void {
-        this.recordDefinition(
-            node,
-            this.variableDefinition(
-                this.resolveQName(node.name, node.selectionRange),
-                node.range,
-                node.selectionRange,
-            ),
+        const definition = this.variableDefinition(
+            this.resolveQName(node.name, node.selectionRange),
+            node.range,
+            node.selectionRange,
         );
+        this.definitions.push(definition);
+        this.indexedDefinitions.contextItems.set(node, definition);
     }
 
     protected override visitTypeDeclaration(node: TypeDeclarationAstNode): void {
-        this.recordDefinition(node, {
+        const definition: Extract<SourceDefinition, { kind: "type" }> = {
             ...this.sourceDefinitionBase(node.range, node.selectionRange),
             kind: "type",
             name: this.resolveQName(node.name.qname, node.selectionRange),
-        });
+        };
+        this.definitions.push(definition);
+        this.indexedDefinitions.types.set(node, definition);
     }
 
     protected override visitFunctionDeclaration(node: FunctionDeclarationAstNode): void {
@@ -218,7 +247,8 @@ class DocumentIndexBuilder extends ParserAstVisitor<void> {
             parameters: [],
             isPrivate: node.isPrivate,
         };
-        this.recordDefinition(node, definition);
+        this.definitions.push(definition);
+        this.indexedDefinitions.functions.set(node, definition);
         this.recordLibraryDeclaration(node, definition);
 
         for (const parameter of node.parameters) {
@@ -228,7 +258,8 @@ class DocumentIndexBuilder extends ParserAstVisitor<void> {
                 name: this.resolveQName(parameter.name, parameter.selectionRange),
                 function: definition,
             };
-            this.recordDefinition(parameter, parameterDefinition);
+            this.definitions.push(parameterDefinition);
+            this.indexedDefinitions.parameters.set(parameter, parameterDefinition);
             definition.parameters.push(parameterDefinition);
         }
         this.visitChildren(node);
@@ -241,17 +272,10 @@ class DocumentIndexBuilder extends ParserAstVisitor<void> {
             node.selectionRange,
             node.isPrivate,
         );
-        this.recordDefinition(node, definition);
+        this.definitions.push(definition);
+        this.indexedDefinitions.variables.set(node, definition);
         this.recordLibraryDeclaration(node, definition);
         this.visitChildren(node);
-    }
-
-    private recordDefinition(
-        node: ParserAstNode | AstParameter,
-        definition: SourceDefinition,
-    ): void {
-        this.definitions.push(definition);
-        this.definitionsByNode.set(node, definition);
     }
 
     private recordLibraryDeclaration(
