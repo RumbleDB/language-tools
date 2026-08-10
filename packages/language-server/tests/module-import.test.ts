@@ -164,11 +164,24 @@ describe("module imports", () => {
         ]);
     });
 
-    it("does not treat a target namespace as a location when at is absent", () => {
+    it("uses a file-like target namespace as the fallback module location", () => {
         const directory = path.join(process.cwd(), "tests", "samples", "modules");
         const document = testDocumentFromUri(
             ['import module namespace math = "math.jq";', "$math:x"],
             { uri: pathToFileURL(path.join(directory, "no-location-main.jq")).toString() },
+        );
+
+        expect(getAnalysis(document).diagnostics).toEqual([]);
+        expect(findDefinitionLocation(document, positionAt(document, "$math:x"))?.uri).toBe(
+            pathToFileURL(path.join(directory, "math.jq")).toString(),
+        );
+    });
+
+    it("does not use the target namespace when an explicit location is present", () => {
+        const directory = path.join(process.cwd(), "tests", "samples", "modules");
+        const document = testDocumentFromUri(
+            ['import module namespace math = "math.jq" at "missing.jq";', "$math:x"],
+            { uri: pathToFileURL(path.join(directory, "missing-location-main.jq")).toString() },
         );
 
         expect(getAnalysis(document).diagnostics).toEqual([

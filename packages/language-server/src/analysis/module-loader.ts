@@ -33,8 +33,12 @@ export class WorkspaceDocumentStore implements ModuleLoader {
     public loadImport(importer: TextDocument, imported: ModuleImport): readonly TextDocument[] {
         const modules: TextDocument[] = [];
         const seenUris = new Set<DocumentUri>();
-        for (const location of imported.locations) {
-            const uri = resolveUri(location.uri, importer.uri);
+        const locations =
+            imported.locations.length === 0
+                ? [imported.namespaceUri]
+                : imported.locations.map((location) => location.uri);
+        for (const location of locations) {
+            const uri = resolveUri(location, importer.uri);
             if (uri === undefined || seenUris.has(uri)) continue;
             seenUris.add(uri);
 
