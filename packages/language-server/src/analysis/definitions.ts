@@ -26,9 +26,6 @@ export interface BaseSourceDefinition<
     // Range of the declaration name token.
     selectionRange: Range;
 
-    // Offset from which the declaration is visible to position-based queries.
-    visibleFrom: number;
-
     origin: "source";
 }
 
@@ -65,9 +62,6 @@ export type SourceDefinition =
 export interface ImplicitVariableDefinition extends AbstractDefinition<"variable"> {
     kind: "variable";
     origin: "implicit";
-
-    // Offset from which the binding is visible to position-based queries.
-    visibleFrom: number;
 }
 
 export interface ImplicitNamespaceDefinition extends AbstractDefinition<"namespace"> {

@@ -4,8 +4,13 @@ import { TextDocument } from "vscode-languageserver-textdocument";
 import { ScopeDefinition, ScopeDefinitionByReferenceKind } from "./definitions.js";
 import { QName, QNameToString, type FunctionName, type ReferenceNameByKind } from "./names.js";
 
+interface ScopeEntry {
+    definition: ScopeDefinition;
+    visibleFrom: number;
+}
+
 export class Scope {
-    private readonly definitionByName = new Map<string, ScopeDefinition[]>();
+    private readonly entriesByName = new Map<string, ScopeEntry[]>();
     private readonly children: Scope[] = [];
 
     private constructor(
@@ -24,14 +29,13 @@ export class Scope {
         return child;
     }
 
-    public declare(newDefinition: ScopeDefinition): void {
-        const name = this.definitionLookupKey(newDefinition);
-        if (!this.definitionByName.has(name)) {
-            this.definitionByName.set(name, []);
+    public declare(definition: ScopeDefinition, visibleFrom: number): void {
+        const name = this.definitionLookupKey(definition);
+        if (!this.entriesByName.has(name)) {
+            this.entriesByName.set(name, []);
         }
 
-        const definitionsWithSameName = this.definitionByName.get(name)!;
-        definitionsWithSameName.push(newDefinition);
+        this.entriesByName.get(name)!.push({ definition, visibleFrom });
     }
 
     public resolve<K extends keyof ReferenceNameByKind>(
@@ -39,12 +43,12 @@ export class Scope {
         name: ReferenceNameByKind[K],
         offset: number,
     ): ScopeDefinitionByReferenceKind[K] | undefined {
-        const declarations = this.definitionByName.get(this.referenceLookupKey(name, kind));
-        const declaration = declarations?.findLast((candidate) => candidate.visibleFrom <= offset);
-        if (declaration !== undefined) {
+        const entries = this.entriesByName.get(this.referenceLookupKey(name, kind));
+        const entry = entries?.findLast((candidate) => candidate.visibleFrom <= offset);
+        if (entry !== undefined) {
             // Definitions and references use the same kind-prefixed lookup keys, so a
             // successful lookup has the definition type associated with K.
-            return declaration as ScopeDefinitionByReferenceKind[K];
+            return entry.definition as ScopeDefinitionByReferenceKind[K];
         }
 
         return this.parent?.resolve(kind, name, offset);
@@ -77,26 +81,24 @@ export class Scope {
     public listVisibleDefinitions(offset: number): Map<string, ScopeDefinition> {
         const visible = new Map<string, ScopeDefinition>();
 
-        for (const [name, definitions] of this.definitionByName.entries()) {
-            const definition = definitions.findLast((candidate) => candidate.visibleFrom <= offset);
-            if (definition !== undefined) {
-                visible.set(name, definition);
+        for (const [name, entries] of this.entriesByName.entries()) {
+            const entry = entries.findLast((candidate) => candidate.visibleFrom <= offset);
+            if (entry !== undefined) {
+                visible.set(name, entry.definition);
             }
         }
 
         let current = this.parent;
         while (current !== undefined) {
-            for (const [name, definitions] of current.definitionByName.entries()) {
+            for (const [name, entries] of current.entriesByName.entries()) {
                 if (visible.has(name)) {
                     continue;
                 }
 
-                const definition = definitions.findLast(
-                    (candidate) => candidate.visibleFrom <= offset,
-                );
+                const entry = entries.findLast((candidate) => candidate.visibleFrom <= offset);
 
-                if (definition !== undefined) {
-                    visible.set(name, definition);
+                if (entry !== undefined) {
+                    visible.set(name, entry.definition);
                 }
             }
 

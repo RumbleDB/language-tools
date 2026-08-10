@@ -156,7 +156,7 @@ class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
             node.range,
             node.selectionRange,
         );
-        this.declareDefinition(definition);
+        this.declareDefinition(definition, this.document.offsetAt(node.range.end));
         return [this.createDeclarationNode(definition)];
     }
 
@@ -166,22 +166,18 @@ class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
             kind: "type",
             name: this.resolveQName(node.name.qname, node.selectionRange),
         };
-        this.declareDefinition(definition);
+        this.declareDefinition(definition, this.document.offsetAt(node.range.end));
         return [this.createDeclarationNode(definition)];
     }
 
     protected override visitFunctionDeclaration(node: FunctionDeclarationAstNode): AstNode[] {
         const definition: SourceFunctionDefinition = {
-            ...this.createSourceDefinitionBase(
-                node.range,
-                node.selectionRange,
-                this.document.offsetAt(node.selectionRange.end),
-            ),
+            ...this.createSourceDefinitionBase(node.range, node.selectionRange),
             kind: "function",
             name: this.resolveFunctionName(node.name, node.selectionRange),
             parameters: [],
         };
-        this.declareDefinition(definition);
+        this.declareDefinition(definition, this.document.offsetAt(node.selectionRange.end));
 
         const children = this.enterScope(node.range, () => [
             ...this.createFunctionParameterNodes(definition, node.parameters),
@@ -196,9 +192,8 @@ class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
             this.resolveQName(node.name, node.selectionRange),
             node.range,
             node.selectionRange,
-            this.document.offsetAt(node.visibleFrom),
         );
-        this.declareDefinition(definition);
+        this.declareDefinition(definition, this.document.offsetAt(node.visibleFrom));
         const children = this.visitChildrenAsNodes(node);
         return [this.createDeclarationNode(definition, children)];
     }
@@ -213,10 +208,9 @@ class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
                 const definition: ImplicitVariableDefinition = {
                     kind: "variable",
                     name: this.resolveQName(name, node.range),
-                    visibleFrom: this.document.offsetAt(node.bodyStart),
                     origin: "implicit",
                 };
-                this.declareDefinition(definition);
+                this.declareDefinition(definition, this.document.offsetAt(node.bodyStart));
             }
             return this.visitChildrenAsNodes(node);
         });
@@ -301,15 +295,10 @@ class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
         );
     }
 
-    private createSourceDefinitionBase(
-        range: Range,
-        selectionRange: Range,
-        visibleFrom: number = this.document.offsetAt(range.end),
-    ) {
+    private createSourceDefinitionBase(range: Range, selectionRange: Range) {
         return {
             range,
             selectionRange,
-            visibleFrom,
             origin: "source" as const,
         };
     }
@@ -318,14 +307,9 @@ class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
         name: QName,
         range: Range,
         selectionRange: Range,
-        visibleFrom?: number,
     ): SourceVariableDefinition {
         return {
-            ...this.createSourceDefinitionBase(
-                range,
-                selectionRange,
-                visibleFrom ?? this.document.offsetAt(range.end),
-            ),
+            ...this.createSourceDefinitionBase(range, selectionRange),
             kind: "variable",
             name,
         };
@@ -352,8 +336,8 @@ class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
         }
     }
 
-    private declareDefinition(definition: ScopeDefinition): void {
-        this.currentScope.declare(definition);
+    private declareDefinition(definition: ScopeDefinition, visibleFrom: number): void {
+        this.currentScope.declare(definition, visibleFrom);
         if (definition.origin === "source") {
             this.definitions.push(definition);
         }
@@ -436,7 +420,10 @@ class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
                 name: this.resolveQName(parameter.name, parameter.selectionRange),
                 function: definition,
             };
-            this.declareDefinition(parameterDefinition);
+            this.declareDefinition(
+                parameterDefinition,
+                this.document.offsetAt(parameter.range.end),
+            );
             definition.parameters.push(parameterDefinition);
             return this.createDeclarationNode(parameterDefinition);
         });
