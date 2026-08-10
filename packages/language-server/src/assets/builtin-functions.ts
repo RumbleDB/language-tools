@@ -15,7 +15,7 @@ export interface BuiltinFunctionDefinition extends BaseDefinition<"builtin-funct
     name: FunctionName;
     kind: "builtin-function";
     signature: StaticFunctionSignature;
-    isBuiltin: true;
+    origin: "builtin";
 }
 
 const BUILTIN_FUNCTION_NAMESPACES = [
@@ -76,7 +76,7 @@ for (const func of catalog) {
         kind: "builtin-function",
         signature: func.signature,
         references: [],
-        isBuiltin: true,
+        origin: "builtin",
     });
 }
 

@@ -1,4 +1,4 @@
-import { collectSemanticDiagnostics } from "server/semantic.js";
+import { collectSemanticDiagnostics, collectSemanticTokens } from "server/semantic.js";
 import { describe, expect, it } from "vitest";
 
 import { testDocument } from "./test-utils.js";
@@ -14,5 +14,27 @@ describe("JSONiq semantic diagnostics", () => {
         const diagnostics = collectSemanticDiagnostics(document);
 
         expect(diagnostics.map((diagnostic) => diagnostic.code)).toEqual(["unresolved-variable"]);
+    });
+
+    it("does not highlight catch syntax as implicit variable declarations", () => {
+        const document = testDocument("semantic-catch-variables", [
+            "try { 1 div 0 }",
+            "catch * { $err:code, $err:description }",
+        ]);
+
+        const tokens = collectSemanticTokens(document);
+
+        expect(tokens.data).toEqual([
+            1,
+            10,
+            9,
+            2,
+            1, // $err:code
+            0,
+            11,
+            16,
+            2,
+            1, // $err:description
+        ]);
     });
 });

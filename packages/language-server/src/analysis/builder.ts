@@ -25,7 +25,7 @@ import {
     type LexicalQName,
 } from "server/parser/types/name.js";
 import { ParserAstVisitor } from "server/parser/types/visitor.js";
-import { Diagnostic, DiagnosticSeverity, Position, Range } from "vscode-languageserver";
+import { Diagnostic, DiagnosticSeverity, Range } from "vscode-languageserver";
 import { TextDocument } from "vscode-languageserver-textdocument";
 
 import type {
@@ -38,16 +38,16 @@ import type {
 } from "./ast.js";
 import { defaultNamespaces } from "./default-namespaces.js";
 import {
-    createFunctionDefinition,
-    createNamespaceDefinition,
-    createParameterDefinition,
-    createTypeDefinition,
-    createVariableDefinition,
     Definition,
-    isSourceDefinition,
+    ImplicitNamespaceDefinition,
+    ImplicitVariableDefinition,
+    NamespaceDefinition,
+    ScopedDefinition,
     SourceDefinition,
     SourceFunctionDefinition,
     SourceNamespaceDefinition,
+    SourceParameterDefinition,
+    SourceVariableDefinition,
 } from "./definitions.js";
 import {
     referenceNameToString,
@@ -71,7 +71,7 @@ const CATCH_VARIABLES = [
 export interface AnalysisResult {
     ast: ModuleNode;
     scope: Scope;
-    namespaces: Map<Prefix, SourceNamespaceDefinition>;
+    namespaces: Map<Prefix, NamespaceDefinition>;
     diagnostics: Diagnostic[];
 }
 
@@ -89,15 +89,15 @@ class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
         this.document = document;
 
         this.parserAst = parseDocument(document).ast;
-        const namespaces = new Map<string, SourceNamespaceDefinition>(
+        const namespaces = new Map<string, NamespaceDefinition>(
             defaultNamespaces.entries().map((ns) => {
-                const definition = createNamespaceDefinition(
-                    document,
-                    ns[0],
-                    ns[1],
-                    Range.create(Position.create(0, 0), Position.create(0, 0)),
-                    Range.create(Position.create(0, 0), Position.create(0, 0)),
-                );
+                const definition: ImplicitNamespaceDefinition = {
+                    kind: "namespace",
+                    name: { prefix: ns[0] },
+                    namespaceUri: ns[1],
+                    references: [],
+                    origin: "implicit",
+                };
                 return [ns[0], definition] as const;
             }),
         );
@@ -127,21 +127,19 @@ class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
     }
 
     protected override visitNamespaceDeclaration(node: NamespaceDeclarationAstNode): AstNode[] {
-        const definition = createNamespaceDefinition(
-            this.document,
-            node.prefix,
-            node.namespaceUri,
-            node.range,
-            node.selectionRange,
-        );
+        const definition: SourceNamespaceDefinition = {
+            ...this.createSourceDefinitionBase(node.range, node.selectionRange),
+            kind: "namespace",
+            name: { prefix: node.prefix },
+            namespaceUri: node.namespaceUri,
+        };
         this.declareDefinition(definition);
         this.result.namespaces.set(definition.name.prefix, definition);
         return [this.createDeclarationNode(definition)];
     }
 
     protected override visitContextItemDeclaration(node: ContextItemDeclarationAstNode): AstNode[] {
-        const definition = createVariableDefinition(
-            this.document,
+        const definition = this.createVariableDefinition(
             this.resolveQName(node.name, node.selectionRange),
             node.range,
             node.selectionRange,
@@ -151,23 +149,26 @@ class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
     }
 
     protected override visitTypeDeclaration(node: TypeDeclarationAstNode): AstNode[] {
-        const definition = createTypeDefinition(
-            this.document,
-            this.resolveQName(node.name.qname, node.selectionRange),
-            node.range,
-            node.selectionRange,
-        );
+        const definition: Extract<SourceDefinition, { kind: "type" }> = {
+            ...this.createSourceDefinitionBase(node.range, node.selectionRange),
+            kind: "type",
+            name: this.resolveQName(node.name.qname, node.selectionRange),
+        };
         this.declareDefinition(definition);
         return [this.createDeclarationNode(definition)];
     }
 
     protected override visitFunctionDeclaration(node: FunctionDeclarationAstNode): AstNode[] {
-        const definition = createFunctionDefinition(
-            this.document,
-            this.resolveFunctionName(node.name, node.selectionRange),
-            node.range,
-            node.selectionRange,
-        );
+        const definition: SourceFunctionDefinition = {
+            ...this.createSourceDefinitionBase(
+                node.range,
+                node.selectionRange,
+                this.document.offsetAt(node.selectionRange.end),
+            ),
+            kind: "function",
+            name: this.resolveFunctionName(node.name, node.selectionRange),
+            parameters: [],
+        };
         this.declareDefinition(definition);
 
         const children = this.enterScope(node.range, () => [
@@ -179,8 +180,7 @@ class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
     }
 
     protected override visitVariableDeclaration(node: VariableDeclarationAstNode): AstNode[] {
-        const definition = createVariableDefinition(
-            this.document,
+        const definition = this.createVariableDefinition(
             this.resolveQName(node.name, node.selectionRange),
             node.range,
             node.selectionRange,
@@ -197,18 +197,17 @@ class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
 
     protected override visitCatchClause(node: CatchClauseAstNode): AstNode[] {
         return this.enterScope(node.range, () => {
-            const declarations = CATCH_VARIABLES.map((name) => {
-                const definition = createVariableDefinition(
-                    this.document,
-                    this.resolveQName(name, node.range),
-                    node.range,
-                    node.range,
-                    this.document.offsetAt(node.range.start),
-                );
+            for (const name of CATCH_VARIABLES) {
+                const definition: ImplicitVariableDefinition = {
+                    kind: "variable",
+                    name: this.resolveQName(name, node.range),
+                    visibleFrom: this.document.offsetAt(node.bodyStart),
+                    references: [],
+                    origin: "implicit",
+                };
                 this.declareDefinition(definition);
-                return this.createDeclarationNode(definition);
-            });
-            return [...declarations, ...this.visitChildrenAsNodes(node)];
+            }
+            return this.visitChildrenAsNodes(node);
         });
     }
 
@@ -291,6 +290,37 @@ class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
         );
     }
 
+    private createSourceDefinitionBase(
+        range: Range,
+        selectionRange: Range,
+        visibleFrom: number = this.document.offsetAt(range.end),
+    ) {
+        return {
+            range,
+            selectionRange,
+            visibleFrom,
+            references: [],
+            origin: "source" as const,
+        };
+    }
+
+    private createVariableDefinition(
+        name: QName,
+        range: Range,
+        selectionRange: Range,
+        visibleFrom?: number,
+    ): SourceVariableDefinition {
+        return {
+            ...this.createSourceDefinitionBase(
+                range,
+                selectionRange,
+                visibleFrom ?? this.document.offsetAt(range.end),
+            ),
+            kind: "variable",
+            name,
+        };
+    }
+
     private adoptChildren<T extends AstNode>(parent: T, children: AstNode[]): T {
         parent.children = children;
         for (const child of children) {
@@ -312,7 +342,7 @@ class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
         }
     }
 
-    private declareDefinition(definition: SourceDefinition): void {
+    private declareDefinition(definition: ScopedDefinition): void {
         this.currentScope.declare(definition);
     }
 
@@ -355,7 +385,7 @@ class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
                 range,
                 code: `unresolved-${kind}`,
             });
-        } else if (isSourceDefinition(declaration) && resolvedReference !== undefined) {
+        } else if (declaration.origin !== "builtin" && resolvedReference !== undefined) {
             declaration.references.push(resolvedReference);
         }
 
@@ -374,13 +404,12 @@ class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
         parameters: AstParameter[],
     ): DeclarationNode[] {
         return parameters.map((parameter) => {
-            const parameterDefinition = createParameterDefinition(
-                this.document,
-                this.resolveQName(parameter.name, parameter.selectionRange),
-                parameter.range,
-                parameter.selectionRange,
-                definition,
-            );
+            const parameterDefinition: SourceParameterDefinition = {
+                ...this.createSourceDefinitionBase(parameter.range, parameter.selectionRange),
+                kind: "parameter",
+                name: this.resolveQName(parameter.name, parameter.selectionRange),
+                function: definition,
+            };
             this.declareDefinition(parameterDefinition);
             definition.parameters.push(parameterDefinition);
             return this.createDeclarationNode(parameterDefinition);

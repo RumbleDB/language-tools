@@ -2,11 +2,7 @@ import type { Position } from "vscode-languageserver";
 
 import type { ArgumentNode, FunctionCallNode } from "../analysis/ast.js";
 import type { AnalysisResult } from "../analysis/builder.js";
-import {
-    isSourceFunctionDefinition,
-    type Definition,
-    type SourceFunctionDefinition,
-} from "../analysis/definitions.js";
+import { type Definition, type SourceFunctionDefinition } from "../analysis/definitions.js";
 import { findNodesThatContainPosition } from "../analysis/queries.js";
 
 export function chooseBestSignatureIndex(
@@ -44,7 +40,9 @@ export function findResolvedSourceFunction(
     call: FunctionCallNode,
 ): SourceFunctionDefinition | undefined {
     const declaration = findResolvedFunctionDeclaration(call);
-    return isSourceFunctionDefinition(declaration) ? declaration : undefined;
+    return declaration?.origin === "source" && declaration.kind === "function"
+        ? declaration
+        : undefined;
 }
 
 export function findCurrentArgument(
