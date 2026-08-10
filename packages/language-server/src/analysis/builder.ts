@@ -53,6 +53,7 @@ import {
     SourceParameterDefinition,
     SourceVariableDefinition,
 } from "./definitions.js";
+import type { ModuleImport, ModuleInfo } from "./module-info.js";
 import {
     referenceNameToString,
     type FunctionName,
@@ -74,6 +75,7 @@ const CATCH_VARIABLES = [
 
 export interface AnalysisResult {
     ast: ModuleNode;
+    module: ModuleInfo;
     scope: Scope;
     namespaces: Map<Prefix, NamespaceDefinition>;
     definitions: readonly SourceDefinition[];
@@ -95,6 +97,10 @@ class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
 
     private readonly referencesByDefinition = new Map<Definition, AnyResolvedReference[]>();
 
+    private readonly imports: ModuleImport[] = [];
+
+    private readonly moduleExports: SourceModuleExportDefinition[] = [];
+
     private readonly result: AnalysisResult;
 
     private currentScope: Scope;
@@ -103,18 +109,16 @@ class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
 
     private readonly parserAst: ParserAstNode;
 
-    private moduleNamespaceUri: string | undefined;
-
-    private readonly moduleImportsByNamespace: ReadonlyMap<string, ResolvedModuleImport>;
+    private readonly resolvedImportsByNamespace: ReadonlyMap<string, ResolvedModuleImport>;
 
     public constructor(
         document: TextDocument,
-        moduleImports: readonly ResolvedModuleImport[] = [],
+        resolvedImports: readonly ResolvedModuleImport[] = [],
     ) {
         super();
         this.document = document;
-        this.moduleImportsByNamespace = new Map(
-            moduleImports.map((moduleImport) => [moduleImport.targetNamespaceUri, moduleImport]),
+        this.resolvedImportsByNamespace = new Map(
+            resolvedImports.map((moduleImport) => [moduleImport.targetNamespaceUri, moduleImport]),
         );
 
         this.parserAst = parseDocument(document).ast;
@@ -137,6 +141,7 @@ class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
                 range: this.parserAst.range,
                 children: [],
             },
+            module: { kind: "main", imports: this.imports },
             scope: moduleScope,
             namespaces,
             definitions: this.definitions,
@@ -170,7 +175,6 @@ class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
     }
 
     protected override visitModuleDeclaration(node: ModuleDeclarationAstNode): AstNode[] {
-        this.moduleNamespaceUri = node.namespaceUri;
         if (node.namespaceUri.length === 0) {
             this.result.diagnostics.push({
                 severity: DiagnosticSeverity.Error,
@@ -195,6 +199,12 @@ class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
         };
         this.definitions.push(definition);
         this.result.namespaces.set(definition.name.prefix, definition);
+        this.result.module = {
+            kind: "library",
+            namespace: definition,
+            imports: this.imports,
+            exports: this.moduleExports,
+        };
         // A library module declaration owns its prolog in the parser AST. Keep its
         // namespace declaration and visit that prolog so library functions and
         // variables participate in analysis.
@@ -202,6 +212,14 @@ class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
     }
 
     protected override visitModuleImport(node: ModuleImportAstNode): AstNode[] {
+        this.imports.push({
+            ...(node.prefix === undefined ? {} : { prefix: node.prefix }),
+            ...(node.prefixRange === undefined ? {} : { prefixRange: node.prefixRange }),
+            namespaceUri: node.namespaceUri,
+            namespaceUriRange: node.namespaceUriRange,
+            locations: node.locations,
+            range: node.range,
+        });
         const declarations: DeclarationNode[] = [];
         if (node.prefix !== undefined && node.prefixRange !== undefined) {
             const definition: SourceNamespaceDefinition = {
@@ -215,7 +233,7 @@ class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
             declarations.push(this.createDeclarationNode(definition));
         }
 
-        const resolvedImport = this.moduleImportsByNamespace.get(node.namespaceUri);
+        const resolvedImport = this.resolvedImportsByNamespace.get(node.namespaceUri);
         for (const declaration of resolvedImport?.exports ?? []) {
             this.declareDefinition(declaration, 0);
         }
@@ -250,7 +268,7 @@ class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
             parameters: [],
             isPrivate: node.isPrivate,
         };
-        this.validateLibraryExport(definition);
+        this.recordLibraryDeclaration(definition);
         this.declareDefinition(definition, this.document.offsetAt(node.selectionRange.end));
 
         const children = this.enterScope(node.range, () => [
@@ -268,7 +286,7 @@ class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
             node.selectionRange,
             node.isPrivate,
         );
-        this.validateLibraryExport(definition);
+        this.recordLibraryDeclaration(definition);
         this.declareDefinition(definition, this.document.offsetAt(node.visibleFrom));
         const children = this.visitChildrenAsNodes(node);
         return [this.createDeclarationNode(definition, children)];
@@ -422,20 +440,22 @@ class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
         }
     }
 
-    private validateLibraryExport(
+    private recordLibraryDeclaration(
         definition: SourceFunctionDefinition | SourceVariableDefinition,
     ): void {
-        if (this.moduleNamespaceUri === undefined || this.currentScope !== this.result.scope)
+        if (this.result.module.kind !== "library" || this.currentScope !== this.result.scope)
             return;
+        if (!definition.isPrivate) this.moduleExports.push(definition);
+
         const namespaceUri =
             definition.kind === "function"
                 ? definition.name.qname.namespaceUri
                 : definition.name.namespaceUri;
-        if (namespaceUri === this.moduleNamespaceUri) return;
+        if (namespaceUri === this.result.module.namespace.namespaceUri) return;
         this.result.diagnostics.push({
             severity: DiagnosticSeverity.Error,
             code: "XQST0048",
-            message: `A library module declaration must use namespace '${this.moduleNamespaceUri}'.`,
+            message: `A library module declaration must use namespace '${this.result.module.namespace.namespaceUri}'.`,
             range: definition.selectionRange,
         });
     }
@@ -560,7 +580,7 @@ class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
 
 export function buildAnalysis(
     document: TextDocument,
-    moduleImports: readonly ResolvedModuleImport[] = [],
+    resolvedImports: readonly ResolvedModuleImport[] = [],
 ): AnalysisResult {
-    return new AnalysisBuilder(document, moduleImports).build();
+    return new AnalysisBuilder(document, resolvedImports).build();
 }

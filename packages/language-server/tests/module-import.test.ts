@@ -1,15 +1,40 @@
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 
+import { buildAnalysis } from "server/analysis/builder.js";
+import { definitionNameToString } from "server/analysis/definitions.js";
 import { getAnalysis } from "server/analysis/service.js";
 import { findDefinitionLocation } from "server/definitions.js";
 import { findReferenceLocations } from "server/references.js";
 import { buildRenameWorkspaceEdit } from "server/rename.js";
 import { describe, expect, it } from "vitest";
 
-import { positionAt, testDocumentFromUri } from "./test-utils.js";
+import { positionAt, testDocument, testDocumentFromUri } from "./test-utils.js";
 
 describe("module imports", () => {
+    it("records the library module interface explicitly", () => {
+        const analysis = buildAnalysis(
+            testDocument("module-interface", [
+                'module namespace lib = "urn:lib";',
+                'import module namespace dep = "urn:dep" at "dep.jq";',
+                "declare variable $lib:value := 1;",
+                "declare %private variable $lib:secret := 2;",
+                "declare function lib:identity($value) { $value };",
+            ]),
+        );
+
+        expect(analysis.module).toMatchObject({
+            kind: "library",
+            namespace: { namespaceUri: "urn:lib" },
+            imports: [{ prefix: "dep", namespaceUri: "urn:dep" }],
+        });
+        expect(
+            analysis.module.kind === "library"
+                ? analysis.module.exports.map((definition) => definitionNameToString(definition))
+                : [],
+        ).toEqual(["$lib:value", "lib:identity#1"]);
+    });
+
     it("resolves direct imported functions and variables from a relative location", () => {
         const fixture = path.join(process.cwd(), "tests", "samples", "modules", "imported.xqm");
         const document = testDocumentFromUri(

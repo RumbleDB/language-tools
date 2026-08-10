@@ -13,7 +13,6 @@ import {
     type SourceDefinition,
     type SourceModuleExportDefinition,
 } from "./definitions.js";
-import { collectModuleExports } from "./queries.js";
 import type { AnyResolvedReference } from "./reference.js";
 
 interface CachedAnalysis {
@@ -119,10 +118,9 @@ class WorkspaceModuleService {
             let foundValidModule = false;
             for (const loaded of loadedModules) {
                 const dependency = this.analyse(loaded, nextVisiting);
-                const declaration = findNodes(parseDocument(loaded).ast, "module-declaration")[0];
                 if (
-                    declaration === undefined ||
-                    declaration.namespaceUri !== imported.namespaceUri
+                    dependency.module.kind !== "library" ||
+                    dependency.module.namespace.namespaceUri !== imported.namespaceUri
                 ) {
                     importDiagnostics.push({
                         severity: DiagnosticSeverity.Error,
@@ -133,7 +131,7 @@ class WorkspaceModuleService {
                     continue;
                 }
                 foundValidModule = true;
-                for (const exported of collectModuleExports(dependency)) {
+                for (const exported of dependency.module.exports) {
                     const namespaceUri =
                         exported.kind === "function"
                             ? exported.name.qname.namespaceUri
