@@ -9,7 +9,7 @@ import {
 import { TextDocument } from "vscode-languageserver-textdocument";
 
 import { defaultNamespaces } from "./analysis/default-namespaces.js";
-import { definitionNameToString, type ScopedDefinition } from "./analysis/definitions.js";
+import { definitionNameToString, type ScopeDefinition } from "./analysis/definitions.js";
 import { QNameToString } from "./analysis/names.js";
 import { getVisibleDeclarationsAtPosition } from "./analysis/queries.js";
 import { BuiltinFunctionDefinition, builtinFunctions } from "./assets/builtin-functions.js";
@@ -183,7 +183,7 @@ function getDotCompletionContext(
     };
 }
 
-function toCompletionItem(declaration: ScopedDefinition): CompletionItem {
+function toCompletionItem(declaration: ScopeDefinition): CompletionItem {
     const name = definitionNameToString(declaration);
     if (declaration.origin === "source" && declaration.kind === "function") {
         const label = QNameToString(declaration.name.qname, false);

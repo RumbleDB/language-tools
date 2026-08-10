@@ -1,53 +1,54 @@
-import { type Prefix } from "server/parser/types/name.js";
 import { getDocumentText } from "server/parser/utils.js";
 import { TextDocument } from "vscode-languageserver-textdocument";
 
-import { BaseDefinition, NamespaceDefinition, ScopedDefinition } from "./definitions.js";
+import { ScopeDefinition, ScopeDefinitionByReferenceKind } from "./definitions.js";
 import { QName, QNameToString, type FunctionName, type ReferenceNameByKind } from "./names.js";
 
+interface ScopeEntry {
+    definition: ScopeDefinition;
+    visibleFrom: number;
+}
+
 export class Scope {
-    private readonly definitionByName = new Map<string, ScopedDefinition[]>();
+    private readonly entriesByName = new Map<string, ScopeEntry[]>();
     private readonly children: Scope[] = [];
 
     private constructor(
         public readonly parent: Scope | undefined,
         public readonly startOffset: number,
         public readonly endOffset: number,
-        private readonly namespaces: ReadonlyMap<Prefix, NamespaceDefinition>,
     ) {}
 
-    public static module(
-        document: TextDocument,
-        namespaces: ReadonlyMap<Prefix, NamespaceDefinition>,
-    ): Scope {
-        return new Scope(undefined, 0, getDocumentText(document).length, namespaces);
+    public static module(document: TextDocument): Scope {
+        return new Scope(undefined, 0, getDocumentText(document).length);
     }
 
     public enter(startOffset: number, endOffset: number): Scope {
-        const child = new Scope(this, startOffset, endOffset, this.namespaces);
+        const child = new Scope(this, startOffset, endOffset);
         this.children.push(child);
         return child;
     }
 
-    public declare(newDefinition: ScopedDefinition): void {
-        const name = this.definitionLookupKey(newDefinition);
-        if (!this.definitionByName.has(name)) {
-            this.definitionByName.set(name, []);
+    public declare(definition: ScopeDefinition, visibleFrom: number): void {
+        const name = this.definitionLookupKey(definition);
+        if (!this.entriesByName.has(name)) {
+            this.entriesByName.set(name, []);
         }
 
-        const definitionsWithSameName = this.definitionByName.get(name)!;
-        definitionsWithSameName.push(newDefinition);
+        this.entriesByName.get(name)!.push({ definition, visibleFrom });
     }
 
     public resolve<K extends keyof ReferenceNameByKind>(
         kind: K,
         name: ReferenceNameByKind[K],
         offset: number,
-    ): ScopedDefinition | undefined {
-        const declarations = this.definitionByName.get(this.referenceLookupKey(name, kind));
-        const declaration = declarations?.findLast((candidate) => candidate.visibleFrom <= offset);
-        if (declaration !== undefined) {
-            return declaration;
+    ): ScopeDefinitionByReferenceKind[K] | undefined {
+        const entries = this.entriesByName.get(this.referenceLookupKey(name, kind));
+        const entry = entries?.findLast((candidate) => candidate.visibleFrom <= offset);
+        if (entry !== undefined) {
+            // Definitions and references use the same kind-prefixed lookup keys, so a
+            // successful lookup has the definition type associated with K.
+            return entry.definition as ScopeDefinitionByReferenceKind[K];
         }
 
         return this.parent?.resolve(kind, name, offset);
@@ -77,29 +78,27 @@ export class Scope {
      *
      * This method should be called on the innermost scope at the given offset
      */
-    public listVisibleDefinitions(offset: number): Map<string, ScopedDefinition> {
-        const visible = new Map<string, ScopedDefinition>();
+    public listVisibleDefinitions(offset: number): Map<string, ScopeDefinition> {
+        const visible = new Map<string, ScopeDefinition>();
 
-        for (const [name, definitions] of this.definitionByName.entries()) {
-            const definition = definitions.findLast((candidate) => candidate.visibleFrom <= offset);
-            if (definition !== undefined) {
-                visible.set(name, definition);
+        for (const [name, entries] of this.entriesByName.entries()) {
+            const entry = entries.findLast((candidate) => candidate.visibleFrom <= offset);
+            if (entry !== undefined) {
+                visible.set(name, entry.definition);
             }
         }
 
         let current = this.parent;
         while (current !== undefined) {
-            for (const [name, definitions] of current.definitionByName.entries()) {
+            for (const [name, entries] of current.entriesByName.entries()) {
                 if (visible.has(name)) {
                     continue;
                 }
 
-                const definition = definitions.findLast(
-                    (candidate) => candidate.visibleFrom <= offset,
-                );
+                const entry = entries.findLast((candidate) => candidate.visibleFrom <= offset);
 
-                if (definition !== undefined) {
-                    visible.set(name, definition);
+                if (entry !== undefined) {
+                    visible.set(name, entry.definition);
                 }
             }
 
@@ -113,18 +112,15 @@ export class Scope {
         return `${QNameToString(name.qname, true)}#${name.arity ?? "?"}`;
     }
 
-    private definitionLookupKey(definition: BaseDefinition): string {
+    private definitionLookupKey(definition: ScopeDefinition): string {
         switch (definition.kind) {
-            case "namespace":
-                return definition.name.prefix;
             case "function":
-            case "builtin-function":
-                return this.functionLookupKey(definition.name);
+                return `function:${this.functionLookupKey(definition.name)}`;
             case "type":
-                return QNameToString(definition.name, true);
+                return `type:${QNameToString(definition.name, true)}`;
             case "parameter":
             case "variable":
-                return QNameToString(definition.name, true);
+                return `variable:${QNameToString(definition.name, true)}`;
             default:
                 throw definition satisfies never;
         }
@@ -136,11 +132,11 @@ export class Scope {
     ): string {
         switch (kind) {
             case "function":
-                return this.functionLookupKey(name as FunctionName);
+                return `function:${this.functionLookupKey(name as FunctionName)}`;
             case "variable":
-                return QNameToString(name as QName, true);
+                return `variable:${QNameToString(name as QName, true)}`;
             case "type":
-                return QNameToString(name as QName, true);
+                return `type:${QNameToString(name as QName, true)}`;
             default:
                 throw kind satisfies never;
         }

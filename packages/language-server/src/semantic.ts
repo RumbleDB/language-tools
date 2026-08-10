@@ -9,8 +9,8 @@ import {
 import { Range } from "vscode-languageserver";
 import { TextDocument } from "vscode-languageserver-textdocument";
 
-import { DefinitionKind } from "./analysis/definitions.js";
-import { collectDefinitions, collectReferences } from "./analysis/queries.js";
+import { type Definition, DefinitionKind } from "./analysis/definitions.js";
+import { getResolvedReferences, getSourceDefinitions } from "./analysis/queries.js";
 import { getAnalysis } from "./analysis/service.js";
 
 export const legend: SemanticTokensLegend = {
@@ -52,15 +52,15 @@ export function collectSemanticTokens(document: TextDocument): SemanticTokens {
     const analysis = getAnalysis(document);
     const builder = new SemanticTokensBuilder();
 
-    for (const definition of collectDefinitions(analysis)) {
+    for (const definition of getSourceDefinitions(analysis)) {
         const tokenType = getTokenTypeForDefinition(definition.kind);
-        const tokenModifiers = getTokenModifierForDefinition(definition.kind);
+        const tokenModifiers = getTokenModifierForDefinition(definition);
         addSemanticToken(builder, definition.selectionRange, tokenType, tokenModifiers);
     }
 
-    for (const reference of collectReferences(analysis)) {
+    for (const reference of getResolvedReferences(analysis)) {
         const tokenType = getTokenTypeForDefinition(reference.declaration.kind);
-        const tokenModifiers = getTokenModifierForDefinition(reference.declaration.kind);
+        const tokenModifiers = getTokenModifierForDefinition(reference.declaration);
         addSemanticToken(builder, reference.range, tokenType, tokenModifiers);
     }
 
@@ -70,7 +70,6 @@ export function collectSemanticTokens(document: TextDocument): SemanticTokens {
 
 function getTokenTypeForDefinition(kind: DefinitionKind): SemanticTokenTypes {
     switch (kind) {
-        case "builtin-function":
         case "function":
             return SemanticTokenTypes.function;
         case "parameter":
@@ -84,11 +83,8 @@ function getTokenTypeForDefinition(kind: DefinitionKind): SemanticTokenTypes {
     }
 }
 
-function getTokenModifierForDefinition(kind: DefinitionKind): SemanticTokenModifiers {
-    switch (kind) {
-        case "builtin-function":
-            return SemanticTokenModifiers.defaultLibrary;
-        default:
-            return SemanticTokenModifiers.definition;
-    }
+function getTokenModifierForDefinition(definition: Definition): SemanticTokenModifiers {
+    return definition.origin === "builtin"
+        ? SemanticTokenModifiers.defaultLibrary
+        : SemanticTokenModifiers.definition;
 }

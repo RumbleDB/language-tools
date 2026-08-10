@@ -1,10 +1,10 @@
 import type {
     ArgumentNode,
+    AnyReferenceNode,
     AstNode,
     DeclarationNode,
     FunctionCallNode,
     ModuleNode,
-    ReferenceNode,
 } from "./ast.js";
 
 export abstract class AstVisitor<R = void> {
@@ -42,7 +42,7 @@ export abstract class AstVisitor<R = void> {
         return this.defaultVisit(node);
     }
 
-    protected visitReference(node: ReferenceNode): R {
+    protected visitReference(node: AnyReferenceNode): R {
         return this.defaultVisit(node);
     }
 

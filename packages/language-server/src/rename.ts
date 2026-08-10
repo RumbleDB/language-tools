@@ -8,7 +8,7 @@ import { TextDocument } from "vscode-languageserver-textdocument";
 
 import { AnalysisResult } from "./analysis/builder.js";
 import { definitionNameToString, SourceDefinition } from "./analysis/definitions.js";
-import { findSymbolAtPosition } from "./analysis/queries.js";
+import { findSymbolAtPosition, getReferencesToDefinition } from "./analysis/queries.js";
 import { getAnalysis } from "./analysis/service.js";
 
 interface RenameTarget {
@@ -79,7 +79,7 @@ export function buildRenameWorkspaceEdit(
         },
     ];
 
-    for (const reference of target.declaration.references) {
+    for (const reference of getReferencesToDefinition(analysis, target.declaration)) {
         edits.push({
             range: reference.range,
             newText: newName,

@@ -5,40 +5,35 @@ import { TextDocument } from "vscode-languageserver-textdocument";
 
 import type { AstNode, SymbolOccurrence } from "./ast.js";
 import { AnalysisResult } from "./builder.js";
-import { ScopedDefinition, SourceDefinition } from "./definitions.js";
-import { ResolvedReference } from "./reference.js";
+import { Definition, ScopeDefinition, SourceDefinition } from "./definitions.js";
+import { AnyResolvedReference } from "./reference.js";
 import { getAnalysis } from "./service.js";
 
 export function getVisibleDeclarationsAtPosition(
     document: TextDocument,
     position: Position,
-): ScopedDefinition[] {
+): ScopeDefinition[] {
     const analysis = getAnalysis(document);
     const positionOffset = document.offsetAt(position);
     const scope = analysis.scope.findInnermostScope(positionOffset);
     return [...scope.listVisibleDefinitions(positionOffset).values()];
 }
 
-export function collectDefinitions(analysis: AnalysisResult): SourceDefinition[] {
-    const definitions: SourceDefinition[] = [];
-    visitNodes(analysis.ast, (node) => {
-        if (node.kind === "declaration") {
-            definitions.push(node.declaration);
-        }
-    });
-
-    return definitions.sort((left, right) => comparePositions(left.range.start, right.range.start));
+export function getSourceDefinitions(analysis: AnalysisResult): SourceDefinition[] {
+    return [...analysis.definitions].sort((left, right) =>
+        comparePositions(left.range.start, right.range.start),
+    );
 }
 
-export function collectReferences(analysis: AnalysisResult): ResolvedReference[] {
-    const references: ResolvedReference[] = [];
-    visitNodes(analysis.ast, (node) => {
-        if (node.kind === "reference" && node.resolution !== undefined) {
-            references.push(node.resolution);
-        }
-    });
+export function getResolvedReferences(analysis: AnalysisResult): AnyResolvedReference[] {
+    return [...analysis.references];
+}
 
-    return references;
+export function getReferencesToDefinition(
+    analysis: AnalysisResult,
+    definition: Definition,
+): readonly AnyResolvedReference[] {
+    return analysis.referencesByDefinition.get(definition) ?? [];
 }
 
 export function findSymbolAtPosition(
@@ -60,13 +55,6 @@ export function findNodesThatContainPosition(
     position: Position,
 ): AstNode[] {
     return findContainingNodePath(analysis.ast, position) ?? [];
-}
-
-function visitNodes(node: AstNode, callback: (node: AstNode) => void): void {
-    callback(node);
-    for (const child of node.children) {
-        visitNodes(child, callback);
-    }
 }
 
 function findContainingNodePath(node: AstNode, position: Position): AstNode[] | undefined {

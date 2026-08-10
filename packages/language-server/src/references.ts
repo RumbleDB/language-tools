@@ -1,7 +1,7 @@
 import { type Location, type Position } from "vscode-languageserver";
 import { TextDocument } from "vscode-languageserver-textdocument";
 
-import { findSymbolAtPosition } from "./analysis/queries.js";
+import { findSymbolAtPosition, getReferencesToDefinition } from "./analysis/queries.js";
 import { getAnalysis } from "./analysis/service.js";
 
 /**
@@ -34,7 +34,7 @@ export function findReferenceLocations(
         });
     }
 
-    for (const reference of targetDeclaration.references) {
+    for (const reference of getReferencesToDefinition(analysis, targetDeclaration)) {
         locations.push({
             uri: document.uri,
             range: reference.range,

@@ -1,31 +1,15 @@
-import { BuiltinFunctionDefinition } from "server/assets/builtin-functions.js";
+import type { BuiltinFunctionDefinition } from "server/assets/builtin-functions.js";
 import type { Range } from "vscode-languageserver";
 
-import {
-    functionNameToString,
-    QNameToString,
-    type DeclarationNameByKind,
-    type FunctionName,
-} from "./names.js";
-import { ResolvedReference } from "./reference.js";
+import { functionNameToString, QNameToString, type DeclarationNameByKind } from "./names.js";
 
-export type DeclarationKind = "variable" | "namespace" | "type" | "parameter" | "function";
-
-export type DefinitionKind = DeclarationKind | "builtin-function";
+export type DefinitionKind = "variable" | "namespace" | "type" | "parameter" | "function";
 
 export type DefinitionOrigin = "source" | "implicit" | "builtin";
 
-export type DefinitionNameByKind = DeclarationNameByKind & {
-    "builtin-function": FunctionName;
-};
-
 interface AbstractDefinition<K extends DefinitionKind> {
-    name: DefinitionNameByKind[K];
+    name: DeclarationNameByKind[K];
     kind: K;
-
-    // List of references that resolve to this declaration.
-    references: ResolvedReference[];
-
     origin: DefinitionOrigin;
 }
 
@@ -34,16 +18,13 @@ export type BaseDefinition<K extends DefinitionKind = DefinitionKind> = K extend
     : never;
 
 export interface BaseSourceDefinition<
-    K extends DeclarationKind = DeclarationKind,
+    K extends DefinitionKind = DefinitionKind,
 > extends AbstractDefinition<K> {
     // Entire range of the declaration.
     range: Range;
 
     // Range of the declaration name token.
     selectionRange: Range;
-
-    // Offset from which the declaration is visible to position-based queries.
-    visibleFrom: number;
 
     origin: "source";
 }
@@ -67,19 +48,20 @@ export interface SourceNamespaceDefinition extends BaseSourceDefinition<"namespa
     namespaceUri: string;
 }
 
+export interface SourceTypeDefinition extends BaseSourceDefinition<"type"> {
+    kind: "type";
+}
+
 export type SourceDefinition =
     | SourceVariableDefinition
     | SourceParameterDefinition
     | SourceFunctionDefinition
     | SourceNamespaceDefinition
-    | BaseSourceDefinition<"type">;
+    | SourceTypeDefinition;
 
 export interface ImplicitVariableDefinition extends AbstractDefinition<"variable"> {
     kind: "variable";
     origin: "implicit";
-
-    // Offset from which the binding is visible to position-based queries.
-    visibleFrom: number;
 }
 
 export interface ImplicitNamespaceDefinition extends AbstractDefinition<"namespace"> {
@@ -90,9 +72,35 @@ export interface ImplicitNamespaceDefinition extends AbstractDefinition<"namespa
 
 export type NamespaceDefinition = SourceNamespaceDefinition | ImplicitNamespaceDefinition;
 
-export type ScopedDefinition = SourceDefinition | ImplicitVariableDefinition;
+export type ScopeDefinition =
+    | SourceVariableDefinition
+    | SourceParameterDefinition
+    | SourceFunctionDefinition
+    | SourceTypeDefinition
+    | ImplicitVariableDefinition;
 
-export type Definition = ScopedDefinition | ImplicitNamespaceDefinition | BuiltinFunctionDefinition;
+export type VariableDefinition =
+    | SourceVariableDefinition
+    | SourceParameterDefinition
+    | ImplicitVariableDefinition;
+
+export interface ScopeDefinitionByReferenceKind {
+    variable: VariableDefinition;
+    function: SourceFunctionDefinition;
+    type: SourceTypeDefinition;
+}
+
+export interface DefinitionByReferenceKind {
+    variable: VariableDefinition;
+    function: SourceFunctionDefinition | BuiltinFunctionDefinition;
+    type: SourceTypeDefinition;
+}
+
+export type Definition =
+    | SourceDefinition
+    | ImplicitVariableDefinition
+    | ImplicitNamespaceDefinition
+    | BuiltinFunctionDefinition;
 
 export function definitionNameToString(
     definition: BaseDefinition,
@@ -102,7 +110,6 @@ export function definitionNameToString(
         case "namespace":
             return definition.name.prefix;
         case "function":
-        case "builtin-function":
             return functionNameToString(definition.name, expanded);
         case "type":
             return QNameToString(definition.name, expanded);

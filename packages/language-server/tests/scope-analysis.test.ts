@@ -3,9 +3,10 @@ import {
     findNodesThatContainPosition,
     findNodeThatContainsPosition,
     findSymbolAtPosition,
-    collectDefinitions,
-    collectReferences,
+    getSourceDefinitions,
+    getResolvedReferences,
     getVisibleDeclarationsAtPosition,
+    getReferencesToDefinition,
 } from "server/analysis/queries.js";
 import { getAnalysis } from "server/analysis/service.js";
 import { describe, expect, it } from "vitest";
@@ -25,7 +26,7 @@ describe("JSONiq variable scope analysis", () => {
         ]);
 
         const analysis = await buildAnalysis(document);
-        const declarationNames = collectDefinitions(analysis).map(
+        const declarationNames = getSourceDefinitions(analysis).map(
             (declaration) => declaration.name,
         );
 
@@ -69,7 +70,7 @@ describe("JSONiq variable scope analysis", () => {
         ]);
 
         const analysis = await buildAnalysis(document);
-        const references = collectReferences(analysis)
+        const references = getResolvedReferences(analysis)
             .filter((reference) => reference.kind === "variable")
             .map((reference) => ({
                 name: reference.name,
@@ -123,7 +124,7 @@ describe("JSONiq variable scope analysis", () => {
         ]);
 
         const analysis = await buildAnalysis(document);
-        const functionReference = collectReferences(analysis).find(
+        const functionReference = getResolvedReferences(analysis).find(
             (reference) =>
                 reference.kind === "function" && reference.name.qname.localName === "add",
         );
@@ -153,6 +154,39 @@ describe("JSONiq variable scope analysis", () => {
         });
     });
 
+    it("keeps built-in function references isolated per document analysis", async () => {
+        const firstAnalysis = await buildAnalysis(
+            testDocument("scope-builtin-reference-first", ["count((1, 2))"]),
+        );
+        const secondAnalysis = await buildAnalysis(
+            testDocument("scope-builtin-reference-second", ["count((1, 2)), count((3, 4))"]),
+        );
+
+        const firstReference = getResolvedReferences(firstAnalysis).find(
+            (reference) =>
+                reference.kind === "function" && reference.declaration.origin === "builtin",
+        );
+        const secondReference = getResolvedReferences(secondAnalysis).find(
+            (reference) =>
+                reference.kind === "function" && reference.declaration.origin === "builtin",
+        );
+
+        expect(firstReference).toBeDefined();
+        expect(secondReference).toBeDefined();
+
+        if (firstReference === undefined || secondReference === undefined) {
+            return;
+        }
+
+        expect(firstReference.declaration).toBe(secondReference.declaration);
+        expect(getReferencesToDefinition(firstAnalysis, firstReference.declaration)).toHaveLength(
+            1,
+        );
+        expect(getReferencesToDefinition(secondAnalysis, secondReference.declaration)).toHaveLength(
+            2,
+        );
+    });
+
     it("resolves function references by full qname", async () => {
         const document = testDocument("scope-function-qname-resolution", [
             'declare namespace local = "http://example.com/local";',
@@ -167,7 +201,7 @@ describe("JSONiq variable scope analysis", () => {
         ]);
 
         const analysis = await buildAnalysis(document);
-        const functionReference = collectReferences(analysis).find(
+        const functionReference = getResolvedReferences(analysis).find(
             (reference) =>
                 reference.kind === "function" &&
                 reference.name.qname.prefix === "other" &&
@@ -208,7 +242,7 @@ describe("JSONiq variable scope analysis", () => {
         ]);
 
         const analysis = await buildAnalysis(document);
-        const functionReference = collectReferences(analysis).find(
+        const functionReference = getResolvedReferences(analysis).find(
             (reference) =>
                 reference.kind === "function" &&
                 reference.name.qname.prefix === "b" &&
@@ -242,7 +276,7 @@ describe("JSONiq variable scope analysis", () => {
         const document = testDocument("scope-unprefixed-builtin", ['substring("hello", 1, 2)']);
 
         const analysis = getAnalysis(document);
-        const functionReference = collectReferences(analysis).find(
+        const functionReference = getResolvedReferences(analysis).find(
             (reference) => reference.kind === "function",
         );
 
@@ -254,7 +288,8 @@ describe("JSONiq variable scope analysis", () => {
                 },
             },
             declaration: {
-                kind: "builtin-function",
+                kind: "function",
+                origin: "builtin",
                 name: {
                     arity: 3,
                     qname: {
@@ -266,6 +301,45 @@ describe("JSONiq variable scope analysis", () => {
         });
     });
 
+    it("represents predeclared namespaces without source declaration locations", () => {
+        const analysis = buildAnalysis(
+            testDocument("scope-predeclared-namespaces", "fn:string(1)"),
+        );
+        const fnNamespace = analysis.namespaces.get("fn");
+
+        expect(fnNamespace).toMatchObject({
+            kind: "namespace",
+            origin: "implicit",
+            name: { prefix: "fn" },
+            namespaceUri: "http://www.w3.org/2005/xpath-functions",
+        });
+        expect(fnNamespace).not.toHaveProperty("range");
+        expect(fnNamespace).not.toHaveProperty("selectionRange");
+    });
+
+    it("keeps namespace, type, function, and variable symbol spaces separate", () => {
+        const document = testDocument("scope-separate-symbol-spaces", [
+            'declare namespace app = "http://example.com/app";',
+            "declare type app:item as object-node();",
+            "declare function app:item() { 1 };",
+            "declare variable $app:item := 1;",
+            "($app:item, app:item())",
+        ]);
+
+        const analysis = getAnalysis(document);
+        const visibleDefinitions = getVisibleDeclarationsAtPosition(
+            document,
+            positionAt(document, "($app:item"),
+        );
+
+        expect(analysis.namespaces.get("app")?.namespaceUri).toBe("http://example.com/app");
+        expect(visibleDefinitions.map((definition) => definition.kind)).toEqual([
+            "type",
+            "function",
+            "variable",
+        ]);
+    });
+
     it("supports multiple for variables in the same clause", async () => {
         const document = testDocument("scope-multi-for", [
             "for $x in (1, 2, 3), $y in ($x, 4)",
@@ -274,12 +348,12 @@ describe("JSONiq variable scope analysis", () => {
 
         const analysis = await buildAnalysis(document);
 
-        expect(collectDefinitions(analysis).map((declaration) => declaration.name)).toEqual([
+        expect(getSourceDefinitions(analysis).map((declaration) => declaration.name)).toEqual([
             { localName: "x" },
             { localName: "y" },
         ]);
         expect(
-            collectReferences(analysis).map((reference) => ({
+            getResolvedReferences(analysis).map((reference) => ({
                 name: reference.name,
                 line: reference.range.start.line,
                 resolvedTo: reference.declaration?.name,
@@ -313,7 +387,7 @@ describe("JSONiq variable scope analysis", () => {
         ]);
 
         const analysis = await buildAnalysis(document);
-        const variableReferences = collectReferences(analysis)
+        const variableReferences = getResolvedReferences(analysis)
             .filter((reference) => reference.kind === "variable")
             .map((reference) => ({
                 name: reference.name,
@@ -362,7 +436,7 @@ describe("JSONiq variable scope analysis", () => {
         const analysis = await buildAnalysis(document);
 
         expect(
-            collectReferences(analysis)
+            getResolvedReferences(analysis)
                 .filter((reference) => reference.kind === "variable")
                 .map((reference) => ({
                     name: reference.name,
@@ -395,7 +469,7 @@ describe("JSONiq variable scope analysis", () => {
         const analysis = await buildAnalysis(document);
 
         expect(
-            collectDefinitions(analysis).filter((definition) => definition.kind === "variable"),
+            getSourceDefinitions(analysis).filter((definition) => definition.kind === "variable"),
         ).toEqual([]);
 
         expect(
@@ -416,25 +490,30 @@ describe("JSONiq variable scope analysis", () => {
         ]);
 
         expect(
-            collectReferences(analysis)
+            getResolvedReferences(analysis)
                 .filter((reference) => reference.kind === "variable")
                 .map((reference) => ({
                     name: reference.name,
                     resolvedTo: reference.declaration.name,
                     resolvedKind: reference.declaration.kind,
+                    resolvedOrigin: reference.declaration.origin,
                 })),
         ).toMatchObject([
             {
                 name: { prefix: "err", localName: "code" },
                 resolvedTo: { prefix: "err", localName: "code" },
                 resolvedKind: "variable",
+                resolvedOrigin: "implicit",
             },
             {
                 name: { prefix: "err", localName: "description" },
                 resolvedTo: { prefix: "err", localName: "description" },
                 resolvedKind: "variable",
+                resolvedOrigin: "implicit",
             },
         ]);
+
+        expect(findSymbolAtPosition(analysis, positionAt(document, "catch"))).toBeUndefined();
     });
 
     it("supports multiple for bindings that each define an at-position variable", async () => {
@@ -446,7 +525,7 @@ describe("JSONiq variable scope analysis", () => {
         const analysis = await buildAnalysis(document);
 
         expect(
-            collectDefinitions(analysis).map((declaration) => ({
+            getSourceDefinitions(analysis).map((declaration) => ({
                 name: declaration.name,
                 kind: declaration.kind,
             })),
@@ -458,7 +537,7 @@ describe("JSONiq variable scope analysis", () => {
         ]);
 
         expect(
-            collectReferences(analysis).map((reference) => ({
+            getResolvedReferences(analysis).map((reference) => ({
                 name: reference.name,
                 line: reference.range.start.line,
                 resolvedTo: reference.declaration?.name,
@@ -498,7 +577,7 @@ describe("JSONiq variable scope analysis", () => {
         ]);
     });
 
-    it("stores references per declaration and supports binary-search occurrence lookup", async () => {
+    it("indexes references by declaration and supports occurrence lookup", async () => {
         const document = testDocument("scope-index", [
             "declare function local:f($x) {",
             "  let $y := $x + 1",
@@ -507,7 +586,7 @@ describe("JSONiq variable scope analysis", () => {
         ]);
 
         const analysis = await buildAnalysis(document);
-        const parameter = collectDefinitions(analysis).find(
+        const parameter = getSourceDefinitions(analysis).find(
             (declaration) => declaration.kind === "parameter" && declaration.name.localName === "x",
         );
 
@@ -517,7 +596,11 @@ describe("JSONiq variable scope analysis", () => {
             return;
         }
 
-        expect(parameter.references.map((reference) => reference.range.start.line)).toEqual([1, 2]);
+        expect(
+            getReferencesToDefinition(analysis, parameter).map(
+                (reference) => reference.range.start.line,
+            ),
+        ).toEqual([1, 2]);
 
         const occurrence = findSymbolAtPosition(analysis, { line: 2, character: 14 });
 
@@ -534,7 +617,7 @@ describe("JSONiq variable scope analysis", () => {
         ]);
 
         const analysis = await buildAnalysis(document);
-        const parameter = collectDefinitions(analysis).find(
+        const parameter = getSourceDefinitions(analysis).find(
             (declaration) => declaration.kind === "parameter" && declaration.name.localName === "x",
         );
 
@@ -544,7 +627,11 @@ describe("JSONiq variable scope analysis", () => {
             return;
         }
 
-        expect(parameter.references.map((reference) => reference.range.start.line)).toEqual([1, 1]);
+        expect(
+            getReferencesToDefinition(analysis, parameter).map(
+                (reference) => reference.range.start.line,
+            ),
+        ).toEqual([1, 1]);
 
         const occurrence = findSymbolAtPosition(analysis, { line: 1, character: 13 });
 
@@ -609,13 +696,13 @@ describe("JSONiq variable scope analysis", () => {
         ]);
 
         const analysis = await buildAnalysis(document);
-        const xDeclarations = collectDefinitions(analysis).filter(
+        const xDeclarations = getSourceDefinitions(analysis).filter(
             (declaration) => declaration.kind === "variable" && declaration.name.localName === "x",
         );
 
         expect(xDeclarations).toHaveLength(2);
 
-        const references = collectReferences(analysis)
+        const references = getResolvedReferences(analysis)
             .filter(
                 (reference) => reference.kind === "variable" && reference.name.localName === "x",
             )
