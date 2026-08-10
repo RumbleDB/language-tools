@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 
@@ -112,6 +113,31 @@ describe("module imports", () => {
             expect.objectContaining({ uri: pathToFileURL(fixture).toString() }),
             expect.objectContaining({ uri: document.uri }),
         ]);
+    });
+
+    it("keeps importer references indexed after opening the imported module", () => {
+        const fixture = path.join(process.cwd(), "tests", "samples", "modules", "math.jq");
+        const moduleUri = pathToFileURL(fixture).toString();
+        const importer = testDocumentFromUri(
+            ['import module namespace math = "math.jq" at "./math.jq";', "$math:x"],
+            {
+                uri: pathToFileURL(
+                    path.join(path.dirname(fixture), "references-after-open.jq"),
+                ).toString(),
+            },
+        );
+
+        getAnalysis(importer);
+
+        const moduleDocument = testDocumentFromUri(readFileSync(fixture, "utf8"), {
+            uri: moduleUri,
+            version: 1,
+        });
+        getAnalysis(moduleDocument);
+
+        expect(
+            findReferenceLocations(moduleDocument, positionAt(moduleDocument, "$math:x"), false),
+        ).toContainEqual(expect.objectContaining({ uri: importer.uri }));
     });
 
     it("does not import private module declarations", () => {

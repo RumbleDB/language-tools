@@ -49,6 +49,10 @@ export class WorkspaceDocumentStore implements ModuleLoader {
         return this.openDocuments.delete(uri);
     }
 
+    public getOpenDocuments(): readonly TextDocument[] {
+        return [...this.openDocuments.values()];
+    }
+
     public loadImport(importer: TextDocument, imported: ModuleImport): readonly TextDocument[] {
         const modules: TextDocument[] = [];
         const seenUris = new Set<DocumentUri>();

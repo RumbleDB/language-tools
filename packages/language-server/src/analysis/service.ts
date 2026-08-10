@@ -187,6 +187,10 @@ class WorkspaceAnalysisCoordinator {
     public getReferencesToDefinition(definition: Definition): readonly AnyResolvedReference[] {
         if (definition.origin !== "source") return [];
 
+        for (const document of this.documents.getOpenDocuments()) {
+            this.analyse(document, new Set());
+        }
+
         return this.symbols.referencesTo(definition);
     }
 
