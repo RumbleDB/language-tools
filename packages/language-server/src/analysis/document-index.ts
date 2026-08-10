@@ -32,12 +32,13 @@ import type {
     SourceParameterDefinition,
     SourceVariableDefinition,
 } from "./definitions.js";
-import type { ModuleImport, ModuleInfo } from "./module-info.js";
+import type { ModuleDeclaration, ModuleImport, ModuleInterface } from "./module-info.js";
 import type { FunctionName, QName } from "./names.js";
 
 export interface DocumentIndex {
     readonly ast: ParserAstNode;
-    readonly module: ModuleInfo;
+    readonly moduleDeclaration: ModuleDeclaration;
+    readonly moduleInterface?: ModuleInterface;
     readonly namespaces: ReadonlyMap<Prefix, NamespaceDefinition>;
     readonly definitions: readonly SourceDefinition[];
     readonly definitionsByNode: ReadonlyMap<ParserAstNode | AstParameter, SourceDefinition>;
@@ -61,7 +62,8 @@ class DocumentIndexBuilder extends ParserAstVisitor<void> {
             return [prefix, definition];
         }),
     );
-    private module: ModuleInfo = { kind: "main", imports: this.imports };
+    private moduleDeclaration: ModuleDeclaration = { kind: "main", imports: this.imports };
+    private moduleInterface: ModuleInterface | undefined;
     private atModuleLevel = false;
 
     public constructor(
@@ -75,7 +77,10 @@ class DocumentIndexBuilder extends ParserAstVisitor<void> {
         this.visit(this.ast);
         return {
             ast: this.ast,
-            module: this.module,
+            moduleDeclaration: this.moduleDeclaration,
+            ...(this.moduleInterface === undefined
+                ? {}
+                : { moduleInterface: this.moduleInterface }),
             namespaces: this.namespaces,
             definitions: this.definitions,
             definitionsByNode: this.definitionsByNode,
@@ -109,10 +114,13 @@ class DocumentIndexBuilder extends ParserAstVisitor<void> {
         };
         this.recordDefinition(node, definition);
         this.namespaces.set(node.prefix, definition);
-        this.module = {
+        this.moduleDeclaration = {
             kind: "library",
-            namespace: definition,
+            targetNamespace: definition,
             imports: this.imports,
+        };
+        this.moduleInterface = {
+            namespaceUri: definition.namespaceUri,
             exports: this.exports,
         };
         this.visitChildrenAtModuleLevel(node);
@@ -230,18 +238,20 @@ class DocumentIndexBuilder extends ParserAstVisitor<void> {
     private recordLibraryDeclaration(
         definition: SourceFunctionDefinition | SourceVariableDefinition,
     ): void {
-        if (this.module.kind !== "library" || !this.atModuleLevel) return;
-        if (!definition.isPrivate) this.exports.push(definition);
+        if (this.moduleDeclaration.kind !== "library" || !this.atModuleLevel) return;
 
         const namespaceUri =
             definition.kind === "function"
                 ? definition.name.qname.namespaceUri
                 : definition.name.namespaceUri;
-        if (namespaceUri === this.module.namespace.namespaceUri) return;
+        if (namespaceUri === this.moduleDeclaration.targetNamespace.namespaceUri) {
+            if (!definition.isPrivate) this.exports.push(definition);
+            return;
+        }
         this.diagnostics.push({
             severity: DiagnosticSeverity.Error,
             code: "XQST0048",
-            message: `A library module declaration must use namespace '${this.module.namespace.namespaceUri}'.`,
+            message: `A library module declaration must use namespace '${this.moduleDeclaration.targetNamespace.namespaceUri}'.`,
             range: definition.selectionRange,
         });
     }

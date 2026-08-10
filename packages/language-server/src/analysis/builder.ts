@@ -49,7 +49,7 @@ import {
     SourceParameterDefinition,
 } from "./definitions.js";
 import { buildDocumentIndex, type DocumentIndex } from "./document-index.js";
-import type { ModuleInfo } from "./module-info.js";
+import type { ModuleDeclaration, ModuleInterface } from "./module-info.js";
 import {
     referenceNameToString,
     type FunctionName,
@@ -71,7 +71,8 @@ const CATCH_VARIABLES = [
 
 export interface AnalysisResult {
     ast: ModuleNode;
-    module: ModuleInfo;
+    moduleDeclaration: ModuleDeclaration;
+    moduleInterface?: ModuleInterface;
     scope: Scope;
     namespaces: ReadonlyMap<Prefix, NamespaceDefinition>;
     definitions: readonly SourceDefinition[];
@@ -129,7 +130,10 @@ class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
                 range: this.parserAst.range,
                 children: [],
             },
-            module: index.module,
+            moduleDeclaration: index.moduleDeclaration,
+            ...(index.moduleInterface === undefined
+                ? {}
+                : { moduleInterface: index.moduleInterface }),
             scope: moduleScope,
             namespaces: index.namespaces,
             definitions: index.definitions,

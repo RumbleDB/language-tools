@@ -73,7 +73,7 @@ class WorkspaceModuleService {
         const importDiagnostics: AnalysisResult["diagnostics"] = [];
         const importedNamespaces = new Set<string>();
 
-        for (const imported of index.module.imports) {
+        for (const imported of index.moduleDeclaration.imports) {
             if (imported.namespaceUri.length === 0) {
                 importDiagnostics.push({
                     severity: DiagnosticSeverity.Error,
@@ -122,8 +122,8 @@ class WorkspaceModuleService {
                     this.analyse(loaded, nextVisiting);
                 }
                 if (
-                    dependencyIndex.module.kind !== "library" ||
-                    dependencyIndex.module.namespace.namespaceUri !== imported.namespaceUri
+                    dependencyIndex.moduleDeclaration.kind !== "library" ||
+                    dependencyIndex.moduleInterface?.namespaceUri !== imported.namespaceUri
                 ) {
                     importDiagnostics.push({
                         severity: DiagnosticSeverity.Error,
@@ -134,7 +134,7 @@ class WorkspaceModuleService {
                     continue;
                 }
                 foundValidModule = true;
-                for (const exported of dependencyIndex.module.exports) {
+                for (const exported of dependencyIndex.moduleInterface.exports) {
                     const namespaceUri =
                         exported.kind === "function"
                             ? exported.name.qname.namespaceUri

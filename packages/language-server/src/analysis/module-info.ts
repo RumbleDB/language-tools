@@ -12,18 +12,22 @@ export interface ModuleImport {
     readonly range: Range;
 }
 
-interface BaseModuleInfo {
+interface BaseModuleDeclaration {
     readonly imports: readonly ModuleImport[];
 }
 
-export interface MainModuleInfo extends BaseModuleInfo {
+export interface MainModuleDeclaration extends BaseModuleDeclaration {
     readonly kind: "main";
 }
 
-export interface LibraryModuleInfo extends BaseModuleInfo {
+export interface LibraryModuleDeclaration extends BaseModuleDeclaration {
     readonly kind: "library";
-    readonly namespace: SourceNamespaceDefinition;
-    readonly exports: readonly SourceModuleExportDefinition[];
+    readonly targetNamespace: SourceNamespaceDefinition;
 }
 
-export type ModuleInfo = MainModuleInfo | LibraryModuleInfo;
+export type ModuleDeclaration = MainModuleDeclaration | LibraryModuleDeclaration;
+
+export interface ModuleInterface {
+    readonly namespaceUri: string;
+    readonly exports: readonly SourceModuleExportDefinition[];
+}

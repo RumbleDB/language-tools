@@ -17,25 +17,29 @@ describe("module imports", () => {
         const document = testDocument("module-interface", [
             'module namespace lib = "urn:lib";',
             'import module namespace dep = "urn:dep" at "dep.jq";',
+            'declare namespace other = "urn:other";',
             "declare variable $lib:value := 1;",
             "declare %private variable $lib:secret := 2;",
+            "declare variable $other:invalid := 3;",
             "declare function lib:identity($value) { $value };",
         ]);
         const index = buildDocumentIndex(document);
         const analysis = buildAnalysis(document, { index });
 
-        expect(analysis.module).toBe(index.module);
+        expect(analysis.moduleDeclaration).toBe(index.moduleDeclaration);
+        expect(analysis.moduleInterface).toBe(index.moduleInterface);
         expect(analysis.definitions).toBe(index.definitions);
-        expect(analysis.module).toMatchObject({
+        expect(analysis.moduleDeclaration).toMatchObject({
             kind: "library",
-            namespace: { namespaceUri: "urn:lib" },
+            targetNamespace: { namespaceUri: "urn:lib" },
             imports: [{ prefix: "dep", namespaceUri: "urn:dep" }],
         });
         expect(
-            analysis.module.kind === "library"
-                ? analysis.module.exports.map((definition) => definitionNameToString(definition))
-                : [],
+            analysis.moduleInterface?.exports.map((definition) =>
+                definitionNameToString(definition),
+            ) ?? [],
         ).toEqual(["$lib:value", "lib:identity#1"]);
+        expect(analysis.diagnostics).toContainEqual(expect.objectContaining({ code: "XQST0048" }));
     });
 
     it("resolves direct imported functions and variables from a relative location", () => {
