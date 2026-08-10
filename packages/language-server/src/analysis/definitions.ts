@@ -2,9 +2,8 @@ import type { BuiltinFunctionDefinition } from "server/assets/builtin-functions.
 import type { Range } from "vscode-languageserver";
 
 import { functionNameToString, QNameToString, type DeclarationNameByKind } from "./names.js";
-export type DeclarationKind = "variable" | "namespace" | "type" | "parameter" | "function";
 
-export type DefinitionKind = DeclarationKind;
+export type DefinitionKind = "variable" | "namespace" | "type" | "parameter" | "function";
 
 export type DefinitionOrigin = "source" | "implicit" | "builtin";
 
@@ -19,7 +18,7 @@ export type BaseDefinition<K extends DefinitionKind = DefinitionKind> = K extend
     : never;
 
 export interface BaseSourceDefinition<
-    K extends DeclarationKind = DeclarationKind,
+    K extends DefinitionKind = DefinitionKind,
 > extends AbstractDefinition<K> {
     // Entire range of the declaration.
     range: Range;
