@@ -20,17 +20,21 @@ export interface DeclarationNode extends AstNodeBase<"declaration"> {
 }
 
 export interface ReferenceNode<
-    K extends keyof ReferenceNameByKind = keyof ReferenceNameByKind,
+    K extends keyof ReferenceNameByKind,
 > extends AstNodeBase<"reference"> {
     referenceKind: K;
     name: ReferenceNameByKind[K];
     resolution: ResolvedReference<K> | undefined;
 }
 
+export type AnyReferenceNode = {
+    [K in keyof ReferenceNameByKind]: ReferenceNode<K>;
+}[keyof ReferenceNameByKind];
+
 export interface FunctionCallNode extends AstNodeBase<"function-call"> {
     name: FunctionName;
     selectionRange: Range;
-    reference?: ReferenceNode<"function">;
+    reference: ReferenceNode<"function">;
     arguments: ArgumentNode[];
 }
 
@@ -41,7 +45,7 @@ export interface ArgumentNode extends AstNodeBase<"argument"> {
 export type AstNode =
     | ModuleNode
     | DeclarationNode
-    | ReferenceNode
+    | AnyReferenceNode
     | FunctionCallNode
     | ArgumentNode;
 

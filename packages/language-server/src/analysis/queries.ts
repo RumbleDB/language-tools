@@ -19,13 +19,13 @@ export function getVisibleDeclarationsAtPosition(
     return [...scope.listVisibleDefinitions(positionOffset).values()];
 }
 
-export function collectDefinitions(analysis: AnalysisResult): SourceDefinition[] {
+export function getSourceDefinitions(analysis: AnalysisResult): SourceDefinition[] {
     return [...analysis.definitions].sort((left, right) =>
         comparePositions(left.range.start, right.range.start),
     );
 }
 
-export function collectReferences(analysis: AnalysisResult): AnyResolvedReference[] {
+export function getResolvedReferences(analysis: AnalysisResult): AnyResolvedReference[] {
     return [...analysis.references];
 }
 

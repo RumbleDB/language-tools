@@ -11,9 +11,9 @@ import { type StaticFunctionSignature } from "server/static-typecheck/types.js";
 
 import { loadJsonAsset } from "./loader.js";
 
-export interface BuiltinFunctionDefinition extends BaseDefinition<"builtin-function"> {
+export interface BuiltinFunctionDefinition extends BaseDefinition<"function"> {
     name: FunctionName;
-    kind: "builtin-function";
+    kind: "function";
     signature: StaticFunctionSignature;
     origin: "builtin";
 }
@@ -73,7 +73,7 @@ for (const func of catalog) {
     const name = func.name;
     map.set(functionNameToString(name, true), {
         name,
-        kind: "builtin-function",
+        kind: "function",
         signature: func.signature,
         origin: "builtin",
     });

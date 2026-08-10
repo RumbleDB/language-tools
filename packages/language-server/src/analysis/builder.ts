@@ -110,7 +110,7 @@ class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
                 return [ns[0], definition] as const;
             }),
         );
-        const moduleScope = Scope.module(document, namespaces);
+        const moduleScope = Scope.module(document);
 
         this.result = {
             ast: {
@@ -145,7 +145,7 @@ class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
             name: { prefix: node.prefix },
             namespaceUri: node.namespaceUri,
         };
-        this.declareDefinition(definition);
+        this.definitions.push(definition);
         this.result.namespaces.set(definition.name.prefix, definition);
         return [this.createDeclarationNode(definition)];
     }
@@ -399,10 +399,7 @@ class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
                 code: `unresolved-${kind}`,
             });
         } else if (resolvedReference !== undefined) {
-            this.references.push(resolvedReference);
-            const referencesToDefinition = this.referencesByDefinition.get(declaration) ?? [];
-            referencesToDefinition.push(resolvedReference);
-            this.referencesByDefinition.set(declaration, referencesToDefinition);
+            this.recordReference(resolvedReference);
         }
 
         return {
@@ -413,6 +410,19 @@ class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
             name,
             resolution: resolvedReference,
         };
+    }
+
+    private recordReference<K extends keyof ReferenceNameByKind>(
+        reference: ResolvedReference<K>,
+    ): void {
+        // TypeScript cannot distribute a generic K into the mapped union even though
+        // ResolvedReference<K> preserves the same kind/name/declaration relationship.
+        const anyReference = reference as AnyResolvedReference;
+        this.references.push(anyReference);
+
+        const referencesToDefinition = this.referencesByDefinition.get(reference.declaration) ?? [];
+        referencesToDefinition.push(anyReference);
+        this.referencesByDefinition.set(reference.declaration, referencesToDefinition);
     }
 
     private createFunctionParameterNodes(

@@ -41,7 +41,7 @@ interface HoverContentOptions {
 function createHoverContent(options: HoverContentOptions): string {
     const { declaration, codeSnippet, inferredType } = options;
 
-    if (declaration?.kind === "builtin-function") {
+    if (declaration?.origin === "builtin" && declaration.kind === "function") {
         const doc = getBuiltinFunctionDocumentation(declaration.name.qname);
         if (doc) {
             return formatFunctionDocEntry(doc, declaration.name.arity);

@@ -1,24 +1,15 @@
 import type { BuiltinFunctionDefinition } from "server/assets/builtin-functions.js";
 import type { Range } from "vscode-languageserver";
 
-import {
-    functionNameToString,
-    QNameToString,
-    type DeclarationNameByKind,
-    type FunctionName,
-} from "./names.js";
+import { functionNameToString, QNameToString, type DeclarationNameByKind } from "./names.js";
 export type DeclarationKind = "variable" | "namespace" | "type" | "parameter" | "function";
 
-export type DefinitionKind = DeclarationKind | "builtin-function";
+export type DefinitionKind = DeclarationKind;
 
 export type DefinitionOrigin = "source" | "implicit" | "builtin";
 
-export type DefinitionNameByKind = DeclarationNameByKind & {
-    "builtin-function": FunctionName;
-};
-
 interface AbstractDefinition<K extends DefinitionKind> {
-    name: DefinitionNameByKind[K];
+    name: DeclarationNameByKind[K];
     kind: K;
     origin: DefinitionOrigin;
 }
@@ -88,7 +79,12 @@ export interface ImplicitNamespaceDefinition extends AbstractDefinition<"namespa
 
 export type NamespaceDefinition = SourceNamespaceDefinition | ImplicitNamespaceDefinition;
 
-export type ScopeDefinition = SourceDefinition | ImplicitVariableDefinition;
+export type ScopeDefinition =
+    | SourceVariableDefinition
+    | SourceParameterDefinition
+    | SourceFunctionDefinition
+    | SourceTypeDefinition
+    | ImplicitVariableDefinition;
 
 export type VariableDefinition =
     | SourceVariableDefinition
@@ -107,7 +103,11 @@ export interface DefinitionByReferenceKind {
     type: SourceTypeDefinition;
 }
 
-export type Definition = ScopeDefinition | ImplicitNamespaceDefinition | BuiltinFunctionDefinition;
+export type Definition =
+    | SourceDefinition
+    | ImplicitVariableDefinition
+    | ImplicitNamespaceDefinition
+    | BuiltinFunctionDefinition;
 
 export function definitionNameToString(
     definition: BaseDefinition,
@@ -117,7 +117,6 @@ export function definitionNameToString(
         case "namespace":
             return definition.name.prefix;
         case "function":
-        case "builtin-function":
             return functionNameToString(definition.name, expanded);
         case "type":
             return QNameToString(definition.name, expanded);

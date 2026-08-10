@@ -13,4 +13,6 @@ export interface ResolvedReference<K extends keyof ReferenceNameByKind> extends 
     declaration: DefinitionByReferenceKind[K];
 }
 
-export type AnyResolvedReference = ResolvedReference<keyof ReferenceNameByKind>;
+export type AnyResolvedReference = {
+    [K in keyof ReferenceNameByKind]: ResolvedReference<K>;
+}[keyof ReferenceNameByKind];

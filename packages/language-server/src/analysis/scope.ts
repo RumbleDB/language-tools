@@ -1,13 +1,7 @@
-import { type Prefix } from "server/parser/types/name.js";
 import { getDocumentText } from "server/parser/utils.js";
 import { TextDocument } from "vscode-languageserver-textdocument";
 
-import {
-    BaseDefinition,
-    NamespaceDefinition,
-    ScopeDefinition,
-    ScopeDefinitionByReferenceKind,
-} from "./definitions.js";
+import { ScopeDefinition, ScopeDefinitionByReferenceKind } from "./definitions.js";
 import { QName, QNameToString, type FunctionName, type ReferenceNameByKind } from "./names.js";
 
 export class Scope {
@@ -18,18 +12,14 @@ export class Scope {
         public readonly parent: Scope | undefined,
         public readonly startOffset: number,
         public readonly endOffset: number,
-        private readonly namespaces: ReadonlyMap<Prefix, NamespaceDefinition>,
     ) {}
 
-    public static module(
-        document: TextDocument,
-        namespaces: ReadonlyMap<Prefix, NamespaceDefinition>,
-    ): Scope {
-        return new Scope(undefined, 0, getDocumentText(document).length, namespaces);
+    public static module(document: TextDocument): Scope {
+        return new Scope(undefined, 0, getDocumentText(document).length);
     }
 
     public enter(startOffset: number, endOffset: number): Scope {
-        const child = new Scope(this, startOffset, endOffset, this.namespaces);
+        const child = new Scope(this, startOffset, endOffset);
         this.children.push(child);
         return child;
     }
@@ -120,12 +110,9 @@ export class Scope {
         return `${QNameToString(name.qname, true)}#${name.arity ?? "?"}`;
     }
 
-    private definitionLookupKey(definition: BaseDefinition): string {
+    private definitionLookupKey(definition: ScopeDefinition): string {
         switch (definition.kind) {
-            case "namespace":
-                return `namespace:${definition.name.prefix}`;
             case "function":
-            case "builtin-function":
                 return `function:${this.functionLookupKey(definition.name)}`;
             case "type":
                 return `type:${QNameToString(definition.name, true)}`;
