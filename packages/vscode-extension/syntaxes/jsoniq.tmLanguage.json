@@ -79,11 +79,6 @@
                             "include": "#comments"
                         }
                     ]
-                },
-                {
-                    "name": "comment.line.double-dash.jsoniq",
-                    "begin": "--",
-                    "end": "$"
                 }
             ]
         },
@@ -171,7 +166,7 @@
                             "name": "punctuation.definition.string.begin.jsoniq"
                         }
                     },
-                    "end": "\"",
+                    "end": "(?<!\\\\)(?:\\\\\\\\)*\"",
                     "endCaptures": {
                         "0": {
                             "name": "punctuation.definition.string.end.jsoniq"
@@ -180,13 +175,7 @@
                     "patterns": [
                         {
                             "name": "constant.character.escape.jsoniq",
-                            "match": "\\\\(?:[\"\\\\/bfnrt]|u[0-9A-Fa-f]{4})"
-                        },
-                        {
-                            "include": "#entities"
-                        },
-                        {
-                            "include": "#enclosed-expression"
+                            "match": "\\\\."
                         }
                     ]
                 },
@@ -198,7 +187,7 @@
                             "name": "punctuation.definition.string.begin.jsoniq"
                         }
                     },
-                    "end": "'",
+                    "end": "(?<!\\\\)(?:\\\\\\\\)*'",
                     "endCaptures": {
                         "0": {
                             "name": "punctuation.definition.string.end.jsoniq"
@@ -207,13 +196,7 @@
                     "patterns": [
                         {
                             "name": "constant.character.escape.jsoniq",
-                            "match": "\\\\(?:['\\\\/bfnrt]|u[0-9A-Fa-f]{4})"
-                        },
-                        {
-                            "include": "#entities"
-                        },
-                        {
-                            "include": "#enclosed-expression"
+                            "match": "\\\\."
                         }
                     ]
                 }
@@ -631,13 +614,7 @@
                             "include": "#comments"
                         },
                         {
-                            "include": "#strings"
-                        },
-                        {
-                            "include": "#entities"
-                        },
-                        {
-                            "include": "#enclosed-expression"
+                            "include": "#xml-attribute-values"
                         },
                         {
                             "name": "entity.other.attribute-name.xml.jsoniq",
@@ -693,6 +670,64 @@
                 }
             ]
         },
+        "xml-attribute-values": {
+            "patterns": [
+                {
+                    "name": "string.quoted.double.xml.jsoniq",
+                    "begin": "\"",
+                    "beginCaptures": {
+                        "0": {
+                            "name": "punctuation.definition.string.begin.xml.jsoniq"
+                        }
+                    },
+                    "end": "\"(?!\")",
+                    "endCaptures": {
+                        "0": {
+                            "name": "punctuation.definition.string.end.xml.jsoniq"
+                        }
+                    },
+                    "patterns": [
+                        {
+                            "name": "constant.character.escape.xml.jsoniq",
+                            "match": "\"\""
+                        },
+                        {
+                            "include": "#entities"
+                        },
+                        {
+                            "include": "#enclosed-expression"
+                        }
+                    ]
+                },
+                {
+                    "name": "string.quoted.single.xml.jsoniq",
+                    "begin": "'",
+                    "beginCaptures": {
+                        "0": {
+                            "name": "punctuation.definition.string.begin.xml.jsoniq"
+                        }
+                    },
+                    "end": "'(?!')",
+                    "endCaptures": {
+                        "0": {
+                            "name": "punctuation.definition.string.end.xml.jsoniq"
+                        }
+                    },
+                    "patterns": [
+                        {
+                            "name": "constant.character.escape.xml.jsoniq",
+                            "match": "''"
+                        },
+                        {
+                            "include": "#entities"
+                        },
+                        {
+                            "include": "#enclosed-expression"
+                        }
+                    ]
+                }
+            ]
+        },
         "operators": {
             "patterns": [
                 {
@@ -726,6 +761,14 @@
                 {
                     "name": "keyword.operator.arithmetic.jsoniq",
                     "match": "\\|\\||//|[+\\-*/|!~\\\\]"
+                },
+                {
+                    "name": "keyword.operator.jsoniq",
+                    "match": "[@^]"
+                },
+                {
+                    "name": "punctuation.separator.hash.jsoniq",
+                    "match": "#"
                 },
                 {
                     "name": "punctuation.definition.variable.jsoniq",

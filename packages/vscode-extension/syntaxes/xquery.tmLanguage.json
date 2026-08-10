@@ -175,14 +175,7 @@
                             "match": "\"\""
                         },
                         {
-                            "name": "constant.character.escape.brace.xquery",
-                            "match": "\\{\\{|\\}\\}"
-                        },
-                        {
                             "include": "#entities"
-                        },
-                        {
-                            "include": "#enclosed-expression"
                         }
                     ]
                 },
@@ -206,14 +199,7 @@
                             "match": "''"
                         },
                         {
-                            "name": "constant.character.escape.brace.xquery",
-                            "match": "\\{\\{|\\}\\}"
-                        },
-                        {
                             "include": "#entities"
-                        },
-                        {
-                            "include": "#enclosed-expression"
                         }
                     ]
                 }
@@ -581,13 +567,7 @@
                             "include": "#comments"
                         },
                         {
-                            "include": "#strings"
-                        },
-                        {
-                            "include": "#entities"
-                        },
-                        {
-                            "include": "#enclosed-expression"
+                            "include": "#xml-attribute-values"
                         },
                         {
                             "name": "entity.other.attribute-name.xml.xquery",
@@ -643,6 +623,72 @@
                 }
             ]
         },
+        "xml-attribute-values": {
+            "patterns": [
+                {
+                    "name": "string.quoted.double.xml.xquery",
+                    "begin": "\"",
+                    "beginCaptures": {
+                        "0": {
+                            "name": "punctuation.definition.string.begin.xml.xquery"
+                        }
+                    },
+                    "end": "\"(?!\")",
+                    "endCaptures": {
+                        "0": {
+                            "name": "punctuation.definition.string.end.xml.xquery"
+                        }
+                    },
+                    "patterns": [
+                        {
+                            "name": "constant.character.escape.quote.xml.xquery",
+                            "match": "\"\""
+                        },
+                        {
+                            "name": "constant.character.escape.brace.xml.xquery",
+                            "match": "\\{\\{|\\}\\}"
+                        },
+                        {
+                            "include": "#entities"
+                        },
+                        {
+                            "include": "#enclosed-expression"
+                        }
+                    ]
+                },
+                {
+                    "name": "string.quoted.single.xml.xquery",
+                    "begin": "'",
+                    "beginCaptures": {
+                        "0": {
+                            "name": "punctuation.definition.string.begin.xml.xquery"
+                        }
+                    },
+                    "end": "'(?!')",
+                    "endCaptures": {
+                        "0": {
+                            "name": "punctuation.definition.string.end.xml.xquery"
+                        }
+                    },
+                    "patterns": [
+                        {
+                            "name": "constant.character.escape.apostrophe.xml.xquery",
+                            "match": "''"
+                        },
+                        {
+                            "name": "constant.character.escape.brace.xml.xquery",
+                            "match": "\\{\\{|\\}\\}"
+                        },
+                        {
+                            "include": "#entities"
+                        },
+                        {
+                            "include": "#enclosed-expression"
+                        }
+                    ]
+                }
+            ]
+        },
         "operators": {
             "patterns": [
                 {
@@ -658,6 +704,10 @@
                     "match": "\\.\\."
                 },
                 {
+                    "name": "variable.language.context-item.xquery",
+                    "match": "\\."
+                },
+                {
                     "name": "keyword.operator.assignment.xquery",
                     "match": ":="
                 },
@@ -668,6 +718,14 @@
                 {
                     "name": "keyword.operator.arithmetic.xquery",
                     "match": "\\|\\||//|[+\\-*/|!~\\\\]"
+                },
+                {
+                    "name": "keyword.operator.xquery",
+                    "match": "[@^]"
+                },
+                {
+                    "name": "punctuation.separator.hash.xquery",
+                    "match": "#"
                 },
                 {
                     "name": "punctuation.definition.variable.xquery",
