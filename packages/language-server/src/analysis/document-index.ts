@@ -22,6 +22,7 @@ import { DiagnosticSeverity, type Diagnostic, type Range } from "vscode-language
 import type { TextDocument } from "vscode-languageserver-textdocument";
 
 import { defaultNamespaces } from "./default-namespaces.js";
+import { createSourceSymbolId } from "./definitions.js";
 import type {
     ImplicitNamespaceDefinition,
     NamespaceDefinition,
@@ -33,7 +34,7 @@ import type {
     SourceVariableDefinition,
 } from "./definitions.js";
 import type { ModuleDeclaration, ModuleImport, ModuleInterface } from "./module-info.js";
-import type { FunctionName, QName } from "./names.js";
+import { functionNameToString, QNameToString, type FunctionName, type QName } from "./names.js";
 
 export interface DocumentIndex {
     readonly document: TextDocument;
@@ -75,6 +76,7 @@ class DocumentIndexBuilder extends ParserAstVisitor<void> {
         parameters: new Map<AstParameter, SourceParameterDefinition>(),
     } satisfies IndexedDefinitions;
     private readonly diagnostics: Diagnostic[] = [];
+    private readonly symbolOccurrences = new Map<string, number>();
     private readonly imports: ModuleImport[] = [];
     private readonly exports: SourceModuleExportDefinition[] = [];
     private readonly namespaces = new Map<Prefix, NamespaceDefinition>(
@@ -161,7 +163,11 @@ class DocumentIndexBuilder extends ParserAstVisitor<void> {
         }
 
         const definition: SourceNamespaceDefinition = {
-            ...this.sourceDefinitionBase(node.range, node.selectionRange),
+            ...this.sourceDefinitionBase(
+                node.range,
+                node.selectionRange,
+                `namespace:${node.prefix}`,
+            ),
             kind: "namespace",
             name: { prefix: node.prefix },
             namespaceUri: node.namespaceUri,
@@ -197,7 +203,7 @@ class DocumentIndexBuilder extends ParserAstVisitor<void> {
         if (node.prefix === undefined || node.prefixRange === undefined) return;
 
         const definition: SourceNamespaceDefinition = {
-            ...this.sourceDefinitionBase(node.range, node.prefixRange),
+            ...this.sourceDefinitionBase(node.range, node.prefixRange, `namespace:${node.prefix}`),
             kind: "namespace",
             name: { prefix: node.prefix },
             namespaceUri: node.namespaceUri,
@@ -209,7 +215,11 @@ class DocumentIndexBuilder extends ParserAstVisitor<void> {
 
     private indexNamespaceDeclaration(node: NamespaceDeclarationAstNode): void {
         const definition: SourceNamespaceDefinition = {
-            ...this.sourceDefinitionBase(node.range, node.selectionRange),
+            ...this.sourceDefinitionBase(
+                node.range,
+                node.selectionRange,
+                `namespace:${node.prefix}`,
+            ),
             kind: "namespace",
             name: { prefix: node.prefix },
             namespaceUri: node.namespaceUri,
@@ -230,10 +240,15 @@ class DocumentIndexBuilder extends ParserAstVisitor<void> {
     }
 
     protected override visitTypeDeclaration(node: TypeDeclarationAstNode): void {
+        const name = this.resolveQName(node.name.qname, node.selectionRange);
         const definition: Extract<SourceDefinition, { kind: "type" }> = {
-            ...this.sourceDefinitionBase(node.range, node.selectionRange),
+            ...this.sourceDefinitionBase(
+                node.range,
+                node.selectionRange,
+                `type:${QNameToString(name, true)}`,
+            ),
             kind: "type",
-            name: this.resolveQName(node.name.qname, node.selectionRange),
+            name,
         };
         this.definitions.push(definition);
         this.indexedDefinitions.types.set(node, definition);
@@ -241,10 +256,15 @@ class DocumentIndexBuilder extends ParserAstVisitor<void> {
 
     protected override visitFunctionDeclaration(node: FunctionDeclarationAstNode): void {
         const parameters: SourceParameterDefinition[] = [];
+        const name = this.resolveFunctionName(node.name, node.selectionRange);
         const definition: SourceFunctionDefinition = {
-            ...this.sourceDefinitionBase(node.range, node.selectionRange),
+            ...this.sourceDefinitionBase(
+                node.range,
+                node.selectionRange,
+                `function:${functionNameToString(name, true)}`,
+            ),
             kind: "function",
-            name: this.resolveFunctionName(node.name, node.selectionRange),
+            name,
             parameters,
         };
         this.definitions.push(definition);
@@ -253,7 +273,11 @@ class DocumentIndexBuilder extends ParserAstVisitor<void> {
 
         for (const parameter of node.parameters) {
             const parameterDefinition: SourceParameterDefinition = {
-                ...this.sourceDefinitionBase(parameter.range, parameter.selectionRange),
+                ...this.sourceDefinitionBase(
+                    parameter.range,
+                    parameter.selectionRange,
+                    `${definition.id}:parameter:${parameter.index}`,
+                ),
                 kind: "parameter",
                 name: this.resolveQName(parameter.name, parameter.selectionRange),
                 function: definition,
@@ -300,8 +324,11 @@ class DocumentIndexBuilder extends ParserAstVisitor<void> {
         });
     }
 
-    private sourceDefinitionBase(range: Range, selectionRange: Range) {
+    private sourceDefinitionBase(range: Range, selectionRange: Range, symbolKey: string) {
+        const occurrence = this.symbolOccurrences.get(symbolKey) ?? 0;
+        this.symbolOccurrences.set(symbolKey, occurrence + 1);
         return {
+            id: createSourceSymbolId(this.document.uri, symbolKey, occurrence),
             uri: this.document.uri,
             range,
             selectionRange,
@@ -315,7 +342,11 @@ class DocumentIndexBuilder extends ParserAstVisitor<void> {
         selectionRange: Range,
     ): SourceVariableDefinition {
         return {
-            ...this.sourceDefinitionBase(range, selectionRange),
+            ...this.sourceDefinitionBase(
+                range,
+                selectionRange,
+                `variable:${QNameToString(name, true)}`,
+            ),
             kind: "variable",
             name,
         };

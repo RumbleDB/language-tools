@@ -7,6 +7,13 @@ export type DefinitionKind = "variable" | "namespace" | "type" | "parameter" | "
 
 export type DefinitionOrigin = "source" | "implicit" | "builtin";
 
+declare const symbolIdBrand: unique symbol;
+export type SymbolId = string & { readonly [symbolIdBrand]: true };
+
+export function createSourceSymbolId(uri: string, symbolKey: string, occurrence: number): SymbolId {
+    return `${uri}#${encodeURIComponent(symbolKey)}:${occurrence}` as SymbolId;
+}
+
 interface AbstractDefinition<K extends DefinitionKind> {
     readonly name: DeclarationNameByKind[K];
     readonly kind: K;
@@ -20,6 +27,7 @@ export type BaseDefinition<K extends DefinitionKind = DefinitionKind> = K extend
 export interface BaseSourceDefinition<
     K extends DefinitionKind = DefinitionKind,
 > extends AbstractDefinition<K> {
+    readonly id: SymbolId;
     /** URI of the module that owns this declaration. */
     readonly uri: string;
     // Entire range of the declaration.

@@ -6,13 +6,13 @@ import { analyzeDocument, type AnalysisResult, type ResolvedModuleImport } from 
 import {
     definitionNameToString,
     type Definition,
-    type SourceDefinition,
     type SourceModuleExportDefinition,
 } from "./definitions.js";
 import { buildDocumentIndex, type DocumentIndex } from "./document-index.js";
 import { ModuleGraph } from "./module-graph.js";
 import { WorkspaceDocumentStore, type ModuleLoader } from "./module-loader.js";
 import type { AnyResolvedReference } from "./reference.js";
+import { WorkspaceSymbolIndex } from "./workspace-symbol-index.js";
 
 interface CachedAnalysis {
     version: number;
@@ -26,6 +26,7 @@ interface CachedDocumentIndex {
 
 class WorkspaceAnalysisCoordinator {
     private readonly moduleGraph = new ModuleGraph();
+    private readonly symbols = new WorkspaceSymbolIndex();
     private readonly cache = new Map<DocumentUri, CachedAnalysis>();
     private readonly indexes = new Map<DocumentUri, CachedDocumentIndex>();
 
@@ -170,6 +171,7 @@ class WorkspaceAnalysisCoordinator {
             diagnostics: importDiagnostics,
         });
         this.cache.set(document.uri, { version: document.version, analysis });
+        this.symbols.update(document.uri, analysis);
         return analysis;
     }
 
@@ -185,33 +187,19 @@ class WorkspaceAnalysisCoordinator {
     public getReferencesToDefinition(definition: Definition): readonly AnyResolvedReference[] {
         if (definition.origin !== "source") return [];
 
-        const targetKey = sourceDefinitionKey(definition);
-        const references: AnyResolvedReference[] = [];
-        for (const { analysis } of this.cache.values()) {
-            for (const reference of analysis.references) {
-                if (
-                    reference.declaration.origin === "source" &&
-                    sourceDefinitionKey(reference.declaration) === targetKey
-                ) {
-                    references.push(reference);
-                }
-            }
-        }
-        return references;
+        return this.symbols.referencesTo(definition);
     }
 
     private invalidateAffected(uris: readonly DocumentUri[], invalidateIndexes: boolean): void {
         const affected = this.moduleGraph.affectedBy(uris);
-        for (const uri of affected) this.cache.delete(uri);
+        for (const uri of affected) {
+            this.cache.delete(uri);
+            this.symbols.remove(uri);
+        }
         if (invalidateIndexes) {
             for (const uri of uris) this.indexes.delete(uri);
         }
     }
-}
-
-function sourceDefinitionKey(definition: SourceDefinition): string {
-    const { start, end } = definition.selectionRange;
-    return `${definition.uri}:${definition.kind}:${start.line}:${start.character}:${end.line}:${end.character}`;
 }
 
 const workspaceAnalysis = new WorkspaceAnalysisCoordinator();
