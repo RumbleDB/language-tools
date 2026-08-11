@@ -100,8 +100,7 @@ class DocumentIndexBuilder extends ParserAstVisitor<void> {
     private readonly diagnostics: Diagnostic[] = [];
     private readonly symbolOccurrences = new Map<string, number>();
     private readonly imports: ModuleImport[] = [];
-    private readonly exports: SourceModuleExportDefinition[] = [];
-    private readonly exportNames = new Set<string>();
+    private readonly exports = new Map<string, SourceModuleExportDefinition>();
     private readonly namespaces = new Map<Prefix, NamespaceDefinition>(
         defaultNamespaces.entries().map(([prefix, namespaceUri]) => {
             const definition: ImplicitNamespaceDefinition = {
@@ -339,7 +338,7 @@ class DocumentIndexBuilder extends ParserAstVisitor<void> {
             if (node.isPrivate) return;
 
             const name = definitionNameToString(definition, true);
-            if (this.exportNames.has(name)) {
+            if (this.exports.has(name)) {
                 this.diagnostics.push({
                     severity: DiagnosticSeverity.Error,
                     code: definition.kind === "variable" ? "XQST0049" : "XQST0034",
@@ -348,8 +347,7 @@ class DocumentIndexBuilder extends ParserAstVisitor<void> {
                 });
                 return;
             }
-            this.exportNames.add(name);
-            this.exports.push(definition);
+            this.exports.set(name, definition);
             return;
         }
         this.diagnostics.push({

@@ -4,33 +4,25 @@ import { TextDocument } from "vscode-languageserver-textdocument";
 import type { ModuleImport } from "./module-info.js";
 import { loadSourceFile } from "./workspace-files.js";
 
-export interface ModuleLoader {
-    resolveImport(
-        importer: TextDocument,
-        imported: ModuleImport,
-    ): readonly ResolvedModuleLocation[];
-    load(uri: DocumentUri): TextDocument | undefined;
+export interface ResolvedModuleLocation {
+    readonly targetUri: DocumentUri;
+    readonly range: Range;
 }
 
-export interface ResolvedModuleLocation {
+export interface ModuleLoadResult {
     readonly locationUri: string;
-    readonly targetUri?: DocumentUri;
     readonly range: Range;
+    readonly targetUri?: DocumentUri;
+    readonly document?: TextDocument;
 }
 
 export function resolveModuleLocations(
     importerUri: DocumentUri,
     imported: ModuleImport,
 ): readonly ResolvedModuleLocation[] {
-    const locations =
-        imported.locations.length === 0
-            ? [{ uri: imported.namespaceUri, range: imported.namespaceUriRange }]
-            : imported.locations;
-    return locations.map((location) => {
+    return importLocations(imported).flatMap((location) => {
         const targetUri = resolveUri(location.uri, importerUri);
-        return targetUri === undefined
-            ? { locationUri: location.uri, range: location.range }
-            : { locationUri: location.uri, targetUri, range: location.range };
+        return targetUri === undefined ? [] : [{ targetUri, range: location.range }];
     });
 }
 
@@ -38,7 +30,7 @@ export function resolveModuleLocations(
  * Owns workspace document snapshots and resolves relative file module locations.
  * Open editor snapshots always take precedence over their on-disk counterpart.
  */
-export class WorkspaceDocumentStore implements ModuleLoader {
+export class WorkspaceDocumentStore {
     private readonly openDocuments = new Map<DocumentUri, TextDocument>();
 
     public update(document: TextDocument): boolean {
@@ -62,12 +54,34 @@ export class WorkspaceDocumentStore implements ModuleLoader {
         return this.openDocuments.get(uri) ?? loadSourceFile(uri);
     }
 
-    public resolveImport(
-        importer: TextDocument,
-        imported: ModuleImport,
-    ): readonly ResolvedModuleLocation[] {
-        return resolveModuleLocations(importer.uri, imported);
+    public loadImport(importer: TextDocument, imported: ModuleImport): readonly ModuleLoadResult[] {
+        const results: ModuleLoadResult[] = [];
+        const seenUris = new Set<DocumentUri>();
+        for (const location of importLocations(imported)) {
+            const targetUri = resolveUri(location.uri, importer.uri);
+            if (targetUri === undefined) {
+                results.push({ locationUri: location.uri, range: location.range });
+                continue;
+            }
+            if (seenUris.has(targetUri)) continue;
+            seenUris.add(targetUri);
+
+            const document = this.load(targetUri);
+            results.push({
+                locationUri: location.uri,
+                range: location.range,
+                targetUri,
+                ...(document === undefined ? {} : { document }),
+            });
+        }
+        return results;
     }
+}
+
+function importLocations(imported: ModuleImport): readonly { uri: string; range: Range }[] {
+    return imported.locations.length === 0
+        ? [{ uri: imported.namespaceUri, range: imported.namespaceUriRange }]
+        : imported.locations;
 }
 
 function resolveUri(location: string, baseUri: DocumentUri): DocumentUri | undefined {

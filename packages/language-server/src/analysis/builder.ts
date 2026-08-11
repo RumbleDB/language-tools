@@ -99,7 +99,7 @@ export interface AnalysisResult {
 /** Declarations made visible by a directly imported library module. */
 export interface ResolvedModuleImport {
     readonly targetNamespaceUri: string;
-    readonly exports: readonly SourceModuleExportDefinition[];
+    readonly exports: ReadonlyMap<string, SourceModuleExportDefinition>;
 }
 
 export interface AnalysisEnvironment {
@@ -201,7 +201,7 @@ class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
         }
 
         const resolvedImport = this.resolvedImportsByNamespace.get(node.namespaceUri);
-        for (const declaration of resolvedImport?.exports ?? []) {
+        for (const declaration of resolvedImport?.exports.values() ?? []) {
             this.declareDefinition(declaration, 0);
         }
         return declarations;

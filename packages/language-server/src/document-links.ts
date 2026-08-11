@@ -7,8 +7,8 @@ import { resolveModuleLocations } from "./analysis/module-loader.js";
 export function collectDocumentLinks(document: TextDocument): DocumentLink[] {
     const index = buildDocumentIndex(document);
     return index.moduleDeclaration.imports.flatMap((imported) =>
-        resolveModuleLocations(document.uri, imported).flatMap(({ range, targetUri }) =>
-            targetUri?.startsWith("file:") === true ? [{ range, target: targetUri }] : [],
-        ),
+        resolveModuleLocations(document.uri, imported)
+            .filter(({ targetUri }) => targetUri.startsWith("file:"))
+            .map(({ range, targetUri }) => ({ range, target: targetUri })),
     );
 }

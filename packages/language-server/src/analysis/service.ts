@@ -11,7 +11,7 @@ import {
 } from "./definitions.js";
 import { buildDocumentIndex, type DocumentIndex } from "./document-index.js";
 import { ModuleGraph } from "./module-graph.js";
-import { WorkspaceDocumentStore, type ModuleLoader } from "./module-loader.js";
+import { WorkspaceDocumentStore } from "./module-loader.js";
 import type { AnyResolvedReference } from "./reference.js";
 import { isSupportedSourceUri } from "./workspace-files.js";
 import { WorkspaceSymbolIndex } from "./workspace-symbol-index.js";
@@ -43,7 +43,6 @@ export class WorkspaceAnalysisCoordinator {
 
     public constructor(
         private readonly documents: WorkspaceDocumentStore = new WorkspaceDocumentStore(),
-        private readonly moduleLoader: ModuleLoader = documents,
     ) {}
 
     public updateOpenDocument(document: TextDocument): void {
@@ -139,43 +138,24 @@ export class WorkspaceAnalysisCoordinator {
             }
             importedNamespaces.add(imported.namespaceUri);
 
-            const loadedModules: TextDocument[] = [];
-            const seenLocations = new Set<DocumentUri>();
-            for (const location of this.moduleLoader.resolveImport(document, imported)) {
-                if (location.targetUri === undefined) {
-                    importDiagnostics.push({
-                        severity: DiagnosticSeverity.Error,
-                        code: "XQST0059",
-                        message: `Cannot resolve module location '${location.locationUri}'.`,
-                        range: location.range,
-                    });
-                    continue;
-                }
-                dependencies.add(location.targetUri);
-                if (seenLocations.has(location.targetUri)) continue;
-                seenLocations.add(location.targetUri);
-                const loaded = this.moduleLoader.load(location.targetUri);
-                if (loaded === undefined) {
-                    importDiagnostics.push({
-                        severity: DiagnosticSeverity.Error,
-                        code: "XQST0059",
-                        message: `Cannot resolve module location '${location.locationUri}'.`,
-                        range: location.range,
-                    });
-                    continue;
-                }
-                loadedModules.push(loaded);
-            }
-            if (loadedModules.length === 0) {
-                continue;
-            }
-            const exports: SourceModuleExportDefinition[] = [];
-            const exportNames = new Set<string>();
+            const exports = new Map<string, SourceModuleExportDefinition>();
             let foundValidModule = false;
-            for (const loaded of loadedModules) {
-                const dependencyIndex = this.getDocumentIndex(loaded);
-                if (!nextVisiting.has(loaded.uri)) {
-                    this.analyse(loaded, nextVisiting);
+            for (const loaded of this.documents.loadImport(document, imported)) {
+                if (loaded.targetUri !== undefined) dependencies.add(loaded.targetUri);
+                if (loaded.document === undefined) {
+                    importDiagnostics.push({
+                        severity: DiagnosticSeverity.Error,
+                        code: "XQST0059",
+                        message: `Cannot resolve module location '${loaded.locationUri}'.`,
+                        range: loaded.range,
+                    });
+                    continue;
+                }
+
+                const dependency = loaded.document;
+                const dependencyIndex = this.getDocumentIndex(dependency);
+                if (!nextVisiting.has(dependency.uri)) {
+                    this.analyse(dependency, nextVisiting);
                 }
                 if (
                     dependencyIndex.moduleDeclaration.kind !== "library" ||
@@ -190,7 +170,7 @@ export class WorkspaceAnalysisCoordinator {
                     continue;
                 }
                 foundValidModule = true;
-                for (const exported of dependencyIndex.moduleInterface.exports) {
+                for (const [name, exported] of dependencyIndex.moduleInterface.exports) {
                     const namespaceUri =
                         exported.kind === "function"
                             ? exported.name.qname.namespaceUri
@@ -204,8 +184,7 @@ export class WorkspaceAnalysisCoordinator {
                         });
                         continue;
                     }
-                    const name = definitionNameToString(exported, true);
-                    if (exportNames.has(name)) {
+                    if (exports.has(name)) {
                         importDiagnostics.push({
                             severity: DiagnosticSeverity.Error,
                             code: exported.kind === "variable" ? "XQST0049" : "XQST0034",
@@ -214,8 +193,7 @@ export class WorkspaceAnalysisCoordinator {
                         });
                         continue;
                     }
-                    exportNames.add(name);
-                    exports.push(exported);
+                    exports.set(name, exported);
                 }
             }
             if (foundValidModule) {

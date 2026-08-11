@@ -47,9 +47,9 @@ describe("module imports", () => {
             imports: [{ prefix: "dep", namespaceUri: "urn:dep" }],
         });
         expect(
-            analysis.moduleInterface?.exports.map((definition) =>
+            [...(analysis.moduleInterface?.exports.values() ?? [])].map((definition) =>
                 definitionNameToString(definition),
-            ) ?? [],
+            ),
         ).toEqual(["$lib:value", "lib:identity#1"]);
         expect(analysis.diagnostics).toContainEqual(expect.objectContaining({ code: "XQST0048" }));
     });
@@ -66,7 +66,9 @@ describe("module imports", () => {
         const index = buildDocumentIndex(document);
 
         expect(
-            index.moduleInterface?.exports.map((definition) => definitionNameToString(definition)),
+            [...(index.moduleInterface?.exports.values() ?? [])].map((definition) =>
+                definitionNameToString(definition),
+            ),
         ).toEqual(["$lib:value", "lib:value#0"]);
         expect(index.diagnostics).toEqual([
             expect.objectContaining({ code: "XQST0049" }),

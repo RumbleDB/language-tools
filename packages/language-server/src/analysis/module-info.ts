@@ -29,5 +29,5 @@ export type ModuleDeclaration = MainModuleDeclaration | LibraryModuleDeclaration
 
 export interface ModuleInterface {
     readonly namespaceUri: string;
-    readonly exports: readonly SourceModuleExportDefinition[];
+    readonly exports: ReadonlyMap<string, SourceModuleExportDefinition>;
 }
