@@ -1,4 +1,4 @@
-import { clearParsedDocument } from "server/parser/index.js";
+import { clearParsedDocument, parseDocument } from "server/parser/index.js";
 import { createLogger } from "server/utils/logger.js";
 import { DiagnosticSeverity, type Diagnostic, type DocumentUri } from "vscode-languageserver";
 import { TextDocument } from "vscode-languageserver-textdocument";
@@ -258,6 +258,10 @@ export class WorkspaceAnalysisCoordinator {
             try {
                 const document = this.documents.load(uri);
                 if (document === undefined) {
+                    this.failedDocuments.add(uri);
+                    continue;
+                }
+                if (parseDocument(document).diagnostics.length > 0) {
                     this.failedDocuments.add(uri);
                     continue;
                 }

@@ -19,10 +19,10 @@ function functionArity(
     if (node instanceof FunctionDeclContext) {
         return node.paramList()?.param().length ?? 0;
     } else if (node instanceof FunctionCallContext) {
-        const argumentList = node.argumentList();
-        return argumentList.argument().length;
+        return node.argumentList()?.argument().length ?? 0;
     } else if (node instanceof NamedFunctionRefContext) {
-        return Number.parseInt(node._arity?.text ?? node.IntegerLiteral().getText(), 10);
+        const arity = node._arity?.text ?? node.IntegerLiteral()?.getText();
+        return arity === undefined ? 0 : Number.parseInt(arity, 10);
     }
     throw new Error("Unsupported node type for function arity extraction");
 }
