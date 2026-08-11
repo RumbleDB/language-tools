@@ -42,11 +42,7 @@ export type ClientConfiguration = Partial<InitializationOptions>;
 
 const connection = createConnection(ProposedFeatures.all);
 const documents = new TextDocuments(TextDocument);
-const workspace = new WorkspaceController((error) => {
-    connection.console.error(
-        `Workspace indexing failed: ${error instanceof Error ? error.message : String(error)}`,
-    );
-});
+const workspace = new WorkspaceController();
 let supportsWorkspaceFolderChanges = false;
 
 setLoggerSink(connection.console);

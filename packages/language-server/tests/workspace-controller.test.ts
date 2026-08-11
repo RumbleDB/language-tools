@@ -9,9 +9,11 @@ const workspaceService = vi.hoisted(() => ({
 const discoverWorkspaceDocumentUris = vi.hoisted(() =>
     vi.fn<(folderUris: readonly string[]) => Promise<readonly string[]>>(),
 );
+const logger = vi.hoisted(() => ({ error: vi.fn() }));
 
 vi.mock("server/workspace/service.js", () => workspaceService);
 vi.mock("server/workspace/files.js", () => ({ discoverWorkspaceDocumentUris }));
+vi.mock("server/utils/logger.js", () => ({ createLogger: () => logger }));
 
 beforeEach(() => {
     vi.resetAllMocks();
@@ -30,7 +32,7 @@ describe("workspace controller", () => {
             events.push(`discover:${folderUris.join(",")}`);
             return folderUris.map((uri) => `${uri}/document.jq`);
         });
-        const controller = new WorkspaceController(() => undefined);
+        const controller = new WorkspaceController();
 
         controller.initialize(["file:///workspace"]);
         controller.updateDocuments([
@@ -51,7 +53,7 @@ describe("workspace controller", () => {
             events.push(`discover:${folderUris.join(",")}`);
             return folderUris.map((uri) => `${uri}/document.jq`);
         });
-        const controller = new WorkspaceController(() => undefined);
+        const controller = new WorkspaceController();
 
         controller.initialize(["file:///first"]);
         controller.updateFolders(["file:///second"], ["file:///first"]);
@@ -61,13 +63,13 @@ describe("workspace controller", () => {
     });
 
     it("continues processing after a failed operation", async () => {
-        const errors: unknown[] = [];
         const events: string[] = [];
         workspaceService.updateWorkspaceDocuments.mockImplementation((changes) => {
             events.push(`update:${changes.map((change) => change.uri).join(",")}`);
         });
-        discoverWorkspaceDocumentUris.mockRejectedValue(new Error("discovery failed"));
-        const controller = new WorkspaceController((error) => errors.push(error));
+        const error = new Error("discovery failed");
+        discoverWorkspaceDocumentUris.mockRejectedValue(error);
+        const controller = new WorkspaceController();
 
         controller.initialize(["file:///workspace"]);
         controller.updateDocuments([
@@ -75,7 +77,7 @@ describe("workspace controller", () => {
         ]);
         await controller.ready();
 
-        expect(errors).toHaveLength(1);
+        expect(logger.error).toHaveBeenCalledWith("Workspace indexing failed.", error);
         expect(events).toEqual(["update:file:///workspace/changed.jq"]);
     });
 });
