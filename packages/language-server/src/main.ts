@@ -1,5 +1,6 @@
 import { TextDocument } from "vscode-languageserver-textdocument";
 import {
+    FileChangeType,
     TextDocumentSyncKind,
     createConnection,
     ProposedFeatures,
@@ -9,10 +10,12 @@ import {
 } from "vscode-languageserver/node";
 
 import {
-    invalidateModuleDocuments,
+    indexWorkspaceDocuments,
     removeOpenDocument,
     updateOpenDocument,
+    updateWorkspaceDocuments,
 } from "./analysis/service.js";
+import { discoverWorkspaceDocumentUris } from "./analysis/workspace-files.js";
 import { findCompletionsWithTypeInfo } from "./completion.js";
 import { config, InitializationOptions, mergeConfiguration } from "./config.js";
 import { findDefinitionLocation } from "./definitions.js";
@@ -45,6 +48,13 @@ export type ClientConfiguration = Partial<InitializationOptions>;
 
 const connection = createConnection(ProposedFeatures.all);
 const documents = new TextDocuments(TextDocument);
+let workspaceIndexReady = Promise.resolve();
+
+function reportWorkspaceIndexFailure(error: unknown): void {
+    connection.console.error(
+        `Workspace indexing failed: ${error instanceof Error ? error.message : String(error)}`,
+    );
+}
 
 setLoggerSink(connection.console);
 initializeNotifications((method, payload) => {
@@ -93,6 +103,12 @@ connection.onInitialize((params: InitializeParams): InitializeResult => {
     const clientConfiguration: Partial<InitializationOptions> = params.initializationOptions || {};
     mergeConfiguration(clientConfiguration);
     connection.console.log(`Language server configuration: ${JSON.stringify(config, null, 4)}`);
+    const workspaceFolderUris =
+        params.workspaceFolders?.map((folder) => folder.uri) ??
+        (params.rootUri === null || params.rootUri === undefined ? [] : [params.rootUri]);
+    workspaceIndexReady = discoverWorkspaceDocumentUris(workspaceFolderUris)
+        .then((uris) => indexWorkspaceDocuments(uris))
+        .catch(reportWorkspaceIndexFailure);
 
     return {
         capabilities: {
@@ -157,7 +173,8 @@ connection.onDefinition((params) => {
     return findDefinitionLocation(document, params.position);
 });
 
-connection.onReferences((params) => {
+connection.onReferences(async (params) => {
+    await workspaceIndexReady;
     const document = documents.get(params.textDocument.uri);
 
     if (document === undefined || !supportsDocument(document)) {
@@ -177,7 +194,8 @@ connection.onPrepareRename((params) => {
     return prepareRename(document, params.position);
 });
 
-connection.onRenameRequest((params) => {
+connection.onRenameRequest(async (params) => {
+    await workspaceIndexReady;
     const document = documents.get(params.textDocument.uri);
 
     if (document === undefined || !supportsDocument(document)) {
@@ -267,7 +285,21 @@ documents.onDidClose((event) => {
 });
 
 connection.onDidChangeWatchedFiles((params) => {
-    invalidateModuleDocuments(params.changes.map((change) => change.uri));
+    workspaceIndexReady = workspaceIndexReady
+        .then(() => {
+            updateWorkspaceDocuments(
+                params.changes.map((change) => ({
+                    uri: change.uri,
+                    kind:
+                        change.type === FileChangeType.Created
+                            ? "created"
+                            : change.type === FileChangeType.Deleted
+                              ? "deleted"
+                              : "changed",
+                })),
+            );
+        })
+        .catch(reportWorkspaceIndexFailure);
 });
 
 documents.listen(connection);

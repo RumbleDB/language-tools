@@ -21,6 +21,11 @@ export class ModuleGraph {
         }
     }
 
+    public removeDocument(uri: DocumentUri): void {
+        this.replaceDependencies(uri, new Set());
+        this.dependencies.delete(uri);
+    }
+
     public affectedBy(changedDocuments: readonly DocumentUri[]): ReadonlySet<DocumentUri> {
         const affected = new Set(changedDocuments);
         const pending = [...changedDocuments];

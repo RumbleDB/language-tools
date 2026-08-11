@@ -26,4 +26,13 @@ describe("module graph", () => {
             "file:///main.jq",
         ]);
     });
+
+    it("removes a document's outgoing dependency edges", () => {
+        const graph = new ModuleGraph();
+        graph.replaceDependencies("file:///module.jq", new Set(["file:///dependency.jq"]));
+
+        graph.removeDocument("file:///module.jq");
+
+        expect([...graph.affectedBy(["file:///dependency.jq"])]).toEqual(["file:///dependency.jq"]);
+    });
 });

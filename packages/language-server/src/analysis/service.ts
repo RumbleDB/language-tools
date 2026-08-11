@@ -12,7 +12,13 @@ import { buildDocumentIndex, type DocumentIndex } from "./document-index.js";
 import { ModuleGraph } from "./module-graph.js";
 import { WorkspaceDocumentStore, type ModuleLoader } from "./module-loader.js";
 import type { AnyResolvedReference } from "./reference.js";
+import { isWorkspaceDocumentUri } from "./workspace-files.js";
 import { WorkspaceSymbolIndex } from "./workspace-symbol-index.js";
+
+export interface WorkspaceDocumentChange {
+    readonly uri: DocumentUri;
+    readonly kind: "created" | "changed" | "deleted";
+}
 
 interface CachedAnalysis {
     version: number;
@@ -46,11 +52,6 @@ class WorkspaceAnalysisCoordinator {
         this.invalidateAffected([uri], true);
     }
 
-    public invalidateDocuments(uris: readonly DocumentUri[]): void {
-        for (const uri of uris) clearParsedDocument(uri);
-        this.invalidateAffected(uris, true);
-    }
-
     public getAnalysis(document: TextDocument): AnalysisResult {
         this.updateOpenDocument(document);
         return this.analyse(document, new Set());
@@ -59,6 +60,23 @@ class WorkspaceAnalysisCoordinator {
     public indexWorkspaceDocuments(uris: readonly DocumentUri[]): void {
         for (const uri of uris) this.workspaceDocuments.add(uri);
         this.ensureDocumentsAnalysed(uris);
+    }
+
+    public updateWorkspaceDocuments(changes: readonly WorkspaceDocumentChange[]): void {
+        const changedUris = changes.map((change) => change.uri);
+        for (const uri of changedUris) clearParsedDocument(uri);
+        const affected = this.invalidateAffected(changedUris, true);
+
+        for (const change of changes) {
+            if (change.kind === "deleted") {
+                this.workspaceDocuments.delete(change.uri);
+                this.moduleGraph.removeDocument(change.uri);
+            } else if (isWorkspaceDocumentUri(change.uri)) {
+                this.workspaceDocuments.add(change.uri);
+            }
+        }
+
+        this.ensureDocumentsAnalysed([...affected]);
     }
 
     private analyse(document: TextDocument, visiting: Set<DocumentUri>): AnalysisResult {
@@ -215,7 +233,10 @@ class WorkspaceAnalysisCoordinator {
         }
     }
 
-    private invalidateAffected(uris: readonly DocumentUri[], invalidateIndexes: boolean): void {
+    private invalidateAffected(
+        uris: readonly DocumentUri[],
+        invalidateIndexes: boolean,
+    ): ReadonlySet<DocumentUri> {
         const affected = this.moduleGraph.affectedBy(uris);
         for (const uri of affected) {
             this.cache.delete(uri);
@@ -224,6 +245,7 @@ class WorkspaceAnalysisCoordinator {
         if (invalidateIndexes) {
             for (const uri of uris) this.indexes.delete(uri);
         }
+        return affected;
     }
 }
 
@@ -235,14 +257,14 @@ export function getAnalysis(document: TextDocument): AnalysisResult {
 export function indexWorkspaceDocuments(uris: readonly DocumentUri[]): void {
     workspaceAnalysis.indexWorkspaceDocuments(uris);
 }
+export function updateWorkspaceDocuments(changes: readonly WorkspaceDocumentChange[]): void {
+    workspaceAnalysis.updateWorkspaceDocuments(changes);
+}
 export function updateOpenDocument(document: TextDocument): void {
     workspaceAnalysis.updateOpenDocument(document);
 }
 export function removeOpenDocument(uri: DocumentUri): void {
     workspaceAnalysis.removeOpenDocument(uri);
-}
-export function invalidateModuleDocuments(uris: readonly DocumentUri[]): void {
-    workspaceAnalysis.invalidateDocuments(uris);
 }
 export function getWorkspaceReferencesToDefinition(
     definition: Definition,
