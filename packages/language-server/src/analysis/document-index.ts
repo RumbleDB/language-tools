@@ -38,28 +38,31 @@ import type { ModuleDeclaration, ModuleImport, ModuleInterface } from "./module-
 import { functionNameToString, QNameToString, type FunctionName, type QName } from "./names.js";
 
 export interface DocumentIndex {
-    /** Source document represented by this index. */
+    /** The text document being analyzed. */
     readonly document: TextDocument;
 
-    /** Parsed AST before imported modules are resolved. */
+    /** Parsed AST root node */
     readonly ast: ParserAstNode;
 
-    /** Main or library module declaration and its import declarations. */
+    /** Whether the document is a main or library module, in case of library module, the target namespace */
     readonly moduleDeclaration: ModuleDeclaration;
 
-    /** Exported interface when this is a library module. */
+    /** The module interface, if the document is a library module */
     readonly moduleInterface?: ModuleInterface;
 
-    /** Namespace definitions, including implicit predefined namespaces. */
+    /** Namespace declarations in the document, including implicit namespaces */
     readonly namespaces: ReadonlyMap<Prefix, NamespaceDefinition>;
 
-    /** Source definitions discovered without resolving imported modules. */
+    /** All source definitions in the document */
     readonly definitions: readonly SourceDefinition[];
 
-    /** Links parser nodes to the definitions created for them. */
+    /**
+     * Maps connecting parser AST nodes to those definitions
+     *
+     * This will be used in the analyzer to avoid rebuilding the definitions from the AST nodes, and to connect references to their definitions.
+     */
     readonly indexedDefinitions: IndexedDefinitions;
 
-    /** Diagnostics that can be established without cross-module analysis. */
     readonly diagnostics: readonly Diagnostic[];
 }
 
@@ -79,10 +82,11 @@ export interface IndexedDefinitions {
 }
 
 /**
- * Builds the first analysis stage for one document.
+ * Document index is the first-stage analysis result for one document
  *
- * This stage records local declarations and static-context facts only. The
- * semantic builder later consumes it together with resolved module exports.
+ * It parses the source and records facts that can be discovered without loading or semantically resolving imported modules.
+ *
+ * The result, DocumentIndex, is passed to analyzeDocument, which builds scopes and resolves references, using exports loaded from other documents when necessary.
  */
 class DocumentIndexBuilder extends ParserAstVisitor<void> {
     private readonly definitions: SourceDefinition[] = [];

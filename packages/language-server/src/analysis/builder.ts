@@ -41,9 +41,7 @@ import {
     DefinitionByReferenceKind,
     ImplicitVariableDefinition,
     NamespaceDefinition,
-    ScopeDefinition,
     SourceDefinition,
-    SourceFunctionDefinition,
     SourceModuleExportDefinition,
 } from "./definitions.js";
 import type { DocumentIndex } from "./document-index.js";
@@ -68,31 +66,49 @@ const CATCH_VARIABLES = [
 ] as const;
 
 export interface AnalysisResult {
-    /** Root node of the immutable semantic AST for this module. */
+    /**
+     * Root AST node for the module
+     */
     readonly ast: ModuleNode;
 
-    /** Whether this document is a main or library module. */
+    /**
+     * Module declaration of current module, either main or library
+     */
     readonly moduleDeclaration: ModuleDeclaration;
 
-    /** Public interface when this document is a library module. */
+    /**
+     * Module interface of current module, if it is a library module
+     */
     readonly moduleInterface?: ModuleInterface;
 
-    /** Root lexical scope for the module. */
+    /**
+     * Root scope of the module
+     */
     readonly scope: Scope;
 
-    /** Namespace definitions visible in the module's static context. */
+    /**
+     * Map of namespace prefix to namespace definition for all namespaces declared in the module
+     */
     readonly namespaces: ReadonlyMap<Prefix, NamespaceDefinition>;
 
-    /** Source definitions declared by this module. */
+    /**
+     * List of all definitions declared in the module
+     */
     readonly definitions: readonly SourceDefinition[];
 
-    /** Resolved source references within this module. */
+    /**
+     * List of all resolved references in the module
+     */
     readonly references: readonly AnyResolvedReference[];
 
-    /** References grouped by their resolved declaration. */
+    /**
+     * Map from definition to all resolved references to that definition in the module
+     */
     readonly referencesByDefinition: ReadonlyMap<Definition, readonly AnyResolvedReference[]>;
 
-    /** Syntax-independent diagnostics produced during semantic analysis. */
+    /**
+     * List of all diagnostics reported during analysis of the module
+     */
     readonly diagnostics: readonly Diagnostic[];
 }
 
@@ -202,29 +218,32 @@ class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
 
         const resolvedImport = this.resolvedImportsByNamespace.get(node.namespaceUri);
         for (const declaration of resolvedImport?.exports.values() ?? []) {
-            this.declareDefinition(declaration, 0);
+            this.currentScope.declare(declaration, 0);
         }
         return declarations;
     }
 
     protected override visitContextItemDeclaration(node: ContextItemDeclarationAstNode): AstNode[] {
         const definition = this.requireIndexed(this.index.indexedDefinitions.contextItems, node);
-        this.declareDefinition(definition, this.index.document.offsetAt(node.range.end));
+        this.currentScope.declare(definition, this.index.document.offsetAt(node.range.end));
         return [this.createDeclarationNode(definition)];
     }
 
     protected override visitTypeDeclaration(node: TypeDeclarationAstNode): AstNode[] {
         const definition = this.requireIndexed(this.index.indexedDefinitions.types, node);
-        this.declareDefinition(definition, this.index.document.offsetAt(node.range.end));
+        this.currentScope.declare(definition, this.index.document.offsetAt(node.range.end));
         return [this.createDeclarationNode(definition)];
     }
 
     protected override visitFunctionDeclaration(node: FunctionDeclarationAstNode): AstNode[] {
         const definition = this.requireIndexed(this.index.indexedDefinitions.functions, node);
-        this.declareDefinition(definition, this.index.document.offsetAt(node.selectionRange.end));
+        this.currentScope.declare(
+            definition,
+            this.index.document.offsetAt(node.selectionRange.end),
+        );
 
         const children = this.enterScope(node.range, () => [
-            ...this.createFunctionParameterNodes(definition, node.parameters),
+            ...this.createFunctionParameterNodes(node.parameters),
             ...this.visitChildrenAsNodes(node),
         ]);
 
@@ -233,7 +252,7 @@ class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
 
     protected override visitVariableDeclaration(node: VariableDeclarationAstNode): AstNode[] {
         const definition = this.requireIndexed(this.index.indexedDefinitions.variables, node);
-        this.declareDefinition(definition, this.index.document.offsetAt(node.visibleFrom));
+        this.currentScope.declare(definition, this.index.document.offsetAt(node.visibleFrom));
         const children = this.visitChildrenAsNodes(node);
         return [this.createDeclarationNode(definition, children)];
     }
@@ -250,7 +269,7 @@ class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
                     name: this.resolveQName(name, node.range),
                     origin: "implicit",
                 };
-                this.declareDefinition(definition, this.index.document.offsetAt(node.bodyStart));
+                this.currentScope.declare(definition, this.index.document.offsetAt(node.bodyStart));
             }
             return this.visitChildrenAsNodes(node);
         });
@@ -352,10 +371,6 @@ class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
         }
     }
 
-    private declareDefinition(definition: ScopeDefinition, visibleFrom: number): void {
-        this.currentScope.declare(definition, visibleFrom);
-    }
-
     private requireIndexed<K, V>(definitions: ReadonlyMap<K, V>, node: K): V {
         const definition = definitions.get(node);
         if (definition !== undefined) return definition;
@@ -429,16 +444,13 @@ class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
         this.referencesByDefinition.set(reference.declaration, referencesToDefinition);
     }
 
-    private createFunctionParameterNodes(
-        definition: SourceFunctionDefinition,
-        parameters: AstParameter[],
-    ): DeclarationNode[] {
+    private createFunctionParameterNodes(parameters: AstParameter[]): DeclarationNode[] {
         return parameters.map((parameter) => {
             const parameterDefinition = this.requireIndexed(
                 this.index.indexedDefinitions.parameters,
                 parameter,
             );
-            this.declareDefinition(
+            this.currentScope.declare(
                 parameterDefinition,
                 this.index.document.offsetAt(parameter.range.end),
             );
