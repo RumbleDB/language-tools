@@ -3,6 +3,7 @@ import {
     type WorkspaceControllerBackend,
 } from "server/workspace/controller.js";
 import { describe, expect, it } from "vitest";
+import { FileChangeType } from "vscode-languageserver/node";
 
 function testBackend(events: string[]): WorkspaceControllerBackend {
     return {
@@ -25,7 +26,9 @@ describe("workspace controller", () => {
         const controller = new WorkspaceController(() => undefined, testBackend(events));
 
         controller.initialize(["file:///workspace"]);
-        controller.updateDocuments([{ uri: "file:///workspace/changed.jq", kind: "changed" }]);
+        controller.updateDocuments([
+            { uri: "file:///workspace/changed.jq", type: FileChangeType.Changed },
+        ]);
         await controller.ready();
 
         expect(events).toEqual([
@@ -56,7 +59,9 @@ describe("workspace controller", () => {
         const controller = new WorkspaceController((error) => errors.push(error), backend);
 
         controller.initialize(["file:///workspace"]);
-        controller.updateDocuments([{ uri: "file:///workspace/changed.jq", kind: "changed" }]);
+        controller.updateDocuments([
+            { uri: "file:///workspace/changed.jq", type: FileChangeType.Changed },
+        ]);
         await controller.ready();
 
         expect(errors).toHaveLength(1);

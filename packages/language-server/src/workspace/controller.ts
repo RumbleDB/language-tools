@@ -1,13 +1,13 @@
 import type { DocumentUri } from "vscode-languageserver";
+import type { FileEvent } from "vscode-languageserver/node";
 
-import type { WorkspaceDocumentChange } from "./document-store.js";
 import { discoverWorkspaceDocumentUris } from "./files.js";
 import { replaceWorkspaceDocuments, updateWorkspaceDocuments } from "./service.js";
 
 export interface WorkspaceControllerBackend {
     discover(folderUris: readonly DocumentUri[]): Promise<readonly DocumentUri[]>;
     replaceDocuments(uris: readonly DocumentUri[]): void;
-    updateDocuments(changes: readonly WorkspaceDocumentChange[]): void;
+    updateDocuments(changes: readonly FileEvent[]): void;
 }
 
 const defaultBackend: WorkspaceControllerBackend = {
@@ -36,7 +36,7 @@ export class WorkspaceController {
         this.queueRebuild();
     }
 
-    public updateDocuments(changes: readonly WorkspaceDocumentChange[]): void {
+    public updateDocuments(changes: readonly FileEvent[]): void {
         this.queue(() => this.backend.updateDocuments(changes));
     }
 

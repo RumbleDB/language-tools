@@ -1,6 +1,5 @@
 import { TextDocument } from "vscode-languageserver-textdocument";
 import {
-    FileChangeType,
     TextDocumentSyncKind,
     createConnection,
     ProposedFeatures,
@@ -288,17 +287,7 @@ documents.onDidClose((event) => {
 });
 
 connection.onDidChangeWatchedFiles((params) => {
-    workspace.updateDocuments(
-        params.changes.map((change) => ({
-            uri: change.uri,
-            kind:
-                change.type === FileChangeType.Created
-                    ? "created"
-                    : change.type === FileChangeType.Deleted
-                      ? "deleted"
-                      : "changed",
-        })),
-    );
+    workspace.updateDocuments(params.changes);
 });
 
 connection.onInitialized(() => {

@@ -1,5 +1,6 @@
 import type { DocumentUri, Range } from "vscode-languageserver";
 import { TextDocument } from "vscode-languageserver-textdocument";
+import { FileChangeType, type FileEvent } from "vscode-languageserver/node";
 
 import type { ModuleImport } from "../analysis/module-info.js";
 import { isSupportedSourceUri, loadSourceFile } from "./files.js";
@@ -10,11 +11,6 @@ export interface ModuleLoadResult {
     readonly range: Range;
     readonly targetUri?: DocumentUri;
     readonly document?: TextDocument;
-}
-
-export interface WorkspaceDocumentChange {
-    readonly uri: DocumentUri;
-    readonly kind: "created" | "changed" | "deleted";
 }
 
 /**
@@ -56,9 +52,9 @@ export class WorkspaceDocumentStore {
         return removedUris;
     }
 
-    public updateWorkspaceDocuments(changes: readonly WorkspaceDocumentChange[]): void {
+    public updateWorkspaceDocuments(changes: readonly FileEvent[]): void {
         for (const change of changes) {
-            if (change.kind === "deleted") {
+            if (change.type === FileChangeType.Deleted) {
                 this.workspaceDocumentUris.delete(change.uri);
             } else if (isSupportedSourceUri(change.uri)) {
                 this.workspaceDocumentUris.add(change.uri);

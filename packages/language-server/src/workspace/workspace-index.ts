@@ -2,6 +2,7 @@ import { clearParsedDocument } from "server/parser/index.js";
 import { createLogger } from "server/utils/logger.js";
 import { DiagnosticSeverity, type Diagnostic, type DocumentUri } from "vscode-languageserver";
 import { TextDocument } from "vscode-languageserver-textdocument";
+import { FileChangeType, type FileEvent } from "vscode-languageserver/node";
 
 import {
     analyzeDocument,
@@ -11,7 +12,7 @@ import {
 import { type Definition, type SourceModuleExportDefinition } from "../analysis/definitions.js";
 import { buildDocumentIndex, type DocumentIndex } from "../analysis/document-index.js";
 import type { AnyResolvedReference } from "../analysis/reference.js";
-import { WorkspaceDocumentStore, type WorkspaceDocumentChange } from "./document-store.js";
+import { WorkspaceDocumentStore } from "./document-store.js";
 import { ModuleGraph } from "./module-graph.js";
 import { WorkspaceSymbolIndex } from "./symbol-index.js";
 
@@ -68,14 +69,16 @@ export class WorkspaceIndex {
         ]);
     }
 
-    public updateWorkspaceDocuments(changes: readonly WorkspaceDocumentChange[]): void {
+    public updateWorkspaceDocuments(changes: readonly FileEvent[]): void {
         const changedUris = changes.map((change) => change.uri);
         for (const uri of changedUris) clearParsedDocument(uri);
         const affected = this.invalidateAffected(changedUris);
 
         this.documents.updateWorkspaceDocuments(changes);
         for (const change of changes) {
-            if (change.kind === "deleted") this.moduleGraph.removeOutgoingDependencies(change.uri);
+            if (change.type === FileChangeType.Deleted) {
+                this.moduleGraph.removeOutgoingDependencies(change.uri);
+            }
         }
 
         this.ensureDocumentsAnalysed([...affected]);
