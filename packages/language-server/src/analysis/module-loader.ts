@@ -1,10 +1,8 @@
-import { readFileSync, statSync } from "node:fs";
-import { fileURLToPath } from "node:url";
-
 import type { DocumentUri, Range } from "vscode-languageserver";
 import { TextDocument } from "vscode-languageserver-textdocument";
 
 import type { ModuleImport } from "./module-info.js";
+import { loadSourceFile } from "./workspace-files.js";
 
 export interface ModuleLoader {
     loadImport(importer: TextDocument, imported: ModuleImport): readonly TextDocument[];
@@ -65,7 +63,7 @@ export class WorkspaceDocumentStore implements ModuleLoader {
                 modules.push(open);
                 continue;
             }
-            const document = loadFileDocument(targetUri);
+            const document = loadSourceFile(targetUri);
             if (document !== undefined) modules.push(document);
         }
         return modules;
@@ -78,21 +76,4 @@ function resolveUri(location: string, baseUri: DocumentUri): DocumentUri | undef
     } catch {
         return undefined;
     }
-}
-
-function loadFileDocument(uri: DocumentUri): TextDocument | undefined {
-    if (!uri.startsWith("file:")) return undefined;
-    try {
-        const path = fileURLToPath(uri);
-        if (!statSync(path).isFile()) return undefined;
-        return TextDocument.create(uri, languageIdFor(path), 0, readFileSync(path, "utf8"));
-    } catch {
-        // Missing, unreadable, and invalid file locations are unresolved imports,
-        // not failures of the language-server request that triggered analysis.
-        return undefined;
-    }
-}
-
-function languageIdFor(path: string): string {
-    return path.endsWith(".xq") || path.endsWith(".xqm") ? "xquery" : "jsoniq";
 }
