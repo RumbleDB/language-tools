@@ -22,19 +22,18 @@ import { DiagnosticSeverity, type Diagnostic, type Range } from "vscode-language
 import type { TextDocument } from "vscode-languageserver-textdocument";
 
 import { defaultNamespaces } from "./default-namespaces.js";
-import {
-    definitionNameToString,
-    type ImplicitNamespaceDefinition,
-    type NamespaceDefinition,
-    type SourceDefinition,
-    type SourceFunctionDefinition,
-    type SourceModuleExportDefinition,
-    type SourceNamespaceDefinition,
-    type SourceParameterDefinition,
-    type SymbolId,
-    type SourceVariableDefinition,
+import { definitionNameToString } from "./definitions.js";
+import type {
+    ImplicitNamespaceDefinition,
+    NamespaceDefinition,
+    SourceDefinition,
+    SourceFunctionDefinition,
+    SourceNamespaceDefinition,
+    SourceParameterDefinition,
+    SymbolId,
+    SourceVariableDefinition,
 } from "./definitions.js";
-import type { ModuleDeclaration, ModuleImport, ModuleInterface } from "./module-info.js";
+import type { ModuleDeclaration, ModuleInterface } from "./module-info.js";
 import { functionNameToString, QNameToString, type FunctionName, type QName } from "./names.js";
 
 export interface DocumentIndex {
@@ -45,16 +44,16 @@ export interface DocumentIndex {
     readonly ast: ParserAstNode;
 
     /** Whether the document is a main or library module, in case of library module, the target namespace */
-    readonly moduleDeclaration: ModuleDeclaration;
+    moduleDeclaration: ModuleDeclaration;
 
     /** The module interface, if the document is a library module */
-    readonly moduleInterface?: ModuleInterface;
+    moduleInterface?: ModuleInterface;
 
     /** Namespace declarations in the document, including implicit namespaces */
-    readonly namespaces: ReadonlyMap<Prefix, NamespaceDefinition>;
+    readonly namespaces: Map<Prefix, NamespaceDefinition>;
 
     /** All source definitions in the document */
-    readonly definitions: readonly SourceDefinition[];
+    readonly definitions: SourceDefinition[];
 
     /**
      * Maps connecting parser AST nodes to those definitions
@@ -62,23 +61,19 @@ export interface DocumentIndex {
      * This will be used in the analyzer to avoid rebuilding the definitions from the AST nodes, and to connect references to their definitions.
      */
     readonly indexedDefinitions: IndexedDefinitions;
-
-    readonly diagnostics: readonly Diagnostic[];
+    readonly diagnostics: Diagnostic[];
 }
 
 export interface IndexedDefinitions {
-    readonly namespaces: ReadonlyMap<
+    readonly namespaces: Map<
         ModuleDeclarationAstNode | ModuleImportAstNode | NamespaceDeclarationAstNode,
         SourceNamespaceDefinition
     >;
-    readonly contextItems: ReadonlyMap<ContextItemDeclarationAstNode, SourceVariableDefinition>;
-    readonly types: ReadonlyMap<
-        TypeDeclarationAstNode,
-        Extract<SourceDefinition, { kind: "type" }>
-    >;
-    readonly functions: ReadonlyMap<FunctionDeclarationAstNode, SourceFunctionDefinition>;
-    readonly variables: ReadonlyMap<VariableDeclarationAstNode, SourceVariableDefinition>;
-    readonly parameters: ReadonlyMap<AstParameter, SourceParameterDefinition>;
+    readonly contextItems: Map<ContextItemDeclarationAstNode, SourceVariableDefinition>;
+    readonly types: Map<TypeDeclarationAstNode, Extract<SourceDefinition, { kind: "type" }>>;
+    readonly functions: Map<FunctionDeclarationAstNode, SourceFunctionDefinition>;
+    readonly variables: Map<VariableDeclarationAstNode, SourceVariableDefinition>;
+    readonly parameters: Map<AstParameter, SourceParameterDefinition>;
 }
 
 /**
@@ -89,59 +84,44 @@ export interface IndexedDefinitions {
  * The result, DocumentIndex, is passed to analyzeDocument, which builds scopes and resolves references, using exports loaded from other documents when necessary.
  */
 class DocumentIndexBuilder extends ParserAstVisitor<void> {
-    private readonly definitions: SourceDefinition[] = [];
-    private readonly indexedDefinitions = {
-        namespaces: new Map<
-            ModuleDeclarationAstNode | ModuleImportAstNode | NamespaceDeclarationAstNode,
-            SourceNamespaceDefinition
-        >(),
-        contextItems: new Map<ContextItemDeclarationAstNode, SourceVariableDefinition>(),
-        types: new Map<TypeDeclarationAstNode, Extract<SourceDefinition, { kind: "type" }>>(),
-        functions: new Map<FunctionDeclarationAstNode, SourceFunctionDefinition>(),
-        variables: new Map<VariableDeclarationAstNode, SourceVariableDefinition>(),
-        parameters: new Map<AstParameter, SourceParameterDefinition>(),
-    } satisfies IndexedDefinitions;
-    private readonly diagnostics: Diagnostic[] = [];
+    private readonly result: DocumentIndex;
     private readonly symbolOccurrences = new Map<string, number>();
-    private readonly imports: ModuleImport[] = [];
-    private readonly exports = new Map<string, SourceModuleExportDefinition>();
-    private readonly namespaces = new Map<Prefix, NamespaceDefinition>(
-        defaultNamespaces.entries().map(([prefix, namespaceUri]) => {
-            const definition: ImplicitNamespaceDefinition = {
-                kind: "namespace",
-                name: { prefix },
-                namespaceUri,
-                origin: "implicit",
-            };
-            return [prefix, definition];
-        }),
-    );
-    private moduleDeclaration: ModuleDeclaration = { kind: "main", imports: this.imports };
-    private moduleInterface: ModuleInterface | undefined;
     private readonly moduleLevelDeclarations = new Set<ParserAstNode>();
 
-    public constructor(
-        private readonly document: TextDocument,
-        private readonly ast: ParserAstNode,
-    ) {
+    public constructor(document: TextDocument, ast: ParserAstNode) {
         super();
+        this.result = {
+            document,
+            ast,
+            moduleDeclaration: { kind: "main", imports: [] },
+            namespaces: new Map(
+                defaultNamespaces.entries().map(([prefix, namespaceUri]) => {
+                    const definition: ImplicitNamespaceDefinition = {
+                        kind: "namespace",
+                        name: { prefix },
+                        namespaceUri,
+                        origin: "implicit",
+                    };
+                    return [prefix, definition];
+                }),
+            ),
+            definitions: [],
+            indexedDefinitions: {
+                namespaces: new Map(),
+                contextItems: new Map(),
+                types: new Map(),
+                functions: new Map(),
+                variables: new Map(),
+                parameters: new Map(),
+            },
+            diagnostics: [],
+        };
     }
 
     public build(): DocumentIndex {
-        this.indexStaticContext(this.ast);
-        this.visit(this.ast);
-        return {
-            document: this.document,
-            ast: this.ast,
-            moduleDeclaration: this.moduleDeclaration,
-            ...(this.moduleInterface === undefined
-                ? {}
-                : { moduleInterface: this.moduleInterface }),
-            namespaces: this.namespaces,
-            definitions: this.definitions,
-            indexedDefinitions: this.indexedDefinitions,
-            diagnostics: this.diagnostics,
-        };
+        this.indexStaticContext(this.result.ast);
+        this.visit(this.result.ast);
+        return this.result;
     }
 
     protected override visitModuleDeclaration(node: ModuleDeclarationAstNode): void {
@@ -172,7 +152,7 @@ class DocumentIndexBuilder extends ParserAstVisitor<void> {
 
     private indexModuleDeclaration(node: ModuleDeclarationAstNode): void {
         if (node.namespaceUri.length === 0) {
-            this.diagnostics.push({
+            this.result.diagnostics.push({
                 severity: DiagnosticSeverity.Error,
                 code: "XQST0088",
                 message: "A library module target namespace cannot be empty.",
@@ -180,7 +160,7 @@ class DocumentIndexBuilder extends ParserAstVisitor<void> {
             });
         }
         if (node.prefix === "xml" || node.prefix === "xmlns") {
-            this.diagnostics.push({
+            this.result.diagnostics.push({
                 severity: DiagnosticSeverity.Error,
                 code: "XQST0070",
                 message: `Prefix '${node.prefix}' cannot be used for a library module.`,
@@ -198,17 +178,17 @@ class DocumentIndexBuilder extends ParserAstVisitor<void> {
             name: { prefix: node.prefix },
             namespaceUri: node.namespaceUri,
         };
-        this.definitions.push(definition);
-        this.indexedDefinitions.namespaces.set(node, definition);
-        this.namespaces.set(node.prefix, definition);
-        this.moduleDeclaration = {
+        this.result.definitions.push(definition);
+        this.result.indexedDefinitions.namespaces.set(node, definition);
+        this.result.namespaces.set(node.prefix, definition);
+        this.result.moduleDeclaration = {
             kind: "library",
             targetNamespace: definition,
-            imports: this.imports,
+            imports: this.result.moduleDeclaration.imports,
         };
-        this.moduleInterface = {
+        this.result.moduleInterface = {
             namespaceUri: definition.namespaceUri,
-            exports: this.exports,
+            exports: new Map(),
         };
         for (const child of node.children) {
             if (child.kind === "function-declaration" || child.kind === "variable-declaration") {
@@ -218,7 +198,7 @@ class DocumentIndexBuilder extends ParserAstVisitor<void> {
     }
 
     private indexModuleImport(node: ModuleImportAstNode): void {
-        this.imports.push({
+        this.result.moduleDeclaration.imports.push({
             ...(node.prefix === undefined ? {} : { prefix: node.prefix }),
             ...(node.prefixRange === undefined ? {} : { prefixRange: node.prefixRange }),
             namespaceUri: node.namespaceUri,
@@ -234,9 +214,9 @@ class DocumentIndexBuilder extends ParserAstVisitor<void> {
             name: { prefix: node.prefix },
             namespaceUri: node.namespaceUri,
         };
-        this.definitions.push(definition);
-        this.indexedDefinitions.namespaces.set(node, definition);
-        this.namespaces.set(node.prefix, definition);
+        this.result.definitions.push(definition);
+        this.result.indexedDefinitions.namespaces.set(node, definition);
+        this.result.namespaces.set(node.prefix, definition);
     }
 
     private indexNamespaceDeclaration(node: NamespaceDeclarationAstNode): void {
@@ -250,9 +230,9 @@ class DocumentIndexBuilder extends ParserAstVisitor<void> {
             name: { prefix: node.prefix },
             namespaceUri: node.namespaceUri,
         };
-        this.definitions.push(definition);
-        this.indexedDefinitions.namespaces.set(node, definition);
-        this.namespaces.set(node.prefix, definition);
+        this.result.definitions.push(definition);
+        this.result.indexedDefinitions.namespaces.set(node, definition);
+        this.result.namespaces.set(node.prefix, definition);
     }
 
     protected override visitContextItemDeclaration(node: ContextItemDeclarationAstNode): void {
@@ -261,8 +241,8 @@ class DocumentIndexBuilder extends ParserAstVisitor<void> {
             node.range,
             node.selectionRange,
         );
-        this.definitions.push(definition);
-        this.indexedDefinitions.contextItems.set(node, definition);
+        this.result.definitions.push(definition);
+        this.result.indexedDefinitions.contextItems.set(node, definition);
     }
 
     protected override visitTypeDeclaration(node: TypeDeclarationAstNode): void {
@@ -276,8 +256,8 @@ class DocumentIndexBuilder extends ParserAstVisitor<void> {
             kind: "type",
             name,
         };
-        this.definitions.push(definition);
-        this.indexedDefinitions.types.set(node, definition);
+        this.result.definitions.push(definition);
+        this.result.indexedDefinitions.types.set(node, definition);
     }
 
     protected override visitFunctionDeclaration(node: FunctionDeclarationAstNode): void {
@@ -293,8 +273,8 @@ class DocumentIndexBuilder extends ParserAstVisitor<void> {
             name,
             parameters,
         };
-        this.definitions.push(definition);
-        this.indexedDefinitions.functions.set(node, definition);
+        this.result.definitions.push(definition);
+        this.result.indexedDefinitions.functions.set(node, definition);
         this.recordLibraryDeclaration(node, definition);
 
         for (const parameter of node.parameters) {
@@ -308,8 +288,8 @@ class DocumentIndexBuilder extends ParserAstVisitor<void> {
                 name: this.resolveQName(parameter.name, parameter.selectionRange),
                 function: definition,
             };
-            this.definitions.push(parameterDefinition);
-            this.indexedDefinitions.parameters.set(parameter, parameterDefinition);
+            this.result.definitions.push(parameterDefinition);
+            this.result.indexedDefinitions.parameters.set(parameter, parameterDefinition);
             parameters.push(parameterDefinition);
         }
         this.visitChildren(node);
@@ -321,8 +301,8 @@ class DocumentIndexBuilder extends ParserAstVisitor<void> {
             node.range,
             node.selectionRange,
         );
-        this.definitions.push(definition);
-        this.indexedDefinitions.variables.set(node, definition);
+        this.result.definitions.push(definition);
+        this.result.indexedDefinitions.variables.set(node, definition);
         this.recordLibraryDeclaration(node, definition);
         this.visitChildren(node);
     }
@@ -331,19 +311,22 @@ class DocumentIndexBuilder extends ParserAstVisitor<void> {
         node: FunctionDeclarationAstNode | VariableDeclarationAstNode,
         definition: SourceFunctionDefinition | SourceVariableDefinition,
     ): void {
-        if (this.moduleDeclaration.kind !== "library" || !this.moduleLevelDeclarations.has(node))
+        if (
+            this.result.moduleDeclaration.kind !== "library" ||
+            !this.moduleLevelDeclarations.has(node)
+        )
             return;
 
         const namespaceUri =
             definition.kind === "function"
                 ? definition.name.qname.namespaceUri
                 : definition.name.namespaceUri;
-        if (namespaceUri === this.moduleDeclaration.targetNamespace.namespaceUri) {
-            if (node.isPrivate) return;
+        if (namespaceUri === this.result.moduleDeclaration.targetNamespace.namespaceUri) {
+            if (node.isPrivate || this.result.moduleInterface === undefined) return;
 
             const name = definitionNameToString(definition, true);
-            if (this.exports.has(name)) {
-                this.diagnostics.push({
+            if (this.result.moduleInterface.exports.has(name)) {
+                this.result.diagnostics.push({
                     severity: DiagnosticSeverity.Error,
                     code: definition.kind === "variable" ? "XQST0049" : "XQST0034",
                     message: `Module export '${name}' is defined more than once.`,
@@ -351,13 +334,13 @@ class DocumentIndexBuilder extends ParserAstVisitor<void> {
                 });
                 return;
             }
-            this.exports.set(name, definition);
+            this.result.moduleInterface.exports.set(name, definition);
             return;
         }
-        this.diagnostics.push({
+        this.result.diagnostics.push({
             severity: DiagnosticSeverity.Error,
             code: "XQST0048",
-            message: `A library module declaration must use namespace '${this.moduleDeclaration.targetNamespace.namespaceUri}'.`,
+            message: `A library module declaration must use namespace '${this.result.moduleDeclaration.targetNamespace.namespaceUri}'.`,
             range: definition.selectionRange,
         });
     }
@@ -366,8 +349,8 @@ class DocumentIndexBuilder extends ParserAstVisitor<void> {
         const occurrence = this.symbolOccurrences.get(symbolKey) ?? 0;
         this.symbolOccurrences.set(symbolKey, occurrence + 1);
         return {
-            id: `${this.document.uri}#${encodeURIComponent(symbolKey)}:${occurrence}` as SymbolId,
-            uri: this.document.uri,
+            id: `${this.result.document.uri}#${encodeURIComponent(symbolKey)}:${occurrence}` as SymbolId,
+            uri: this.result.document.uri,
             range,
             selectionRange,
             origin: "source" as const,
@@ -398,11 +381,11 @@ class DocumentIndexBuilder extends ParserAstVisitor<void> {
         const namespaceUri = isUriQualifiedQName(qname)
             ? qname.namespaceUri
             : isPrefixedQName(qname)
-              ? this.namespaces.get(qname.prefix)?.namespaceUri
+              ? this.result.namespaces.get(qname.prefix)?.namespaceUri
               : undefined;
 
         if (namespaceUri === undefined && isPrefixedQName(qname)) {
-            this.diagnostics.push({
+            this.result.diagnostics.push({
                 severity: DiagnosticSeverity.Warning,
                 message: `Undefined namespace prefix '${qname.prefix}'`,
                 range,
