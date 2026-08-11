@@ -10,7 +10,9 @@ export class ModuleGraph {
         dependencies: ReadonlySet<DocumentUri>,
     ): void {
         for (const previous of this.dependencies.get(importer) ?? []) {
-            this.dependents.get(previous)?.delete(importer);
+            const dependents = this.dependents.get(previous);
+            dependents?.delete(importer);
+            if (dependents?.size === 0) this.dependents.delete(previous);
         }
 
         this.dependencies.set(importer, new Set(dependencies));
