@@ -43,7 +43,6 @@ export type ClientConfiguration = Partial<InitializationOptions>;
 const connection = createConnection(ProposedFeatures.all);
 const documents = new TextDocuments(TextDocument);
 const workspace = new WorkspaceController();
-let supportsWorkspaceFolderChanges = false;
 
 setLoggerSink(connection.console);
 initializeNotifications((method, payload) => {
@@ -95,7 +94,6 @@ connection.onInitialize((params: InitializeParams): InitializeResult => {
 
     const initialWorkspaceFolderUris = params.workspaceFolders?.map((folder) => folder.uri) || [];
     workspace.initialize(initialWorkspaceFolderUris);
-    supportsWorkspaceFolderChanges = params.capabilities.workspace?.workspaceFolders === true;
 
     return {
         capabilities: {
@@ -282,8 +280,6 @@ connection.onDidChangeWatchedFiles((params) => {
 });
 
 connection.onInitialized(() => {
-    if (!supportsWorkspaceFolderChanges) return;
-
     connection.workspace.onDidChangeWorkspaceFolders((params) => {
         workspace.updateFolders(
             params.added.map((folder) => folder.uri),
