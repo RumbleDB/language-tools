@@ -42,7 +42,6 @@ import {
     ImplicitVariableDefinition,
     NamespaceDefinition,
     SourceDefinition,
-    SourceFunctionDefinition,
     SourceModuleExportDefinition,
 } from "./definitions.js";
 import type { DocumentIndex } from "./document-index.js";
@@ -234,7 +233,7 @@ class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
         );
 
         const children = this.enterScope(node.range, () => [
-            ...this.createFunctionParameterNodes(definition, node.parameters),
+            ...this.createFunctionParameterNodes(node.parameters),
             ...this.visitChildrenAsNodes(node),
         ]);
 
@@ -436,10 +435,7 @@ class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
         this.result.referencesByDefinition.set(reference.declaration, referencesToDefinition);
     }
 
-    private createFunctionParameterNodes(
-        definition: SourceFunctionDefinition,
-        parameters: AstParameter[],
-    ): DeclarationNode[] {
+    private createFunctionParameterNodes(parameters: AstParameter[]): DeclarationNode[] {
         return parameters.map((parameter) => {
             const parameterDefinition = this.requireIndexed(
                 this.index.indexedDefinitions.parameters,
