@@ -5,7 +5,11 @@ import type { ModuleImport } from "./module-info.js";
 import { loadSourceFile } from "./workspace-files.js";
 
 export interface ModuleLoader {
-    loadImport(importer: TextDocument, imported: ModuleImport): readonly TextDocument[];
+    resolveImport(
+        importer: TextDocument,
+        imported: ModuleImport,
+    ): readonly ResolvedModuleLocation[];
+    load(uri: DocumentUri): TextDocument | undefined;
 }
 
 export interface ResolvedModuleLocation {
@@ -55,17 +59,11 @@ export class WorkspaceDocumentStore implements ModuleLoader {
         return this.openDocuments.get(uri) ?? loadSourceFile(uri);
     }
 
-    public loadImport(importer: TextDocument, imported: ModuleImport): readonly TextDocument[] {
-        const modules: TextDocument[] = [];
-        const seenUris = new Set<DocumentUri>();
-        for (const { targetUri } of resolveModuleLocations(importer.uri, imported)) {
-            if (seenUris.has(targetUri)) continue;
-            seenUris.add(targetUri);
-
-            const document = this.load(targetUri);
-            if (document !== undefined) modules.push(document);
-        }
-        return modules;
+    public resolveImport(
+        importer: TextDocument,
+        imported: ModuleImport,
+    ): readonly ResolvedModuleLocation[] {
+        return resolveModuleLocations(importer.uri, imported);
     }
 }
 

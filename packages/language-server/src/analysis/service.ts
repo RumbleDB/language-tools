@@ -102,7 +102,15 @@ class WorkspaceAnalysisCoordinator {
             }
             importedNamespaces.add(imported.namespaceUri);
 
-            const loadedModules = this.moduleLoader.loadImport(document, imported);
+            const loadedModules: TextDocument[] = [];
+            const seenLocations = new Set<DocumentUri>();
+            for (const location of this.moduleLoader.resolveImport(document, imported)) {
+                dependencies.add(location.targetUri);
+                if (seenLocations.has(location.targetUri)) continue;
+                seenLocations.add(location.targetUri);
+                const loaded = this.moduleLoader.load(location.targetUri);
+                if (loaded !== undefined) loadedModules.push(loaded);
+            }
             if (loadedModules.length === 0) {
                 importDiagnostics.push({
                     severity: DiagnosticSeverity.Error,
@@ -116,7 +124,6 @@ class WorkspaceAnalysisCoordinator {
             const exportNames = new Set<string>();
             let foundValidModule = false;
             for (const loaded of loadedModules) {
-                dependencies.add(loaded.uri);
                 const dependencyIndex = this.getDocumentIndex(loaded);
                 if (!nextVisiting.has(loaded.uri)) {
                     this.analyse(loaded, nextVisiting);
