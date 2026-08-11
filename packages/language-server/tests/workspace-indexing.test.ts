@@ -4,16 +4,12 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 
 import { buildDocumentIndex } from "server/analysis/document-index.js";
-import { findReferenceLocations } from "server/references.js";
 import { WorkspaceDocumentStore } from "server/workspace/document-store.js";
 import { loadSourceFile } from "server/workspace/files.js";
-import { replaceWorkspaceDocuments, updateWorkspaceDocuments } from "server/workspace/service.js";
 import { WorkspaceIndex } from "server/workspace/workspace-index.js";
 import { describe, expect, it } from "vitest";
 import { TextDocument } from "vscode-languageserver-textdocument";
 import { FileChangeType } from "vscode-languageserver/node";
-
-import { positionAt } from "./test-utils.js";
 
 describe("workspace indexing", () => {
     it("isolates and remembers a document loading failure", () => {
@@ -66,7 +62,8 @@ describe("workspace indexing", () => {
                     "$library:value",
                 ].join("\n"),
             );
-            replaceWorkspaceDocuments([importerUri]);
+            const workspaceIndex = new WorkspaceIndex();
+            workspaceIndex.replaceWorkspaceDocuments([importerUri]);
 
             await writeFile(
                 modulePath,
@@ -75,18 +72,21 @@ describe("workspace indexing", () => {
                     "declare variable $library:value := 1;",
                 ].join("\n"),
             );
-            updateWorkspaceDocuments([{ uri: moduleUri, type: FileChangeType.Created }]);
+            workspaceIndex.updateWorkspaceDocuments([
+                { uri: moduleUri, type: FileChangeType.Created },
+            ]);
 
             const moduleDocument = loadSourceFile(moduleUri);
             expect(moduleDocument).toBeDefined();
             if (moduleDocument === undefined) return;
-            expect(
-                findReferenceLocations(
-                    moduleDocument,
-                    positionAt(moduleDocument, "$library:value"),
-                    false,
-                ),
-            ).toContainEqual(expect.objectContaining({ uri: importerUri }));
+            const definition = buildDocumentIndex(moduleDocument).definitions.find(
+                (candidate) => candidate.kind === "variable",
+            );
+            expect(definition).toBeDefined();
+            if (definition === undefined) return;
+            expect(workspaceIndex.getReferencesToDefinition(definition)).toContainEqual(
+                expect.objectContaining({ uri: importerUri }),
+            );
         } finally {
             await rm(directory, { recursive: true, force: true });
         }
