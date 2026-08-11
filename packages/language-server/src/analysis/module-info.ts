@@ -13,7 +13,7 @@ export interface ModuleImport {
 }
 
 interface BaseModuleDeclaration {
-    readonly imports: readonly ModuleImport[];
+    readonly imports: ModuleImport[];
 }
 
 export interface MainModuleDeclaration extends BaseModuleDeclaration {
@@ -29,5 +29,5 @@ export type ModuleDeclaration = MainModuleDeclaration | LibraryModuleDeclaration
 
 export interface ModuleInterface {
     readonly namespaceUri: string;
-    readonly exports: readonly SourceModuleExportDefinition[];
+    readonly exports: SourceModuleExportDefinition[];
 }

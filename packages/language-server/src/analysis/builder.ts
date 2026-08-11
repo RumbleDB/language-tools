@@ -70,7 +70,7 @@ export interface AnalysisResult {
     /**
      * Root AST node for the module
      */
-    readonly ast: ModuleNode;
+    ast: ModuleNode;
 
     /**
      * Module declaration of current module, either main or library
@@ -100,17 +100,17 @@ export interface AnalysisResult {
     /**
      * List of all resolved references in the module
      */
-    readonly references: readonly AnyResolvedReference[];
+    readonly references: AnyResolvedReference[];
 
     /**
      * Map from definition to all resolved references to that definition in the module
      */
-    readonly referencesByDefinition: ReadonlyMap<Definition, readonly AnyResolvedReference[]>;
+    readonly referencesByDefinition: Map<Definition, AnyResolvedReference[]>;
 
     /**
      * List of all diagnostics reported during analysis of the module
      */
-    readonly diagnostics: readonly Diagnostic[];
+    readonly diagnostics: Diagnostic[];
 }
 
 /** Declarations made visible by a directly imported library module. */
@@ -125,17 +125,9 @@ export interface AnalysisEnvironment {
 }
 
 class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
-    private readonly references: AnyResolvedReference[] = [];
-
-    private readonly referencesByDefinition = new Map<Definition, AnyResolvedReference[]>();
-
-    private readonly diagnostics: Diagnostic[];
-
     private readonly result: AnalysisResult;
 
     private currentScope: ScopeBuilder;
-
-    private readonly parserAst: ParserAstNode;
 
     private readonly index: DocumentIndex;
 
@@ -150,15 +142,12 @@ class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
                 moduleImport,
             ]),
         );
-        this.diagnostics = [...(environment.diagnostics ?? []), ...index.diagnostics];
-
-        this.parserAst = index.ast;
         const moduleScope = ScopeBuilder.module(index.document.getText().length);
 
         this.result = {
             ast: {
                 kind: "module",
-                range: this.parserAst.range,
+                range: index.ast.range,
                 children: [],
             },
             moduleDeclaration: index.moduleDeclaration,
@@ -168,19 +157,20 @@ class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
             scope: moduleScope,
             namespaces: index.namespaces,
             definitions: index.definitions,
-            references: this.references,
-            referencesByDefinition: this.referencesByDefinition,
-            diagnostics: this.diagnostics,
+            references: [],
+            referencesByDefinition: new Map(),
+            diagnostics: [...(environment.diagnostics ?? []), ...index.diagnostics],
         };
 
         this.currentScope = moduleScope;
     }
 
     public build(): AnalysisResult {
-        return {
-            ...this.result,
-            ast: this.adoptChildren(this.result.ast, this.visitChildrenAsNodes(this.parserAst)),
-        };
+        this.result.ast = this.adoptChildren(
+            this.result.ast,
+            this.visitChildrenAsNodes(this.index.ast),
+        );
+        return this.result;
     }
 
     protected override defaultVisit(node: ParserAstNode): AstNode[] {
@@ -412,7 +402,7 @@ class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
                   } satisfies ResolvedReference<K>);
 
         if (declaration === undefined) {
-            this.diagnostics.push({
+            this.result.diagnostics.push({
                 severity: DiagnosticSeverity.Error,
                 message: `Reference to undefined ${kind} '${lookupName}'`,
                 range,
@@ -438,11 +428,12 @@ class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
         // TypeScript cannot distribute a generic K into the mapped union even though
         // ResolvedReference<K> preserves the same kind/name/declaration relationship.
         const anyReference = reference as AnyResolvedReference;
-        this.references.push(anyReference);
+        this.result.references.push(anyReference);
 
-        const referencesToDefinition = this.referencesByDefinition.get(reference.declaration) ?? [];
+        const referencesToDefinition =
+            this.result.referencesByDefinition.get(reference.declaration) ?? [];
         referencesToDefinition.push(anyReference);
-        this.referencesByDefinition.set(reference.declaration, referencesToDefinition);
+        this.result.referencesByDefinition.set(reference.declaration, referencesToDefinition);
     }
 
     private createFunctionParameterNodes(
@@ -477,7 +468,7 @@ class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
               : undefined;
 
         if (namespaceUri === undefined && isPrefixedQName(qname)) {
-            this.diagnostics.push({
+            this.result.diagnostics.push({
                 severity: DiagnosticSeverity.Warning,
                 message: `Undefined namespace prefix '${qname.prefix}'`,
                 range,
