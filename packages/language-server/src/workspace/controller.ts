@@ -11,6 +11,12 @@ export class WorkspaceController {
     private readonly folderUris = new Set<DocumentUri>();
     private pending = Promise.resolve();
 
+    public constructor(
+        private readonly refreshAffectedDocuments: (
+            affected: ReadonlySet<DocumentUri>,
+        ) => void | Promise<void> = () => {},
+    ) {}
+
     public initialize(folderUris: readonly DocumentUri[]): void {
         for (const uri of folderUris) this.folderUris.add(uri);
         this.queueRebuild();
@@ -23,7 +29,7 @@ export class WorkspaceController {
     }
 
     public updateDocuments(changes: readonly FileEvent[]): void {
-        this.queue(() => updateWorkspaceDocuments(changes));
+        this.queue(() => this.scheduleRefresh(updateWorkspaceDocuments(changes)));
     }
 
     public ready(): Promise<void> {
@@ -33,8 +39,20 @@ export class WorkspaceController {
     private queueRebuild(): void {
         this.queue(async () => {
             const documents = await discoverWorkspaceDocumentUris([...this.folderUris]);
-            replaceWorkspaceDocuments(documents);
+            this.scheduleRefresh(replaceWorkspaceDocuments(documents));
         });
+    }
+
+    private scheduleRefresh(affected: ReadonlySet<DocumentUri>): void {
+        try {
+            void Promise.resolve(this.refreshAffectedDocuments(affected)).catch(
+                (error: unknown) => {
+                    logger.error("Workspace document refresh failed.", error);
+                },
+            );
+        } catch (error) {
+            logger.error("Workspace document refresh failed.", error);
+        }
     }
 
     private queue(task: () => void | Promise<void>): void {

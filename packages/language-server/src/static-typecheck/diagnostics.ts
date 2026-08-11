@@ -1,13 +1,15 @@
 import { DiagnosticSeverity, type Diagnostic } from "vscode-languageserver";
 import { TextDocument } from "vscode-languageserver-textdocument";
 
+import type { DocumentStamp } from "../workspace/document-stamp.js";
 import { getStaticTypecheck } from "./service.js";
 import type { StaticTypecheckError } from "./types.js";
 
 export async function collectStaticTypecheckDiagnostics(
     document: TextDocument,
+    stamp: DocumentStamp,
 ): Promise<Diagnostic[]> {
-    const response = await getStaticTypecheck(document);
+    const response = await getStaticTypecheck(document, stamp);
 
     const diagnostics: Diagnostic[] = [];
 

@@ -12,6 +12,7 @@ import {
 import { type Definition, type SourceModuleExportDefinition } from "../analysis/definitions.js";
 import { buildDocumentIndex, type DocumentIndex } from "../analysis/document-index.js";
 import type { AnyResolvedReference } from "../analysis/reference.js";
+import type { DocumentStamp } from "./document-stamp.js";
 import { WorkspaceDocumentStore } from "./document-store.js";
 import { ModuleGraph } from "./module-graph.js";
 import { WorkspaceSymbolIndex } from "./symbol-index.js";
@@ -34,19 +35,21 @@ export class WorkspaceIndex {
     private readonly analyses = new Map<DocumentUri, CachedAnalysis>();
     private readonly documentIndexes = new Map<DocumentUri, CachedDocumentIndex>();
     private readonly failedAnalyses = new Set<DocumentUri>();
+    private readonly workspaceRevisionsByDocument = new Map<DocumentUri, number>();
+    private nextWorkspaceRevision = 1;
 
     public constructor(
         private readonly documents: WorkspaceDocumentStore = new WorkspaceDocumentStore(),
     ) {}
 
-    public updateOpenDocument(document: TextDocument): void {
-        if (!this.documents.updateOpenDocument(document)) return;
-        this.invalidateAffected([document.uri]);
+    public updateOpenDocument(document: TextDocument): ReadonlySet<DocumentUri> {
+        if (!this.documents.updateOpenDocument(document)) return new Set();
+        return this.invalidateAffected([document.uri]);
     }
 
-    public removeOpenDocument(uri: DocumentUri): void {
-        if (!this.documents.removeOpenDocument(uri)) return;
-        this.invalidateAffected([uri]);
+    public removeOpenDocument(uri: DocumentUri): ReadonlySet<DocumentUri> {
+        if (!this.documents.removeOpenDocument(uri)) return new Set();
+        return this.invalidateAffected([uri]);
     }
 
     public getAnalysis(document: TextDocument): AnalysisResult {
@@ -54,20 +57,36 @@ export class WorkspaceIndex {
         return this.analyse(document, new Set());
     }
 
-    public replaceWorkspaceDocuments(uris: readonly DocumentUri[]): void {
+    public createDocumentStamp(document: TextDocument): DocumentStamp {
+        return {
+            uri: document.uri,
+            documentVersion: document.version,
+            workspaceRevision: this.workspaceRevisionsByDocument.get(document.uri) ?? 0,
+        };
+    }
+
+    public isDocumentStampCurrent(stamp: DocumentStamp): boolean {
+        return (
+            this.documents.getOpenDocumentVersion(stamp.uri) === stamp.documentVersion &&
+            (this.workspaceRevisionsByDocument.get(stamp.uri) ?? 0) === stamp.workspaceRevision
+        );
+    }
+
+    public replaceWorkspaceDocuments(uris: readonly DocumentUri[]): ReadonlySet<DocumentUri> {
         this.failedAnalyses.clear();
-        const removedDocuments = this.documents.replaceWorkspaceDocuments(uris);
+        const { added, removed } = this.documents.replaceWorkspaceDocuments(uris);
         logger.debug("Tracked documents:", this.documents.getTrackedDocumentUris());
-        for (const uri of removedDocuments) clearParsedDocument(uri);
-        this.invalidateAffected(removedDocuments);
-        for (const uri of removedDocuments) {
+        for (const uri of removed) clearParsedDocument(uri);
+        const affected = this.invalidateAffected([...added, ...removed]);
+        for (const uri of removed) {
             this.moduleGraph.removeOutgoingDependencies(uri);
         }
 
         this.ensureDocumentsAnalysed(this.documents.getTrackedDocumentUris());
+        return affected;
     }
 
-    public updateWorkspaceDocuments(changes: readonly FileEvent[]): void {
+    public updateWorkspaceDocuments(changes: readonly FileEvent[]): ReadonlySet<DocumentUri> {
         const changedUris = changes.map((change) => change.uri);
         for (const uri of changedUris) clearParsedDocument(uri);
         const affected = this.invalidateAffected(changedUris);
@@ -81,6 +100,7 @@ export class WorkspaceIndex {
         }
 
         this.ensureDocumentsAnalysed([...affected]);
+        return affected;
     }
 
     private analyse(document: TextDocument, visiting: Set<DocumentUri>): AnalysisResult {
@@ -227,7 +247,10 @@ export class WorkspaceIndex {
 
     private invalidateAffected(uris: readonly DocumentUri[]): ReadonlySet<DocumentUri> {
         const affected = this.moduleGraph.affectedBy(uris);
+        const workspaceRevision = this.nextWorkspaceRevision;
+        if (affected.size > 0) this.nextWorkspaceRevision += 1;
         for (const uri of affected) {
+            this.workspaceRevisionsByDocument.set(uri, workspaceRevision);
             this.analyses.delete(uri);
             this.failedAnalyses.delete(uri);
             this.symbols.remove(uri);

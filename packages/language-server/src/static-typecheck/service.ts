@@ -1,8 +1,8 @@
 import { getDocumentText } from "server/parser/utils.js";
 import { createLogger } from "server/utils/logger.js";
-import type { DocumentUri } from "vscode-languageserver";
 import { TextDocument } from "vscode-languageserver-textdocument";
 
+import { sameDocumentStamp, type DocumentStamp } from "../workspace/document-stamp.js";
 import { getWrapperClient } from "../wrapper/client.js";
 import type { WrapperDaemonResponse } from "../wrapper/protocol.js";
 import { REQUEST_TYPE_STATIC_TYPECHECK, type StaticTypecheckRequestSpec } from "./protocol.js";
@@ -14,26 +14,41 @@ export type StaticTypecheckResponse = WrapperDaemonResponse<
 >;
 
 interface CachedStaticTypecheck {
-    version: number;
+    stamp: DocumentStamp;
     response: StaticTypecheckResponse;
 }
 
 interface PendingStaticTypecheck {
-    version: number;
+    stamp: DocumentStamp;
     promise: Promise<StaticTypecheckResponse>;
+    cancelBeforeStart: () => void;
 }
 
-const staticTypecheckCache = new Map<DocumentUri, CachedStaticTypecheck>();
-
-// Avoid sending multiple identical static typecheck requests for the same document.
-const pendingStaticTypecheckByUri = new Map<DocumentUri, PendingStaticTypecheck>();
-
-export function clearStaticTypecheckCache(uri: DocumentUri): void {
-    staticTypecheckCache.delete(uri);
-    pendingStaticTypecheckByUri.delete(uri);
+interface DebouncedStaticTypecheckResult {
+    response: StaticTypecheckResponse;
+    cacheable: boolean;
 }
+
+const staticTypecheckCache = new Map<string, CachedStaticTypecheck>();
+
+const pendingStaticTypecheckByUri = new Map<string, PendingStaticTypecheck>();
+const STATIC_TYPECHECK_DEBOUNCE_MS = 250;
 
 const logger = createLogger("static-typecheck");
+
+export function cancelPendingStaticTypecheck(uri: string): void {
+    const pending = pendingStaticTypecheckByUri.get(uri);
+    if (pending === undefined) return;
+
+    pendingStaticTypecheckByUri.delete(uri);
+    pending.cancelBeforeStart();
+}
+
+export function supersedePendingStaticTypecheck(stamp: DocumentStamp): void {
+    const pending = pendingStaticTypecheckByUri.get(stamp.uri);
+    if (pending === undefined || sameDocumentStamp(pending.stamp, stamp)) return;
+    cancelPendingStaticTypecheck(stamp.uri);
+}
 
 function createEmptyStaticTypecheckResponse(): StaticTypecheckResponse {
     return {
@@ -46,7 +61,10 @@ function createEmptyStaticTypecheckResponse(): StaticTypecheckResponse {
     };
 }
 
-export async function getStaticTypecheck(document: TextDocument): Promise<StaticTypecheckResponse> {
+export async function getStaticTypecheck(
+    document: TextDocument,
+    stamp: DocumentStamp,
+): Promise<StaticTypecheckResponse> {
     const client = getWrapperClient();
 
     if (!client.isUsable()) {
@@ -54,40 +72,56 @@ export async function getStaticTypecheck(document: TextDocument): Promise<Static
     }
 
     const cached = staticTypecheckCache.get(document.uri);
-    if (cached !== undefined && cached.version === document.version) {
+    if (cached !== undefined && sameDocumentStamp(cached.stamp, stamp)) {
         return cached.response;
     }
 
     const pending = pendingStaticTypecheckByUri.get(document.uri);
-    if (pending !== undefined && pending.version === document.version) {
+    if (pending !== undefined && sameDocumentStamp(pending.stamp, stamp)) {
         return pending.promise;
     }
+    cancelPendingStaticTypecheck(document.uri);
 
     const request = createStaticTypecheckRequest(document);
-    const documentVersion = document.version;
-
-    const typecheckPromise = client
-        .sendRequest<StaticTypecheckRequestSpec>(request)
-        .then((response) => {
-            const existingCache = staticTypecheckCache.get(document.uri);
-            if (existingCache === undefined || existingCache.version <= documentVersion) {
-                staticTypecheckCache.set(document.uri, {
-                    version: documentVersion,
-                    response,
+    let requestStarted = false;
+    let cancelBeforeStart = (): void => {};
+    const backendResult = new Promise<DebouncedStaticTypecheckResult>((resolve) => {
+        const timeout = setTimeout(() => {
+            requestStarted = true;
+            void client
+                .sendRequest<StaticTypecheckRequestSpec>(request)
+                .then((response) => resolve({ response, cacheable: true }))
+                .catch((error: unknown) => {
+                    logger.warn(
+                        `Static typecheck unavailable for ${document.uri}: ${error instanceof Error ? error.message : String(error)}`,
+                    );
+                    resolve({
+                        response: createEmptyStaticTypecheckResponse(),
+                        cacheable: false,
+                    });
                 });
-            }
+        }, STATIC_TYPECHECK_DEBOUNCE_MS);
+
+        cancelBeforeStart = () => {
+            if (requestStarted) return;
+            clearTimeout(timeout);
+            resolve({ response: createEmptyStaticTypecheckResponse(), cacheable: false });
+        };
+    });
+
+    const typecheckPromise = backendResult
+        .then(({ response, cacheable }) => {
+            const pending = pendingStaticTypecheckByUri.get(document.uri);
+            if (pending?.promise !== typecheckPromise) return response;
+
+            if (cacheable) staticTypecheckCache.set(document.uri, { stamp, response });
 
             logger.debug(
-                `Static typecheck completed for ${document.uri} (version ${documentVersion})`,
+                `Static typecheck completed for ${document.uri} ` +
+                    `(document ${stamp.documentVersion}, workspace ${stamp.workspaceRevision})`,
             );
             logger.debug(JSON.stringify(response, null, 2));
             return response;
-        })
-        .catch((error) => {
-            logger.warn(
-                `Static typecheck unavailable for ${document.uri}: ${error instanceof Error ? error.message : String(error)}`,
-            );
-            return createEmptyStaticTypecheckResponse();
         })
         .finally(() => {
             const pending = pendingStaticTypecheckByUri.get(document.uri);
@@ -97,8 +131,9 @@ export async function getStaticTypecheck(document: TextDocument): Promise<Static
         });
 
     pendingStaticTypecheckByUri.set(document.uri, {
-        version: documentVersion,
+        stamp,
         promise: typecheckPromise,
+        cancelBeforeStart,
     });
 
     return typecheckPromise;

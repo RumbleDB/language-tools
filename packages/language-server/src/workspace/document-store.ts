@@ -13,6 +13,11 @@ export interface ModuleLoadResult {
     readonly document?: TextDocument;
 }
 
+export interface WorkspaceDocumentChanges {
+    readonly added: ReadonlySet<DocumentUri>;
+    readonly removed: ReadonlySet<DocumentUri>;
+}
+
 /**
  * Owns workspace document snapshots and resolves relative file module locations.
  * Open editor snapshots always take precedence over their on-disk counterpart.
@@ -34,18 +39,25 @@ export class WorkspaceDocumentStore {
         return this.openDocuments.delete(uri);
     }
 
+    public getOpenDocumentVersion(uri: DocumentUri): number | undefined {
+        return this.openDocuments.get(uri)?.version;
+    }
+
     public getTrackedDocumentUris(): readonly DocumentUri[] {
         return [...new Set([...this.workspaceDocumentUris, ...this.openDocuments.keys()])];
     }
 
-    public replaceWorkspaceDocuments(uris: readonly DocumentUri[]): readonly DocumentUri[] {
+    public replaceWorkspaceDocuments(uris: readonly DocumentUri[]): WorkspaceDocumentChanges {
         const nextUris = new Set(uris);
-        const removedUris = [...this.workspaceDocumentUris].filter((uri) => !nextUris.has(uri));
+        const added = new Set([...nextUris].filter((uri) => !this.workspaceDocumentUris.has(uri)));
+        const removed = new Set(
+            [...this.workspaceDocumentUris].filter((uri) => !nextUris.has(uri)),
+        );
 
         this.workspaceDocumentUris.clear();
         for (const uri of nextUris) this.workspaceDocumentUris.add(uri);
 
-        return removedUris;
+        return { added, removed };
     }
 
     public updateWorkspaceDocuments(changes: readonly FileEvent[]): void {

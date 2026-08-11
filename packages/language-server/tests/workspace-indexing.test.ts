@@ -92,6 +92,95 @@ describe("workspace indexing", () => {
         }
     });
 
+    it("reports open importers affected by unsaved library changes", () => {
+        const workspaceIndex = new WorkspaceIndex();
+        const moduleUri = "file:///library.jq";
+        const importer = TextDocument.create(
+            "file:///main.jq",
+            "jsoniq",
+            1,
+            [
+                'import module namespace library = "urn:library" at "library.jq";',
+                "$library:value",
+            ].join("\n"),
+        );
+        workspaceIndex.updateOpenDocument(
+            TextDocument.create(
+                moduleUri,
+                "jsoniq",
+                1,
+                [
+                    'module namespace library = "urn:library";',
+                    "declare variable $library:value := 1;",
+                ].join("\n"),
+            ),
+        );
+        expect(workspaceIndex.getAnalysis(importer).diagnostics).toEqual([]);
+        const importerBeforeLibraryChange = workspaceIndex.createDocumentStamp(importer);
+
+        const affected = workspaceIndex.updateOpenDocument(
+            TextDocument.create(
+                moduleUri,
+                "jsoniq",
+                2,
+                'module namespace library = "urn:library";',
+            ),
+        );
+
+        expect(affected).toEqual(new Set([moduleUri, importer.uri]));
+        expect(workspaceIndex.isDocumentStampCurrent(importerBeforeLibraryChange)).toBe(false);
+        const importerAfterLibraryChange = workspaceIndex.createDocumentStamp(importer);
+        expect(importerAfterLibraryChange.documentVersion).toBe(
+            importerBeforeLibraryChange.documentVersion,
+        );
+        expect(importerAfterLibraryChange.workspaceRevision).not.toBe(
+            importerBeforeLibraryChange.workspaceRevision,
+        );
+        expect(workspaceIndex.isDocumentStampCurrent(importerAfterLibraryChange)).toBe(true);
+        expect(workspaceIndex.getAnalysis(importer).diagnostics).toContainEqual(
+            expect.objectContaining({ code: "unresolved-variable" }),
+        );
+    });
+
+    it("reindexes missing-module importers when workspace discovery adds the module", async () => {
+        const directory = await mkdtemp(path.join(os.tmpdir(), "jsoniq-workspace-rebuild-"));
+        try {
+            const importerPath = path.join(directory, "main.jq");
+            const modulePath = path.join(directory, "library.jq");
+            const importerUri = pathToFileURL(importerPath).toString();
+            const moduleUri = pathToFileURL(modulePath).toString();
+            await writeFile(
+                importerPath,
+                [
+                    'import module namespace library = "urn:library" at "library.jq";',
+                    "$library:value",
+                ].join("\n"),
+            );
+            const workspaceIndex = new WorkspaceIndex();
+            workspaceIndex.replaceWorkspaceDocuments([importerUri]);
+            const importer = loadSourceFile(importerUri);
+            expect(importer).toBeDefined();
+            if (importer === undefined) return;
+            expect(workspaceIndex.getAnalysis(importer).diagnostics).toContainEqual(
+                expect.objectContaining({ code: "XQST0059" }),
+            );
+
+            await writeFile(
+                modulePath,
+                [
+                    'module namespace library = "urn:library";',
+                    "declare variable $library:value := 1;",
+                ].join("\n"),
+            );
+            const affected = workspaceIndex.replaceWorkspaceDocuments([importerUri, moduleUri]);
+
+            expect(affected).toEqual(new Set([moduleUri, importerUri]));
+            expect(workspaceIndex.getAnalysis(importer).diagnostics).toEqual([]);
+        } finally {
+            await rm(directory, { recursive: true, force: true });
+        }
+    });
+
     it("removes stale references as workspace documents change", async () => {
         const directory = await mkdtemp(path.join(os.tmpdir(), "jsoniq-workspace-lifecycle-"));
         try {
