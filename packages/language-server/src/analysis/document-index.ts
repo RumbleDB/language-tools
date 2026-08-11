@@ -37,12 +37,29 @@ import type { ModuleDeclaration, ModuleImport, ModuleInterface } from "./module-
 import { functionNameToString, QNameToString, type FunctionName, type QName } from "./names.js";
 
 export interface DocumentIndex {
+    /** The text document being analyzed. */
     readonly document: TextDocument;
+
+    /** Parsed AST root node */
     readonly ast: ParserAstNode;
+
+    /** Whether the document is a main or library module, in case of library module, the target namespace */
     readonly moduleDeclaration: ModuleDeclaration;
+
+    /** The module interface, if the document is a library module */
     readonly moduleInterface?: ModuleInterface;
+
+    /** Namespace declarations in the document, including implicit namespaces */
     readonly namespaces: ReadonlyMap<Prefix, NamespaceDefinition>;
+
+    /** All source definitions in the document */
     readonly definitions: readonly SourceDefinition[];
+
+    /**
+     * Maps connecting parser AST nodes to those definitions
+     *
+     * This will be used in the analyzer to avoid rebuilding the definitions from the AST nodes, and to connect references to their definitions.
+     */
     readonly indexedDefinitions: IndexedDefinitions;
     readonly diagnostics: readonly Diagnostic[];
 }
@@ -62,6 +79,13 @@ export interface IndexedDefinitions {
     readonly parameters: ReadonlyMap<AstParameter, SourceParameterDefinition>;
 }
 
+/**
+ * Document index is the first-stage analysis result for one document
+ *
+ * It parses the source and records facts that can be discovered without loading or semantically resolving imported modules.
+ *
+ * The resusult, DocumentIndex, is passed to analyzeDocument, which builds scopes and resolves references, using exports loaded from other documents when necessary.
+ */
 class DocumentIndexBuilder extends ParserAstVisitor<void> {
     private readonly definitions: SourceDefinition[] = [];
     private readonly indexedDefinitions = {
