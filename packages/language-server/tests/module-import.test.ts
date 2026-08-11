@@ -211,6 +211,25 @@ describe("module imports", () => {
         ]);
     });
 
+    it("reports a missing location while retaining exports from valid locations", () => {
+        const directory = path.join(process.cwd(), "tests", "samples", "modules");
+        const moduleUri = pathToFileURL(path.join(directory, "math.jq")).toString();
+        const document = testDocumentFromUri(
+            ['import module namespace math = "math.jq" at "missing.jq", "math.jq";', "$math:x"],
+            { uri: pathToFileURL(path.join(directory, "partial-import-main.jq")).toString() },
+        );
+
+        expect(getAnalysis(document).diagnostics).toEqual([
+            expect.objectContaining({
+                code: "XQST0059",
+                message: "Cannot resolve module location 'missing.jq'.",
+            }),
+        ]);
+        expect(findDefinitionLocation(document, positionAt(document, "$math:x"))?.uri).toBe(
+            moduleUri,
+        );
+    });
+
     it("uses a file-like target namespace as the fallback module location", () => {
         const directory = path.join(process.cwd(), "tests", "samples", "modules");
         const document = testDocumentFromUri(

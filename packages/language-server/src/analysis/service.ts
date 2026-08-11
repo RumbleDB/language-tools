@@ -89,25 +89,26 @@ class WorkspaceAnalysisCoordinator {
             }
             importedNamespaces.add(imported.namespaceUri);
 
-            const loadedModules = this.documents.loadImport(document, imported);
-            if (loadedModules.length === 0) {
-                importDiagnostics.push({
-                    severity: DiagnosticSeverity.Error,
-                    code: "XQST0059",
-                    message: `Cannot resolve module '${imported.namespaceUri}'.`,
-                    range: imported.locations[0]?.range ?? imported.namespaceUriRange,
-                });
-                continue;
-            }
             const exports = new Map<string, SourceModuleExportDefinition>();
             let foundValidModule = false;
-            for (const loaded of loadedModules) {
-                dependencies.add(loaded.uri);
-                const dependencyIndex = this.getDocumentIndex(loaded);
-                if (!nextVisiting.has(loaded.uri)) {
+            for (const loaded of this.documents.loadImport(document, imported)) {
+                if (loaded.document === undefined) {
+                    importDiagnostics.push({
+                        severity: DiagnosticSeverity.Error,
+                        code: "XQST0059",
+                        message: `Cannot resolve module location '${loaded.locationUri}'.`,
+                        range: loaded.range,
+                    });
+                    continue;
+                }
+
+                const dependency = loaded.document;
+                dependencies.add(dependency.uri);
+                const dependencyIndex = this.getDocumentIndex(dependency);
+                if (!nextVisiting.has(dependency.uri)) {
                     // Populate the dependency graph and workspace reference index for the
                     // library itself. Its exports are already available from its document index.
-                    this.analyse(loaded, nextVisiting);
+                    this.analyse(dependency, nextVisiting);
                 }
                 if (
                     dependencyIndex.moduleDeclaration.kind !== "library" ||
@@ -117,7 +118,7 @@ class WorkspaceAnalysisCoordinator {
                         severity: DiagnosticSeverity.Error,
                         code: "XQST0059",
                         message: `Imported module must declare namespace '${imported.namespaceUri}'.`,
-                        range: imported.namespaceUriRange,
+                        range: loaded.range,
                     });
                     continue;
                 }
@@ -128,7 +129,7 @@ class WorkspaceAnalysisCoordinator {
                             severity: DiagnosticSeverity.Error,
                             code: exported.kind === "variable" ? "XQST0049" : "XQST0034",
                             message: `Module export '${name}' is defined more than once.`,
-                            range: imported.namespaceUriRange,
+                            range: loaded.range,
                         });
                         continue;
                     }
@@ -188,15 +189,19 @@ const workspaceAnalysis = new WorkspaceAnalysisCoordinator();
 export function getAnalysis(document: TextDocument): AnalysisResult {
     return workspaceAnalysis.getAnalysis(document);
 }
+
 export function updateOpenDocument(document: TextDocument): void {
     workspaceAnalysis.updateOpenDocument(document);
 }
+
 export function removeOpenDocument(uri: DocumentUri): void {
     workspaceAnalysis.removeOpenDocument(uri);
 }
+
 export function invalidateModuleDocuments(uris: readonly DocumentUri[]): void {
     workspaceAnalysis.invalidateDocuments(uris);
 }
+
 export function getWorkspaceReferencesToDefinition(
     definition: Definition,
 ): readonly AnyResolvedReference[] {

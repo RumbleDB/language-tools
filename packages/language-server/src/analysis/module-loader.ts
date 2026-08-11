@@ -11,15 +11,17 @@ interface ResolvedModuleLocation {
     readonly range: Range;
 }
 
+export interface ModuleLoadResult {
+    readonly locationUri: string;
+    readonly range: Range;
+    readonly document?: TextDocument;
+}
+
 export function resolveModuleLocations(
     importerUri: DocumentUri,
     imported: ModuleImport,
 ): readonly ResolvedModuleLocation[] {
-    const locations =
-        imported.locations.length === 0
-            ? [{ uri: imported.namespaceUri, range: imported.namespaceUriRange }]
-            : imported.locations;
-    return locations.flatMap((location) => {
+    return importLocations(imported).flatMap((location) => {
         const targetUri = resolveUri(location.uri, importerUri);
         return targetUri === undefined ? [] : [{ targetUri, range: location.range }];
     });
@@ -49,23 +51,33 @@ export class WorkspaceDocumentStore {
         return [...this.openDocuments.values()];
     }
 
-    public loadImport(importer: TextDocument, imported: ModuleImport): readonly TextDocument[] {
-        const modules: TextDocument[] = [];
+    public loadImport(importer: TextDocument, imported: ModuleImport): readonly ModuleLoadResult[] {
+        const results: ModuleLoadResult[] = [];
         const seenUris = new Set<DocumentUri>();
-        for (const { targetUri } of resolveModuleLocations(importer.uri, imported)) {
+        for (const location of importLocations(imported)) {
+            const targetUri = resolveUri(location.uri, importer.uri);
+            if (targetUri === undefined) {
+                results.push({ locationUri: location.uri, range: location.range });
+                continue;
+            }
             if (seenUris.has(targetUri)) continue;
             seenUris.add(targetUri);
 
-            const open = this.openDocuments.get(targetUri);
-            if (open !== undefined) {
-                modules.push(open);
-                continue;
-            }
-            const document = loadFileDocument(targetUri);
-            if (document !== undefined) modules.push(document);
+            const document = this.openDocuments.get(targetUri) ?? loadFileDocument(targetUri);
+            results.push({
+                locationUri: location.uri,
+                range: location.range,
+                ...(document === undefined ? {} : { document }),
+            });
         }
-        return modules;
+        return results;
     }
+}
+
+function importLocations(imported: ModuleImport): readonly { uri: string; range: Range }[] {
+    return imported.locations.length === 0
+        ? [{ uri: imported.namespaceUri, range: imported.namespaceUriRange }]
+        : imported.locations;
 }
 
 function resolveUri(location: string, baseUri: DocumentUri): DocumentUri | undefined {
