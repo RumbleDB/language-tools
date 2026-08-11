@@ -228,6 +228,7 @@ class WorkspaceAnalysisCoordinator {
 
     private ensureDocumentsAnalysed(uris: readonly DocumentUri[]): void {
         for (const uri of new Set(uris)) {
+            if (this.cache.has(uri)) continue;
             const document = this.documents.load(uri);
             if (document !== undefined) this.analyse(document, new Set());
         }
