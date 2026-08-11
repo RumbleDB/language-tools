@@ -15,14 +15,16 @@ export function parseQname(qnameNode: QnameContext): LexicalQName {
 
 function functionArity(
     node: FunctionDeclContext | FunctionCallContext | NamedFunctionRefContext,
-): number {
+): number | undefined {
     if (node instanceof FunctionDeclContext) {
         return node.paramList()?.param().length ?? 0;
     } else if (node instanceof FunctionCallContext) {
-        return node.argumentList()?.argument().length ?? 0;
+        return node.argumentList()?.argument().length;
     } else if (node instanceof NamedFunctionRefContext) {
         const arity = node._arity?.text ?? node.IntegerLiteral()?.getText();
-        return arity === undefined ? 0 : Number.parseInt(arity, 10);
+        if (arity === undefined) return undefined;
+        const parsed = Number.parseInt(arity, 10);
+        return Number.isNaN(parsed) ? undefined : parsed;
     }
     throw new Error("Unsupported node type for function arity extraction");
 }
@@ -33,10 +35,7 @@ export function parseFunctionName(
     const qname = parseQNameText(node._fn_name?.getText() ?? "");
     const arity = functionArity(node);
 
-    return {
-        qname,
-        arity,
-    };
+    return arity === undefined ? { qname } : { qname, arity };
 }
 
 export function parseVarName(node: VarRefContext | VarBindingContext): LexicalQName | null {

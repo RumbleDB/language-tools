@@ -11,7 +11,11 @@ describe.each(["jsoniq", "xquery"])("%s parser recovery", (languageId) => {
         });
 
         const parsed = parseDocument(document);
+        const reference = parsed.ast.children.find(
+            (node) => node.kind === "named-function-reference",
+        );
 
         expect(parsed.diagnostics.length).toBeGreaterThan(0);
+        expect(reference?.name.arity).toBeUndefined();
     });
 });
