@@ -5,7 +5,7 @@ import { pathToFileURL } from "node:url";
 
 import { WorkspaceDocumentStore } from "server/analysis/module-loader.js";
 import {
-    indexWorkspaceDocuments,
+    replaceWorkspaceDocuments,
     updateWorkspaceDocuments,
     WorkspaceAnalysisCoordinator,
 } from "server/analysis/service.js";
@@ -39,7 +39,7 @@ describe("workspace indexing", () => {
         const coordinator = new WorkspaceAnalysisCoordinator(new FailingDocumentStore());
         const analysis = coordinator.getAnalysis(validDocument);
 
-        expect(() => coordinator.indexWorkspaceDocuments([failingUri, validUri])).not.toThrow();
+        expect(() => coordinator.replaceWorkspaceDocuments([failingUri, validUri])).not.toThrow();
         const definition = analysis.definitions.find((candidate) => candidate.kind === "variable");
         expect(definition).toBeDefined();
         if (definition === undefined) return;
@@ -62,7 +62,7 @@ describe("workspace indexing", () => {
                     "$library:value",
                 ].join("\n"),
             );
-            indexWorkspaceDocuments([importerUri]);
+            replaceWorkspaceDocuments([importerUri]);
 
             await writeFile(
                 modulePath,

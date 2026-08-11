@@ -52,14 +52,12 @@ const workspaceFolderUris = new Set<string>();
 let workspaceIndexReady = Promise.resolve();
 let supportsWorkspaceFolderChanges = false;
 
-function reportWorkspaceIndexFailure(error: unknown): void {
-    connection.console.error(
-        `Workspace indexing failed: ${error instanceof Error ? error.message : String(error)}`,
-    );
-}
-
 function queueWorkspaceIndex(task: () => void | Promise<void>): void {
-    workspaceIndexReady = workspaceIndexReady.then(task).catch(reportWorkspaceIndexFailure);
+    workspaceIndexReady = workspaceIndexReady.then(task).catch((error: unknown) => {
+        connection.console.error(
+            `Workspace indexing failed: ${error instanceof Error ? error.message : String(error)}`,
+        );
+    });
 }
 
 async function rebuildWorkspaceIndex(): Promise<void> {

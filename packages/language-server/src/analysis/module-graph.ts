@@ -21,7 +21,7 @@ export class ModuleGraph {
         }
     }
 
-    public removeDocument(uri: DocumentUri): void {
+    public removeOutgoingDependencies(uri: DocumentUri): void {
         this.replaceDependencies(uri, new Set());
         this.dependencies.delete(uri);
     }

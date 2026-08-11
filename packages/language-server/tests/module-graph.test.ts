@@ -31,7 +31,7 @@ describe("module graph", () => {
         const graph = new ModuleGraph();
         graph.replaceDependencies("file:///module.jq", new Set(["file:///dependency.jq"]));
 
-        graph.removeDocument("file:///module.jq");
+        graph.removeOutgoingDependencies("file:///module.jq");
 
         expect([...graph.affectedBy(["file:///dependency.jq"])]).toEqual(["file:///dependency.jq"]);
     });

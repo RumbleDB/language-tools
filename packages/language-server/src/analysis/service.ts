@@ -13,7 +13,7 @@ import { buildDocumentIndex, type DocumentIndex } from "./document-index.js";
 import { ModuleGraph } from "./module-graph.js";
 import { WorkspaceDocumentStore, type ModuleLoader } from "./module-loader.js";
 import type { AnyResolvedReference } from "./reference.js";
-import { isWorkspaceDocumentUri } from "./workspace-files.js";
+import { isSupportedSourceUri } from "./workspace-files.js";
 import { WorkspaceSymbolIndex } from "./workspace-symbol-index.js";
 
 export interface WorkspaceDocumentChange {
@@ -48,24 +48,17 @@ export class WorkspaceAnalysisCoordinator {
 
     public updateOpenDocument(document: TextDocument): void {
         if (!this.documents.update(document)) return;
-        this.failedDocuments.clear();
-        this.invalidateAffected([document.uri], true);
+        this.invalidateAffected([document.uri]);
     }
 
     public removeOpenDocument(uri: DocumentUri): void {
         if (!this.documents.remove(uri)) return;
-        this.failedDocuments.clear();
-        this.invalidateAffected([uri], true);
+        this.invalidateAffected([uri]);
     }
 
     public getAnalysis(document: TextDocument): AnalysisResult {
         this.updateOpenDocument(document);
         return this.analyse(document, new Set());
-    }
-
-    public indexWorkspaceDocuments(uris: readonly DocumentUri[]): void {
-        for (const uri of uris) this.workspaceDocuments.add(uri);
-        this.ensureDocumentsAnalysed(uris);
     }
 
     public replaceWorkspaceDocuments(uris: readonly DocumentUri[]): void {
@@ -75,8 +68,10 @@ export class WorkspaceAnalysisCoordinator {
             (uri) => !nextDocuments.has(uri),
         );
         for (const uri of removedDocuments) clearParsedDocument(uri);
-        this.invalidateAffected(removedDocuments, true);
-        for (const uri of removedDocuments) this.moduleGraph.removeDocument(uri);
+        this.invalidateAffected(removedDocuments);
+        for (const uri of removedDocuments) {
+            this.moduleGraph.removeOutgoingDependencies(uri);
+        }
 
         this.workspaceDocuments.clear();
         for (const uri of nextDocuments) this.workspaceDocuments.add(uri);
@@ -87,16 +82,15 @@ export class WorkspaceAnalysisCoordinator {
     }
 
     public updateWorkspaceDocuments(changes: readonly WorkspaceDocumentChange[]): void {
-        this.failedDocuments.clear();
         const changedUris = changes.map((change) => change.uri);
         for (const uri of changedUris) clearParsedDocument(uri);
-        const affected = this.invalidateAffected(changedUris, true);
+        const affected = this.invalidateAffected(changedUris);
 
         for (const change of changes) {
             if (change.kind === "deleted") {
                 this.workspaceDocuments.delete(change.uri);
-                this.moduleGraph.removeDocument(change.uri);
-            } else if (isWorkspaceDocumentUri(change.uri)) {
+                this.moduleGraph.removeOutgoingDependencies(change.uri);
+            } else if (isSupportedSourceUri(change.uri)) {
                 this.workspaceDocuments.add(change.uri);
             }
         }
@@ -269,19 +263,14 @@ export class WorkspaceAnalysisCoordinator {
         }
     }
 
-    private invalidateAffected(
-        uris: readonly DocumentUri[],
-        invalidateIndexes: boolean,
-    ): ReadonlySet<DocumentUri> {
+    private invalidateAffected(uris: readonly DocumentUri[]): ReadonlySet<DocumentUri> {
         const affected = this.moduleGraph.affectedBy(uris);
         for (const uri of affected) {
             this.cache.delete(uri);
             this.failedDocuments.delete(uri);
             this.symbols.remove(uri);
         }
-        if (invalidateIndexes) {
-            for (const uri of uris) this.indexes.delete(uri);
-        }
+        for (const uri of uris) this.indexes.delete(uri);
         return affected;
     }
 }
@@ -290,9 +279,6 @@ const workspaceAnalysis = new WorkspaceAnalysisCoordinator();
 
 export function getAnalysis(document: TextDocument): AnalysisResult {
     return workspaceAnalysis.getAnalysis(document);
-}
-export function indexWorkspaceDocuments(uris: readonly DocumentUri[]): void {
-    workspaceAnalysis.indexWorkspaceDocuments(uris);
 }
 export function replaceWorkspaceDocuments(uris: readonly DocumentUri[]): void {
     workspaceAnalysis.replaceWorkspaceDocuments(uris);

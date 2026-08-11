@@ -5,7 +5,7 @@ import { pathToFileURL } from "node:url";
 import { analyzeDocument } from "server/analysis/builder.js";
 import { definitionNameToString } from "server/analysis/definitions.js";
 import { buildDocumentIndex } from "server/analysis/document-index.js";
-import { getAnalysis, indexWorkspaceDocuments } from "server/analysis/service.js";
+import { getAnalysis, replaceWorkspaceDocuments } from "server/analysis/service.js";
 import { findDefinitionLocation } from "server/definitions.js";
 import { findReferenceLocations } from "server/references.js";
 import { buildRenameWorkspaceEdit } from "server/rename.js";
@@ -146,7 +146,7 @@ describe("module imports", () => {
         const importerUri = pathToFileURL(
             path.join(directory, "workspace-reference-main.jq"),
         ).toString();
-        indexWorkspaceDocuments([moduleUri, importerUri]);
+        replaceWorkspaceDocuments([moduleUri, importerUri]);
         const moduleDocument = testDocumentFromUri(
             readFileSync(path.join(directory, "math.jq"), "utf8"),
             {

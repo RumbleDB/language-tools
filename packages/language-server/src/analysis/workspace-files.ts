@@ -22,7 +22,7 @@ export function languageIdForWorkspacePath(filePath: string): string | undefined
     return LANGUAGE_BY_EXTENSION.get(path.extname(filePath).toLowerCase());
 }
 
-export function isWorkspaceDocumentUri(uri: DocumentUri): boolean {
+export function isSupportedSourceUri(uri: DocumentUri): boolean {
     if (!uri.startsWith("file:")) return false;
     try {
         return languageIdForWorkspacePath(fileURLToPath(uri)) !== undefined;
