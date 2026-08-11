@@ -139,6 +139,8 @@ export class WorkspaceIndex {
                 const dependency = loaded.document;
                 const dependencyIndex = this.getDocumentIndex(dependency);
                 if (!nextVisiting.has(dependency.uri)) {
+                    // Populate the dependency graph and workspace reference index for the
+                    // library itself. Its exports are already available from its document index.
                     this.analyse(dependency, nextVisiting);
                 }
                 if (
