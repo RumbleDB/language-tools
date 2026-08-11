@@ -26,7 +26,11 @@ import { findSignatureHelp } from "./signature-help.js";
 import { collectDocumentSymbols } from "./symbols.js";
 import { setLoggerSink } from "./utils/logger.js";
 import { WorkspaceController } from "./workspace/controller.js";
-import { removeOpenDocument, updateOpenDocument } from "./workspace/service.js";
+import {
+    getAffectedDocuments,
+    removeOpenDocument,
+    updateOpenDocument,
+} from "./workspace/service.js";
 
 export type ClientConfiguration = Partial<InitializationOptions>;
 
@@ -77,10 +81,6 @@ async function requestPresentationRefresh(): Promise<void> {
     return pendingPresentationRefresh;
 }
 
-function hasOpenDependent(affected: ReadonlySet<string>, changedUri: string): boolean {
-    return [...affected].some((uri) => uri !== changedUri && documents.get(uri) !== undefined);
-}
-
 connection.onInitialize((params: InitializeParams): InitializeResult => {
     const clientConfiguration: Partial<InitializationOptions> = params.initializationOptions || {};
     mergeConfiguration(clientConfiguration);
@@ -94,7 +94,11 @@ connection.onInitialize((params: InitializeParams): InitializeResult => {
 
     return {
         capabilities: {
-            textDocumentSync: TextDocumentSyncKind.Incremental,
+            textDocumentSync: {
+                openClose: true,
+                change: TextDocumentSyncKind.Incremental,
+                save: true,
+            },
             documentSymbolProvider: true,
             documentLinkProvider: {
                 resolveProvider: false,
@@ -255,12 +259,20 @@ connection.onDocumentFormatting((params) => {
 
 documents.onDidOpen(async (event) => {
     const affected = updateOpenDocument(event.document);
-    await refreshAffectedDocuments(affected, hasOpenDependent(affected, event.document.uri));
+    diagnostics.scheduleDependentRefresh(affected, event.document.uri);
+    await diagnostics.refresh(event.document.uri);
 });
 
 documents.onDidChangeContent(async (event) => {
     const affected = updateOpenDocument(event.document);
-    await refreshAffectedDocuments(affected, hasOpenDependent(affected, event.document.uri));
+    diagnostics.scheduleDependentRefresh(affected, event.document.uri);
+    await diagnostics.refresh(event.document.uri);
+});
+
+documents.onDidSave(async (event) => {
+    const affected = new Set(getAffectedDocuments([event.document.uri]));
+    affected.delete(event.document.uri);
+    await refreshAffectedDocuments(affected);
 });
 
 documents.onDidClose(async (event) => {

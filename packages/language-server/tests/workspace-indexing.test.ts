@@ -117,6 +117,10 @@ describe("workspace indexing", () => {
         );
         expect(workspaceIndex.getAnalysis(importer).diagnostics).toEqual([]);
         const importerBeforeLibraryChange = workspaceIndex.createDocumentStamp(importer);
+        expect(workspaceIndex.getAffectedDocuments([moduleUri])).toEqual(
+            new Set([moduleUri, importer.uri]),
+        );
+        expect(workspaceIndex.isDocumentStampCurrent(importerBeforeLibraryChange)).toBe(true);
 
         const affected = workspaceIndex.updateOpenDocument(
             TextDocument.create(

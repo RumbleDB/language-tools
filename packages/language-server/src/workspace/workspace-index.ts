@@ -72,6 +72,10 @@ export class WorkspaceIndex {
         );
     }
 
+    public getAffectedDocuments(uris: readonly DocumentUri[]): ReadonlySet<DocumentUri> {
+        return this.moduleGraph.affectedBy(uris);
+    }
+
     public replaceWorkspaceDocuments(uris: readonly DocumentUri[]): ReadonlySet<DocumentUri> {
         this.failedAnalyses.clear();
         const { added, removed } = this.documents.replaceWorkspaceDocuments(uris);

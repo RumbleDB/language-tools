@@ -22,6 +22,10 @@ export function isDocumentStampCurrent(stamp: DocumentStamp): boolean {
     return workspaceIndex.isDocumentStampCurrent(stamp);
 }
 
+export function getAffectedDocuments(uris: readonly DocumentUri[]): ReadonlySet<DocumentUri> {
+    return workspaceIndex.getAffectedDocuments(uris);
+}
+
 export function replaceWorkspaceDocuments(uris: readonly DocumentUri[]): ReadonlySet<DocumentUri> {
     return workspaceIndex.replaceWorkspaceDocuments(uris);
 }
