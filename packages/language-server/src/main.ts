@@ -10,7 +10,7 @@ import {
 } from "vscode-languageserver/node";
 
 import {
-    indexWorkspaceDocuments,
+    replaceWorkspaceDocuments,
     removeOpenDocument,
     updateOpenDocument,
     updateWorkspaceDocuments,
@@ -48,12 +48,22 @@ export type ClientConfiguration = Partial<InitializationOptions>;
 
 const connection = createConnection(ProposedFeatures.all);
 const documents = new TextDocuments(TextDocument);
+const workspaceFolderUris = new Set<string>();
 let workspaceIndexReady = Promise.resolve();
 
 function reportWorkspaceIndexFailure(error: unknown): void {
     connection.console.error(
         `Workspace indexing failed: ${error instanceof Error ? error.message : String(error)}`,
     );
+}
+
+function queueWorkspaceIndex(task: () => void | Promise<void>): void {
+    workspaceIndexReady = workspaceIndexReady.then(task).catch(reportWorkspaceIndexFailure);
+}
+
+async function rebuildWorkspaceIndex(): Promise<void> {
+    const uris = await discoverWorkspaceDocumentUris([...workspaceFolderUris]);
+    replaceWorkspaceDocuments(uris);
 }
 
 setLoggerSink(connection.console);
@@ -103,12 +113,11 @@ connection.onInitialize((params: InitializeParams): InitializeResult => {
     const clientConfiguration: Partial<InitializationOptions> = params.initializationOptions || {};
     mergeConfiguration(clientConfiguration);
     connection.console.log(`Language server configuration: ${JSON.stringify(config, null, 4)}`);
-    const workspaceFolderUris =
+    const initialWorkspaceFolderUris =
         params.workspaceFolders?.map((folder) => folder.uri) ??
         (params.rootUri === null || params.rootUri === undefined ? [] : [params.rootUri]);
-    workspaceIndexReady = discoverWorkspaceDocumentUris(workspaceFolderUris)
-        .then((uris) => indexWorkspaceDocuments(uris))
-        .catch(reportWorkspaceIndexFailure);
+    for (const uri of initialWorkspaceFolderUris) workspaceFolderUris.add(uri);
+    queueWorkspaceIndex(rebuildWorkspaceIndex);
 
     return {
         capabilities: {
@@ -135,6 +144,12 @@ connection.onInitialize((params: InitializeParams): InitializeResult => {
                 full: true,
             },
             documentFormattingProvider: true,
+            workspace: {
+                workspaceFolders: {
+                    supported: true,
+                    changeNotifications: true,
+                },
+            },
         },
         serverInfo: {
             name: "JSONiq Language Server",
@@ -285,21 +300,25 @@ documents.onDidClose((event) => {
 });
 
 connection.onDidChangeWatchedFiles((params) => {
-    workspaceIndexReady = workspaceIndexReady
-        .then(() => {
-            updateWorkspaceDocuments(
-                params.changes.map((change) => ({
-                    uri: change.uri,
-                    kind:
-                        change.type === FileChangeType.Created
-                            ? "created"
-                            : change.type === FileChangeType.Deleted
-                              ? "deleted"
-                              : "changed",
-                })),
-            );
-        })
-        .catch(reportWorkspaceIndexFailure);
+    queueWorkspaceIndex(() => {
+        updateWorkspaceDocuments(
+            params.changes.map((change) => ({
+                uri: change.uri,
+                kind:
+                    change.type === FileChangeType.Created
+                        ? "created"
+                        : change.type === FileChangeType.Deleted
+                          ? "deleted"
+                          : "changed",
+            })),
+        );
+    });
+});
+
+connection.workspace.onDidChangeWorkspaceFolders((params) => {
+    for (const folder of params.removed) workspaceFolderUris.delete(folder.uri);
+    for (const folder of params.added) workspaceFolderUris.add(folder.uri);
+    queueWorkspaceIndex(rebuildWorkspaceIndex);
 });
 
 documents.listen(connection);

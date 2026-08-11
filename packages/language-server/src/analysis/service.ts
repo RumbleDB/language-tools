@@ -62,6 +62,23 @@ class WorkspaceAnalysisCoordinator {
         this.ensureDocumentsAnalysed(uris);
     }
 
+    public replaceWorkspaceDocuments(uris: readonly DocumentUri[]): void {
+        const nextDocuments = new Set(uris);
+        const removedDocuments = [...this.workspaceDocuments].filter(
+            (uri) => !nextDocuments.has(uri),
+        );
+        for (const uri of removedDocuments) clearParsedDocument(uri);
+        this.invalidateAffected(removedDocuments, true);
+        for (const uri of removedDocuments) this.moduleGraph.removeDocument(uri);
+
+        this.workspaceDocuments.clear();
+        for (const uri of nextDocuments) this.workspaceDocuments.add(uri);
+        this.ensureDocumentsAnalysed([
+            ...this.workspaceDocuments,
+            ...this.documents.getOpenDocuments().map((document) => document.uri),
+        ]);
+    }
+
     public updateWorkspaceDocuments(changes: readonly WorkspaceDocumentChange[]): void {
         const changedUris = changes.map((change) => change.uri);
         for (const uri of changedUris) clearParsedDocument(uri);
@@ -257,6 +274,9 @@ export function getAnalysis(document: TextDocument): AnalysisResult {
 }
 export function indexWorkspaceDocuments(uris: readonly DocumentUri[]): void {
     workspaceAnalysis.indexWorkspaceDocuments(uris);
+}
+export function replaceWorkspaceDocuments(uris: readonly DocumentUri[]): void {
+    workspaceAnalysis.replaceWorkspaceDocuments(uris);
 }
 export function updateWorkspaceDocuments(changes: readonly WorkspaceDocumentChange[]): void {
     workspaceAnalysis.updateWorkspaceDocuments(changes);
