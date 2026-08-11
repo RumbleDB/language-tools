@@ -43,12 +43,20 @@ export class DiagnosticService {
         }
 
         const syntaxDiagnostics = parseDocument(document).diagnostics;
-        const semanticDiagnostics =
-            syntaxDiagnostics.length === 0 ? collectSemanticDiagnostics(document) : [];
-        const typeDiagnostics =
-            syntaxDiagnostics.length === 0
-                ? await collectStaticTypecheckDiagnostics(document, stamp)
-                : [];
+        if (!isDocumentStampCurrent(stamp)) return;
+        this.connection.sendDiagnostics({
+            uri: document.uri,
+            version: stamp.documentVersion,
+            diagnostics: syntaxDiagnostics,
+        });
+
+        if (syntaxDiagnostics.length > 0) {
+            /// In case of syntax errors, we do not run semantic or static typecheck diagnostics, as they may be misleading or irrelevant.
+            return;
+        }
+
+        const semanticDiagnostics = collectSemanticDiagnostics(document);
+        const typeDiagnostics = await collectStaticTypecheckDiagnostics(document, stamp);
 
         if (!isDocumentStampCurrent(stamp)) return;
 
