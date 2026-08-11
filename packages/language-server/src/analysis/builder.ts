@@ -41,7 +41,6 @@ import {
     DefinitionByReferenceKind,
     ImplicitVariableDefinition,
     NamespaceDefinition,
-    ScopeDefinition,
     SourceDefinition,
     SourceFunctionDefinition,
     SourceModuleExportDefinition,
@@ -185,26 +184,29 @@ class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
 
         const resolvedImport = this.resolvedImportsByNamespace.get(node.namespaceUri);
         for (const declaration of resolvedImport?.exports ?? []) {
-            this.declareDefinition(declaration, 0);
+            this.currentScope.declare(declaration, 0);
         }
         return declarations;
     }
 
     protected override visitContextItemDeclaration(node: ContextItemDeclarationAstNode): AstNode[] {
         const definition = this.requireIndexed(this.index.indexedDefinitions.contextItems, node);
-        this.declareDefinition(definition, this.index.document.offsetAt(node.range.end));
+        this.currentScope.declare(definition, this.index.document.offsetAt(node.range.end));
         return [this.createDeclarationNode(definition)];
     }
 
     protected override visitTypeDeclaration(node: TypeDeclarationAstNode): AstNode[] {
         const definition = this.requireIndexed(this.index.indexedDefinitions.types, node);
-        this.declareDefinition(definition, this.index.document.offsetAt(node.range.end));
+        this.currentScope.declare(definition, this.index.document.offsetAt(node.range.end));
         return [this.createDeclarationNode(definition)];
     }
 
     protected override visitFunctionDeclaration(node: FunctionDeclarationAstNode): AstNode[] {
         const definition = this.requireIndexed(this.index.indexedDefinitions.functions, node);
-        this.declareDefinition(definition, this.index.document.offsetAt(node.selectionRange.end));
+        this.currentScope.declare(
+            definition,
+            this.index.document.offsetAt(node.selectionRange.end),
+        );
 
         const children = this.enterScope(node.range, () => [
             ...this.createFunctionParameterNodes(definition, node.parameters),
@@ -216,7 +218,7 @@ class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
 
     protected override visitVariableDeclaration(node: VariableDeclarationAstNode): AstNode[] {
         const definition = this.requireIndexed(this.index.indexedDefinitions.variables, node);
-        this.declareDefinition(definition, this.index.document.offsetAt(node.visibleFrom));
+        this.currentScope.declare(definition, this.index.document.offsetAt(node.visibleFrom));
         const children = this.visitChildrenAsNodes(node);
         return [this.createDeclarationNode(definition, children)];
     }
@@ -233,7 +235,7 @@ class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
                     name: this.resolveQName(name, node.range),
                     origin: "implicit",
                 };
-                this.declareDefinition(definition, this.index.document.offsetAt(node.bodyStart));
+                this.currentScope.declare(definition, this.index.document.offsetAt(node.bodyStart));
             }
             return this.visitChildrenAsNodes(node);
         });
@@ -335,10 +337,6 @@ class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
         }
     }
 
-    private declareDefinition(definition: ScopeDefinition, visibleFrom: number): void {
-        this.currentScope.declare(definition, visibleFrom);
-    }
-
     private requireIndexed<K, V>(definitions: ReadonlyMap<K, V>, node: K): V {
         const definition = definitions.get(node);
         if (definition !== undefined) return definition;
@@ -421,7 +419,7 @@ class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
                 this.index.indexedDefinitions.parameters,
                 parameter,
             );
-            this.declareDefinition(
+            this.currentScope.declare(
                 parameterDefinition,
                 this.index.document.offsetAt(parameter.range.end),
             );
