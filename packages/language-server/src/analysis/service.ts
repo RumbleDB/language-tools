@@ -142,19 +142,31 @@ export class WorkspaceAnalysisCoordinator {
             const loadedModules: TextDocument[] = [];
             const seenLocations = new Set<DocumentUri>();
             for (const location of this.moduleLoader.resolveImport(document, imported)) {
+                if (location.targetUri === undefined) {
+                    importDiagnostics.push({
+                        severity: DiagnosticSeverity.Error,
+                        code: "XQST0059",
+                        message: `Cannot resolve module location '${location.locationUri}'.`,
+                        range: location.range,
+                    });
+                    continue;
+                }
                 dependencies.add(location.targetUri);
                 if (seenLocations.has(location.targetUri)) continue;
                 seenLocations.add(location.targetUri);
                 const loaded = this.moduleLoader.load(location.targetUri);
-                if (loaded !== undefined) loadedModules.push(loaded);
+                if (loaded === undefined) {
+                    importDiagnostics.push({
+                        severity: DiagnosticSeverity.Error,
+                        code: "XQST0059",
+                        message: `Cannot resolve module location '${location.locationUri}'.`,
+                        range: location.range,
+                    });
+                    continue;
+                }
+                loadedModules.push(loaded);
             }
             if (loadedModules.length === 0) {
-                importDiagnostics.push({
-                    severity: DiagnosticSeverity.Error,
-                    code: "XQST0059",
-                    message: `Cannot resolve module '${imported.namespaceUri}'.`,
-                    range: imported.locations[0]?.range ?? imported.namespaceUriRange,
-                });
                 continue;
             }
             const exports: SourceModuleExportDefinition[] = [];

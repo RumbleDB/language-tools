@@ -22,16 +22,17 @@ import { DiagnosticSeverity, type Diagnostic, type Range } from "vscode-language
 import type { TextDocument } from "vscode-languageserver-textdocument";
 
 import { defaultNamespaces } from "./default-namespaces.js";
-import { createSourceSymbolId } from "./definitions.js";
-import type {
-    ImplicitNamespaceDefinition,
-    NamespaceDefinition,
-    SourceDefinition,
-    SourceFunctionDefinition,
-    SourceModuleExportDefinition,
-    SourceNamespaceDefinition,
-    SourceParameterDefinition,
-    SourceVariableDefinition,
+import {
+    definitionNameToString,
+    type ImplicitNamespaceDefinition,
+    type NamespaceDefinition,
+    type SourceDefinition,
+    type SourceFunctionDefinition,
+    type SourceModuleExportDefinition,
+    type SourceNamespaceDefinition,
+    type SourceParameterDefinition,
+    type SymbolId,
+    type SourceVariableDefinition,
 } from "./definitions.js";
 import type { ModuleDeclaration, ModuleImport, ModuleInterface } from "./module-info.js";
 import { functionNameToString, QNameToString, type FunctionName, type QName } from "./names.js";
@@ -79,6 +80,7 @@ class DocumentIndexBuilder extends ParserAstVisitor<void> {
     private readonly symbolOccurrences = new Map<string, number>();
     private readonly imports: ModuleImport[] = [];
     private readonly exports: SourceModuleExportDefinition[] = [];
+    private readonly exportNames = new Set<string>();
     private readonly namespaces = new Map<Prefix, NamespaceDefinition>(
         defaultNamespaces.entries().map(([prefix, namespaceUri]) => {
             const definition: ImplicitNamespaceDefinition = {
@@ -313,7 +315,20 @@ class DocumentIndexBuilder extends ParserAstVisitor<void> {
                 ? definition.name.qname.namespaceUri
                 : definition.name.namespaceUri;
         if (namespaceUri === this.moduleDeclaration.targetNamespace.namespaceUri) {
-            if (!node.isPrivate) this.exports.push(definition);
+            if (node.isPrivate) return;
+
+            const name = definitionNameToString(definition, true);
+            if (this.exportNames.has(name)) {
+                this.diagnostics.push({
+                    severity: DiagnosticSeverity.Error,
+                    code: definition.kind === "variable" ? "XQST0049" : "XQST0034",
+                    message: `Module export '${name}' is defined more than once.`,
+                    range: definition.selectionRange,
+                });
+                return;
+            }
+            this.exportNames.add(name);
+            this.exports.push(definition);
             return;
         }
         this.diagnostics.push({
@@ -328,7 +343,7 @@ class DocumentIndexBuilder extends ParserAstVisitor<void> {
         const occurrence = this.symbolOccurrences.get(symbolKey) ?? 0;
         this.symbolOccurrences.set(symbolKey, occurrence + 1);
         return {
-            id: createSourceSymbolId(this.document.uri, symbolKey, occurrence),
+            id: `${this.document.uri}#${encodeURIComponent(symbolKey)}:${occurrence}` as SymbolId,
             uri: this.document.uri,
             range,
             selectionRange,

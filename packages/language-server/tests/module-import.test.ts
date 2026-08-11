@@ -54,6 +54,26 @@ describe("module imports", () => {
         expect(analysis.diagnostics).toContainEqual(expect.objectContaining({ code: "XQST0048" }));
     });
 
+    it("indexes unique exports and diagnoses duplicates in the library module", () => {
+        const document = testDocument("duplicate-library-exports", [
+            'module namespace lib = "urn:lib";',
+            "declare variable $lib:value := 1;",
+            "declare variable $lib:value := 2;",
+            "declare function lib:value() { 1 };",
+            "declare function lib:value() { 2 };",
+        ]);
+
+        const index = buildDocumentIndex(document);
+
+        expect(
+            index.moduleInterface?.exports.map((definition) => definitionNameToString(definition)),
+        ).toEqual(["$lib:value", "lib:value#0"]);
+        expect(index.diagnostics).toEqual([
+            expect.objectContaining({ code: "XQST0049" }),
+            expect.objectContaining({ code: "XQST0034" }),
+        ]);
+    });
+
     it("resolves direct imported functions and variables from a relative location", () => {
         const fixture = path.join(process.cwd(), "tests", "samples", "modules", "imported.xqm");
         const document = testDocumentFromUri(
@@ -207,6 +227,25 @@ describe("module imports", () => {
         expect(getAnalysis(document).diagnostics).toEqual([
             expect.objectContaining({ code: "XQST0049" }),
         ]);
+    });
+
+    it("reports a missing location while retaining exports from valid locations", () => {
+        const directory = path.join(process.cwd(), "tests", "samples", "modules");
+        const moduleUri = pathToFileURL(path.join(directory, "math.jq")).toString();
+        const document = testDocumentFromUri(
+            ['import module namespace math = "math.jq" at "missing.jq", "math.jq";', "$math:x"],
+            { uri: pathToFileURL(path.join(directory, "partial-import-main.jq")).toString() },
+        );
+
+        expect(getAnalysis(document).diagnostics).toEqual([
+            expect.objectContaining({
+                code: "XQST0059",
+                message: "Cannot resolve module location 'missing.jq'.",
+            }),
+        ]);
+        expect(findDefinitionLocation(document, positionAt(document, "$math:x"))?.uri).toBe(
+            moduleUri,
+        );
     });
 
     it("uses a file-like target namespace as the fallback module location", () => {

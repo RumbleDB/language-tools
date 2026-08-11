@@ -13,7 +13,8 @@ export interface ModuleLoader {
 }
 
 export interface ResolvedModuleLocation {
-    readonly targetUri: DocumentUri;
+    readonly locationUri: string;
+    readonly targetUri?: DocumentUri;
     readonly range: Range;
 }
 
@@ -25,9 +26,11 @@ export function resolveModuleLocations(
         imported.locations.length === 0
             ? [{ uri: imported.namespaceUri, range: imported.namespaceUriRange }]
             : imported.locations;
-    return locations.flatMap((location) => {
+    return locations.map((location) => {
         const targetUri = resolveUri(location.uri, importerUri);
-        return targetUri === undefined ? [] : [{ targetUri, range: location.range }];
+        return targetUri === undefined
+            ? { locationUri: location.uri, range: location.range }
+            : { locationUri: location.uri, targetUri, range: location.range };
     });
 }
 
