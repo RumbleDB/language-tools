@@ -67,14 +67,49 @@ const CATCH_VARIABLES = [
 ] as const;
 
 export interface AnalysisResult {
+    /**
+     * Root AST node for the module
+     */
     readonly ast: ModuleNode;
+
+    /**
+     * Module declaration of current module, either main or library
+     */
     readonly moduleDeclaration: ModuleDeclaration;
+
+    /**
+     * Module interface of current module, if it is a library module
+     */
     readonly moduleInterface?: ModuleInterface;
+
+    /**
+     * Root scope of the module
+     */
     readonly scope: Scope;
+
+    /**
+     * Map of namespace prefix to namespace definition for all namespaces declared in the module
+     */
     readonly namespaces: ReadonlyMap<Prefix, NamespaceDefinition>;
+
+    /**
+     * List of all definitions declared in the module
+     */
     readonly definitions: readonly SourceDefinition[];
+
+    /**
+     * List of all resolved references in the module
+     */
     readonly references: readonly AnyResolvedReference[];
+
+    /**
+     * Map from definition to all resolved references to that definition in the module
+     */
     readonly referencesByDefinition: ReadonlyMap<Definition, readonly AnyResolvedReference[]>;
+
+    /**
+     * List of all diagnostics reported during analysis of the module
+     */
     readonly diagnostics: readonly Diagnostic[];
 }
 
