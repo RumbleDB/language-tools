@@ -8,11 +8,6 @@ import {
     type InitializeResult,
 } from "vscode-languageserver/node";
 
-import {
-    invalidateModuleDocuments,
-    removeOpenDocument,
-    updateOpenDocument,
-} from "./analysis/service.js";
 import { findCompletionsWithTypeInfo } from "./completion.js";
 import { config, InitializationOptions, mergeConfiguration } from "./config.js";
 import { findDefinitionLocation } from "./definitions.js";
@@ -40,11 +35,14 @@ import { collectStaticTypecheckDiagnostics } from "./static-typecheck/diagnostic
 import { clearStaticTypecheckCache } from "./static-typecheck/service.js";
 import { collectDocumentSymbols } from "./symbols.js";
 import { setLoggerSink } from "./utils/logger.js";
+import { WorkspaceController } from "./workspace/controller.js";
+import { removeOpenDocument, updateOpenDocument } from "./workspace/service.js";
 
 export type ClientConfiguration = Partial<InitializationOptions>;
 
 const connection = createConnection(ProposedFeatures.all);
 const documents = new TextDocuments(TextDocument);
+const workspace = new WorkspaceController();
 
 setLoggerSink(connection.console);
 initializeNotifications((method, payload) => {
@@ -94,6 +92,9 @@ connection.onInitialize((params: InitializeParams): InitializeResult => {
     mergeConfiguration(clientConfiguration);
     connection.console.log(`Language server configuration: ${JSON.stringify(config, null, 4)}`);
 
+    const initialWorkspaceFolderUris = params.workspaceFolders?.map((folder) => folder.uri) || [];
+    workspace.initialize(initialWorkspaceFolderUris);
+
     return {
         capabilities: {
             textDocumentSync: TextDocumentSyncKind.Incremental,
@@ -119,6 +120,12 @@ connection.onInitialize((params: InitializeParams): InitializeResult => {
                 full: true,
             },
             documentFormattingProvider: true,
+            workspace: {
+                workspaceFolders: {
+                    supported: true,
+                    changeNotifications: true,
+                },
+            },
         },
         serverInfo: {
             name: "JSONiq Language Server",
@@ -157,7 +164,8 @@ connection.onDefinition((params) => {
     return findDefinitionLocation(document, params.position);
 });
 
-connection.onReferences((params) => {
+connection.onReferences(async (params) => {
+    await workspace.ready();
     const document = documents.get(params.textDocument.uri);
 
     if (document === undefined || !supportsDocument(document)) {
@@ -177,7 +185,8 @@ connection.onPrepareRename((params) => {
     return prepareRename(document, params.position);
 });
 
-connection.onRenameRequest((params) => {
+connection.onRenameRequest(async (params) => {
+    await workspace.ready();
     const document = documents.get(params.textDocument.uri);
 
     if (document === undefined || !supportsDocument(document)) {
@@ -267,7 +276,16 @@ documents.onDidClose((event) => {
 });
 
 connection.onDidChangeWatchedFiles((params) => {
-    invalidateModuleDocuments(params.changes.map((change) => change.uri));
+    workspace.updateDocuments(params.changes);
+});
+
+connection.onInitialized(() => {
+    connection.workspace.onDidChangeWorkspaceFolders((params) => {
+        workspace.updateFolders(
+            params.added.map((folder) => folder.uri),
+            params.removed.map((folder) => folder.uri),
+        );
+    });
 });
 
 documents.listen(connection);

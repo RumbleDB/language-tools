@@ -2,7 +2,7 @@ import { type Location, type Position } from "vscode-languageserver";
 import { TextDocument } from "vscode-languageserver-textdocument";
 
 import { findSymbolAtPosition } from "./analysis/queries.js";
-import { getAnalysis } from "./analysis/service.js";
+import { getAnalysis } from "./workspace/service.js";
 
 /**
  * Finds the definition location for the variable at the given position in the document, by analyzing variable scopes and occurrences.

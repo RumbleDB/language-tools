@@ -4,8 +4,8 @@ import { TextDocument } from "vscode-languageserver-textdocument";
 import { AstNode, DeclarationNode } from "./analysis/ast.js";
 import { definitionNameToString } from "./analysis/definitions.js";
 import { QNameToString } from "./analysis/names.js";
-import { getAnalysis } from "./analysis/service.js";
 import { AstVisitor } from "./analysis/visitor.js";
+import { getAnalysis } from "./workspace/service.js";
 
 /**
  * Collects DocumentSymbols from the given TextDocument.

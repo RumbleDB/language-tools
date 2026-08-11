@@ -5,10 +5,10 @@ import { pathToFileURL } from "node:url";
 import { analyzeDocument } from "server/analysis/builder.js";
 import { definitionNameToString } from "server/analysis/definitions.js";
 import { buildDocumentIndex } from "server/analysis/document-index.js";
-import { getAnalysis } from "server/analysis/service.js";
 import { findDefinitionLocation } from "server/definitions.js";
 import { findReferenceLocations } from "server/references.js";
 import { buildRenameWorkspaceEdit } from "server/rename.js";
+import { getAnalysis, replaceWorkspaceDocuments } from "server/workspace/service.js";
 import { describe, expect, it } from "vitest";
 
 import { positionAt, testDocument, testDocumentFromUri } from "./test-utils.js";
@@ -159,6 +159,33 @@ describe("module imports", () => {
         expect(
             findReferenceLocations(moduleDocument, positionAt(moduleDocument, "$math:x"), false),
         ).toContainEqual(expect.objectContaining({ uri: importer.uri }));
+    });
+
+    it("finds references in an unopened workspace importer", () => {
+        const directory = path.join(process.cwd(), "tests", "samples", "modules");
+        const moduleUri = pathToFileURL(path.join(directory, "math.jq")).toString();
+        const importerUri = pathToFileURL(
+            path.join(directory, "workspace-reference-main.jq"),
+        ).toString();
+        try {
+            replaceWorkspaceDocuments([moduleUri, importerUri]);
+            const moduleDocument = testDocumentFromUri(
+                readFileSync(path.join(directory, "math.jq"), "utf8"),
+                {
+                    uri: moduleUri,
+                },
+            );
+
+            expect(
+                findReferenceLocations(
+                    moduleDocument,
+                    positionAt(moduleDocument, "$math:x"),
+                    false,
+                ),
+            ).toContainEqual(expect.objectContaining({ uri: importerUri }));
+        } finally {
+            replaceWorkspaceDocuments([]);
+        }
     });
 
     it("does not import private module declarations", () => {

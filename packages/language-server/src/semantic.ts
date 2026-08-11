@@ -11,7 +11,7 @@ import { TextDocument } from "vscode-languageserver-textdocument";
 
 import { type Definition, DefinitionKind } from "./analysis/definitions.js";
 import { getResolvedReferences, getSourceDefinitions } from "./analysis/queries.js";
-import { getAnalysis } from "./analysis/service.js";
+import { getAnalysis } from "./workspace/service.js";
 
 export const legend: SemanticTokensLegend = {
     tokenTypes: ["function", "parameter", "variable", "namespace", "type"],

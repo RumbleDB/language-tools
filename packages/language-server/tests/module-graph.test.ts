@@ -1,4 +1,4 @@
-import { ModuleGraph } from "server/analysis/module-graph.js";
+import { ModuleGraph } from "server/workspace/module-graph.js";
 import { describe, expect, it } from "vitest";
 
 describe("module graph", () => {
@@ -25,5 +25,14 @@ describe("module graph", () => {
             "file:///new.jq",
             "file:///main.jq",
         ]);
+    });
+
+    it("removes a document's outgoing dependency edges", () => {
+        const graph = new ModuleGraph();
+        graph.replaceDependencies("file:///module.jq", new Set(["file:///dependency.jq"]));
+
+        graph.removeOutgoingDependencies("file:///module.jq");
+
+        expect([...graph.affectedBy(["file:///dependency.jq"])]).toEqual(["file:///dependency.jq"]);
     });
 });

@@ -1,20 +1,16 @@
 import { comparePositions } from "server/utils/position.js";
 import { rangeContainsPosition } from "server/utils/range.js";
 import type { Position } from "vscode-languageserver";
-import { TextDocument } from "vscode-languageserver-textdocument";
 
 import type { AstNode, SymbolOccurrence } from "./ast.js";
 import { AnalysisResult } from "./builder.js";
 import { Definition, ScopeDefinition, SourceDefinition } from "./definitions.js";
 import { AnyResolvedReference } from "./reference.js";
-import { getAnalysis } from "./service.js";
 
 export function getVisibleDeclarationsAtPosition(
-    document: TextDocument,
-    position: Position,
+    analysis: AnalysisResult,
+    positionOffset: number,
 ): ScopeDefinition[] {
-    const analysis = getAnalysis(document);
-    const positionOffset = document.offsetAt(position);
     const scope = analysis.scope.findInnermostScope(positionOffset);
     return [...scope.listVisibleDefinitions(positionOffset).values()];
 }

@@ -2,10 +2,10 @@ import { InlayHintKind, type InlayHint, type Range } from "vscode-languageserver
 import { TextDocument } from "vscode-languageserver-textdocument";
 
 import type { ArgumentNode, AstNode, FunctionCallNode } from "./analysis/ast.js";
-import { getAnalysis } from "./analysis/service.js";
 import { getBuiltinFunctionDocumentation } from "./assets/function-docs.js";
 import { chooseBestSignatureIndex, findResolvedSourceFunction } from "./utils/function-calls.js";
 import { rangesIntersect } from "./utils/range.js";
+import { getAnalysis } from "./workspace/service.js";
 
 export function collectInlayHints(document: TextDocument, range: Range): InlayHint[] {
     const analysis = getAnalysis(document);

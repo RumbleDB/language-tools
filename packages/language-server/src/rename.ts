@@ -14,7 +14,7 @@ import {
 } from "./analysis/definitions.js";
 import type { QName } from "./analysis/names.js";
 import { findSymbolAtPosition } from "./analysis/queries.js";
-import { getAnalysis, getWorkspaceReferencesToDefinition } from "./analysis/service.js";
+import { getAnalysis, getWorkspaceReferencesToDefinition } from "./workspace/service.js";
 
 interface RenameTarget {
     declaration: SourceVariableDefinition | SourceParameterDefinition;
