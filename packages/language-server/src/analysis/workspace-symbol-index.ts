@@ -6,9 +6,13 @@ import type { AnyResolvedReference } from "./reference.js";
 
 /** Maintains cross-document reference lookup independently from analysis caches. */
 export class WorkspaceSymbolIndex {
+    /** References grouped by the stable ID of their source declaration. */
     private readonly referencesBySymbol = new Map<SymbolId, AnyResolvedReference[]>();
+
+    /** Source declaration IDs contributed by each indexed document. */
     private readonly symbolsByDocument = new Map<DocumentUri, Set<SymbolId>>();
 
+    /** Replaces the references contributed by one analysed document. */
     public update(uri: DocumentUri, analysis: AnalysisResult): void {
         this.remove(uri);
         const symbols = new Set<SymbolId>();
@@ -23,6 +27,7 @@ export class WorkspaceSymbolIndex {
         this.symbolsByDocument.set(uri, symbols);
     }
 
+    /** Removes every reference contributed by a document. */
     public remove(uri: DocumentUri): void {
         for (const symbolId of this.symbolsByDocument.get(uri) ?? []) {
             const remaining = (this.referencesBySymbol.get(symbolId) ?? []).filter(
@@ -34,6 +39,7 @@ export class WorkspaceSymbolIndex {
         this.symbolsByDocument.delete(uri);
     }
 
+    /** Returns all workspace references that resolve to a source declaration. */
     public referencesTo(definition: SourceDefinition): readonly AnyResolvedReference[] {
         return this.referencesBySymbol.get(definition.id) ?? [];
     }

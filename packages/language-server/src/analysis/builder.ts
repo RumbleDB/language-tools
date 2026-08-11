@@ -68,14 +68,31 @@ const CATCH_VARIABLES = [
 ] as const;
 
 export interface AnalysisResult {
+    /** Root node of the immutable semantic AST for this module. */
     readonly ast: ModuleNode;
+
+    /** Whether this document is a main or library module. */
     readonly moduleDeclaration: ModuleDeclaration;
+
+    /** Public interface when this document is a library module. */
     readonly moduleInterface?: ModuleInterface;
+
+    /** Root lexical scope for the module. */
     readonly scope: Scope;
+
+    /** Namespace definitions visible in the module's static context. */
     readonly namespaces: ReadonlyMap<Prefix, NamespaceDefinition>;
+
+    /** Source definitions declared by this module. */
     readonly definitions: readonly SourceDefinition[];
+
+    /** Resolved source references within this module. */
     readonly references: readonly AnyResolvedReference[];
+
+    /** References grouped by their resolved declaration. */
     readonly referencesByDefinition: ReadonlyMap<Definition, readonly AnyResolvedReference[]>;
+
+    /** Syntax-independent diagnostics produced during semantic analysis. */
     readonly diagnostics: readonly Diagnostic[];
 }
 

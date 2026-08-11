@@ -38,13 +38,28 @@ import type { ModuleDeclaration, ModuleImport, ModuleInterface } from "./module-
 import { functionNameToString, QNameToString, type FunctionName, type QName } from "./names.js";
 
 export interface DocumentIndex {
+    /** Source document represented by this index. */
     readonly document: TextDocument;
+
+    /** Parsed AST before imported modules are resolved. */
     readonly ast: ParserAstNode;
+
+    /** Main or library module declaration and its import declarations. */
     readonly moduleDeclaration: ModuleDeclaration;
+
+    /** Exported interface when this is a library module. */
     readonly moduleInterface?: ModuleInterface;
+
+    /** Namespace definitions, including implicit predefined namespaces. */
     readonly namespaces: ReadonlyMap<Prefix, NamespaceDefinition>;
+
+    /** Source definitions discovered without resolving imported modules. */
     readonly definitions: readonly SourceDefinition[];
+
+    /** Links parser nodes to the definitions created for them. */
     readonly indexedDefinitions: IndexedDefinitions;
+
+    /** Diagnostics that can be established without cross-module analysis. */
     readonly diagnostics: readonly Diagnostic[];
 }
 
@@ -63,6 +78,12 @@ export interface IndexedDefinitions {
     readonly parameters: ReadonlyMap<AstParameter, SourceParameterDefinition>;
 }
 
+/**
+ * Builds the first analysis stage for one document.
+ *
+ * This stage records local declarations and static-context facts only. The
+ * semantic builder later consumes it together with resolved module exports.
+ */
 class DocumentIndexBuilder extends ParserAstVisitor<void> {
     private readonly definitions: SourceDefinition[] = [];
     private readonly indexedDefinitions = {
