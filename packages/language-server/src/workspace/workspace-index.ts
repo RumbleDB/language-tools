@@ -3,14 +3,18 @@ import { createLogger } from "server/utils/logger.js";
 import { DiagnosticSeverity, type Diagnostic, type DocumentUri } from "vscode-languageserver";
 import { TextDocument } from "vscode-languageserver-textdocument";
 
-import { analyzeDocument, type AnalysisResult, type ResolvedModuleImport } from "./builder.js";
-import { type Definition, type SourceModuleExportDefinition } from "./definitions.js";
-import { buildDocumentIndex, type DocumentIndex } from "./document-index.js";
+import {
+    analyzeDocument,
+    type AnalysisResult,
+    type ResolvedModuleImport,
+} from "../analysis/builder.js";
+import { type Definition, type SourceModuleExportDefinition } from "../analysis/definitions.js";
+import { buildDocumentIndex, type DocumentIndex } from "../analysis/document-index.js";
+import type { AnyResolvedReference } from "../analysis/reference.js";
+import { WorkspaceDocumentStore } from "./document-store.js";
+import { isSupportedSourceUri } from "./files.js";
 import { ModuleGraph } from "./module-graph.js";
-import { WorkspaceDocumentStore } from "./module-loader.js";
-import type { AnyResolvedReference } from "./reference.js";
-import { isSupportedSourceUri } from "./workspace-files.js";
-import { WorkspaceSymbolIndex } from "./workspace-symbol-index.js";
+import { WorkspaceSymbolIndex } from "./symbol-index.js";
 
 export interface WorkspaceDocumentChange {
     readonly uri: DocumentUri;
@@ -29,7 +33,7 @@ interface CachedDocumentIndex {
 
 const logger = createLogger("workspace-analysis");
 
-export class WorkspaceAnalysisCoordinator {
+export class WorkspaceIndex {
     private readonly moduleGraph = new ModuleGraph();
     private readonly symbols = new WorkspaceSymbolIndex();
     private readonly cache = new Map<DocumentUri, CachedAnalysis>();
@@ -246,27 +250,4 @@ export class WorkspaceAnalysisCoordinator {
         for (const uri of uris) this.indexes.delete(uri);
         return affected;
     }
-}
-
-const workspaceAnalysis = new WorkspaceAnalysisCoordinator();
-
-export function getAnalysis(document: TextDocument): AnalysisResult {
-    return workspaceAnalysis.getAnalysis(document);
-}
-export function replaceWorkspaceDocuments(uris: readonly DocumentUri[]): void {
-    workspaceAnalysis.replaceWorkspaceDocuments(uris);
-}
-export function updateWorkspaceDocuments(changes: readonly WorkspaceDocumentChange[]): void {
-    workspaceAnalysis.updateWorkspaceDocuments(changes);
-}
-export function updateOpenDocument(document: TextDocument): void {
-    workspaceAnalysis.updateOpenDocument(document);
-}
-export function removeOpenDocument(uri: DocumentUri): void {
-    workspaceAnalysis.removeOpenDocument(uri);
-}
-export function getWorkspaceReferencesToDefinition(
-    definition: Definition,
-): readonly AnyResolvedReference[] {
-    return workspaceAnalysis.getReferencesToDefinition(definition);
 }

@@ -1,29 +1,15 @@
 import type { DocumentUri, Range } from "vscode-languageserver";
 import { TextDocument } from "vscode-languageserver-textdocument";
 
-import type { ModuleImport } from "./module-info.js";
-import { loadSourceFile } from "./workspace-files.js";
-
-interface ResolvedModuleLocation {
-    readonly targetUri: DocumentUri;
-    readonly range: Range;
-}
+import type { ModuleImport } from "../analysis/module-info.js";
+import { loadSourceFile } from "./files.js";
+import { resolveModuleLocations } from "./module-resolver.js";
 
 export interface ModuleLoadResult {
     readonly locationUri: string;
     readonly range: Range;
     readonly targetUri?: DocumentUri;
     readonly document?: TextDocument;
-}
-
-export function resolveModuleLocations(
-    importerUri: DocumentUri,
-    imported: ModuleImport,
-): readonly ResolvedModuleLocation[] {
-    return importLocations(imported).flatMap((location) => {
-        const targetUri = resolveUri(location.uri, importerUri);
-        return targetUri === undefined ? [] : [{ targetUri, range: location.range }];
-    });
 }
 
 /**
@@ -57,37 +43,22 @@ export class WorkspaceDocumentStore {
     public loadImport(importer: TextDocument, imported: ModuleImport): readonly ModuleLoadResult[] {
         const results: ModuleLoadResult[] = [];
         const seenUris = new Set<DocumentUri>();
-        for (const location of importLocations(imported)) {
-            const targetUri = resolveUri(location.uri, importer.uri);
-            if (targetUri === undefined) {
-                results.push({ locationUri: location.uri, range: location.range });
+
+        for (const location of resolveModuleLocations(importer.uri, imported)) {
+            if (location.targetUri === undefined) {
+                results.push(location);
                 continue;
             }
-            if (seenUris.has(targetUri)) continue;
-            seenUris.add(targetUri);
+            if (seenUris.has(location.targetUri)) continue;
+            seenUris.add(location.targetUri);
 
-            const document = this.load(targetUri);
+            const document = this.load(location.targetUri);
             results.push({
-                locationUri: location.uri,
-                range: location.range,
-                targetUri,
+                ...location,
                 ...(document === undefined ? {} : { document }),
             });
         }
+
         return results;
-    }
-}
-
-function importLocations(imported: ModuleImport): readonly { uri: string; range: Range }[] {
-    return imported.locations.length === 0
-        ? [{ uri: imported.namespaceUri, range: imported.namespaceUriRange }]
-        : imported.locations;
-}
-
-function resolveUri(location: string, baseUri: DocumentUri): DocumentUri | undefined {
-    try {
-        return new URL(location, baseUri).toString();
-    } catch {
-        return undefined;
     }
 }

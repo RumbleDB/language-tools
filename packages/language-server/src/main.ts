@@ -9,13 +9,6 @@ import {
     type InitializeResult,
 } from "vscode-languageserver/node";
 
-import {
-    replaceWorkspaceDocuments,
-    removeOpenDocument,
-    updateOpenDocument,
-    updateWorkspaceDocuments,
-} from "./analysis/service.js";
-import { discoverWorkspaceDocumentUris } from "./analysis/workspace-files.js";
 import { findCompletionsWithTypeInfo } from "./completion.js";
 import { config, InitializationOptions, mergeConfiguration } from "./config.js";
 import { findDefinitionLocation } from "./definitions.js";
@@ -43,27 +36,19 @@ import { collectStaticTypecheckDiagnostics } from "./static-typecheck/diagnostic
 import { clearStaticTypecheckCache } from "./static-typecheck/service.js";
 import { collectDocumentSymbols } from "./symbols.js";
 import { setLoggerSink } from "./utils/logger.js";
+import { WorkspaceController } from "./workspace/controller.js";
+import { removeOpenDocument, updateOpenDocument } from "./workspace/service.js";
 
 export type ClientConfiguration = Partial<InitializationOptions>;
 
 const connection = createConnection(ProposedFeatures.all);
 const documents = new TextDocuments(TextDocument);
-const workspaceFolderUris = new Set<string>();
-let workspaceIndexReady = Promise.resolve();
+const workspace = new WorkspaceController((error) => {
+    connection.console.error(
+        `Workspace indexing failed: ${error instanceof Error ? error.message : String(error)}`,
+    );
+});
 let supportsWorkspaceFolderChanges = false;
-
-function queueWorkspaceIndex(task: () => void | Promise<void>): void {
-    workspaceIndexReady = workspaceIndexReady.then(task).catch((error: unknown) => {
-        connection.console.error(
-            `Workspace indexing failed: ${error instanceof Error ? error.message : String(error)}`,
-        );
-    });
-}
-
-async function rebuildWorkspaceIndex(): Promise<void> {
-    const uris = await discoverWorkspaceDocumentUris([...workspaceFolderUris]);
-    replaceWorkspaceDocuments(uris);
-}
 
 setLoggerSink(connection.console);
 initializeNotifications((method, payload) => {
@@ -115,8 +100,7 @@ connection.onInitialize((params: InitializeParams): InitializeResult => {
     const initialWorkspaceFolderUris =
         params.workspaceFolders?.map((folder) => folder.uri) ??
         (params.rootUri === null || params.rootUri === undefined ? [] : [params.rootUri]);
-    for (const uri of initialWorkspaceFolderUris) workspaceFolderUris.add(uri);
-    queueWorkspaceIndex(rebuildWorkspaceIndex);
+    workspace.initialize(initialWorkspaceFolderUris);
     supportsWorkspaceFolderChanges = params.capabilities.workspace?.workspaceFolders === true;
 
     return {
@@ -193,7 +177,7 @@ connection.onDefinition((params) => {
 });
 
 connection.onReferences(async (params) => {
-    await workspaceIndexReady;
+    await workspace.ready();
     const document = documents.get(params.textDocument.uri);
 
     if (document === undefined || !supportsDocument(document)) {
@@ -214,7 +198,7 @@ connection.onPrepareRename((params) => {
 });
 
 connection.onRenameRequest(async (params) => {
-    await workspaceIndexReady;
+    await workspace.ready();
     const document = documents.get(params.textDocument.uri);
 
     if (document === undefined || !supportsDocument(document)) {
@@ -304,28 +288,27 @@ documents.onDidClose((event) => {
 });
 
 connection.onDidChangeWatchedFiles((params) => {
-    queueWorkspaceIndex(() => {
-        updateWorkspaceDocuments(
-            params.changes.map((change) => ({
-                uri: change.uri,
-                kind:
-                    change.type === FileChangeType.Created
-                        ? "created"
-                        : change.type === FileChangeType.Deleted
-                          ? "deleted"
-                          : "changed",
-            })),
-        );
-    });
+    workspace.updateDocuments(
+        params.changes.map((change) => ({
+            uri: change.uri,
+            kind:
+                change.type === FileChangeType.Created
+                    ? "created"
+                    : change.type === FileChangeType.Deleted
+                      ? "deleted"
+                      : "changed",
+        })),
+    );
 });
 
 connection.onInitialized(() => {
     if (!supportsWorkspaceFolderChanges) return;
 
     connection.workspace.onDidChangeWorkspaceFolders((params) => {
-        for (const folder of params.removed) workspaceFolderUris.delete(folder.uri);
-        for (const folder of params.added) workspaceFolderUris.add(folder.uri);
-        queueWorkspaceIndex(rebuildWorkspaceIndex);
+        workspace.updateFolders(
+            params.added.map((folder) => folder.uri),
+            params.removed.map((folder) => folder.uri),
+        );
     });
 });
 

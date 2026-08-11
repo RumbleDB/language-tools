@@ -9,7 +9,7 @@ import {
     getVisibleDeclarationsAtPosition,
     getReferencesToDefinition,
 } from "server/analysis/queries.js";
-import { getAnalysis } from "server/analysis/service.js";
+import { getAnalysis } from "server/workspace/service.js";
 import { describe, expect, it } from "vitest";
 
 import { positionAt, testDocument } from "./test-utils.js";
@@ -331,9 +331,10 @@ describe("JSONiq variable scope analysis", () => {
         ]);
 
         const analysis = getAnalysis(document);
+        const position = positionAt(document, "($app:item");
         const visibleDefinitions = getVisibleDeclarationsAtPosition(
-            document,
-            positionAt(document, "($app:item"),
+            analysis,
+            document.offsetAt(position),
         );
 
         expect(analysis.namespaces.get("app")?.namespaceUri).toBe("http://example.com/app");
@@ -477,7 +478,10 @@ describe("JSONiq variable scope analysis", () => {
         ).toEqual([]);
 
         expect(
-            getVisibleDeclarationsAtPosition(document, positionAt(document, "$err:code"))
+            getVisibleDeclarationsAtPosition(
+                analysis,
+                document.offsetAt(positionAt(document, "$err:code")),
+            )
                 .filter(
                     (definition) =>
                         definition.origin === "implicit" && definition.kind === "variable",
@@ -729,10 +733,10 @@ describe("JSONiq variable scope analysis", () => {
         const source = "declare variable $a := ";
         const document = testDocument("scope-incomplete-var-init", source);
 
-        const visibleDeclarations = await getVisibleDeclarationsAtPosition(document, {
-            line: 0,
-            character: source.length,
-        });
+        const visibleDeclarations = getVisibleDeclarationsAtPosition(
+            getAnalysis(document),
+            source.length,
+        );
 
         expect(
             visibleDeclarations
@@ -745,10 +749,10 @@ describe("JSONiq variable scope analysis", () => {
         const source = "declare variable $a := 1; ";
         const document = testDocument("scope-complete-var-init", source);
 
-        const visibleDeclarations = await getVisibleDeclarationsAtPosition(document, {
-            line: 0,
-            character: source.length,
-        });
+        const visibleDeclarations = getVisibleDeclarationsAtPosition(
+            getAnalysis(document),
+            source.length,
+        );
 
         expect(visibleDeclarations.map((declaration) => declaration.name)).toContainEqual({
             localName: "a",
@@ -759,10 +763,10 @@ describe("JSONiq variable scope analysis", () => {
         const source = "let $a := ";
         const document = testDocument("scope-incomplete-let-init", source);
 
-        const visibleDeclarations = await getVisibleDeclarationsAtPosition(document, {
-            line: 0,
-            character: source.length,
-        });
+        const visibleDeclarations = getVisibleDeclarationsAtPosition(
+            getAnalysis(document),
+            source.length,
+        );
 
         expect(visibleDeclarations.length).toBe(0);
     });

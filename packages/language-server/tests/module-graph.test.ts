@@ -1,4 +1,4 @@
-import { ModuleGraph } from "server/analysis/module-graph.js";
+import { ModuleGraph } from "server/workspace/module-graph.js";
 import { describe, expect, it } from "vitest";
 
 describe("module graph", () => {

@@ -1,6 +1,6 @@
 import { analyzeDocument } from "server/analysis/builder.js";
 import { buildDocumentIndex } from "server/analysis/document-index.js";
-import { WorkspaceSymbolIndex } from "server/analysis/workspace-symbol-index.js";
+import { WorkspaceSymbolIndex } from "server/workspace/symbol-index.js";
 import { describe, expect, it } from "vitest";
 
 import { testDocument, testDocumentFromUri } from "./test-utils.js";

@@ -10,9 +10,9 @@ import { TextDocument } from "vscode-languageserver-textdocument";
 import type { ArgumentNode, AstNode, FunctionCallNode } from "./analysis/ast.js";
 import { definitionNameToString, type DefinitionByReferenceKind } from "./analysis/definitions.js";
 import { findNodesThatContainPosition } from "./analysis/queries.js";
-import { getAnalysis } from "./analysis/service.js";
 import { FunctionDocEntry, getBuiltinFunctionDocumentation } from "./assets/function-docs.js";
 import { chooseBestSignatureIndex } from "./utils/function-calls.js";
+import { getAnalysis } from "./workspace/service.js";
 
 function createSignatureInformation(
     functionName: string,

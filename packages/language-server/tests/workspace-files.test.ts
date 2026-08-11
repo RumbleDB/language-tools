@@ -7,7 +7,7 @@ import {
     discoverWorkspaceDocumentUris,
     languageIdForWorkspacePath,
     loadSourceFile,
-} from "server/analysis/workspace-files.js";
+} from "server/workspace/files.js";
 import { afterEach, describe, expect, it } from "vitest";
 
 const temporaryDirectories: string[] = [];

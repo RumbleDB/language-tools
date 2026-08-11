@@ -4,14 +4,11 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 
 import { buildDocumentIndex } from "server/analysis/document-index.js";
-import { WorkspaceDocumentStore } from "server/analysis/module-loader.js";
-import {
-    replaceWorkspaceDocuments,
-    updateWorkspaceDocuments,
-    WorkspaceAnalysisCoordinator,
-} from "server/analysis/service.js";
-import { loadSourceFile } from "server/analysis/workspace-files.js";
 import { findReferenceLocations } from "server/references.js";
+import { WorkspaceDocumentStore } from "server/workspace/document-store.js";
+import { loadSourceFile } from "server/workspace/files.js";
+import { replaceWorkspaceDocuments, updateWorkspaceDocuments } from "server/workspace/service.js";
+import { WorkspaceIndex } from "server/workspace/workspace-index.js";
 import { describe, expect, it } from "vitest";
 import { TextDocument } from "vscode-languageserver-textdocument";
 
@@ -37,7 +34,7 @@ describe("workspace indexing", () => {
                 return uri === validUri ? validDocument : super.load(uri);
             }
         }
-        const coordinator = new WorkspaceAnalysisCoordinator(new FailingDocumentStore());
+        const coordinator = new WorkspaceIndex(new FailingDocumentStore());
         const analysis = coordinator.getAnalysis(validDocument);
 
         expect(() => coordinator.replaceWorkspaceDocuments([failingUri, validUri])).not.toThrow();
@@ -114,7 +111,7 @@ describe("workspace indexing", () => {
                 ].join("\n"),
             );
 
-            const coordinator = new WorkspaceAnalysisCoordinator();
+            const coordinator = new WorkspaceIndex();
             coordinator.replaceWorkspaceDocuments([importerUri, moduleUri]);
             const moduleDocument = loadSourceFile(moduleUri);
             expect(moduleDocument).toBeDefined();

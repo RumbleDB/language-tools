@@ -28,6 +28,7 @@ import {
     type ObjectTypeDefinition,
 } from "./static-typecheck/types.js";
 import { getTypeAtPositionFromSource } from "./type-at-position/service.js";
+import { getAnalysis } from "./workspace/service.js";
 
 const VARIABLE_PREFIX_PATTERN = /\$[A-Za-z0-9_.:-]*$/;
 const OBJECT_FIELD_PREFIX_PATTERN = /[A-Za-z_][A-Za-z0-9_:-]*$/;
@@ -64,7 +65,10 @@ export function findCompletions(document: TextDocument, position: Position): Com
                   end: position,
               };
 
-    const availableDeclarations = getVisibleDeclarationsAtPosition(document, position);
+    const availableDeclarations = getVisibleDeclarationsAtPosition(
+        getAnalysis(document),
+        document.offsetAt(position),
+    );
     const variables = intent.allowVariableReferences
         ? availableDeclarations.filter((v) => v.kind === "variable" || v.kind === "parameter")
         : [];

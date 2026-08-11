@@ -5,10 +5,10 @@ import { pathToFileURL } from "node:url";
 import { analyzeDocument } from "server/analysis/builder.js";
 import { definitionNameToString } from "server/analysis/definitions.js";
 import { buildDocumentIndex } from "server/analysis/document-index.js";
-import { getAnalysis, replaceWorkspaceDocuments } from "server/analysis/service.js";
 import { findDefinitionLocation } from "server/definitions.js";
 import { findReferenceLocations } from "server/references.js";
 import { buildRenameWorkspaceEdit } from "server/rename.js";
+import { getAnalysis, replaceWorkspaceDocuments } from "server/workspace/service.js";
 import { describe, expect, it } from "vitest";
 
 import { positionAt, testDocument, testDocumentFromUri } from "./test-utils.js";

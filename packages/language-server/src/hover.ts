@@ -3,10 +3,10 @@ import { TextDocument } from "vscode-languageserver-textdocument";
 
 import { Definition, definitionNameToString } from "./analysis/definitions.js";
 import { findSymbolAtPosition } from "./analysis/queries.js";
-import { getAnalysis } from "./analysis/service.js";
 import { formatFunctionDocEntry, getBuiltinFunctionDocumentation } from "./assets/function-docs.js";
 import { formatSequenceType, type SequenceType } from "./static-typecheck/types.js";
 import { getTypeAtPosition } from "./type-at-position/service.js";
+import { getAnalysis } from "./workspace/service.js";
 
 export async function findHover(document: TextDocument, position: Position): Promise<Hover | null> {
     const occurrence = findSymbolAtPosition(getAnalysis(document), position);
