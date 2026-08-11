@@ -3,14 +3,51 @@ import os from "node:os";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 
-import { indexWorkspaceDocuments, updateWorkspaceDocuments } from "server/analysis/service.js";
+import { WorkspaceDocumentStore } from "server/analysis/module-loader.js";
+import {
+    indexWorkspaceDocuments,
+    updateWorkspaceDocuments,
+    WorkspaceAnalysisCoordinator,
+} from "server/analysis/service.js";
 import { loadSourceFile } from "server/analysis/workspace-files.js";
 import { findReferenceLocations } from "server/references.js";
 import { describe, expect, it } from "vitest";
+import { TextDocument } from "vscode-languageserver-textdocument";
 
 import { positionAt } from "./test-utils.js";
 
 describe("workspace indexing", () => {
+    it("isolates and remembers a document loading failure", () => {
+        const validUri = "file:///workspace-valid.jq";
+        const failingUri = "file:///workspace-failing.jq";
+        const validDocument = TextDocument.create(
+            validUri,
+            "jsoniq",
+            0,
+            "declare variable $value := 1; $value",
+        );
+        let failedLoads = 0;
+        class FailingDocumentStore extends WorkspaceDocumentStore {
+            public override load(uri: string): TextDocument | undefined {
+                if (uri === failingUri) {
+                    failedLoads += 1;
+                    throw new TypeError("Cannot read properties of null (reading 'getText')");
+                }
+                return uri === validUri ? validDocument : super.load(uri);
+            }
+        }
+        const coordinator = new WorkspaceAnalysisCoordinator(new FailingDocumentStore());
+        const analysis = coordinator.getAnalysis(validDocument);
+
+        expect(() => coordinator.indexWorkspaceDocuments([failingUri, validUri])).not.toThrow();
+        const definition = analysis.definitions.find((candidate) => candidate.kind === "variable");
+        expect(definition).toBeDefined();
+        if (definition === undefined) return;
+        coordinator.getReferencesToDefinition(definition);
+
+        expect(failedLoads).toBe(1);
+    });
+
     it("reindexes an importer when its missing module is created", async () => {
         const directory = await mkdtemp(path.join(os.tmpdir(), "jsoniq-workspace-index-"));
         try {

@@ -1,4 +1,5 @@
 import { clearParsedDocument } from "server/parser/index.js";
+import { createLogger } from "server/utils/logger.js";
 import { DiagnosticSeverity, type Diagnostic, type DocumentUri } from "vscode-languageserver";
 import { TextDocument } from "vscode-languageserver-textdocument";
 
@@ -30,12 +31,15 @@ interface CachedDocumentIndex {
     index: DocumentIndex;
 }
 
-class WorkspaceAnalysisCoordinator {
+const logger = createLogger("workspace-analysis");
+
+export class WorkspaceAnalysisCoordinator {
     private readonly moduleGraph = new ModuleGraph();
     private readonly symbols = new WorkspaceSymbolIndex();
     private readonly cache = new Map<DocumentUri, CachedAnalysis>();
     private readonly indexes = new Map<DocumentUri, CachedDocumentIndex>();
     private readonly workspaceDocuments = new Set<DocumentUri>();
+    private readonly failedDocuments = new Set<DocumentUri>();
 
     public constructor(
         private readonly documents: WorkspaceDocumentStore = new WorkspaceDocumentStore(),
@@ -44,11 +48,13 @@ class WorkspaceAnalysisCoordinator {
 
     public updateOpenDocument(document: TextDocument): void {
         if (!this.documents.update(document)) return;
+        this.failedDocuments.clear();
         this.invalidateAffected([document.uri], true);
     }
 
     public removeOpenDocument(uri: DocumentUri): void {
         if (!this.documents.remove(uri)) return;
+        this.failedDocuments.clear();
         this.invalidateAffected([uri], true);
     }
 
@@ -63,6 +69,7 @@ class WorkspaceAnalysisCoordinator {
     }
 
     public replaceWorkspaceDocuments(uris: readonly DocumentUri[]): void {
+        this.failedDocuments.clear();
         const nextDocuments = new Set(uris);
         const removedDocuments = [...this.workspaceDocuments].filter(
             (uri) => !nextDocuments.has(uri),
@@ -80,6 +87,7 @@ class WorkspaceAnalysisCoordinator {
     }
 
     public updateWorkspaceDocuments(changes: readonly WorkspaceDocumentChange[]): void {
+        this.failedDocuments.clear();
         const changedUris = changes.map((change) => change.uri);
         for (const uri of changedUris) clearParsedDocument(uri);
         const affected = this.invalidateAffected(changedUris, true);
@@ -219,6 +227,7 @@ class WorkspaceAnalysisCoordinator {
             diagnostics: importDiagnostics,
         });
         this.cache.set(document.uri, { version: document.version, analysis });
+        this.failedDocuments.delete(document.uri);
         this.symbols.update(document.uri, analysis);
         return analysis;
     }
@@ -245,9 +254,18 @@ class WorkspaceAnalysisCoordinator {
 
     private ensureDocumentsAnalysed(uris: readonly DocumentUri[]): void {
         for (const uri of new Set(uris)) {
-            if (this.cache.has(uri)) continue;
-            const document = this.documents.load(uri);
-            if (document !== undefined) this.analyse(document, new Set());
+            if (this.cache.has(uri) || this.failedDocuments.has(uri)) continue;
+            try {
+                const document = this.documents.load(uri);
+                if (document === undefined) {
+                    this.failedDocuments.add(uri);
+                    continue;
+                }
+                this.analyse(document, new Set());
+            } catch (error) {
+                this.failedDocuments.add(uri);
+                logger.warn(`Could not index workspace document '${uri}'.`, error);
+            }
         }
     }
 
@@ -258,6 +276,7 @@ class WorkspaceAnalysisCoordinator {
         const affected = this.moduleGraph.affectedBy(uris);
         for (const uri of affected) {
             this.cache.delete(uri);
+            this.failedDocuments.delete(uri);
             this.symbols.remove(uri);
         }
         if (invalidateIndexes) {
