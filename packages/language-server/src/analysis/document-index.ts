@@ -22,6 +22,7 @@ import { DiagnosticSeverity, type Diagnostic, type Range } from "vscode-language
 import type { TextDocument } from "vscode-languageserver-textdocument";
 
 import { defaultNamespaces } from "./default-namespaces.js";
+import { definitionNameToString } from "./definitions.js";
 import type {
     ImplicitNamespaceDefinition,
     NamespaceDefinition,
@@ -187,7 +188,7 @@ class DocumentIndexBuilder extends ParserAstVisitor<void> {
         };
         this.result.moduleInterface = {
             namespaceUri: definition.namespaceUri,
-            exports: [],
+            exports: new Map(),
         };
         for (const child of node.children) {
             if (child.kind === "function-declaration" || child.kind === "variable-declaration") {
@@ -321,7 +322,19 @@ class DocumentIndexBuilder extends ParserAstVisitor<void> {
                 ? definition.name.qname.namespaceUri
                 : definition.name.namespaceUri;
         if (namespaceUri === this.result.moduleDeclaration.targetNamespace.namespaceUri) {
-            if (!node.isPrivate) this.result.moduleInterface?.exports.push(definition);
+            if (node.isPrivate || this.result.moduleInterface === undefined) return;
+
+            const name = definitionNameToString(definition, true);
+            if (this.result.moduleInterface.exports.has(name)) {
+                this.result.diagnostics.push({
+                    severity: DiagnosticSeverity.Error,
+                    code: definition.kind === "variable" ? "XQST0049" : "XQST0034",
+                    message: `Module export '${name}' is defined more than once.`,
+                    range: definition.selectionRange,
+                });
+                return;
+            }
+            this.result.moduleInterface.exports.set(name, definition);
             return;
         }
         this.result.diagnostics.push({

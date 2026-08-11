@@ -3,11 +3,7 @@ import { DiagnosticSeverity, type Diagnostic, type DocumentUri } from "vscode-la
 import { TextDocument } from "vscode-languageserver-textdocument";
 
 import { analyzeDocument, type AnalysisResult, type ResolvedModuleImport } from "./builder.js";
-import {
-    definitionNameToString,
-    type Definition,
-    type SourceModuleExportDefinition,
-} from "./definitions.js";
+import { type Definition, type SourceModuleExportDefinition } from "./definitions.js";
 import { buildDocumentIndex, type DocumentIndex } from "./document-index.js";
 import { ModuleGraph } from "./module-graph.js";
 import { WorkspaceDocumentStore } from "./module-loader.js";
@@ -103,13 +99,14 @@ class WorkspaceAnalysisCoordinator {
                 });
                 continue;
             }
-            const exports: SourceModuleExportDefinition[] = [];
-            const exportNames = new Set<string>();
+            const exports = new Map<string, SourceModuleExportDefinition>();
             let foundValidModule = false;
             for (const loaded of loadedModules) {
                 dependencies.add(loaded.uri);
                 const dependencyIndex = this.getDocumentIndex(loaded);
                 if (!nextVisiting.has(loaded.uri)) {
+                    // Populate the dependency graph and workspace reference index for the
+                    // library itself. Its exports are already available from its document index.
                     this.analyse(loaded, nextVisiting);
                 }
                 if (
@@ -125,22 +122,8 @@ class WorkspaceAnalysisCoordinator {
                     continue;
                 }
                 foundValidModule = true;
-                for (const exported of dependencyIndex.moduleInterface.exports) {
-                    const namespaceUri =
-                        exported.kind === "function"
-                            ? exported.name.qname.namespaceUri
-                            : exported.name.namespaceUri;
-                    if (namespaceUri !== imported.namespaceUri) {
-                        importDiagnostics.push({
-                            severity: DiagnosticSeverity.Error,
-                            code: "XQST0048",
-                            message: `Export '${definitionNameToString(exported)}' is not in module namespace '${imported.namespaceUri}'.`,
-                            range: imported.namespaceUriRange,
-                        });
-                        continue;
-                    }
-                    const name = definitionNameToString(exported, true);
-                    if (exportNames.has(name)) {
+                for (const [name, exported] of dependencyIndex.moduleInterface.exports) {
+                    if (exports.has(name)) {
                         importDiagnostics.push({
                             severity: DiagnosticSeverity.Error,
                             code: exported.kind === "variable" ? "XQST0049" : "XQST0034",
@@ -149,8 +132,7 @@ class WorkspaceAnalysisCoordinator {
                         });
                         continue;
                     }
-                    exportNames.add(name);
-                    exports.push(exported);
+                    exports.set(name, exported);
                 }
             }
             if (foundValidModule) {

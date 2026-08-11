@@ -47,11 +47,32 @@ describe("module imports", () => {
             imports: [{ prefix: "dep", namespaceUri: "urn:dep" }],
         });
         expect(
-            analysis.moduleInterface?.exports.map((definition) =>
+            [...(analysis.moduleInterface?.exports.values() ?? [])].map((definition) =>
                 definitionNameToString(definition),
-            ) ?? [],
+            ),
         ).toEqual(["$lib:value", "lib:identity#1"]);
         expect(analysis.diagnostics).toContainEqual(expect.objectContaining({ code: "XQST0048" }));
+    });
+
+    it("indexes unique exports and diagnoses duplicates in the library module", () => {
+        const document = testDocument("duplicate-library-exports", [
+            'module namespace lib = "urn:lib";',
+            "declare variable $lib:value := 1;",
+            "declare variable $lib:value := 2;",
+            "declare function lib:value() { 1 };",
+            "declare function lib:value() { 2 };",
+        ]);
+
+        const index = buildDocumentIndex(document);
+
+        expect([...index.moduleInterface!.exports.keys()]).toEqual([
+            "$Q{urn:lib}value",
+            "Q{urn:lib}value#0",
+        ]);
+        expect(index.diagnostics).toEqual([
+            expect.objectContaining({ code: "XQST0049" }),
+            expect.objectContaining({ code: "XQST0034" }),
+        ]);
     });
 
     it("resolves direct imported functions and variables from a relative location", () => {
