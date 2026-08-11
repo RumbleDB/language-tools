@@ -10,10 +10,6 @@ export type DefinitionOrigin = "source" | "implicit" | "builtin";
 declare const symbolIdBrand: unique symbol;
 export type SymbolId = string & { readonly [symbolIdBrand]: true };
 
-export function createSourceSymbolId(uri: string, symbolKey: string, occurrence: number): SymbolId {
-    return `${uri}#${encodeURIComponent(symbolKey)}:${occurrence}` as SymbolId;
-}
-
 interface AbstractDefinition<K extends DefinitionKind> {
     readonly name: DeclarationNameByKind[K];
     readonly kind: K;

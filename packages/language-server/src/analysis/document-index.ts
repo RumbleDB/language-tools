@@ -22,7 +22,6 @@ import { DiagnosticSeverity, type Diagnostic, type Range } from "vscode-language
 import type { TextDocument } from "vscode-languageserver-textdocument";
 
 import { defaultNamespaces } from "./default-namespaces.js";
-import { createSourceSymbolId } from "./definitions.js";
 import type {
     ImplicitNamespaceDefinition,
     NamespaceDefinition,
@@ -31,6 +30,7 @@ import type {
     SourceModuleExportDefinition,
     SourceNamespaceDefinition,
     SourceParameterDefinition,
+    SymbolId,
     SourceVariableDefinition,
 } from "./definitions.js";
 import type { ModuleDeclaration, ModuleImport, ModuleInterface } from "./module-info.js";
@@ -328,7 +328,7 @@ class DocumentIndexBuilder extends ParserAstVisitor<void> {
         const occurrence = this.symbolOccurrences.get(symbolKey) ?? 0;
         this.symbolOccurrences.set(symbolKey, occurrence + 1);
         return {
-            id: createSourceSymbolId(this.document.uri, symbolKey, occurrence),
+            id: `${this.document.uri}#${encodeURIComponent(symbolKey)}:${occurrence}` as SymbolId,
             uri: this.document.uri,
             range,
             selectionRange,
