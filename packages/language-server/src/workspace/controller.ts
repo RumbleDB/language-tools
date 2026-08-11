@@ -1,8 +1,8 @@
 import type { DocumentUri } from "vscode-languageserver";
 
+import type { WorkspaceDocumentChange } from "./document-store.js";
 import { discoverWorkspaceDocumentUris } from "./files.js";
 import { replaceWorkspaceDocuments, updateWorkspaceDocuments } from "./service.js";
-import type { WorkspaceDocumentChange } from "./workspace-index.js";
 
 export interface WorkspaceControllerBackend {
     discover(folderUris: readonly DocumentUri[]): Promise<readonly DocumentUri[]>;

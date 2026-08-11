@@ -11,15 +11,9 @@ import {
 import { type Definition, type SourceModuleExportDefinition } from "../analysis/definitions.js";
 import { buildDocumentIndex, type DocumentIndex } from "../analysis/document-index.js";
 import type { AnyResolvedReference } from "../analysis/reference.js";
-import { WorkspaceDocumentStore } from "./document-store.js";
-import { isSupportedSourceUri } from "./files.js";
+import { WorkspaceDocumentStore, type WorkspaceDocumentChange } from "./document-store.js";
 import { ModuleGraph } from "./module-graph.js";
 import { WorkspaceSymbolIndex } from "./symbol-index.js";
-
-export interface WorkspaceDocumentChange {
-    readonly uri: DocumentUri;
-    readonly kind: "created" | "changed" | "deleted";
-}
 
 interface CachedAnalysis {
     version: number;
@@ -36,22 +30,21 @@ const logger = createLogger("workspace-analysis");
 export class WorkspaceIndex {
     private readonly moduleGraph = new ModuleGraph();
     private readonly symbols = new WorkspaceSymbolIndex();
-    private readonly cache = new Map<DocumentUri, CachedAnalysis>();
-    private readonly indexes = new Map<DocumentUri, CachedDocumentIndex>();
-    private readonly workspaceDocuments = new Set<DocumentUri>();
-    private readonly failedDocuments = new Set<DocumentUri>();
+    private readonly analyses = new Map<DocumentUri, CachedAnalysis>();
+    private readonly documentIndexes = new Map<DocumentUri, CachedDocumentIndex>();
+    private readonly failedAnalyses = new Set<DocumentUri>();
 
     public constructor(
         private readonly documents: WorkspaceDocumentStore = new WorkspaceDocumentStore(),
     ) {}
 
     public updateOpenDocument(document: TextDocument): void {
-        if (!this.documents.update(document)) return;
+        if (!this.documents.updateOpenDocument(document)) return;
         this.invalidateAffected([document.uri]);
     }
 
     public removeOpenDocument(uri: DocumentUri): void {
-        if (!this.documents.remove(uri)) return;
+        if (!this.documents.removeOpenDocument(uri)) return;
         this.invalidateAffected([uri]);
     }
 
@@ -61,21 +54,16 @@ export class WorkspaceIndex {
     }
 
     public replaceWorkspaceDocuments(uris: readonly DocumentUri[]): void {
-        this.failedDocuments.clear();
-        const nextDocuments = new Set(uris);
-        const removedDocuments = [...this.workspaceDocuments].filter(
-            (uri) => !nextDocuments.has(uri),
-        );
+        this.failedAnalyses.clear();
+        const removedDocuments = this.documents.replaceWorkspaceDocuments(uris);
         for (const uri of removedDocuments) clearParsedDocument(uri);
         this.invalidateAffected(removedDocuments);
         for (const uri of removedDocuments) {
             this.moduleGraph.removeOutgoingDependencies(uri);
         }
 
-        this.workspaceDocuments.clear();
-        for (const uri of nextDocuments) this.workspaceDocuments.add(uri);
         this.ensureDocumentsAnalysed([
-            ...this.workspaceDocuments,
+            ...this.documents.getWorkspaceDocumentUris(),
             ...this.documents.getOpenDocuments().map((document) => document.uri),
         ]);
     }
@@ -85,20 +73,16 @@ export class WorkspaceIndex {
         for (const uri of changedUris) clearParsedDocument(uri);
         const affected = this.invalidateAffected(changedUris);
 
+        this.documents.updateWorkspaceDocuments(changes);
         for (const change of changes) {
-            if (change.kind === "deleted") {
-                this.workspaceDocuments.delete(change.uri);
-                this.moduleGraph.removeOutgoingDependencies(change.uri);
-            } else if (isSupportedSourceUri(change.uri)) {
-                this.workspaceDocuments.add(change.uri);
-            }
+            if (change.kind === "deleted") this.moduleGraph.removeOutgoingDependencies(change.uri);
         }
 
         this.ensureDocumentsAnalysed([...affected]);
     }
 
     private analyse(document: TextDocument, visiting: Set<DocumentUri>): AnalysisResult {
-        const cached = this.cache.get(document.uri);
+        const cached = this.analyses.get(document.uri);
         if (cached?.version === document.version) return cached.analysis;
 
         const nextVisiting = new Set(visiting).add(document.uri);
@@ -197,18 +181,18 @@ export class WorkspaceIndex {
             resolvedImports,
             diagnostics: importDiagnostics,
         });
-        this.cache.set(document.uri, { version: document.version, analysis });
-        this.failedDocuments.delete(document.uri);
+        this.analyses.set(document.uri, { version: document.version, analysis });
+        this.failedAnalyses.delete(document.uri);
         this.symbols.update(document.uri, analysis);
         return analysis;
     }
 
     private getDocumentIndex(document: TextDocument): DocumentIndex {
-        const cached = this.indexes.get(document.uri);
+        const cached = this.documentIndexes.get(document.uri);
         if (cached?.version === document.version) return cached.index;
 
         const index = buildDocumentIndex(document);
-        this.indexes.set(document.uri, { version: document.version, index });
+        this.documentIndexes.set(document.uri, { version: document.version, index });
         return index;
     }
 
@@ -216,7 +200,7 @@ export class WorkspaceIndex {
         if (definition.origin !== "source") return [];
 
         this.ensureDocumentsAnalysed([
-            ...this.workspaceDocuments,
+            ...this.documents.getWorkspaceDocumentUris(),
             ...this.documents.getOpenDocuments().map((document) => document.uri),
         ]);
 
@@ -225,16 +209,16 @@ export class WorkspaceIndex {
 
     private ensureDocumentsAnalysed(uris: readonly DocumentUri[]): void {
         for (const uri of new Set(uris)) {
-            if (this.cache.has(uri) || this.failedDocuments.has(uri)) continue;
+            if (this.analyses.has(uri) || this.failedAnalyses.has(uri)) continue;
             try {
                 const document = this.documents.load(uri);
                 if (document === undefined) {
-                    this.failedDocuments.add(uri);
+                    this.failedAnalyses.add(uri);
                     continue;
                 }
                 this.analyse(document, new Set());
             } catch (error) {
-                this.failedDocuments.add(uri);
+                this.failedAnalyses.add(uri);
                 logger.warn(`Could not index workspace document '${uri}'.`, error);
             }
         }
@@ -243,11 +227,11 @@ export class WorkspaceIndex {
     private invalidateAffected(uris: readonly DocumentUri[]): ReadonlySet<DocumentUri> {
         const affected = this.moduleGraph.affectedBy(uris);
         for (const uri of affected) {
-            this.cache.delete(uri);
-            this.failedDocuments.delete(uri);
+            this.analyses.delete(uri);
+            this.failedAnalyses.delete(uri);
             this.symbols.remove(uri);
         }
-        for (const uri of uris) this.indexes.delete(uri);
+        for (const uri of uris) this.documentIndexes.delete(uri);
         return affected;
     }
 }

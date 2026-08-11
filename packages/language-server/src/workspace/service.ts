@@ -4,7 +4,8 @@ import type { TextDocument } from "vscode-languageserver-textdocument";
 import type { AnalysisResult } from "../analysis/builder.js";
 import type { Definition } from "../analysis/definitions.js";
 import type { AnyResolvedReference } from "../analysis/reference.js";
-import { WorkspaceIndex, type WorkspaceDocumentChange } from "./workspace-index.js";
+import type { WorkspaceDocumentChange } from "./document-store.js";
+import { WorkspaceIndex } from "./workspace-index.js";
 
 const workspaceIndex = new WorkspaceIndex();
 

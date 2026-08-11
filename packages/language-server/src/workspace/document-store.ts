@@ -2,7 +2,7 @@ import type { DocumentUri, Range } from "vscode-languageserver";
 import { TextDocument } from "vscode-languageserver-textdocument";
 
 import type { ModuleImport } from "../analysis/module-info.js";
-import { loadSourceFile } from "./files.js";
+import { isSupportedSourceUri, loadSourceFile } from "./files.js";
 import { resolveModuleLocations } from "./module-resolver.js";
 
 export interface ModuleLoadResult {
@@ -12,14 +12,20 @@ export interface ModuleLoadResult {
     readonly document?: TextDocument;
 }
 
+export interface WorkspaceDocumentChange {
+    readonly uri: DocumentUri;
+    readonly kind: "created" | "changed" | "deleted";
+}
+
 /**
  * Owns workspace document snapshots and resolves relative file module locations.
  * Open editor snapshots always take precedence over their on-disk counterpart.
  */
 export class WorkspaceDocumentStore {
     private readonly openDocuments = new Map<DocumentUri, TextDocument>();
+    private readonly workspaceDocumentUris = new Set<DocumentUri>();
 
-    public update(document: TextDocument): boolean {
+    public updateOpenDocument(document: TextDocument): boolean {
         const current = this.openDocuments.get(document.uri);
         if (current?.version === document.version && current.getText() === document.getText()) {
             return false;
@@ -28,12 +34,36 @@ export class WorkspaceDocumentStore {
         return true;
     }
 
-    public remove(uri: DocumentUri): boolean {
+    public removeOpenDocument(uri: DocumentUri): boolean {
         return this.openDocuments.delete(uri);
     }
 
     public getOpenDocuments(): readonly TextDocument[] {
         return [...this.openDocuments.values()];
+    }
+
+    public getWorkspaceDocumentUris(): readonly DocumentUri[] {
+        return [...this.workspaceDocumentUris];
+    }
+
+    public replaceWorkspaceDocuments(uris: readonly DocumentUri[]): readonly DocumentUri[] {
+        const nextUris = new Set(uris);
+        const removedUris = [...this.workspaceDocumentUris].filter((uri) => !nextUris.has(uri));
+
+        this.workspaceDocumentUris.clear();
+        for (const uri of nextUris) this.workspaceDocumentUris.add(uri);
+
+        return removedUris;
+    }
+
+    public updateWorkspaceDocuments(changes: readonly WorkspaceDocumentChange[]): void {
+        for (const change of changes) {
+            if (change.kind === "deleted") {
+                this.workspaceDocumentUris.delete(change.uri);
+            } else if (isSupportedSourceUri(change.uri)) {
+                this.workspaceDocumentUris.add(change.uri);
+            }
+        }
     }
 
     public load(uri: DocumentUri): TextDocument | undefined {
