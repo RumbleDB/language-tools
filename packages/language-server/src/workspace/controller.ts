@@ -4,26 +4,11 @@ import type { FileEvent } from "vscode-languageserver/node";
 import { discoverWorkspaceDocumentUris } from "./files.js";
 import { replaceWorkspaceDocuments, updateWorkspaceDocuments } from "./service.js";
 
-export interface WorkspaceControllerBackend {
-    discover(folderUris: readonly DocumentUri[]): Promise<readonly DocumentUri[]>;
-    replaceDocuments(uris: readonly DocumentUri[]): void;
-    updateDocuments(changes: readonly FileEvent[]): void;
-}
-
-const defaultBackend: WorkspaceControllerBackend = {
-    discover: discoverWorkspaceDocumentUris,
-    replaceDocuments: replaceWorkspaceDocuments,
-    updateDocuments: updateWorkspaceDocuments,
-};
-
 export class WorkspaceController {
     private readonly folderUris = new Set<DocumentUri>();
     private pending = Promise.resolve();
 
-    public constructor(
-        private readonly reportError: (error: unknown) => void,
-        private readonly backend: WorkspaceControllerBackend = defaultBackend,
-    ) {}
+    public constructor(private readonly reportError: (error: unknown) => void) {}
 
     public initialize(folderUris: readonly DocumentUri[]): void {
         for (const uri of folderUris) this.folderUris.add(uri);
@@ -37,7 +22,7 @@ export class WorkspaceController {
     }
 
     public updateDocuments(changes: readonly FileEvent[]): void {
-        this.queue(() => this.backend.updateDocuments(changes));
+        this.queue(() => updateWorkspaceDocuments(changes));
     }
 
     public ready(): Promise<void> {
@@ -46,8 +31,8 @@ export class WorkspaceController {
 
     private queueRebuild(): void {
         this.queue(async () => {
-            const documents = await this.backend.discover([...this.folderUris]);
-            this.backend.replaceDocuments(documents);
+            const documents = await discoverWorkspaceDocumentUris([...this.folderUris]);
+            replaceWorkspaceDocuments(documents);
         });
     }
 
