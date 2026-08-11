@@ -50,6 +50,7 @@ const connection = createConnection(ProposedFeatures.all);
 const documents = new TextDocuments(TextDocument);
 const workspaceFolderUris = new Set<string>();
 let workspaceIndexReady = Promise.resolve();
+let supportsWorkspaceFolderChanges = false;
 
 function reportWorkspaceIndexFailure(error: unknown): void {
     connection.console.error(
@@ -118,6 +119,7 @@ connection.onInitialize((params: InitializeParams): InitializeResult => {
         (params.rootUri === null || params.rootUri === undefined ? [] : [params.rootUri]);
     for (const uri of initialWorkspaceFolderUris) workspaceFolderUris.add(uri);
     queueWorkspaceIndex(rebuildWorkspaceIndex);
+    supportsWorkspaceFolderChanges = params.capabilities.workspace?.workspaceFolders === true;
 
     return {
         capabilities: {
@@ -144,12 +146,16 @@ connection.onInitialize((params: InitializeParams): InitializeResult => {
                 full: true,
             },
             documentFormattingProvider: true,
-            workspace: {
-                workspaceFolders: {
-                    supported: true,
-                    changeNotifications: true,
-                },
-            },
+            ...(supportsWorkspaceFolderChanges
+                ? {
+                      workspace: {
+                          workspaceFolders: {
+                              supported: true,
+                              changeNotifications: true,
+                          },
+                      },
+                  }
+                : {}),
         },
         serverInfo: {
             name: "JSONiq Language Server",
@@ -315,10 +321,14 @@ connection.onDidChangeWatchedFiles((params) => {
     });
 });
 
-connection.workspace.onDidChangeWorkspaceFolders((params) => {
-    for (const folder of params.removed) workspaceFolderUris.delete(folder.uri);
-    for (const folder of params.added) workspaceFolderUris.add(folder.uri);
-    queueWorkspaceIndex(rebuildWorkspaceIndex);
+connection.onInitialized(() => {
+    if (!supportsWorkspaceFolderChanges) return;
+
+    connection.workspace.onDidChangeWorkspaceFolders((params) => {
+        for (const folder of params.removed) workspaceFolderUris.delete(folder.uri);
+        for (const folder of params.added) workspaceFolderUris.add(folder.uri);
+        queueWorkspaceIndex(rebuildWorkspaceIndex);
+    });
 });
 
 documents.listen(connection);
