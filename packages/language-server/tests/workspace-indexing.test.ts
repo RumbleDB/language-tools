@@ -1,8 +1,9 @@
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, rm, unlink, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 
+import { buildDocumentIndex } from "server/analysis/document-index.js";
 import { WorkspaceDocumentStore } from "server/analysis/module-loader.js";
 import {
     replaceWorkspaceDocuments,
@@ -45,6 +46,11 @@ describe("workspace indexing", () => {
         if (definition === undefined) return;
         coordinator.getReferencesToDefinition(definition);
 
+        coordinator.updateOpenDocument(
+            TextDocument.create(validUri, "jsoniq", 1, validDocument.getText()),
+        );
+        coordinator.getReferencesToDefinition(definition);
+
         expect(failedLoads).toBe(1);
     });
 
@@ -83,6 +89,63 @@ describe("workspace indexing", () => {
                     false,
                 ),
             ).toContainEqual(expect.objectContaining({ uri: importerUri }));
+        } finally {
+            await rm(directory, { recursive: true, force: true });
+        }
+    });
+
+    it("removes stale references as workspace documents change", async () => {
+        const directory = await mkdtemp(path.join(os.tmpdir(), "jsoniq-workspace-lifecycle-"));
+        try {
+            const importerPath = path.join(directory, "main.jq");
+            const modulePath = path.join(directory, "library.jq");
+            const importerUri = pathToFileURL(importerPath).toString();
+            const moduleUri = pathToFileURL(modulePath).toString();
+            const importSource = [
+                'import module namespace library = "urn:workspace-library" at "library.jq";',
+                "$library:value",
+            ].join("\n");
+            await writeFile(importerPath, importSource);
+            await writeFile(
+                modulePath,
+                [
+                    'module namespace library = "urn:workspace-library";',
+                    "declare variable $library:value := 1;",
+                ].join("\n"),
+            );
+
+            const coordinator = new WorkspaceAnalysisCoordinator();
+            coordinator.replaceWorkspaceDocuments([importerUri, moduleUri]);
+            const moduleDocument = loadSourceFile(moduleUri);
+            expect(moduleDocument).toBeDefined();
+            if (moduleDocument === undefined) return;
+            const definition = buildDocumentIndex(moduleDocument).definitions.find(
+                (candidate) => candidate.kind === "variable",
+            );
+            expect(definition).toBeDefined();
+            if (definition === undefined) return;
+
+            expect(coordinator.getReferencesToDefinition(definition)).toContainEqual(
+                expect.objectContaining({ uri: importerUri }),
+            );
+
+            await writeFile(importerPath, "1");
+            coordinator.updateWorkspaceDocuments([{ uri: importerUri, kind: "changed" }]);
+            expect(coordinator.getReferencesToDefinition(definition)).toEqual([]);
+
+            await writeFile(importerPath, importSource);
+            coordinator.updateWorkspaceDocuments([{ uri: importerUri, kind: "changed" }]);
+            expect(coordinator.getReferencesToDefinition(definition)).toContainEqual(
+                expect.objectContaining({ uri: importerUri }),
+            );
+
+            coordinator.replaceWorkspaceDocuments([moduleUri]);
+            expect(coordinator.getReferencesToDefinition(definition)).toEqual([]);
+
+            coordinator.replaceWorkspaceDocuments([importerUri, moduleUri]);
+            await unlink(modulePath);
+            coordinator.updateWorkspaceDocuments([{ uri: moduleUri, kind: "deleted" }]);
+            expect(coordinator.getReferencesToDefinition(definition)).toEqual([]);
         } finally {
             await rm(directory, { recursive: true, force: true });
         }
