@@ -57,6 +57,7 @@ export class WorkspaceIndex {
     public replaceWorkspaceDocuments(uris: readonly DocumentUri[]): void {
         this.failedAnalyses.clear();
         const removedDocuments = this.documents.replaceWorkspaceDocuments(uris);
+        logger.debug("Tracked documents:", this.documents.getTrackedDocumentUris());
         for (const uri of removedDocuments) clearParsedDocument(uri);
         this.invalidateAffected(removedDocuments);
         for (const uri of removedDocuments) {
@@ -72,6 +73,7 @@ export class WorkspaceIndex {
         const affected = this.invalidateAffected(changedUris);
 
         this.documents.updateWorkspaceDocuments(changes);
+        logger.debug("Tracked documents:", this.documents.getTrackedDocumentUris());
         for (const change of changes) {
             if (change.type === FileChangeType.Deleted) {
                 this.moduleGraph.removeOutgoingDependencies(change.uri);
