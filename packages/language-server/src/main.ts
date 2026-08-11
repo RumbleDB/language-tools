@@ -92,9 +92,8 @@ connection.onInitialize((params: InitializeParams): InitializeResult => {
     const clientConfiguration: Partial<InitializationOptions> = params.initializationOptions || {};
     mergeConfiguration(clientConfiguration);
     connection.console.log(`Language server configuration: ${JSON.stringify(config, null, 4)}`);
-    const initialWorkspaceFolderUris =
-        params.workspaceFolders?.map((folder) => folder.uri) ??
-        (params.rootUri === null || params.rootUri === undefined ? [] : [params.rootUri]);
+
+    const initialWorkspaceFolderUris = params.workspaceFolders?.map((folder) => folder.uri) || [];
     workspace.initialize(initialWorkspaceFolderUris);
     supportsWorkspaceFolderChanges = params.capabilities.workspace?.workspaceFolders === true;
 
@@ -123,16 +122,12 @@ connection.onInitialize((params: InitializeParams): InitializeResult => {
                 full: true,
             },
             documentFormattingProvider: true,
-            ...(supportsWorkspaceFolderChanges
-                ? {
-                      workspace: {
-                          workspaceFolders: {
-                              supported: true,
-                              changeNotifications: true,
-                          },
-                      },
-                  }
-                : {}),
+            workspace: {
+                workspaceFolders: {
+                    supported: true,
+                    changeNotifications: true,
+                },
+            },
         },
         serverInfo: {
             name: "JSONiq Language Server",
