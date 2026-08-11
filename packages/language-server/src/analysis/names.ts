@@ -1,18 +1,18 @@
 import { type LocalName, type Prefix } from "server/parser/types/name.js";
 
 export type QName = {
-    localName: LocalName;
-    namespaceUri?: string;
-    prefix?: Prefix;
+    readonly localName: LocalName;
+    readonly namespaceUri?: string;
+    readonly prefix?: Prefix;
 };
 
 export type FunctionName = {
-    qname: QName;
-    arity?: number;
+    readonly qname: QName;
+    readonly arity?: number;
 };
 
 export type DeclarationNameByKind = {
-    namespace: { prefix: Prefix };
+    namespace: { readonly prefix: Prefix };
     function: FunctionName;
     parameter: QName;
     variable: QName;

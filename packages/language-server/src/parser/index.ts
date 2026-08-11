@@ -15,6 +15,10 @@ interface CachedParsedDocument {
 
 const parseCache = new Map<DocumentUri, CachedParsedDocument>();
 
+export function clearParsedDocument(uri: DocumentUri): void {
+    parseCache.delete(uri);
+}
+
 function getCachedParsedDocument(document: TextDocument): CachedParsedDocument {
     const adapter = getParserAdapterForDocument(document);
 

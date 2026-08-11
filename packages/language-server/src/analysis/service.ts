@@ -1,33 +1,209 @@
-import { DocumentUri } from "vscode-languageserver";
+import { clearParsedDocument } from "server/parser/index.js";
+import { DiagnosticSeverity, type Diagnostic, type DocumentUri } from "vscode-languageserver";
 import { TextDocument } from "vscode-languageserver-textdocument";
 
-import { buildAnalysis, AnalysisResult } from "./builder.js";
+import { analyzeDocument, type AnalysisResult, type ResolvedModuleImport } from "./builder.js";
+import { type Definition, type SourceModuleExportDefinition } from "./definitions.js";
+import { buildDocumentIndex, type DocumentIndex } from "./document-index.js";
+import { ModuleGraph } from "./module-graph.js";
+import { WorkspaceDocumentStore } from "./module-loader.js";
+import type { AnyResolvedReference } from "./reference.js";
+import { WorkspaceSymbolIndex } from "./workspace-symbol-index.js";
 
 interface CachedAnalysis {
     version: number;
     analysis: AnalysisResult;
 }
 
-const analysisCache = new Map<DocumentUri, CachedAnalysis>();
-
-export function getAnalysis(document: TextDocument): AnalysisResult {
-    return getCachedAnalysis(document).analysis;
+interface CachedDocumentIndex {
+    version: number;
+    index: DocumentIndex;
 }
 
-function getCachedAnalysis(document: TextDocument): CachedAnalysis {
-    const cached = analysisCache.get(document.uri);
+class WorkspaceAnalysisCoordinator {
+    private readonly moduleGraph = new ModuleGraph();
+    private readonly symbols = new WorkspaceSymbolIndex();
+    private readonly cache = new Map<DocumentUri, CachedAnalysis>();
+    private readonly indexes = new Map<DocumentUri, CachedDocumentIndex>();
 
-    if (cached !== undefined && cached.version === document.version) {
-        return cached;
+    private readonly documents = new WorkspaceDocumentStore();
+
+    public updateOpenDocument(document: TextDocument): void {
+        if (!this.documents.update(document)) return;
+        this.invalidateAffected([document.uri]);
     }
 
-    const analysis = buildAnalysis(document);
+    public removeOpenDocument(uri: DocumentUri): void {
+        if (!this.documents.remove(uri)) return;
+        this.invalidateAffected([uri]);
+    }
 
-    const next = {
-        version: document.version,
-        analysis,
-    };
+    public invalidateDocuments(uris: readonly DocumentUri[]): void {
+        for (const uri of uris) clearParsedDocument(uri);
+        this.invalidateAffected(uris);
+    }
 
-    analysisCache.set(document.uri, next);
-    return next;
+    public getAnalysis(document: TextDocument): AnalysisResult {
+        this.updateOpenDocument(document);
+        return this.analyse(document, new Set());
+    }
+
+    private analyse(document: TextDocument, visiting: Set<DocumentUri>): AnalysisResult {
+        const cached = this.cache.get(document.uri);
+        if (cached?.version === document.version) return cached.analysis;
+
+        const nextVisiting = new Set(visiting).add(document.uri);
+        const index = this.getDocumentIndex(document);
+        const resolvedImports: ResolvedModuleImport[] = [];
+        const importDiagnostics: Diagnostic[] = [];
+        const importedNamespaces = new Set<string>();
+        const dependencies = new Set<DocumentUri>();
+
+        for (const imported of index.moduleDeclaration.imports) {
+            if (imported.namespaceUri.length === 0) {
+                importDiagnostics.push({
+                    severity: DiagnosticSeverity.Error,
+                    code: "XQST0088",
+                    message: "A module import target namespace cannot be empty.",
+                    range: imported.namespaceUriRange,
+                });
+                continue;
+            }
+            if (imported.prefix === "xml" || imported.prefix === "xmlns") {
+                importDiagnostics.push({
+                    severity: DiagnosticSeverity.Error,
+                    code: "XQST0070",
+                    message: `Prefix '${imported.prefix}' cannot be used for a module import.`,
+                    range: imported.range,
+                });
+                continue;
+            }
+            if (importedNamespaces.has(imported.namespaceUri)) {
+                importDiagnostics.push({
+                    severity: DiagnosticSeverity.Error,
+                    code: "XQST0047",
+                    message: `Module namespace '${imported.namespaceUri}' is imported more than once.`,
+                    range: imported.namespaceUriRange,
+                });
+                continue;
+            }
+            importedNamespaces.add(imported.namespaceUri);
+
+            const exports = new Map<string, SourceModuleExportDefinition>();
+            let foundValidModule = false;
+            for (const loaded of this.documents.loadImport(document, imported)) {
+                if (loaded.document === undefined) {
+                    importDiagnostics.push({
+                        severity: DiagnosticSeverity.Error,
+                        code: "XQST0059",
+                        message: `Cannot resolve module location '${loaded.locationUri}'.`,
+                        range: loaded.range,
+                    });
+                    continue;
+                }
+
+                const dependency = loaded.document;
+                dependencies.add(dependency.uri);
+                const dependencyIndex = this.getDocumentIndex(dependency);
+                if (!nextVisiting.has(dependency.uri)) {
+                    // Populate the dependency graph and workspace reference index for the
+                    // library itself. Its exports are already available from its document index.
+                    this.analyse(dependency, nextVisiting);
+                }
+                if (
+                    dependencyIndex.moduleDeclaration.kind !== "library" ||
+                    dependencyIndex.moduleInterface?.namespaceUri !== imported.namespaceUri
+                ) {
+                    importDiagnostics.push({
+                        severity: DiagnosticSeverity.Error,
+                        code: "XQST0059",
+                        message: `Imported module must declare namespace '${imported.namespaceUri}'.`,
+                        range: loaded.range,
+                    });
+                    continue;
+                }
+                foundValidModule = true;
+                for (const [name, exported] of dependencyIndex.moduleInterface.exports) {
+                    if (exports.has(name)) {
+                        importDiagnostics.push({
+                            severity: DiagnosticSeverity.Error,
+                            code: exported.kind === "variable" ? "XQST0049" : "XQST0034",
+                            message: `Module export '${name}' is defined more than once.`,
+                            range: loaded.range,
+                        });
+                        continue;
+                    }
+                    exports.set(name, exported);
+                }
+            }
+            if (foundValidModule) {
+                resolvedImports.push({
+                    targetNamespaceUri: imported.namespaceUri,
+                    exports,
+                });
+            }
+        }
+
+        this.moduleGraph.replaceDependencies(document.uri, dependencies);
+
+        const analysis = analyzeDocument(index, {
+            resolvedImports,
+            diagnostics: importDiagnostics,
+        });
+        this.cache.set(document.uri, { version: document.version, analysis });
+        this.symbols.update(document.uri, analysis);
+        return analysis;
+    }
+
+    private getDocumentIndex(document: TextDocument): DocumentIndex {
+        const cached = this.indexes.get(document.uri);
+        if (cached?.version === document.version) return cached.index;
+
+        const index = buildDocumentIndex(document);
+        this.indexes.set(document.uri, { version: document.version, index });
+        return index;
+    }
+
+    public getReferencesToDefinition(definition: Definition): readonly AnyResolvedReference[] {
+        if (definition.origin !== "source") return [];
+
+        for (const document of this.documents.getOpenDocuments()) {
+            this.analyse(document, new Set());
+        }
+
+        return this.symbols.referencesTo(definition);
+    }
+
+    private invalidateAffected(uris: readonly DocumentUri[]): void {
+        const affected = this.moduleGraph.affectedBy(uris);
+        for (const uri of affected) {
+            this.cache.delete(uri);
+            this.symbols.remove(uri);
+        }
+        for (const uri of uris) this.indexes.delete(uri);
+    }
+}
+
+const workspaceAnalysis = new WorkspaceAnalysisCoordinator();
+
+export function getAnalysis(document: TextDocument): AnalysisResult {
+    return workspaceAnalysis.getAnalysis(document);
+}
+
+export function updateOpenDocument(document: TextDocument): void {
+    workspaceAnalysis.updateOpenDocument(document);
+}
+
+export function removeOpenDocument(uri: DocumentUri): void {
+    workspaceAnalysis.removeOpenDocument(uri);
+}
+
+export function invalidateModuleDocuments(uris: readonly DocumentUri[]): void {
+    workspaceAnalysis.invalidateDocuments(uris);
+}
+
+export function getWorkspaceReferencesToDefinition(
+    definition: Definition,
+): readonly AnyResolvedReference[] {
+    return workspaceAnalysis.getReferencesToDefinition(definition);
 }

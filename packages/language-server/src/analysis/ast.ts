@@ -7,24 +7,23 @@ import { AnyResolvedReference, ResolvedReference } from "./reference.js";
 export type AstNodeKind = "module" | "declaration" | "reference" | "function-call" | "argument";
 
 export interface AstNodeBase<K extends AstNodeKind> {
-    kind: K;
-    range: Range;
-    children: AstNode[];
-    parent?: AstNode;
+    readonly kind: K;
+    readonly range: Range;
+    readonly children: readonly AstNode[];
 }
 
 export interface ModuleNode extends AstNodeBase<"module"> {}
 
 export interface DeclarationNode extends AstNodeBase<"declaration"> {
-    declaration: SourceDefinition;
+    readonly declaration: SourceDefinition;
 }
 
 export interface ReferenceNode<
     K extends keyof ReferenceNameByKind,
 > extends AstNodeBase<"reference"> {
-    referenceKind: K;
-    name: ReferenceNameByKind[K];
-    resolution: ResolvedReference<K> | undefined;
+    readonly referenceKind: K;
+    readonly name: ReferenceNameByKind[K];
+    readonly resolution: ResolvedReference<K> | undefined;
 }
 
 export type AnyReferenceNode = {
@@ -32,14 +31,14 @@ export type AnyReferenceNode = {
 }[keyof ReferenceNameByKind];
 
 export interface FunctionCallNode extends AstNodeBase<"function-call"> {
-    name: FunctionName;
-    selectionRange: Range;
-    reference: ReferenceNode<"function">;
-    arguments: ArgumentNode[];
+    readonly name: FunctionName;
+    readonly selectionRange: Range;
+    readonly reference: ReferenceNode<"function">;
+    readonly arguments: readonly ArgumentNode[];
 }
 
 export interface ArgumentNode extends AstNodeBase<"argument"> {
-    index: number;
+    readonly index: number;
 }
 
 export type AstNode =
@@ -50,7 +49,7 @@ export type AstNode =
     | ArgumentNode;
 
 export interface SymbolOccurrence {
-    range: Range;
-    declaration: Definition;
-    reference: AnyResolvedReference | undefined;
+    readonly range: Range;
+    readonly declaration: Definition;
+    readonly reference: AnyResolvedReference | undefined;
 }

@@ -17,6 +17,10 @@ let client: LanguageClient | undefined;
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
     const serverModule = require.resolve("jsoniq-language-server/bundled");
     const globalStoragePath = context.globalStorageUri.fsPath;
+    const moduleFileWatcher = vscode.workspace.createFileSystemWatcher(
+        "**/*.{jq,jsoniq,jqm,xq,xqy,xquery,xqm}",
+    );
+    context.subscriptions.push(moduleFileWatcher);
 
     await vscode.workspace.fs.createDirectory(context.globalStorageUri);
 
@@ -52,6 +56,9 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
             JUPYTER_NOTEBOOK_SELECTOR,
         ],
         initializationOptions: config,
+        synchronize: {
+            fileEvents: moduleFileWatcher,
+        },
     };
 
     client = new LanguageClient(

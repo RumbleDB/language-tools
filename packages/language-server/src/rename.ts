@@ -7,12 +7,17 @@ import {
 import { TextDocument } from "vscode-languageserver-textdocument";
 
 import { AnalysisResult } from "./analysis/builder.js";
-import { definitionNameToString, SourceDefinition } from "./analysis/definitions.js";
-import { findSymbolAtPosition, getReferencesToDefinition } from "./analysis/queries.js";
-import { getAnalysis } from "./analysis/service.js";
+import {
+    definitionNameToString,
+    type SourceParameterDefinition,
+    type SourceVariableDefinition,
+} from "./analysis/definitions.js";
+import type { QName } from "./analysis/names.js";
+import { findSymbolAtPosition } from "./analysis/queries.js";
+import { getAnalysis, getWorkspaceReferencesToDefinition } from "./analysis/service.js";
 
 interface RenameTarget {
-    declaration: SourceDefinition;
+    declaration: SourceVariableDefinition | SourceParameterDefinition;
     range: Range;
 }
 
@@ -72,24 +77,26 @@ export function buildRenameWorkspaceEdit(
         return null;
     }
 
-    const edits: TextEdit[] = [
-        {
-            range: target.declaration.selectionRange,
-            newText: newName,
-        },
-    ];
+    const newLocalName = newName.slice(1).split(":").at(-1)!;
+    const editsByUri: Record<string, TextEdit[]> = {
+        [target.declaration.uri]: [
+            {
+                range: target.declaration.selectionRange,
+                newText: renamedVariable(target.declaration.name, newLocalName),
+            },
+        ],
+    };
 
-    for (const reference of getReferencesToDefinition(analysis, target.declaration)) {
-        edits.push({
+    for (const reference of getWorkspaceReferencesToDefinition(target.declaration)) {
+        if (reference.kind !== "variable") continue;
+        (editsByUri[reference.uri] ??= []).push({
             range: reference.range,
-            newText: newName,
+            newText: renamedVariable(reference.name, newLocalName),
         });
     }
 
     return {
-        changes: {
-            [document.uri]: edits,
-        },
+        changes: editsByUri,
     };
 }
 
@@ -105,7 +112,10 @@ function findRenameTarget(analysis: AnalysisResult, position: Position): RenameT
         return null;
     }
 
-    if (occurrence.declaration.origin !== "source" || occurrence.declaration.kind === "function") {
+    if (
+        occurrence.declaration.origin !== "source" ||
+        (occurrence.declaration.kind !== "variable" && occurrence.declaration.kind !== "parameter")
+    ) {
         return null;
     }
 
@@ -113,6 +123,10 @@ function findRenameTarget(analysis: AnalysisResult, position: Position): RenameT
         declaration: occurrence.declaration,
         range: occurrence.reference?.range ?? occurrence.declaration.selectionRange,
     };
+}
+
+function renamedVariable(name: QName, localName: string): string {
+    return `$${name.prefix === undefined ? "" : `${name.prefix}:`}${localName}`;
 }
 
 /**

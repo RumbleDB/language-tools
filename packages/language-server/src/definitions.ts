@@ -24,7 +24,7 @@ export function findDefinitionLocation(
     }
 
     return {
-        uri: document.uri,
+        uri: declaration.uri,
         range: declaration.selectionRange,
     };
 }

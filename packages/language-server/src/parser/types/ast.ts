@@ -9,6 +9,8 @@ import type {
 
 export type AstNodeKind =
     | "module"
+    | "module-declaration"
+    | "module-import"
     | "namespace-declaration"
     | "context-item-declaration"
     | "type-declaration"
@@ -32,6 +34,20 @@ export interface AstNodeBase<K extends AstNodeKind> {
 }
 
 export interface ModuleAstNode extends AstNodeBase<"module"> {}
+
+export interface ModuleDeclarationAstNode extends AstNodeBase<"module-declaration"> {
+    readonly prefix: Prefix;
+    readonly namespaceUri: string;
+    readonly selectionRange: Range;
+}
+
+export interface ModuleImportAstNode extends AstNodeBase<"module-import"> {
+    readonly prefix?: Prefix;
+    readonly prefixRange?: Range;
+    readonly namespaceUri: string;
+    readonly namespaceUriRange: Range;
+    readonly locations: readonly { uri: string; range: Range }[];
+}
 
 export interface NamespaceDeclarationAstNode extends AstNodeBase<"namespace-declaration"> {
     readonly prefix: Prefix;
@@ -60,6 +76,7 @@ export interface FunctionDeclarationAstNode extends AstNodeBase<"function-declar
     readonly name: LexicalFunctionName;
     readonly selectionRange: Range;
     readonly parameters: AstParameter[];
+    readonly isPrivate: boolean;
 }
 
 export interface VariableDeclarationAstNode extends AstNodeBase<"variable-declaration"> {
@@ -67,6 +84,7 @@ export interface VariableDeclarationAstNode extends AstNodeBase<"variable-declar
     readonly range: Range;
     readonly selectionRange: Range;
     readonly visibleFrom: Position;
+    readonly isPrivate: boolean;
 }
 
 export interface FlowrExpressionAstNode extends AstNodeBase<"flowr-expression"> {}
@@ -103,6 +121,8 @@ export interface ArgumentAstNode extends AstNodeBase<"argument"> {
 
 export type AstNode =
     | ModuleAstNode
+    | ModuleDeclarationAstNode
+    | ModuleImportAstNode
     | NamespaceDeclarationAstNode
     | ContextItemDeclarationAstNode
     | TypeDeclarationAstNode

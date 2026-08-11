@@ -1,4 +1,5 @@
-import { buildAnalysis } from "server/analysis/builder.js";
+import { analyzeDocument } from "server/analysis/builder.js";
+import { buildDocumentIndex } from "server/analysis/document-index.js";
 import {
     findNodesThatContainPosition,
     findNodeThatContainsPosition,
@@ -12,6 +13,9 @@ import { getAnalysis } from "server/analysis/service.js";
 import { describe, expect, it } from "vitest";
 
 import { positionAt, testDocument } from "./test-utils.js";
+
+const buildAnalysis = (document: Parameters<typeof buildDocumentIndex>[0]) =>
+    analyzeDocument(buildDocumentIndex(document));
 
 describe("JSONiq variable scope analysis", () => {
     it("collects variable declarations from function params and FLWOR clauses", async () => {

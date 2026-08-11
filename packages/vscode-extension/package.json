@@ -47,7 +47,8 @@
                 ],
                 "extensions": [
                     ".jq",
-                    ".jsoniq"
+                    ".jsoniq",
+                    ".jqm"
                 ],
                 "configuration": "./language-configuration.json"
             },
@@ -59,7 +60,8 @@
                 "extensions": [
                     ".xq",
                     ".xqy",
-                    ".xquery"
+                    ".xquery",
+                    ".xqm"
                 ],
                 "configuration": "./language-configuration.json"
             }

@@ -56,4 +56,15 @@ class StaticTypeCheckerTest {
         assertEquals(1, error.range().start().line());
         assertEquals(4, error.range().start().character());
     }
+
+    @Test
+    void libraryModuleIsStaticTypecheckedAsALibraryModule() {
+        StaticTypeChecker.Result result = checkWithoutThrow("""
+                module namespace lib = "urn:lib";
+                declare function lib:f() as integer { "not an integer" };
+                """);
+
+        assertFalse(result.errors().isEmpty());
+        assertEquals("XPTY0004", result.errors().get(0).code());
+    }
 }
