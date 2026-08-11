@@ -29,6 +29,7 @@ class WorkspaceAnalysisCoordinator {
     private readonly symbols = new WorkspaceSymbolIndex();
     private readonly cache = new Map<DocumentUri, CachedAnalysis>();
     private readonly indexes = new Map<DocumentUri, CachedDocumentIndex>();
+    private readonly workspaceDocuments = new Set<DocumentUri>();
 
     public constructor(
         private readonly documents: WorkspaceDocumentStore = new WorkspaceDocumentStore(),
@@ -53,6 +54,11 @@ class WorkspaceAnalysisCoordinator {
     public getAnalysis(document: TextDocument): AnalysisResult {
         this.updateOpenDocument(document);
         return this.analyse(document, new Set());
+    }
+
+    public indexWorkspaceDocuments(uris: readonly DocumentUri[]): void {
+        for (const uri of uris) this.workspaceDocuments.add(uri);
+        this.ensureDocumentsAnalysed(uris);
     }
 
     private analyse(document: TextDocument, visiting: Set<DocumentUri>): AnalysisResult {
@@ -187,11 +193,19 @@ class WorkspaceAnalysisCoordinator {
     public getReferencesToDefinition(definition: Definition): readonly AnyResolvedReference[] {
         if (definition.origin !== "source") return [];
 
-        for (const document of this.documents.getOpenDocuments()) {
-            this.analyse(document, new Set());
-        }
+        this.ensureDocumentsAnalysed([
+            ...this.workspaceDocuments,
+            ...this.documents.getOpenDocuments().map((document) => document.uri),
+        ]);
 
         return this.symbols.referencesTo(definition);
+    }
+
+    private ensureDocumentsAnalysed(uris: readonly DocumentUri[]): void {
+        for (const uri of new Set(uris)) {
+            const document = this.documents.load(uri);
+            if (document !== undefined) this.analyse(document, new Set());
+        }
     }
 
     private invalidateAffected(uris: readonly DocumentUri[], invalidateIndexes: boolean): void {
@@ -210,6 +224,9 @@ const workspaceAnalysis = new WorkspaceAnalysisCoordinator();
 
 export function getAnalysis(document: TextDocument): AnalysisResult {
     return workspaceAnalysis.getAnalysis(document);
+}
+export function indexWorkspaceDocuments(uris: readonly DocumentUri[]): void {
+    workspaceAnalysis.indexWorkspaceDocuments(uris);
 }
 export function updateOpenDocument(document: TextDocument): void {
     workspaceAnalysis.updateOpenDocument(document);

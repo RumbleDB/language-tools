@@ -5,7 +5,7 @@ import { pathToFileURL } from "node:url";
 import { analyzeDocument } from "server/analysis/builder.js";
 import { definitionNameToString } from "server/analysis/definitions.js";
 import { buildDocumentIndex } from "server/analysis/document-index.js";
-import { getAnalysis } from "server/analysis/service.js";
+import { getAnalysis, indexWorkspaceDocuments } from "server/analysis/service.js";
 import { findDefinitionLocation } from "server/definitions.js";
 import { findReferenceLocations } from "server/references.js";
 import { buildRenameWorkspaceEdit } from "server/rename.js";
@@ -138,6 +138,25 @@ describe("module imports", () => {
         expect(
             findReferenceLocations(moduleDocument, positionAt(moduleDocument, "$math:x"), false),
         ).toContainEqual(expect.objectContaining({ uri: importer.uri }));
+    });
+
+    it("finds references in an unopened workspace importer", () => {
+        const directory = path.join(process.cwd(), "tests", "samples", "modules");
+        const moduleUri = pathToFileURL(path.join(directory, "math.jq")).toString();
+        const importerUri = pathToFileURL(
+            path.join(directory, "workspace-reference-main.jq"),
+        ).toString();
+        indexWorkspaceDocuments([moduleUri, importerUri]);
+        const moduleDocument = testDocumentFromUri(
+            readFileSync(path.join(directory, "math.jq"), "utf8"),
+            {
+                uri: moduleUri,
+            },
+        );
+
+        expect(
+            findReferenceLocations(moduleDocument, positionAt(moduleDocument, "$math:x"), false),
+        ).toContainEqual(expect.objectContaining({ uri: importerUri }));
     });
 
     it("does not import private module declarations", () => {

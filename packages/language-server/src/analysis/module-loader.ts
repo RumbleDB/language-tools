@@ -51,6 +51,10 @@ export class WorkspaceDocumentStore implements ModuleLoader {
         return [...this.openDocuments.values()];
     }
 
+    public load(uri: DocumentUri): TextDocument | undefined {
+        return this.openDocuments.get(uri) ?? loadSourceFile(uri);
+    }
+
     public loadImport(importer: TextDocument, imported: ModuleImport): readonly TextDocument[] {
         const modules: TextDocument[] = [];
         const seenUris = new Set<DocumentUri>();
@@ -58,12 +62,7 @@ export class WorkspaceDocumentStore implements ModuleLoader {
             if (seenUris.has(targetUri)) continue;
             seenUris.add(targetUri);
 
-            const open = this.openDocuments.get(targetUri);
-            if (open !== undefined) {
-                modules.push(open);
-                continue;
-            }
-            const document = loadSourceFile(targetUri);
+            const document = this.load(targetUri);
             if (document !== undefined) modules.push(document);
         }
         return modules;
