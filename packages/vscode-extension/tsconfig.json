@@ -9,6 +9,8 @@
         "noUncheckedIndexedAccess": true,
         "exactOptionalPropertyTypes": true,
         "sourceMap": true,
+        "incremental": true,
+        "tsBuildInfoFile": ".cache/tsconfig.tsbuildinfo",
         "skipLibCheck": true,
         "lib": ["ES2022"],
         "types": ["node", "vscode"]

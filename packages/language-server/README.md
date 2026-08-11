@@ -24,7 +24,7 @@ Before building the language server for the first time, you must generate the gr
 Other available scripts:
 
 - `pnpm run build`: Compiles the server and its dependencies.
-- `pnpm run watch`: Runs the TypeScript compiler in watch mode.
+- `pnpm run watch`: Type-checks and rebuilds the server bundle in watch mode.
 - `pnpm run test`: Runs the Vitest suite.
 
 ## Running

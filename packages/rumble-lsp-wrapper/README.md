@@ -30,3 +30,7 @@ Or run via the pnpm wrapper in the monorepo:
 ```bash
 pnpm run build
 ```
+
+The development build reuses the packaged wrapper when its Java sources, Maven configuration,
+version, and RumbleDB JAR are unchanged. Use `pnpm run build:force` to bypass that cache.
+Wrapper tests are run separately with `pnpm run test`; production builds remain uncached.

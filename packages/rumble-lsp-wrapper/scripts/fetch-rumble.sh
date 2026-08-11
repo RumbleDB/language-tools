@@ -19,6 +19,7 @@ RUMBLE_REPO_URL="https://github.com/RumbleDB/rumble.git"
 RUMBLE_REQUESTED_REF="jimmy/add-parse-library-module-from-query"
 RUMBLE_REQUESTED_COMMIT="c8269c2e053630a7146ec57b8b6cbb49de422f57"
 RUMBLE_TARGET_DIR="$RUMBLE_DIR/target"
+RUMBLE_BUILD_CACHE_DIR="$WRAPPER_DIR/.cache/rumble/$RUMBLE_REQUESTED_COMMIT"
 
 ensure_rumble_checkout() {
     if [ ! -d "$RUMBLE_DIR" ]; then
@@ -85,10 +86,25 @@ stamp_commit_matches_checkout() {
 resolve_rumble_jar() {
     jar_path=$(ls -1t "$RUMBLE_TARGET_DIR"/rumbledb-*-jar-with-dependencies.jar 2>/dev/null | head -n 1 || true)
     if [ -z "$jar_path" ]; then
+        jar_path=$(ls -1t "$RUMBLE_BUILD_CACHE_DIR"/rumbledb-*-jar-with-dependencies.jar 2>/dev/null | head -n 1 || true)
+    fi
+    if [ -z "$jar_path" ]; then
         return 1
     fi
 
     printf '%s\n' "$jar_path"
+}
+
+cache_rumble_jar() {
+    if [ "${CI:-}" != "true" ]; then
+        return
+    fi
+
+    mkdir -p "$RUMBLE_BUILD_CACHE_DIR"
+    cached_jar="$RUMBLE_BUILD_CACHE_DIR/$(basename "$RUMBLE_JAR")"
+    if [ "$RUMBLE_JAR" != "$cached_jar" ] && [ ! -f "$cached_jar" ]; then
+        ln -f "$RUMBLE_JAR" "$cached_jar" 2>/dev/null || cp -p "$RUMBLE_JAR" "$cached_jar"
+    fi
 }
 
 extract_rumble_version_from_jar() {
@@ -110,6 +126,9 @@ RUMBLE_COMMIT=$(git -C "$RUMBLE_DIR" rev-parse HEAD)
 RUMBLE_COMMIT_SHORT=$(git -C "$RUMBLE_DIR" rev-parse --short HEAD)
 RUMBLE_CURRENT_REF=$(detect_rumble_ref)
 RUMBLE_JAR=$(resolve_rumble_jar 2>/dev/null || true)
+if [ -n "$RUMBLE_JAR" ]; then
+    cache_rumble_jar
+fi
 CURRENT_BUILD_SIGNATURE=$(build_signature)
 
 write_metadata_file "$WRAPPER_METADATA_FILE"
@@ -121,6 +140,7 @@ if [ -z "$RUMBLE_JAR" ]; then
     echo "Building Rumble from source..." >&2
     (cd "$RUMBLE_DIR" && mvn -q -DskipTests clean compile assembly:single)
     RUMBLE_JAR=$(resolve_rumble_jar)
+    cache_rumble_jar
     CURRENT_BUILD_SIGNATURE=$(build_signature)
 elif ! stamp_commit_matches_checkout; then
     echo "Adopting existing Rumble jar for commit $RUMBLE_COMMIT_SHORT..." >&2

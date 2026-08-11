@@ -49,7 +49,10 @@ This is a monorepo managed with `pnpm`, containing the following packages:
 ### Scripts
 
 - `pnpm run build`: Builds the wrapper, language server, and client.
+- `pnpm run build:prod`: Performs a clean production build and regenerates derived catalogs.
+- `pnpm run dev`: Builds once, then watches the language server, webview, and extension.
 - `pnpm run clean`: Cleans the `dist` folders and Java `target` directories.
+- `pnpm run test`: Runs the Java wrapper and TypeScript language-server test suites.
 - `pnpm run lint`: Lints the codebase using `oxlint`.
 - `pnpm run fmt`: Formats the codebase using `oxfmt`.
 - `pnpm run test`: Runs the test suite for the language server.

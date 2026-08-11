@@ -17,6 +17,15 @@ type BuiltinDumpConfig = {
 };
 
 async function main() {
+    const targetDir = path.join(PACKAGE_ROOT, "assets");
+    const catalogFiles = ["builtin-functions.json", "builtin-types.json"].map((fileName) =>
+        path.join(targetDir, fileName),
+    );
+    if (!process.argv.includes("--force") && catalogFiles.every((file) => fs.existsSync(file))) {
+        console.log("Pregenerated builtin catalogs already exist; reusing them.");
+        return;
+    }
+
     console.log("Generating pregenerated builtin catalogs...");
 
     const launchConfig = resolveDevLaunchConfig();
@@ -27,7 +36,6 @@ async function main() {
         process.exit(1);
     }
 
-    const targetDir = path.join(PACKAGE_ROOT, "assets");
     if (!fs.existsSync(targetDir)) {
         fs.mkdirSync(targetDir, { recursive: true });
     }
