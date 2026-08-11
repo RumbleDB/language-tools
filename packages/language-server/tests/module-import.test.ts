@@ -65,11 +65,10 @@ describe("module imports", () => {
 
         const index = buildDocumentIndex(document);
 
-        expect(
-            [...(index.moduleInterface?.exports.values() ?? [])].map((definition) =>
-                definitionNameToString(definition),
-            ),
-        ).toEqual(["$lib:value", "lib:value#0"]);
+        expect([...index.moduleInterface!.exports.keys()]).toEqual([
+            "$Q{urn:lib}value",
+            "Q{urn:lib}value#0",
+        ]);
         expect(index.diagnostics).toEqual([
             expect.objectContaining({ code: "XQST0049" }),
             expect.objectContaining({ code: "XQST0034" }),

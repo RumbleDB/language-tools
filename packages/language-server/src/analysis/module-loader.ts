@@ -4,7 +4,7 @@ import { TextDocument } from "vscode-languageserver-textdocument";
 import type { ModuleImport } from "./module-info.js";
 import { loadSourceFile } from "./workspace-files.js";
 
-export interface ResolvedModuleLocation {
+interface ResolvedModuleLocation {
     readonly targetUri: DocumentUri;
     readonly range: Range;
 }
