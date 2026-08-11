@@ -63,10 +63,7 @@ export class WorkspaceIndex {
             this.moduleGraph.removeOutgoingDependencies(uri);
         }
 
-        this.ensureDocumentsAnalysed([
-            ...this.documents.getWorkspaceDocumentUris(),
-            ...this.documents.getOpenDocuments().map((document) => document.uri),
-        ]);
+        this.ensureDocumentsAnalysed(this.documents.getTrackedDocumentUris());
     }
 
     public updateWorkspaceDocuments(changes: readonly FileEvent[]): void {
@@ -202,10 +199,7 @@ export class WorkspaceIndex {
     public getReferencesToDefinition(definition: Definition): readonly AnyResolvedReference[] {
         if (definition.origin !== "source") return [];
 
-        this.ensureDocumentsAnalysed([
-            ...this.documents.getWorkspaceDocumentUris(),
-            ...this.documents.getOpenDocuments().map((document) => document.uri),
-        ]);
+        this.ensureDocumentsAnalysed(this.documents.getTrackedDocumentUris());
 
         return this.symbols.referencesTo(definition);
     }

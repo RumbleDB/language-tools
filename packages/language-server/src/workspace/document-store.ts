@@ -34,12 +34,8 @@ export class WorkspaceDocumentStore {
         return this.openDocuments.delete(uri);
     }
 
-    public getOpenDocuments(): readonly TextDocument[] {
-        return [...this.openDocuments.values()];
-    }
-
-    public getWorkspaceDocumentUris(): readonly DocumentUri[] {
-        return [...this.workspaceDocumentUris];
+    public getTrackedDocumentUris(): readonly DocumentUri[] {
+        return [...new Set([...this.workspaceDocumentUris, ...this.openDocuments.keys()])];
     }
 
     public replaceWorkspaceDocuments(uris: readonly DocumentUri[]): readonly DocumentUri[] {
