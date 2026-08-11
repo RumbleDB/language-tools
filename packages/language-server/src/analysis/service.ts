@@ -4,11 +4,7 @@ import { DiagnosticSeverity, type Diagnostic, type DocumentUri } from "vscode-la
 import { TextDocument } from "vscode-languageserver-textdocument";
 
 import { analyzeDocument, type AnalysisResult, type ResolvedModuleImport } from "./builder.js";
-import {
-    definitionNameToString,
-    type Definition,
-    type SourceModuleExportDefinition,
-} from "./definitions.js";
+import { type Definition, type SourceModuleExportDefinition } from "./definitions.js";
 import { buildDocumentIndex, type DocumentIndex } from "./document-index.js";
 import { ModuleGraph } from "./module-graph.js";
 import { WorkspaceDocumentStore } from "./module-loader.js";
@@ -165,31 +161,18 @@ export class WorkspaceAnalysisCoordinator {
                         severity: DiagnosticSeverity.Error,
                         code: "XQST0059",
                         message: `Imported module must declare namespace '${imported.namespaceUri}'.`,
-                        range: imported.namespaceUriRange,
+                        range: loaded.range,
                     });
                     continue;
                 }
                 foundValidModule = true;
                 for (const [name, exported] of dependencyIndex.moduleInterface.exports) {
-                    const namespaceUri =
-                        exported.kind === "function"
-                            ? exported.name.qname.namespaceUri
-                            : exported.name.namespaceUri;
-                    if (namespaceUri !== imported.namespaceUri) {
-                        importDiagnostics.push({
-                            severity: DiagnosticSeverity.Error,
-                            code: "XQST0048",
-                            message: `Export '${definitionNameToString(exported)}' is not in module namespace '${imported.namespaceUri}'.`,
-                            range: imported.namespaceUriRange,
-                        });
-                        continue;
-                    }
                     if (exports.has(name)) {
                         importDiagnostics.push({
                             severity: DiagnosticSeverity.Error,
                             code: exported.kind === "variable" ? "XQST0049" : "XQST0034",
                             message: `Module export '${name}' is defined more than once.`,
-                            range: imported.namespaceUriRange,
+                            range: loaded.range,
                         });
                         continue;
                     }

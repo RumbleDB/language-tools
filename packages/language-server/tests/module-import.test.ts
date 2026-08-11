@@ -167,17 +167,25 @@ describe("module imports", () => {
         const importerUri = pathToFileURL(
             path.join(directory, "workspace-reference-main.jq"),
         ).toString();
-        replaceWorkspaceDocuments([moduleUri, importerUri]);
-        const moduleDocument = testDocumentFromUri(
-            readFileSync(path.join(directory, "math.jq"), "utf8"),
-            {
-                uri: moduleUri,
-            },
-        );
+        try {
+            replaceWorkspaceDocuments([moduleUri, importerUri]);
+            const moduleDocument = testDocumentFromUri(
+                readFileSync(path.join(directory, "math.jq"), "utf8"),
+                {
+                    uri: moduleUri,
+                },
+            );
 
-        expect(
-            findReferenceLocations(moduleDocument, positionAt(moduleDocument, "$math:x"), false),
-        ).toContainEqual(expect.objectContaining({ uri: importerUri }));
+            expect(
+                findReferenceLocations(
+                    moduleDocument,
+                    positionAt(moduleDocument, "$math:x"),
+                    false,
+                ),
+            ).toContainEqual(expect.objectContaining({ uri: importerUri }));
+        } finally {
+            replaceWorkspaceDocuments([]);
+        }
     });
 
     it("does not import private module declarations", () => {
