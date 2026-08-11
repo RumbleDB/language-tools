@@ -6,11 +6,7 @@ import { TextDocument } from "vscode-languageserver-textdocument";
 
 import type { ModuleImport } from "./module-info.js";
 
-export interface ModuleLoader {
-    loadImport(importer: TextDocument, imported: ModuleImport): readonly TextDocument[];
-}
-
-export interface ResolvedModuleLocation {
+interface ResolvedModuleLocation {
     readonly targetUri: DocumentUri;
     readonly range: Range;
 }
@@ -33,7 +29,7 @@ export function resolveModuleLocations(
  * Owns workspace document snapshots and resolves relative file module locations.
  * Open editor snapshots always take precedence over their on-disk counterpart.
  */
-export class WorkspaceDocumentStore implements ModuleLoader {
+export class WorkspaceDocumentStore {
     private readonly openDocuments = new Map<DocumentUri, TextDocument>();
 
     public update(document: TextDocument): boolean {

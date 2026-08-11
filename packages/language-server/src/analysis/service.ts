@@ -10,7 +10,7 @@ import {
 } from "./definitions.js";
 import { buildDocumentIndex, type DocumentIndex } from "./document-index.js";
 import { ModuleGraph } from "./module-graph.js";
-import { WorkspaceDocumentStore, type ModuleLoader } from "./module-loader.js";
+import { WorkspaceDocumentStore } from "./module-loader.js";
 import type { AnyResolvedReference } from "./reference.js";
 import { WorkspaceSymbolIndex } from "./workspace-symbol-index.js";
 
@@ -30,24 +30,21 @@ class WorkspaceAnalysisCoordinator {
     private readonly cache = new Map<DocumentUri, CachedAnalysis>();
     private readonly indexes = new Map<DocumentUri, CachedDocumentIndex>();
 
-    public constructor(
-        private readonly documents: WorkspaceDocumentStore = new WorkspaceDocumentStore(),
-        private readonly moduleLoader: ModuleLoader = documents,
-    ) {}
+    private readonly documents = new WorkspaceDocumentStore();
 
     public updateOpenDocument(document: TextDocument): void {
         if (!this.documents.update(document)) return;
-        this.invalidateAffected([document.uri], true);
+        this.invalidateAffected([document.uri]);
     }
 
     public removeOpenDocument(uri: DocumentUri): void {
         if (!this.documents.remove(uri)) return;
-        this.invalidateAffected([uri], true);
+        this.invalidateAffected([uri]);
     }
 
     public invalidateDocuments(uris: readonly DocumentUri[]): void {
         for (const uri of uris) clearParsedDocument(uri);
-        this.invalidateAffected(uris, true);
+        this.invalidateAffected(uris);
     }
 
     public getAnalysis(document: TextDocument): AnalysisResult {
@@ -96,7 +93,7 @@ class WorkspaceAnalysisCoordinator {
             }
             importedNamespaces.add(imported.namespaceUri);
 
-            const loadedModules = this.moduleLoader.loadImport(document, imported);
+            const loadedModules = this.documents.loadImport(document, imported);
             if (loadedModules.length === 0) {
                 importDiagnostics.push({
                     severity: DiagnosticSeverity.Error,
@@ -194,15 +191,13 @@ class WorkspaceAnalysisCoordinator {
         return this.symbols.referencesTo(definition);
     }
 
-    private invalidateAffected(uris: readonly DocumentUri[], invalidateIndexes: boolean): void {
+    private invalidateAffected(uris: readonly DocumentUri[]): void {
         const affected = this.moduleGraph.affectedBy(uris);
         for (const uri of affected) {
             this.cache.delete(uri);
             this.symbols.remove(uri);
         }
-        if (invalidateIndexes) {
-            for (const uri of uris) this.indexes.delete(uri);
-        }
+        for (const uri of uris) this.indexes.delete(uri);
     }
 }
 
