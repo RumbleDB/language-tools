@@ -158,6 +158,71 @@ describe("JSONiq variable scope analysis", () => {
         });
     });
 
+    it("resolves Prolog declarations throughout the Prolog", async () => {
+        const document = testDocument("scope-prolog-forward-references", [
+            "declare variable $result := local:add($later, 1);",
+            "declare function local:add($left, $right) { $left + $right };",
+            "declare variable $later := 41;",
+            "$result",
+        ]);
+
+        const analysis = await buildAnalysis(document);
+
+        expect(
+            analysis.diagnostics.filter((diagnostic) => diagnostic.code?.startsWith("unresolved-")),
+        ).toEqual([]);
+        expect(
+            getResolvedReferences(analysis)
+                .filter(
+                    (reference) =>
+                        reference.range.start.line === 0 || reference.range.start.line === 3,
+                )
+                .map((reference) => ({
+                    referenceLine: reference.range.start.line,
+                    declarationLine: reference.declaration.selectionRange.start.line,
+                })),
+        ).toEqual([
+            { referenceLine: 0, declarationLine: 1 },
+            { referenceLine: 0, declarationLine: 2 },
+            { referenceLine: 3, declarationLine: 0 },
+        ]);
+    });
+
+    it("allows recursive Prolog functions but excludes a variable from its own initializer", async () => {
+        const document = testDocument("scope-prolog-self-reference", [
+            "declare function local:odd($n) { if ($n = 0) then false else local:even($n - 1) };",
+            "declare function local:even($n) { if ($n = 0) then true else local:odd($n - 1) };",
+            "declare variable $self := $self;",
+        ]);
+
+        const analysis = await buildAnalysis(document);
+
+        expect(analysis.diagnostics.map((diagnostic) => diagnostic.code)).toEqual([
+            "unresolved-variable",
+        ]);
+        expect(
+            getResolvedReferences(analysis)
+                .filter((reference) => reference.kind === "function")
+                .map((reference) => reference.declaration.selectionRange.start.line),
+        ).toEqual([1, 0]);
+    });
+
+    it("reports duplicate main-module Prolog declarations", () => {
+        const index = buildDocumentIndex(
+            testDocument("scope-duplicate-prolog-declarations", [
+                "declare variable $value := 1;",
+                "declare variable $value := 2;",
+                "declare function local:value() { 1 };",
+                "declare function local:value() { 2 };",
+            ]),
+        );
+
+        expect(index.diagnostics.map((diagnostic) => diagnostic.code)).toEqual([
+            "XQST0049",
+            "XQST0034",
+        ]);
+    });
+
     it("keeps built-in function references isolated per document analysis", async () => {
         const firstAnalysis = await buildAnalysis(
             testDocument("scope-builtin-reference-first", ["count((1, 2))"]),
@@ -339,9 +404,9 @@ describe("JSONiq variable scope analysis", () => {
 
         expect(analysis.namespaces.get("app")?.namespaceUri).toBe("http://example.com/app");
         expect(visibleDefinitions.map((definition) => definition.kind)).toEqual([
-            "type",
             "function",
             "variable",
+            "type",
         ]);
     });
 

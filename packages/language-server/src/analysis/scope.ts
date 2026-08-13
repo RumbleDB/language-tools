@@ -14,6 +14,7 @@ export interface Scope {
         kind: K,
         name: ReferenceNameByKind[K],
         offset: number,
+        excludedDefinitions?: ReadonlySet<ScopeDefinition>,
     ): ScopeDefinitionByReferenceKind[K] | undefined;
     contains(offset: number): boolean;
     findInnermostScope(offset: number): Scope;
@@ -53,16 +54,20 @@ export class ScopeBuilder implements Scope {
         kind: K,
         name: ReferenceNameByKind[K],
         offset: number,
+        excludedDefinitions: ReadonlySet<ScopeDefinition> = new Set(),
     ): ScopeDefinitionByReferenceKind[K] | undefined {
         const entries = this.entriesByName.get(this.referenceLookupKey(name, kind));
-        const entry = entries?.findLast((candidate) => candidate.visibleFrom <= offset);
+        const entry = entries?.findLast(
+            (candidate) =>
+                candidate.visibleFrom <= offset && !excludedDefinitions.has(candidate.definition),
+        );
         if (entry !== undefined) {
             // Definitions and references use the same kind-prefixed lookup keys, so a
             // successful lookup has the definition type associated with K.
             return entry.definition as ScopeDefinitionByReferenceKind[K];
         }
 
-        return this.parent?.resolve(kind, name, offset);
+        return this.parent?.resolve(kind, name, offset, excludedDefinitions);
     }
 
     /**
