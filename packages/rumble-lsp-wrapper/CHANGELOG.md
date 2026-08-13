@@ -1,5 +1,17 @@
 # rumble-lsp-wrapper
 
+## 0.7.0
+
+### Minor Changes
+
+- [#52](https://github.com/RumbleDB/language-tools/pull/52) [`25ed540`](https://github.com/RumbleDB/language-tools/commit/25ed540166cfabb68a49dbb28beceb4f5479dc74) - Add library-module parsing, import resolution, document links, and cross-file definitions, references, renames, and diagnostics for JSONiq and XQuery.
+
+  Recognize module file extensions in VS Code and keep module analysis synchronized with open documents and workspace file changes.
+
+- [`f31310b`](https://github.com/RumbleDB/language-tools/commit/f31310bc5da52fbdb938664f5e2e8fb66edf297e) - Improved local development build performance by caching unchanged Java wrapper builds, reusing existing built-in catalogs, and enabling incremental TypeScript type-checking. Production builds continue to regenerate catalogs and bypass development caches.
+
+  Added coordinated watch scripts, separated wrapper tests from development packaging while retaining full CI coverage, and cached the assembled RumbleDB JAR in CI. Also fixed production builds to use the extension’s production configuration.
+
 ## 0.6.1
 
 ### Patch Changes
