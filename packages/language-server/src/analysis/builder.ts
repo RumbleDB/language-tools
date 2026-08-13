@@ -41,6 +41,7 @@ import {
     DefinitionByReferenceKind,
     ImplicitVariableDefinition,
     NamespaceDefinition,
+    ScopeDefinition,
     SourceDefinition,
     SourceModuleExportDefinition,
 } from "./definitions.js";
@@ -132,6 +133,9 @@ class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
 
     private readonly resolvedImportsByNamespace: ReadonlyMap<string, ResolvedModuleImport>;
 
+    /** Definitions temporarily hidden while resolving a Prolog variable initializer. */
+    private readonly excludedDefinitions = new Set<ScopeDefinition>();
+
     public constructor(index: DocumentIndex, environment: AnalysisEnvironment) {
         super();
         this.index = index;
@@ -165,6 +169,7 @@ class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
     }
 
     public build(): AnalysisResult {
+        this.declarePrologDeclarations();
         this.result.ast = this.adoptChildren(
             this.result.ast,
             this.visitChildrenAsNodes(this.index.ast),
@@ -227,10 +232,6 @@ class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
 
     protected override visitFunctionDeclaration(node: FunctionDeclarationAstNode): AstNode[] {
         const definition = this.requireIndexed(this.index.indexedDefinitions.functions, node);
-        this.currentScope.declare(
-            definition,
-            this.index.document.offsetAt(node.selectionRange.end),
-        );
 
         const children = this.enterScope(node.range, () => [
             ...this.createFunctionParameterNodes(node.parameters),
@@ -242,8 +243,13 @@ class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
 
     protected override visitVariableDeclaration(node: VariableDeclarationAstNode): AstNode[] {
         const definition = this.requireIndexed(this.index.indexedDefinitions.variables, node);
-        this.currentScope.declare(definition, this.index.document.offsetAt(node.visibleFrom));
-        const children = this.visitChildrenAsNodes(node);
+        const isPrologDeclaration = this.index.prologDeclarations.has(node);
+        if (!isPrologDeclaration) {
+            this.currentScope.declare(definition, this.index.document.offsetAt(node.visibleFrom));
+        }
+        const children = isPrologDeclaration
+            ? this.withExcludedDefinition(definition, () => this.visitChildrenAsNodes(node))
+            : this.visitChildrenAsNodes(node);
         return [this.createDeclarationNode(definition, children)];
     }
 
@@ -379,7 +385,7 @@ class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
             }
         }
 
-        return this.currentScope.resolve(kind, name, offset);
+        return this.currentScope.resolve(kind, name, offset, this.excludedDefinitions);
     }
 
     private createReference<K extends keyof ReferenceNameByKind>(
@@ -447,6 +453,25 @@ class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
             );
             return this.createDeclarationNode(parameterDefinition);
         });
+    }
+
+    private declarePrologDeclarations(): void {
+        for (const node of this.index.prologDeclarations) {
+            const definition =
+                node.kind === "function-declaration"
+                    ? this.requireIndexed(this.index.indexedDefinitions.functions, node)
+                    : this.requireIndexed(this.index.indexedDefinitions.variables, node);
+            this.currentScope.declare(definition, 0);
+        }
+    }
+
+    private withExcludedDefinition<T>(definition: ScopeDefinition, callback: () => T): T {
+        this.excludedDefinitions.add(definition);
+        try {
+            return callback();
+        } finally {
+            this.excludedDefinitions.delete(definition);
+        }
     }
 
     private resolveFunctionName(name: LexicalFunctionName, range: Range): FunctionName {

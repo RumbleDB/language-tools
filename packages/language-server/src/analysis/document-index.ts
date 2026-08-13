@@ -56,6 +56,15 @@ export interface DocumentIndex {
     readonly definitions: SourceDefinition[];
 
     /**
+     * Function and variable declarations in the module Prolog.
+     *
+     * Unlike expression-level bindings, these declarations form the module static
+     * context and are visible throughout the Prolog (subject to the declaring
+     * variable being excluded from its own initializer).
+     */
+    readonly prologDeclarations: Set<FunctionDeclarationAstNode | VariableDeclarationAstNode>;
+
+    /**
      * Maps connecting parser AST nodes to those definitions
      *
      * This will be used in the analyzer to avoid rebuilding the definitions from the AST nodes, and to connect references to their definitions.
@@ -87,6 +96,10 @@ class DocumentIndexBuilder extends ParserAstVisitor<void> {
     private readonly result: DocumentIndex;
     private readonly symbolOccurrences = new Map<string, number>();
     private readonly moduleLevelDeclarations = new Set<ParserAstNode>();
+    private readonly prologDefinitionsByName = new Map<
+        string,
+        SourceFunctionDefinition | SourceVariableDefinition
+    >();
 
     public constructor(document: TextDocument, ast: ParserAstNode) {
         super();
@@ -115,11 +128,13 @@ class DocumentIndexBuilder extends ParserAstVisitor<void> {
                 parameters: new Map(),
             },
             diagnostics: [],
+            prologDeclarations: new Set(),
         };
     }
 
     public build(): DocumentIndex {
         this.indexStaticContext(this.result.ast);
+        this.indexPrologDeclarations(this.result.ast);
         this.visit(this.result.ast);
         return this.result;
     }
@@ -148,6 +163,27 @@ class DocumentIndexBuilder extends ParserAstVisitor<void> {
                 return;
         }
         for (const child of node.children) this.indexStaticContext(child);
+    }
+
+    private indexPrologDeclarations(module: ParserAstNode): void {
+        for (const child of module.children) {
+            if (child.kind === "function-declaration" || child.kind === "variable-declaration") {
+                this.result.prologDeclarations.add(child);
+                continue;
+            }
+
+            // A library module owns its Prolog in the parser AST; the main-module
+            // Prolog is represented directly under the module root.
+            if (child.kind !== "module-declaration") continue;
+            for (const declaration of child.children) {
+                if (
+                    declaration.kind === "function-declaration" ||
+                    declaration.kind === "variable-declaration"
+                ) {
+                    this.result.prologDeclarations.add(declaration);
+                }
+            }
+        }
     }
 
     private indexModuleDeclaration(node: ModuleDeclarationAstNode): void {
@@ -275,7 +311,9 @@ class DocumentIndexBuilder extends ParserAstVisitor<void> {
         };
         this.result.definitions.push(definition);
         this.result.indexedDefinitions.functions.set(node, definition);
-        this.recordLibraryDeclaration(node, definition);
+        if (!this.recordDuplicatePrologDeclaration(node, definition)) {
+            this.recordLibraryDeclaration(node, definition);
+        }
 
         for (const parameter of node.parameters) {
             const parameterDefinition: SourceParameterDefinition = {
@@ -303,8 +341,31 @@ class DocumentIndexBuilder extends ParserAstVisitor<void> {
         );
         this.result.definitions.push(definition);
         this.result.indexedDefinitions.variables.set(node, definition);
-        this.recordLibraryDeclaration(node, definition);
+        if (!this.recordDuplicatePrologDeclaration(node, definition)) {
+            this.recordLibraryDeclaration(node, definition);
+        }
         this.visitChildren(node);
+    }
+
+    private recordDuplicatePrologDeclaration(
+        node: FunctionDeclarationAstNode | VariableDeclarationAstNode,
+        definition: SourceFunctionDefinition | SourceVariableDefinition,
+    ): boolean {
+        if (!this.result.prologDeclarations.has(node)) return false;
+
+        const name = definitionNameToString(definition, true);
+        if (this.prologDefinitionsByName.has(name)) {
+            this.result.diagnostics.push({
+                severity: DiagnosticSeverity.Error,
+                code: definition.kind === "variable" ? "XQST0049" : "XQST0034",
+                message: `Prolog ${definition.kind} '${name}' is defined more than once.`,
+                range: definition.selectionRange,
+            });
+            return true;
+        }
+
+        this.prologDefinitionsByName.set(name, definition);
+        return false;
     }
 
     private recordLibraryDeclaration(
