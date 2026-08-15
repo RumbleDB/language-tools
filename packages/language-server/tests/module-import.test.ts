@@ -185,7 +185,7 @@ describe("module imports", () => {
             path.join(directory, "workspace-reference-main.jq"),
         ).toString();
         try {
-            workspaceService.setWorkspaceDocuments([moduleUri, importerUri]);
+            await workspaceService.setWorkspaceFolders([pathToFileURL(directory).toString()]);
             const moduleDocument = testDocumentFromUri(
                 readFileSync(path.join(directory, "math.jq"), "utf8"),
                 {
@@ -202,7 +202,7 @@ describe("module imports", () => {
                 ),
             ).toContainEqual(expect.objectContaining({ uri: importerUri }));
         } finally {
-            workspaceService.setWorkspaceDocuments([]);
+            await workspaceService.setWorkspaceFolders([]);
         }
     });
 

@@ -45,10 +45,6 @@ export class WorkspaceService {
         return this.index.getAnalysis(document);
     }
 
-    public setWorkspaceDocuments(uris: readonly DocumentUri[]): void {
-        this.index.replaceWorkspaceDocuments(uris);
-    }
-
     public updateOpenDocument(document: TextDocument): void {
         this.index.updateOpenDocument(document);
     }
