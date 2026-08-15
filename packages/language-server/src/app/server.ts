@@ -18,7 +18,7 @@ export type ClientConfiguration = Partial<InitializationOptions>;
 
 const connection = createConnection(ProposedFeatures.all);
 const context = createServerContext(connection);
-const { documents, parser, workspace, workspaceController, diagnostics } = context;
+const { documents, parser, workspace, diagnostics } = context;
 
 setLoggerSink(connection.console);
 initializeNotifications((method, payload) => {
@@ -30,7 +30,6 @@ registerLanguageFeatureHandlers({
     documents,
     parser,
     workspace,
-    workspaceController,
 });
 
 connection.onInitialize((params: InitializeParams): InitializeResult => {
@@ -39,7 +38,7 @@ connection.onInitialize((params: InitializeParams): InitializeResult => {
     connection.console.log(`Language server configuration: ${JSON.stringify(config, null, 4)}`);
 
     const initialWorkspaceFolderUris = params.workspaceFolders?.map((folder) => folder.uri) || [];
-    workspaceController.initialize(initialWorkspaceFolderUris);
+    workspace.setWorkspaceFolders(initialWorkspaceFolderUris);
 
     return {
         capabilities: serverCapabilities,
@@ -68,12 +67,12 @@ documents.onDidClose((event) => {
 });
 
 connection.onDidChangeWatchedFiles((params) => {
-    workspaceController.updateDocuments(params.changes);
+    workspace.updateWatchedFiles(params.changes);
 });
 
 connection.onInitialized(() => {
     connection.workspace.onDidChangeWorkspaceFolders((params) => {
-        workspaceController.updateFolders(
+        workspace.updateWorkspaceFolders(
             params.added.map((folder) => folder.uri),
             params.removed.map((folder) => folder.uri),
         );

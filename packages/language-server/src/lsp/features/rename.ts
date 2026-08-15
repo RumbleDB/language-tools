@@ -21,7 +21,6 @@ export function registerRename({
     connection,
     documents,
     workspace,
-    workspaceReady,
 }: FeatureRegistrationContext): void {
     connection.onPrepareRename((params) => {
         const document = documents.get(params.textDocument.uri);
@@ -29,7 +28,7 @@ export function registerRename({
     });
 
     connection.onRenameRequest(async (params) => {
-        await workspaceReady.ready();
+        await workspace.ready();
         const document = documents.get(params.textDocument.uri);
         return document === undefined
             ? null

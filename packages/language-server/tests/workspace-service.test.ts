@@ -1,43 +1,40 @@
-import { WorkspaceController } from "server/workspace/controller.js";
+import { WorkspaceService } from "server/workspace/service.js";
+import { WorkspaceIndex } from "server/workspace/workspace-index.js";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { FileChangeType, type FileEvent } from "vscode-languageserver/node";
+import { FileChangeType } from "vscode-languageserver/node";
 
-const workspaceService = vi.hoisted(() => ({
-    replaceDocuments: vi.fn<(uris: readonly string[]) => void>(),
-    updateDocuments: vi.fn<(changes: readonly FileEvent[]) => void>(),
-}));
 const discoverWorkspaceDocumentUris = vi.hoisted(() =>
     vi.fn<(folderUris: readonly string[]) => Promise<readonly string[]>>(),
 );
 const logger = vi.hoisted(() => ({ error: vi.fn() }));
 
-vi.mock("server/workspace/files.js", () => ({ discoverWorkspaceDocumentUris }));
 vi.mock("server/utils/logger.js", () => ({ createLogger: () => logger }));
 
 beforeEach(() => {
     vi.resetAllMocks();
 });
 
-describe("workspace controller", () => {
+describe("workspace service lifecycle", () => {
     it("serializes discovery and document changes", async () => {
         const events: string[] = [];
-        workspaceService.replaceDocuments.mockImplementation((uris) => {
+        const index = new WorkspaceIndex();
+        vi.spyOn(index, "replaceWorkspaceDocuments").mockImplementation((uris) => {
             events.push(`replace:${uris.join(",")}`);
         });
-        workspaceService.updateDocuments.mockImplementation((changes) => {
+        vi.spyOn(index, "updateWorkspaceDocuments").mockImplementation((changes) => {
             events.push(`update:${changes.map((change) => change.uri).join(",")}`);
         });
         discoverWorkspaceDocumentUris.mockImplementation(async (folderUris) => {
             events.push(`discover:${folderUris.join(",")}`);
             return folderUris.map((uri) => `${uri}/document.jq`);
         });
-        const controller = new WorkspaceController(workspaceService);
+        const workspace = new WorkspaceService(index, discoverWorkspaceDocumentUris);
 
-        controller.initialize(["file:///workspace"]);
-        controller.updateDocuments([
+        workspace.setWorkspaceFolders(["file:///workspace"]);
+        workspace.updateWatchedFiles([
             { uri: "file:///workspace/changed.jq", type: FileChangeType.Changed },
         ]);
-        await controller.ready();
+        await workspace.ready();
 
         expect(events).toEqual([
             "discover:file:///workspace",
@@ -52,29 +49,30 @@ describe("workspace controller", () => {
             events.push(`discover:${folderUris.join(",")}`);
             return folderUris.map((uri) => `${uri}/document.jq`);
         });
-        const controller = new WorkspaceController(workspaceService);
+        const workspace = new WorkspaceService(new WorkspaceIndex(), discoverWorkspaceDocumentUris);
 
-        controller.initialize(["file:///first"]);
-        controller.updateFolders(["file:///second"], ["file:///first"]);
-        await controller.ready();
+        workspace.setWorkspaceFolders(["file:///first"]);
+        workspace.updateWorkspaceFolders(["file:///second"], ["file:///first"]);
+        await workspace.ready();
 
         expect(events).toContain("discover:file:///second");
     });
 
     it("continues processing after a failed operation", async () => {
         const events: string[] = [];
-        workspaceService.updateDocuments.mockImplementation((changes) => {
+        const index = new WorkspaceIndex();
+        vi.spyOn(index, "updateWorkspaceDocuments").mockImplementation((changes) => {
             events.push(`update:${changes.map((change) => change.uri).join(",")}`);
         });
         const error = new Error("discovery failed");
         discoverWorkspaceDocumentUris.mockRejectedValue(error);
-        const controller = new WorkspaceController(workspaceService);
+        const workspace = new WorkspaceService(index, discoverWorkspaceDocumentUris);
 
-        controller.initialize(["file:///workspace"]);
-        controller.updateDocuments([
+        workspace.setWorkspaceFolders(["file:///workspace"]);
+        workspace.updateWatchedFiles([
             { uri: "file:///workspace/changed.jq", type: FileChangeType.Changed },
         ]);
-        await controller.ready();
+        await workspace.ready();
 
         expect(logger.error).toHaveBeenCalledWith("Workspace indexing failed.", error);
         expect(events).toEqual(["update:file:///workspace/changed.jq"]);

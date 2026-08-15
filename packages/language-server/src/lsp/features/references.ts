@@ -9,10 +9,9 @@ export function registerReferences({
     connection,
     documents,
     workspace,
-    workspaceReady,
 }: FeatureRegistrationContext): void {
     connection.onReferences(async (params) => {
-        await workspaceReady.ready();
+        await workspace.ready();
         const document = documents.get(params.textDocument.uri);
         return document === undefined
             ? []

@@ -8,11 +8,7 @@ import { buildDocumentIndex } from "server/analysis/document-index.js";
 import { findDefinitionLocation } from "server/lsp/features/definition.js";
 import { findReferenceLocations } from "server/lsp/features/references.js";
 import { buildRenameWorkspaceEdit } from "server/lsp/features/rename.js";
-import {
-    getAnalysis,
-    replaceWorkspaceDocuments,
-    workspaceService,
-} from "server/workspace/service.js";
+import { workspaceService } from "server/workspace/service.js";
 import { describe, expect, it } from "vitest";
 
 import { positionAt, testDocument, testDocumentFromUri } from "./test-utils.js";
@@ -24,7 +20,7 @@ describe("module imports", () => {
             "1",
         ]);
 
-        expect(getAnalysis(document).diagnostics).toContainEqual(
+        expect(workspaceService.getAnalysis(document).diagnostics).toContainEqual(
             expect.objectContaining({ code: "XQST0059" }),
         );
     });
@@ -89,7 +85,7 @@ describe("module imports", () => {
             { uri: pathToFileURL(path.join(path.dirname(fixture), "main.jq")).toString() },
         );
 
-        const analysis = getAnalysis(document);
+        const analysis = workspaceService.getAnalysis(document);
         expect(analysis.diagnostics).toEqual([
             expect.objectContaining({
                 code: "unresolved-variable",
@@ -129,7 +125,7 @@ describe("module imports", () => {
             { uri: pathToFileURL(path.join(path.dirname(fixture), "ImportMath.jq")).toString() },
         );
 
-        expect(getAnalysis(document).diagnostics).toEqual([]);
+        expect(workspaceService.getAnalysis(document).diagnostics).toEqual([]);
         expect(
             findDefinitionLocation(document, positionAt(document, "$math:x"), workspaceService)
                 ?.uri,
@@ -164,13 +160,13 @@ describe("module imports", () => {
             },
         );
 
-        getAnalysis(importer);
+        workspaceService.getAnalysis(importer);
 
         const moduleDocument = testDocumentFromUri(readFileSync(fixture, "utf8"), {
             uri: moduleUri,
             version: 1,
         });
-        getAnalysis(moduleDocument);
+        workspaceService.getAnalysis(moduleDocument);
 
         expect(
             findReferenceLocations(
@@ -189,7 +185,7 @@ describe("module imports", () => {
             path.join(directory, "workspace-reference-main.jq"),
         ).toString();
         try {
-            replaceWorkspaceDocuments([moduleUri, importerUri]);
+            workspaceService.setWorkspaceDocuments([moduleUri, importerUri]);
             const moduleDocument = testDocumentFromUri(
                 readFileSync(path.join(directory, "math.jq"), "utf8"),
                 {
@@ -206,7 +202,7 @@ describe("module imports", () => {
                 ),
             ).toContainEqual(expect.objectContaining({ uri: importerUri }));
         } finally {
-            replaceWorkspaceDocuments([]);
+            workspaceService.setWorkspaceDocuments([]);
         }
     });
 
@@ -224,7 +220,7 @@ describe("module imports", () => {
             },
         );
 
-        expect(getAnalysis(document).diagnostics).toEqual([
+        expect(workspaceService.getAnalysis(document).diagnostics).toEqual([
             expect.objectContaining({ code: "unresolved-variable" }),
             expect.objectContaining({ code: "unresolved-function" }),
         ]);
@@ -238,7 +234,7 @@ describe("module imports", () => {
             { uri: pathToFileURL(path.join(directory, "cycle-main.jq")).toString() },
         );
 
-        expect(getAnalysis(document).diagnostics).toEqual([]);
+        expect(workspaceService.getAnalysis(document).diagnostics).toEqual([]);
         expect(
             findDefinitionLocation(document, positionAt(document, "$a:x"), workspaceService)?.uri,
         ).toBe(moduleUri);
@@ -259,7 +255,7 @@ describe("module imports", () => {
             { uri: pathToFileURL(path.join(directory, "duplicate-main.jq")).toString() },
         );
 
-        expect(getAnalysis(document).diagnostics).toEqual([
+        expect(workspaceService.getAnalysis(document).diagnostics).toEqual([
             expect.objectContaining({ code: "XQST0049" }),
         ]);
     });
@@ -272,7 +268,7 @@ describe("module imports", () => {
             { uri: pathToFileURL(path.join(directory, "partial-import-main.jq")).toString() },
         );
 
-        expect(getAnalysis(document).diagnostics).toEqual([
+        expect(workspaceService.getAnalysis(document).diagnostics).toEqual([
             expect.objectContaining({
                 code: "XQST0059",
                 message: "Cannot resolve module location 'missing.jq'.",
@@ -291,7 +287,7 @@ describe("module imports", () => {
             { uri: pathToFileURL(path.join(directory, "no-location-main.jq")).toString() },
         );
 
-        expect(getAnalysis(document).diagnostics).toEqual([]);
+        expect(workspaceService.getAnalysis(document).diagnostics).toEqual([]);
         expect(
             findDefinitionLocation(document, positionAt(document, "$math:x"), workspaceService)
                 ?.uri,
@@ -305,7 +301,7 @@ describe("module imports", () => {
             { uri: pathToFileURL(path.join(directory, "missing-location-main.jq")).toString() },
         );
 
-        expect(getAnalysis(document).diagnostics).toEqual([
+        expect(workspaceService.getAnalysis(document).diagnostics).toEqual([
             expect.objectContaining({ code: "XQST0059" }),
             expect.objectContaining({ code: "unresolved-variable" }),
         ]);
