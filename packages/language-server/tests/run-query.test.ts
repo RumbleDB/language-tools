@@ -1,5 +1,8 @@
 import { getWrapperClient } from "server/integrations/rumble/client.js";
-import { runQuery, runQueryFromSource } from "server/requests/run-query/service.js";
+import {
+    runQuery,
+    runQueryFromSource,
+} from "server/integrations/rumble/operations/run-query/service.js";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { testDocument } from "./test-utils.js";

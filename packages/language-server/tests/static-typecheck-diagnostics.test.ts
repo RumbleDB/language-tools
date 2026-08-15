@@ -3,8 +3,8 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 
 import { getWrapperClient } from "server/integrations/rumble/client.js";
+import { clearStaticTypecheckCache } from "server/integrations/rumble/operations/static-typecheck/service.js";
 import { collectStaticTypecheckDiagnostics } from "server/static-typecheck/diagnostics.js";
-import { clearStaticTypecheckCache } from "server/static-typecheck/service.js";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { testDocument, testDocumentFromUri } from "./test-utils.js";

@@ -4,8 +4,8 @@ import {
     formatFunctionDocEntry,
     getBuiltinFunctionDocumentation,
 } from "server/assets/function-docs.js";
+import { getTypeAtPosition } from "server/integrations/rumble/operations/type-at-position/service.js";
 import { formatSequenceType, type SequenceType } from "server/static-typecheck/types.js";
-import { getTypeAtPosition } from "server/type-at-position/service.js";
 import { getAnalysis } from "server/workspace/service.js";
 import { MarkupKind, type Hover, type Position } from "vscode-languageserver";
 import { TextDocument } from "vscode-languageserver-textdocument";

@@ -10,6 +10,7 @@ import {
     getBuiltinFunctionDocumentation,
     Signature,
 } from "server/assets/function-docs.js";
+import { getTypeAtPositionFromSource } from "server/integrations/rumble/operations/type-at-position/service.js";
 import { collectCompletionIntent } from "server/parser/index.js";
 import { getDocumentText } from "server/parser/utils.js";
 import {
@@ -17,7 +18,6 @@ import {
     formatTypeDefinition,
     type ObjectTypeDefinition,
 } from "server/static-typecheck/types.js";
-import { getTypeAtPositionFromSource } from "server/type-at-position/service.js";
 import { getAnalysis } from "server/workspace/service.js";
 import {
     CompletionItemKind,

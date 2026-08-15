@@ -5,10 +5,10 @@ import {
     type InitializeResult,
 } from "vscode-languageserver/node";
 
+import { clearStaticTypecheckCache } from "../integrations/rumble/operations/static-typecheck/service.js";
 import { registerLanguageFeatureHandlers } from "../lsp/handlers/register.js";
 import { initializeNotifications } from "../notifications/index.js";
 import { initializeCustomRequests } from "../requests/index.js";
-import { clearStaticTypecheckCache } from "../static-typecheck/service.js";
 import { setLoggerSink } from "../utils/logger.js";
 import { removeOpenDocument, updateOpenDocument } from "../workspace/service.js";
 import { serverCapabilities } from "./capabilities.js";

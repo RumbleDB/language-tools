@@ -1,8 +1,8 @@
-import { getWrapperClient } from "server/integrations/rumble/client.js";
 import { getDocumentText } from "server/parser/utils.js";
 import { createLogger } from "server/utils/logger.js";
 import type { TextDocument } from "vscode-languageserver-textdocument";
 
+import { getWrapperClient } from "../../client.js";
 import { REQUEST_TYPE_RUN_QUERY, RunQueryRequest, type RunQueryRequestSpec } from "./protocol.js";
 import type { RunQueryWireResult } from "./types.js";
 
