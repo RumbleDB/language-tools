@@ -1,7 +1,7 @@
 import type { TextEdit } from "vscode-languageserver";
 import type { TextDocument } from "vscode-languageserver-textdocument";
 
-import { parseDocument } from "../parser/index.js";
+import type { ParserService } from "../parser/index.js";
 import { getParserAdapterForDocument } from "../parser/registry.js";
 import { getDocumentText } from "../parser/utils.js";
 import { JsoniqFormatterVisitor } from "./adapters/jsoniq.js";
@@ -21,6 +21,7 @@ import { printDocToString } from "./printer.js";
  */
 export function formatDocument(
     document: TextDocument,
+    parser: ParserService,
     options?: Partial<FormatterOptions>,
 ): TextEdit[] {
     const adapter = getParserAdapterForDocument(document);
@@ -28,7 +29,7 @@ export function formatDocument(
         return [];
     }
 
-    const parsed = parseDocument(document);
+    const parsed = parser.parse(document);
 
     // Refuse to format documents with syntax errors
     if (parsed.diagnostics.length > 0) {

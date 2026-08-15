@@ -1,7 +1,7 @@
 import { findDefinitionLocation } from "server/lsp/features/definition.js";
-import { workspaceService } from "server/workspace/service.js";
 import { describe, expect, it } from "vitest";
 
+import { workspaceService } from "./services.js";
 import { positionAtNth, testDocument, testDocumentFromUri } from "./test-utils.js";
 
 describe("JSONiq go-to-definition", () => {

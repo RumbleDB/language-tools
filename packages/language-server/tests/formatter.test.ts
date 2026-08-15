@@ -1,7 +1,7 @@
 import { formatDocument } from "server/formatter/index.js";
-import { parseDocument } from "server/parser/index.js";
 import { describe, expect, it } from "vitest";
 
+import { parserService } from "./services.js";
 import { testDocument, testDocumentFromUri } from "./test-utils.js";
 
 const TEST_FORMATTER_OPTIONS = {
@@ -21,7 +21,7 @@ function formatText(
         uri: `file:///test-document-${docId}.${ext}`,
         languageId,
     });
-    const edits = formatDocument(doc, { ...TEST_FORMATTER_OPTIONS, ...options });
+    const edits = formatDocument(doc, parserService, { ...TEST_FORMATTER_OPTIONS, ...options });
     if (edits.length === 0) {
         return doc.getText();
     }
@@ -43,7 +43,7 @@ function expectFormattingInvariant(source: string, languageId: "jsoniq" | "xquer
         uri: `file:///invariant-original-${docId}.${languageId === "xquery" ? "xq" : "jq"}`,
         languageId,
     });
-    const originalParse = parseDocument(original);
+    const originalParse = parserService.parse(original);
     expect(originalParse.diagnostics).toEqual([]);
 
     const formatted = formatText(source, languageId);
@@ -51,7 +51,7 @@ function expectFormattingInvariant(source: string, languageId: "jsoniq" | "xquer
         uri: `file:///invariant-formatted-${docId}.${languageId === "xquery" ? "xq" : "jq"}`,
         languageId,
     });
-    const formattedParse = parseDocument(result);
+    const formattedParse = parserService.parse(result);
     expect(formattedParse.diagnostics).toEqual([]);
     expect(semanticAst(formattedParse.ast)).toEqual(semanticAst(originalParse.ast));
     expect(formatText(formatted, languageId)).toBe(formatted);
@@ -950,7 +950,7 @@ describe("JSONiq & XQuery Formatter", () => {
         it("refuses to format documents with syntax errors", () => {
             const input = "declare function local:foo("; // Incomplete syntax
             const doc = testDocument("broken", input);
-            const edits = formatDocument(doc);
+            const edits = formatDocument(doc, parserService);
             expect(edits).toHaveLength(0);
         });
     });
@@ -963,8 +963,8 @@ describe("JSONiq & XQuery Formatter", () => {
             const originalDoc = testDocument("orig", original);
             const formattedDoc = testDocument("fmt", formatted);
 
-            const origAst = parseDocument(originalDoc).ast;
-            const fmtAst = parseDocument(formattedDoc).ast;
+            const origAst = parserService.parse(originalDoc).ast;
+            const fmtAst = parserService.parse(formattedDoc).ast;
 
             expect(fmtAst.kind).toBe(origAst.kind);
             expect(fmtAst.children.length).toBe(origAst.children.length);
@@ -984,8 +984,8 @@ describe("JSONiq & XQuery Formatter", () => {
                 languageId: "xquery",
             });
 
-            const origAst = parseDocument(originalDoc).ast;
-            const fmtAst = parseDocument(formattedDoc).ast;
+            const origAst = parserService.parse(originalDoc).ast;
+            const fmtAst = parserService.parse(formattedDoc).ast;
 
             expect(fmtAst.kind).toBe(origAst.kind);
             expect(fmtAst.children.length).toBe(origAst.children.length);

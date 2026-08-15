@@ -1,7 +1,7 @@
 import { buildRenameWorkspaceEdit, prepareRename } from "server/lsp/features/rename.js";
-import { workspaceService } from "server/workspace/service.js";
 import { describe, expect, it } from "vitest";
 
+import { workspaceService } from "./services.js";
 import { positionAt, positionAtNth, testDocument } from "./test-utils.js";
 
 describe("JSONiq rename", () => {

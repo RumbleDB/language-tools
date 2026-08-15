@@ -1,7 +1,7 @@
 import { buildCommentAttachmentMap } from "server/formatter/comments.js";
-import { parseDocument } from "server/parser/index.js";
 import { expect, it } from "vitest";
 
+import { parserService } from "./services.js";
 import { testDocument } from "./test-utils.js";
 
 function commentTexts(groups: Iterable<readonly { text?: string | null }[]>): string[] {
@@ -18,7 +18,7 @@ it("attaches leading, trailing, and dangling comments in source order", () => {
         "] (: trailing array :)",
         "(: end of file :)",
     ].join("\n");
-    const parsed = parseDocument(testDocument("comment-attachments", source));
+    const parsed = parserService.parse(testDocument("comment-attachments", source));
     expect(parsed.diagnostics).toEqual([]);
 
     const attachments = buildCommentAttachmentMap(parsed.tokenStream);

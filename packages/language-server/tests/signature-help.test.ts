@@ -1,8 +1,8 @@
 import { findSignatureHelp } from "server/lsp/features/signature-help.js";
-import { workspaceService } from "server/workspace/service.js";
 import { describe, expect, it } from "vitest";
 import type { Position } from "vscode-languageserver";
 
+import { workspaceService } from "./services.js";
 import { positionAt, testDocument } from "./test-utils.js";
 
 describe("JSONiq signature help", () => {

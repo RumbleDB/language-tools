@@ -1,8 +1,8 @@
 import { collectDocumentSymbols } from "server/lsp/features/document-symbols.js";
-import { workspaceService } from "server/workspace/service.js";
 import { describe, expect, it } from "vitest";
 import { DocumentSymbol, SymbolKind } from "vscode-languageserver";
 
+import { workspaceService } from "./services.js";
 import { testDocument } from "./test-utils.js";
 
 describe("JSONiq document symbols", () => {

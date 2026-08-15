@@ -1,3 +1,4 @@
+import { ParserService } from "server/parser/index.js";
 import { WorkspaceService } from "server/workspace/service.js";
 import { WorkspaceIndex } from "server/workspace/workspace-index.js";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -17,7 +18,7 @@ beforeEach(() => {
 describe("workspace service lifecycle", () => {
     it("serializes discovery and document changes", async () => {
         const events: string[] = [];
-        const index = new WorkspaceIndex();
+        const index = new WorkspaceIndex(new ParserService());
         vi.spyOn(index, "replaceWorkspaceDocuments").mockImplementation((uris) => {
             events.push(`replace:${uris.join(",")}`);
         });
@@ -48,7 +49,10 @@ describe("workspace service lifecycle", () => {
             events.push(`discover:${folderUris.join(",")}`);
             return folderUris.map((uri) => `${uri}/document.jq`);
         });
-        const workspace = new WorkspaceService(new WorkspaceIndex(), discoverWorkspaceDocumentUris);
+        const workspace = new WorkspaceService(
+            new WorkspaceIndex(new ParserService()),
+            discoverWorkspaceDocumentUris,
+        );
 
         void workspace.setWorkspaceFolders(["file:///first"]);
         await workspace.updateWorkspaceFolders(["file:///second"], ["file:///first"]);
@@ -58,7 +62,7 @@ describe("workspace service lifecycle", () => {
 
     it("continues processing after a failed operation", async () => {
         const events: string[] = [];
-        const index = new WorkspaceIndex();
+        const index = new WorkspaceIndex(new ParserService());
         vi.spyOn(index, "updateWorkspaceDocuments").mockImplementation((changes) => {
             events.push(`update:${changes.map((change) => change.uri).join(",")}`);
         });

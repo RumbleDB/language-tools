@@ -9,13 +9,15 @@ import {
     getVisibleDeclarationsAtPosition,
     getReferencesToDefinition,
 } from "server/analysis/queries.js";
-import { workspaceService } from "server/workspace/service.js";
 import { describe, expect, it } from "vitest";
 
+import { parserService, workspaceService } from "./services.js";
 import { positionAt, testDocument } from "./test-utils.js";
 
 const buildAnalysis = (document: Parameters<typeof buildDocumentIndex>[0]) =>
-    analyzeDocument(buildDocumentIndex(document));
+    analyzeDocument(buildDocumentIndex(document, parserService.parse(document).ast));
+const buildIndex = (document: Parameters<typeof buildDocumentIndex>[0]) =>
+    buildDocumentIndex(document, parserService.parse(document).ast);
 
 describe("JSONiq variable scope analysis", () => {
     it("collects variable declarations from function params and FLWOR clauses", async () => {
@@ -208,7 +210,7 @@ describe("JSONiq variable scope analysis", () => {
     });
 
     it("reports duplicate main-module Prolog declarations", () => {
-        const index = buildDocumentIndex(
+        const index = buildIndex(
             testDocument("scope-duplicate-prolog-declarations", [
                 "declare variable $value := 1;",
                 "declare variable $value := 2;",

@@ -1,7 +1,7 @@
 import { findReferenceLocations } from "server/lsp/features/references.js";
-import { workspaceService } from "server/workspace/service.js";
 import { describe, expect, it } from "vitest";
 
+import { workspaceService } from "./services.js";
 import { positionAt, positionAtNth, testDocument, testDocumentFromUri } from "./test-utils.js";
 
 describe("JSONiq references", () => {

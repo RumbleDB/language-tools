@@ -8,9 +8,9 @@ import { buildDocumentIndex } from "server/analysis/document-index.js";
 import { findDefinitionLocation } from "server/lsp/features/definition.js";
 import { findReferenceLocations } from "server/lsp/features/references.js";
 import { buildRenameWorkspaceEdit } from "server/lsp/features/rename.js";
-import { workspaceService } from "server/workspace/service.js";
 import { describe, expect, it } from "vitest";
 
+import { parserService, workspaceService } from "./services.js";
 import { positionAt, testDocument, testDocumentFromUri } from "./test-utils.js";
 
 describe("module imports", () => {
@@ -35,7 +35,7 @@ describe("module imports", () => {
             "declare variable $other:invalid := 3;",
             "declare function lib:identity($value) { $value };",
         ]);
-        const index = buildDocumentIndex(document);
+        const index = buildDocumentIndex(document, parserService.parse(document).ast);
         const analysis = analyzeDocument(index);
 
         expect(analysis.moduleDeclaration).toBe(index.moduleDeclaration);
@@ -63,7 +63,7 @@ describe("module imports", () => {
             "declare function lib:value() { 2 };",
         ]);
 
-        const index = buildDocumentIndex(document);
+        const index = buildDocumentIndex(document, parserService.parse(document).ast);
 
         expect([...index.moduleInterface!.exports.keys()]).toEqual([
             "$Q{urn:lib}value",

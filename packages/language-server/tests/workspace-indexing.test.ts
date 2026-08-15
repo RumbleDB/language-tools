@@ -11,6 +11,11 @@ import { describe, expect, it } from "vitest";
 import { TextDocument } from "vscode-languageserver-textdocument";
 import { FileChangeType } from "vscode-languageserver/node";
 
+import { parserService } from "./services.js";
+
+const buildIndex = (document: TextDocument) =>
+    buildDocumentIndex(document, parserService.parse(document).ast);
+
 describe("workspace indexing", () => {
     it("isolates and remembers a document loading failure", () => {
         const validUri = "file:///workspace-valid.jq";
@@ -31,7 +36,7 @@ describe("workspace indexing", () => {
                 return uri === validUri ? validDocument : super.load(uri);
             }
         }
-        const coordinator = new WorkspaceIndex(new FailingDocumentStore());
+        const coordinator = new WorkspaceIndex(parserService, new FailingDocumentStore());
         const analysis = coordinator.getAnalysis(validDocument);
 
         expect(() => coordinator.replaceWorkspaceDocuments([failingUri, validUri])).not.toThrow();
@@ -62,7 +67,7 @@ describe("workspace indexing", () => {
                     "$library:value",
                 ].join("\n"),
             );
-            const workspaceIndex = new WorkspaceIndex();
+            const workspaceIndex = new WorkspaceIndex(parserService);
             workspaceIndex.replaceWorkspaceDocuments([importerUri]);
 
             await writeFile(
@@ -79,7 +84,7 @@ describe("workspace indexing", () => {
             const moduleDocument = loadSourceFile(moduleUri);
             expect(moduleDocument).toBeDefined();
             if (moduleDocument === undefined) return;
-            const definition = buildDocumentIndex(moduleDocument).definitions.find(
+            const definition = buildIndex(moduleDocument).definitions.find(
                 (candidate) => candidate.kind === "variable",
             );
             expect(definition).toBeDefined();
@@ -112,12 +117,12 @@ describe("workspace indexing", () => {
                 ].join("\n"),
             );
 
-            const coordinator = new WorkspaceIndex();
+            const coordinator = new WorkspaceIndex(parserService);
             coordinator.replaceWorkspaceDocuments([importerUri, moduleUri]);
             const moduleDocument = loadSourceFile(moduleUri);
             expect(moduleDocument).toBeDefined();
             if (moduleDocument === undefined) return;
-            const definition = buildDocumentIndex(moduleDocument).definitions.find(
+            const definition = buildIndex(moduleDocument).definitions.find(
                 (candidate) => candidate.kind === "variable",
             );
             expect(definition).toBeDefined();

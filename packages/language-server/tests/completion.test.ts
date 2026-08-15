@@ -1,10 +1,9 @@
 import { findCompletions, findCompletionsWithTypeInfo } from "server/lsp/features/completion.js";
-import { parserService } from "server/parser/index.js";
-import { workspaceService } from "server/workspace/service.js";
 import { describe, expect, it } from "vitest";
 import { type CompletionItem, type Position } from "vscode-languageserver";
 import { type TextDocument } from "vscode-languageserver-textdocument";
 
+import { parserService, workspaceService } from "./services.js";
 import { positionAtNth, testDocument, testDocumentFromUri } from "./test-utils.js";
 
 describe("JSONiq completion", () => {

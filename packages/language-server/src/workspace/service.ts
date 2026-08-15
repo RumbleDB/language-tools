@@ -16,7 +16,7 @@ export class WorkspaceService {
     private pending = Promise.resolve();
 
     public constructor(
-        private readonly index: WorkspaceIndex = new WorkspaceIndex(),
+        private readonly index: WorkspaceIndex,
         private readonly discoverDocuments: (
             folderUris: readonly DocumentUri[],
         ) => Promise<readonly DocumentUri[]> = discoverWorkspaceDocumentUris,
@@ -74,5 +74,3 @@ export class WorkspaceService {
         return this.pending;
     }
 }
-
-export const workspaceService = new WorkspaceService();

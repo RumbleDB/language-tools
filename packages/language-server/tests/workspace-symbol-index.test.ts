@@ -3,7 +3,11 @@ import { buildDocumentIndex } from "server/analysis/document-index.js";
 import { WorkspaceSymbolIndex } from "server/workspace/symbol-index.js";
 import { describe, expect, it } from "vitest";
 
+import { parserService } from "./services.js";
 import { testDocument, testDocumentFromUri } from "./test-utils.js";
+
+const buildIndex = (document: Parameters<typeof buildDocumentIndex>[0]) =>
+    buildDocumentIndex(document, parserService.parse(document).ast);
 
 describe("workspace symbol index", () => {
     it("indexes and removes references by symbol identity", () => {
@@ -11,7 +15,7 @@ describe("workspace symbol index", () => {
             "declare variable $value := 1;",
             "$value",
         ]);
-        const analysis = analyzeDocument(buildDocumentIndex(document));
+        const analysis = analyzeDocument(buildIndex(document));
         const definition = analysis.definitions.find(
             (candidate) => candidate.kind === "variable" && candidate.name.localName === "value",
         );
@@ -28,10 +32,10 @@ describe("workspace symbol index", () => {
 
     it("keeps symbol identities stable when declaration ranges move", () => {
         const uri = "file:///stable-symbol.jq";
-        const first = buildDocumentIndex(
+        const first = buildIndex(
             testDocumentFromUri("declare variable $value := 1;", { uri, version: 1 }),
         );
-        const second = buildDocumentIndex(
+        const second = buildIndex(
             testDocumentFromUri(["", "declare variable $value := 1;"], { uri, version: 2 }),
         );
 

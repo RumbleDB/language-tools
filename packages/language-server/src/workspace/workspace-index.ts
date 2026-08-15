@@ -1,4 +1,4 @@
-import { ParserService, parserService } from "server/parser/index.js";
+import { ParserService } from "server/parser/index.js";
 import { createLogger } from "server/utils/logger.js";
 import { DiagnosticSeverity, type Diagnostic, type DocumentUri } from "vscode-languageserver";
 import { TextDocument } from "vscode-languageserver-textdocument";
@@ -36,8 +36,8 @@ export class WorkspaceIndex {
     private readonly failedAnalyses = new Set<DocumentUri>();
 
     public constructor(
+        private readonly parser: ParserService,
         private readonly documents: WorkspaceDocumentStore = new WorkspaceDocumentStore(),
-        private readonly parser: ParserService = parserService,
     ) {}
 
     public updateOpenDocument(document: TextDocument): void {

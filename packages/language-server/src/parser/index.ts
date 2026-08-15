@@ -61,20 +61,3 @@ export class ParserService {
         return next;
     }
 }
-
-export const parserService = new ParserService();
-
-export function clearParsedDocument(uri: DocumentUri): void {
-    parserService.clear(uri);
-}
-
-export function parseDocument(document: TextDocument): ParseResult {
-    return parserService.parse(document);
-}
-
-export function collectCompletionIntent(
-    document: TextDocument,
-    cursorOffset: number,
-): CompletionIntent | null {
-    return parserService.collectCompletionIntent(document, cursorOffset);
-}
