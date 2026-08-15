@@ -49,19 +49,19 @@ connection.onInitialize((params: InitializeParams): InitializeResult => {
 
 documents.onDidOpen(async (event) => {
     workspace.updateOpenDocument(event.document);
-    await diagnostics.refresh(event.document.uri);
+    await diagnostics.refresh(event.document);
 });
 
 documents.onDidChangeContent(async (event) => {
     workspace.updateOpenDocument(event.document);
-    await diagnostics.refresh(event.document.uri);
+    await diagnostics.refresh(event.document);
 });
 
 documents.onDidClose((event) => {
     workspace.removeOpenDocument(event.document.uri);
     parser.clear(event.document.uri);
     clearStaticTypecheckCache(event.document.uri);
-    diagnostics.clear(event.document.uri);
+    diagnostics.clear(event.document);
 });
 
 connection.onDidChangeWatchedFiles((params) => {

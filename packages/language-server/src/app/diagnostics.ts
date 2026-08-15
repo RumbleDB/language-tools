@@ -18,11 +18,8 @@ export class DiagnosticsManager {
         private readonly workspace: WorkspaceService,
     ) {}
 
-    public async refresh(uri: string): Promise<void> {
-        const document = this.documents.get(uri);
-        if (document === undefined || !supportsDocument(document)) return;
-
-        const documentVersion = document.version;
+    public async refresh(document: TextDocument): Promise<void> {
+        if (!supportsDocument(document)) return;
         this.notifyActiveParser(document);
 
         const syntaxDiagnostics = this.parser.parse(document).diagnostics;
@@ -31,16 +28,14 @@ export class DiagnosticsManager {
         const typeDiagnostics =
             syntaxDiagnostics.length === 0 ? await collectStaticTypecheckDiagnostics(document) : [];
 
-        if (this.documents.get(uri)?.version !== documentVersion) return;
-
         this.connection.sendDiagnostics({
-            uri,
+            uri: document.uri,
             diagnostics: [...syntaxDiagnostics, ...semanticDiagnostics, ...typeDiagnostics],
         });
     }
 
-    public clear(uri: string): void {
-        this.connection.sendDiagnostics({ uri, diagnostics: [] });
+    public clear(document: TextDocument): void {
+        this.connection.sendDiagnostics({ uri: document.uri, diagnostics: [] });
     }
 
     private notifyActiveParser(document: TextDocument): void {
