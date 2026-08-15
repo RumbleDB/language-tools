@@ -14,8 +14,8 @@
     "type": "module",
     "exports": {
         ".": "./dist/main.mjs",
-        "./notifications": "./dist/notifications/index.mjs",
-        "./requests": "./dist/requests/index.mjs",
+        "./notifications": "./dist/lsp/protocol/notifications/index.mjs",
+        "./requests": "./dist/lsp/protocol/requests/index.mjs",
         "./bundled": "./dist/bundled/main.mjs"
     },
     "scripts": {

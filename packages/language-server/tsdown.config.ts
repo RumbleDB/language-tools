@@ -4,8 +4,8 @@ export default defineConfig([
     {
         entry: [
             "src/main.ts",
-            "src/notifications/index.ts",
-            "src/requests/index.ts",
+            "src/lsp/protocol/notifications/index.ts",
+            "src/lsp/protocol/requests/index.ts",
             "src/integrations/rumble/executable/ensure-wrapper.ts",
         ],
         root: "src",
