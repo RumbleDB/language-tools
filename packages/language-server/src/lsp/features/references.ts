@@ -11,11 +11,10 @@ export function registerReferences({
     workspace,
 }: FeatureRegistrationContext): void {
     connection.onReferences(async (params) => {
-        await workspace.ready();
         const document = documents.get(params.textDocument.uri);
         return document === undefined
             ? []
-            : findReferenceLocations(
+            : await findReferenceLocations(
                   document,
                   params.position,
                   params.context.includeDeclaration,
@@ -32,12 +31,12 @@ export function registerReferences({
  * @param includeDeclaration Whether to include the declaration location of the variable in the results, in addition to its references
  * @returns An array of Location objects representing all reference locations for the variable at the given position, optionally including the declaration location
  */
-export function findReferenceLocations(
+export async function findReferenceLocations(
     document: TextDocument,
     position: Position,
     includeDeclaration: boolean,
     workspace: WorkspaceService,
-): Location[] {
+): Promise<Location[]> {
     const analysis = workspace.getAnalysis(document);
     const occurrence = findSymbolAtPosition(analysis, position);
     const targetDeclaration = occurrence?.declaration;
@@ -55,7 +54,7 @@ export function findReferenceLocations(
         });
     }
 
-    for (const reference of workspace.getReferencesToDefinition(targetDeclaration)) {
+    for (const reference of await workspace.getReferencesToDefinition(targetDeclaration)) {
         locations.push({
             uri: reference.uri,
             range: reference.range,

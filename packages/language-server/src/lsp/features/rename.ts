@@ -28,11 +28,10 @@ export function registerRename({
     });
 
     connection.onRenameRequest(async (params) => {
-        await workspace.ready();
         const document = documents.get(params.textDocument.uri);
         return document === undefined
             ? null
-            : buildRenameWorkspaceEdit(document, params.position, params.newName, workspace);
+            : await buildRenameWorkspaceEdit(document, params.position, params.newName, workspace);
     });
 }
 
@@ -81,12 +80,12 @@ export function prepareRename(
  * @returns A WorkspaceEdit object representing all changes needed to rename the variable at the given position to the new name, including all references to that variable, or null if a rename cannot be performed at that position
  * @throws An error if the new name is not a valid JSONiq variable name
  */
-export function buildRenameWorkspaceEdit(
+export async function buildRenameWorkspaceEdit(
     document: TextDocument,
     position: Position,
     newName: string,
     workspace: WorkspaceService,
-): WorkspaceEdit | null {
+): Promise<WorkspaceEdit | null> {
     const validation = validateVariableName(newName);
     if (!validation.valid) {
         throw new Error(validation.message ?? "Invalid JSONiq variable name.");
@@ -109,7 +108,7 @@ export function buildRenameWorkspaceEdit(
         ],
     };
 
-    for (const reference of workspace.getReferencesToDefinition(target.declaration)) {
+    for (const reference of await workspace.getReferencesToDefinition(target.declaration)) {
         if (reference.kind !== "variable") continue;
         (editsByUri[reference.uri] ??= []).push({
             range: reference.range,

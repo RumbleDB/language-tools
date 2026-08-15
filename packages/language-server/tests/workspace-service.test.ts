@@ -30,11 +30,10 @@ describe("workspace service lifecycle", () => {
         });
         const workspace = new WorkspaceService(index, discoverWorkspaceDocumentUris);
 
-        workspace.setWorkspaceFolders(["file:///workspace"]);
-        workspace.updateWatchedFiles([
+        void workspace.setWorkspaceFolders(["file:///workspace"]);
+        await workspace.updateWatchedFiles([
             { uri: "file:///workspace/changed.jq", type: FileChangeType.Changed },
         ]);
-        await workspace.ready();
 
         expect(events).toEqual([
             "discover:file:///workspace",
@@ -51,9 +50,8 @@ describe("workspace service lifecycle", () => {
         });
         const workspace = new WorkspaceService(new WorkspaceIndex(), discoverWorkspaceDocumentUris);
 
-        workspace.setWorkspaceFolders(["file:///first"]);
-        workspace.updateWorkspaceFolders(["file:///second"], ["file:///first"]);
-        await workspace.ready();
+        void workspace.setWorkspaceFolders(["file:///first"]);
+        await workspace.updateWorkspaceFolders(["file:///second"], ["file:///first"]);
 
         expect(events).toContain("discover:file:///second");
     });
@@ -68,11 +66,10 @@ describe("workspace service lifecycle", () => {
         discoverWorkspaceDocumentUris.mockRejectedValue(error);
         const workspace = new WorkspaceService(index, discoverWorkspaceDocumentUris);
 
-        workspace.setWorkspaceFolders(["file:///workspace"]);
-        workspace.updateWatchedFiles([
+        void workspace.setWorkspaceFolders(["file:///workspace"]);
+        await workspace.updateWatchedFiles([
             { uri: "file:///workspace/changed.jq", type: FileChangeType.Changed },
         ]);
-        await workspace.ready();
 
         expect(logger.error).toHaveBeenCalledWith("Workspace indexing failed.", error);
         expect(events).toEqual(["update:file:///workspace/changed.jq"]);

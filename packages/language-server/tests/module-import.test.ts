@@ -75,7 +75,7 @@ describe("module imports", () => {
         ]);
     });
 
-    it("resolves direct imported functions and variables from a relative location", () => {
+    it("resolves direct imported functions and variables from a relative location", async () => {
         const fixture = path.join(process.cwd(), "tests", "samples", "modules", "imported.xqm");
         const document = testDocumentFromUri(
             [
@@ -101,7 +101,7 @@ describe("module imports", () => {
                 ?.uri,
         ).toBe(pathToFileURL(fixture).toString());
 
-        const rename = buildRenameWorkspaceEdit(
+        const rename = await buildRenameWorkspaceEdit(
             document,
             positionAt(document, "$use:answer"),
             "$renamed",
@@ -115,7 +115,7 @@ describe("module imports", () => {
         ]);
     });
 
-    it("resolves the Rumble-style module namespace used by ImportMath.jq", () => {
+    it("resolves the Rumble-style module namespace used by ImportMath.jq", async () => {
         const fixture = path.join(process.cwd(), "tests", "samples", "modules", "math.jq");
         const document = testDocumentFromUri(
             [
@@ -136,7 +136,7 @@ describe("module imports", () => {
         ).toBe(pathToFileURL(fixture).toString());
 
         expect(
-            findReferenceLocations(
+            await findReferenceLocations(
                 document,
                 positionAt(document, "$math:x"),
                 true,
@@ -148,7 +148,7 @@ describe("module imports", () => {
         ]);
     });
 
-    it("keeps importer references indexed after opening the imported module", () => {
+    it("keeps importer references indexed after opening the imported module", async () => {
         const fixture = path.join(process.cwd(), "tests", "samples", "modules", "math.jq");
         const moduleUri = pathToFileURL(fixture).toString();
         const importer = testDocumentFromUri(
@@ -169,7 +169,7 @@ describe("module imports", () => {
         workspaceService.getAnalysis(moduleDocument);
 
         expect(
-            findReferenceLocations(
+            await findReferenceLocations(
                 moduleDocument,
                 positionAt(moduleDocument, "$math:x"),
                 false,
@@ -178,7 +178,7 @@ describe("module imports", () => {
         ).toContainEqual(expect.objectContaining({ uri: importer.uri }));
     });
 
-    it("finds references in an unopened workspace importer", () => {
+    it("finds references in an unopened workspace importer", async () => {
         const directory = path.join(process.cwd(), "tests", "samples", "modules");
         const moduleUri = pathToFileURL(path.join(directory, "math.jq")).toString();
         const importerUri = pathToFileURL(
@@ -194,7 +194,7 @@ describe("module imports", () => {
             );
 
             expect(
-                findReferenceLocations(
+                await findReferenceLocations(
                     moduleDocument,
                     positionAt(moduleDocument, "$math:x"),
                     false,
@@ -226,7 +226,7 @@ describe("module imports", () => {
         ]);
     });
 
-    it("keeps canonical declarations when module imports form a cycle", () => {
+    it("keeps canonical declarations when module imports form a cycle", async () => {
         const directory = path.join(process.cwd(), "tests", "samples", "modules");
         const moduleUri = pathToFileURL(path.join(directory, "cycle-a.jq")).toString();
         const document = testDocumentFromUri(
@@ -239,7 +239,12 @@ describe("module imports", () => {
             findDefinitionLocation(document, positionAt(document, "$a:x"), workspaceService)?.uri,
         ).toBe(moduleUri);
         expect(
-            findReferenceLocations(document, positionAt(document, "$a:x"), false, workspaceService),
+            await findReferenceLocations(
+                document,
+                positionAt(document, "$a:x"),
+                false,
+                workspaceService,
+            ),
         ).toEqual([
             expect.objectContaining({
                 uri: pathToFileURL(path.join(directory, "cycle-b.jq")).toString(),

@@ -22,27 +22,23 @@ export class WorkspaceService {
         ) => Promise<readonly DocumentUri[]> = discoverWorkspaceDocumentUris,
     ) {}
 
-    public setWorkspaceFolders(folderUris: readonly DocumentUri[]): void {
+    public setWorkspaceFolders(folderUris: readonly DocumentUri[]): Promise<void> {
         this.folderUris.clear();
         for (const uri of folderUris) this.folderUris.add(uri);
-        this.queueWorkspaceScan();
+        return this.queueWorkspaceScan();
     }
 
     public updateWorkspaceFolders(
         added: readonly DocumentUri[],
         removed: readonly DocumentUri[],
-    ): void {
+    ): Promise<void> {
         for (const uri of removed) this.folderUris.delete(uri);
         for (const uri of added) this.folderUris.add(uri);
-        this.queueWorkspaceScan();
+        return this.queueWorkspaceScan();
     }
 
-    public updateWatchedFiles(changes: readonly FileEvent[]): void {
-        this.queue(() => this.index.updateWorkspaceDocuments(changes));
-    }
-
-    public ready(): Promise<void> {
-        return this.pending;
+    public updateWatchedFiles(changes: readonly FileEvent[]): Promise<void> {
+        return this.queue(() => this.index.updateWorkspaceDocuments(changes));
     }
 
     public getAnalysis(document: TextDocument): AnalysisResult {
@@ -61,21 +57,25 @@ export class WorkspaceService {
         this.index.removeOpenDocument(uri);
     }
 
-    public getReferencesToDefinition(definition: Definition): readonly AnyResolvedReference[] {
+    public async getReferencesToDefinition(
+        definition: Definition,
+    ): Promise<readonly AnyResolvedReference[]> {
+        await this.pending;
         return this.index.getReferencesToDefinition(definition);
     }
 
-    private queueWorkspaceScan(): void {
-        this.queue(async () => {
+    private queueWorkspaceScan(): Promise<void> {
+        return this.queue(async () => {
             const documents = await this.discoverDocuments([...this.folderUris]);
             this.index.replaceWorkspaceDocuments(documents);
         });
     }
 
-    private queue(task: () => void | Promise<void>): void {
+    private queue(task: () => void | Promise<void>): Promise<void> {
         this.pending = this.pending.then(task).catch((error: unknown) => {
             logger.error("Workspace indexing failed.", error);
         });
+        return this.pending;
     }
 }
 
