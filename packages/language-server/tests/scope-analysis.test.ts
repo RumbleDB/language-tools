@@ -9,13 +9,15 @@ import {
     getVisibleDeclarationsAtPosition,
     getReferencesToDefinition,
 } from "server/analysis/queries.js";
-import { getAnalysis } from "server/workspace/service.js";
 import { describe, expect, it } from "vitest";
 
+import { parserService, workspaceService } from "./services.js";
 import { positionAt, testDocument } from "./test-utils.js";
 
 const buildAnalysis = (document: Parameters<typeof buildDocumentIndex>[0]) =>
-    analyzeDocument(buildDocumentIndex(document));
+    analyzeDocument(buildDocumentIndex(document, parserService.parse(document).ast));
+const buildIndex = (document: Parameters<typeof buildDocumentIndex>[0]) =>
+    buildDocumentIndex(document, parserService.parse(document).ast);
 
 describe("JSONiq variable scope analysis", () => {
     it("collects variable declarations from function params and FLWOR clauses", async () => {
@@ -208,7 +210,7 @@ describe("JSONiq variable scope analysis", () => {
     });
 
     it("reports duplicate main-module Prolog declarations", () => {
-        const index = buildDocumentIndex(
+        const index = buildIndex(
             testDocument("scope-duplicate-prolog-declarations", [
                 "declare variable $value := 1;",
                 "declare variable $value := 2;",
@@ -344,7 +346,7 @@ describe("JSONiq variable scope analysis", () => {
     it("resolves unprefixed builtin functions through the fn namespace", () => {
         const document = testDocument("scope-unprefixed-builtin", ['substring("hello", 1, 2)']);
 
-        const analysis = getAnalysis(document);
+        const analysis = workspaceService.getAnalysis(document);
         const functionReference = getResolvedReferences(analysis).find(
             (reference) => reference.kind === "function",
         );
@@ -395,7 +397,7 @@ describe("JSONiq variable scope analysis", () => {
             "($app:item, app:item())",
         ]);
 
-        const analysis = getAnalysis(document);
+        const analysis = workspaceService.getAnalysis(document);
         const position = positionAt(document, "($app:item");
         const visibleDefinitions = getVisibleDeclarationsAtPosition(
             analysis,
@@ -799,7 +801,7 @@ describe("JSONiq variable scope analysis", () => {
         const document = testDocument("scope-incomplete-var-init", source);
 
         const visibleDeclarations = getVisibleDeclarationsAtPosition(
-            getAnalysis(document),
+            workspaceService.getAnalysis(document),
             source.length,
         );
 
@@ -815,7 +817,7 @@ describe("JSONiq variable scope analysis", () => {
         const document = testDocument("scope-complete-var-init", source);
 
         const visibleDeclarations = getVisibleDeclarationsAtPosition(
-            getAnalysis(document),
+            workspaceService.getAnalysis(document),
             source.length,
         );
 
@@ -829,7 +831,7 @@ describe("JSONiq variable scope analysis", () => {
         const document = testDocument("scope-incomplete-let-init", source);
 
         const visibleDeclarations = getVisibleDeclarationsAtPosition(
-            getAnalysis(document),
+            workspaceService.getAnalysis(document),
             source.length,
         );
 

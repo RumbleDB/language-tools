@@ -2,9 +2,9 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 
-import { collectStaticTypecheckDiagnostics } from "server/static-typecheck/diagnostics.js";
-import { clearStaticTypecheckCache } from "server/static-typecheck/service.js";
-import { getWrapperClient } from "server/wrapper/client.js";
+import { getWrapperClient } from "server/integrations/rumble/client.js";
+import { clearStaticTypecheckCache } from "server/integrations/rumble/operations/static-typecheck/service.js";
+import { collectStaticTypecheckDiagnostics } from "server/lsp/diagnostics/static-typecheck.js";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { testDocument, testDocumentFromUri } from "./test-utils.js";

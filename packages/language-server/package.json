@@ -14,8 +14,8 @@
     "type": "module",
     "exports": {
         ".": "./dist/main.mjs",
-        "./notifications": "./dist/notifications/index.mjs",
-        "./requests": "./dist/requests/index.mjs",
+        "./notifications": "./dist/lsp/protocol/notifications/index.mjs",
+        "./requests": "./dist/lsp/protocol/requests/index.mjs",
         "./bundled": "./dist/bundled/main.mjs"
     },
     "scripts": {
@@ -40,7 +40,7 @@
         "start": "node ./dist/main.mjs",
         "test": "vitest run tests",
         "clean": "rm -rf dist",
-        "ensure-wrapper": "node ./dist/wrapper/executable/ensure-wrapper.mjs",
+        "ensure-wrapper": "node ./dist/integrations/rumble/executable/ensure-wrapper.mjs",
         "lint": "oxlint",
         "lint:fix": "oxlint --fix",
         "fmt": "oxfmt",

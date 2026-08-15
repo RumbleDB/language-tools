@@ -13,55 +13,51 @@ interface CachedParsedDocument {
     parsed: ParseResult;
 }
 
-const parseCache = new Map<DocumentUri, CachedParsedDocument>();
+export class ParserService {
+    private readonly cache = new Map<DocumentUri, CachedParsedDocument>();
 
-export function clearParsedDocument(uri: DocumentUri): void {
-    parseCache.delete(uri);
-}
-
-function getCachedParsedDocument(document: TextDocument): CachedParsedDocument {
-    const adapter = getParserAdapterForDocument(document);
-
-    if (adapter === undefined) {
-        throw new Error(`No parser adapter found for document '${document.uri}'.`);
+    public clear(uri: DocumentUri): void {
+        this.cache.delete(uri);
     }
 
-    const cached = parseCache.get(document.uri);
-
-    if (
-        cached !== undefined &&
-        cached.version === document.version &&
-        cached.adapterId === adapter.id
-    ) {
-        return cached;
+    public parse(document: TextDocument): ParseResult {
+        return this.getCached(document).parsed;
     }
 
-    const parsed = adapter.parse(document);
-    const next = {
-        version: document.version,
-        adapterId: adapter.id,
-        adapter,
-        parsed,
-    } satisfies CachedParsedDocument;
+    public collectCompletionIntent(
+        document: TextDocument,
+        cursorOffset: number,
+    ): CompletionIntent | null {
+        if (getParserAdapterForDocument(document) === undefined) return null;
 
-    parseCache.set(document.uri, next);
-
-    return next;
-}
-
-export function parseDocument(document: TextDocument): ParseResult {
-    const cached = getCachedParsedDocument(document);
-    return cached.parsed;
-}
-
-export function collectCompletionIntent(
-    document: TextDocument,
-    cursorOffset: number,
-): CompletionIntent | null {
-    if (getParserAdapterForDocument(document) === undefined) {
-        return null;
+        const cached = this.getCached(document);
+        return cached.adapter.getCompletionIntent(cached.parsed, cursorOffset);
     }
 
-    const cached = getCachedParsedDocument(document);
-    return cached.adapter.getCompletionIntent(cached.parsed, cursorOffset);
+    private getCached(document: TextDocument): CachedParsedDocument {
+        const adapter = getParserAdapterForDocument(document);
+
+        if (adapter === undefined) {
+            throw new Error(`No parser adapter found for document '${document.uri}'.`);
+        }
+
+        const cached = this.cache.get(document.uri);
+        if (
+            cached !== undefined &&
+            cached.version === document.version &&
+            cached.adapterId === adapter.id
+        ) {
+            return cached;
+        }
+
+        const next = {
+            version: document.version,
+            adapterId: adapter.id,
+            adapter,
+            parsed: adapter.parse(document),
+        } satisfies CachedParsedDocument;
+
+        this.cache.set(document.uri, next);
+        return next;
+    }
 }

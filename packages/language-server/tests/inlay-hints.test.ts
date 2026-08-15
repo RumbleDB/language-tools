@@ -1,12 +1,13 @@
-import { collectInlayHints } from "server/inlay-hints.js";
+import { collectInlayHints } from "server/lsp/features/inlay-hints.js";
 import { describe, expect, it } from "vitest";
 
+import { workspaceService } from "./services.js";
 import { testDocument } from "./test-utils.js";
 
 describe("JSONiq inlay hints", () => {
     it("returns parameter name hints for builtin function calls", () => {
         const document = testDocument("inlay-builtin", ['fn:substring("hello", 1, 2)']);
-        const hints = collectInlayHints(document, fullDocumentRange(document));
+        const hints = collectInlayHints(document, fullDocumentRange(document), workspaceService);
 
         expect(hints.map((hint) => hint.label)).toEqual([
             "$sourceString: ",
@@ -22,7 +23,7 @@ describe("JSONiq inlay hints", () => {
             "};",
             "local:my-add(1, 2)",
         ]);
-        const hints = collectInlayHints(document, fullDocumentRange(document));
+        const hints = collectInlayHints(document, fullDocumentRange(document), workspaceService);
 
         expect(hints.map((hint) => hint.label)).toEqual(["$left: ", "$right: "]);
     });

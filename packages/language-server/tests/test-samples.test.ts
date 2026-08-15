@@ -1,9 +1,9 @@
 import { readFile, readdir } from "node:fs/promises";
 import path from "node:path";
 
-import { parseDocument } from "server/parser/index.js";
 import { describe, expect, it } from "vitest";
 
+import { parserService } from "./services.js";
 import { testDocumentFromUri } from "./test-utils.js";
 
 type SampleExpectation = "valid" | "invalid";
@@ -27,7 +27,7 @@ async function parseSample(filePath: string): Promise<number> {
         uri: `file://${filePath}`,
     });
 
-    return parseDocument(document).diagnostics.length;
+    return parserService.parse(document).diagnostics.length;
 }
 
 describe("JSONiq sample corpus", async () => {

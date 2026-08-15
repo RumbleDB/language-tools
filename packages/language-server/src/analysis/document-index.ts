@@ -1,4 +1,3 @@
-import { parseDocument } from "server/parser/index.js";
 import type {
     AstNode as ParserAstNode,
     AstParameter,
@@ -462,6 +461,6 @@ class DocumentIndexBuilder extends ParserAstVisitor<void> {
     }
 }
 
-export function buildDocumentIndex(document: TextDocument): DocumentIndex {
-    return new DocumentIndexBuilder(document, parseDocument(document).ast).build();
+export function buildDocumentIndex(document: TextDocument, ast: ParserAstNode): DocumentIndex {
+    return new DocumentIndexBuilder(document, ast).build();
 }

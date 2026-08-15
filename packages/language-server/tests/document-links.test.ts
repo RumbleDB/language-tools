@@ -1,10 +1,11 @@
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 
-import { collectDocumentLinks } from "server/document-links.js";
+import { collectDocumentLinks } from "server/lsp/features/document-links.js";
 import { describe, expect, it } from "vitest";
 import type { TextDocument } from "vscode-languageserver-textdocument";
 
+import { parserService } from "./services.js";
 import { positionAtNth, testDocumentFromUri } from "./test-utils.js";
 
 function rangeAt(document: TextDocument, text: string, occurrence: number) {
@@ -21,7 +22,7 @@ describe("document links", () => {
             { uri: pathToFileURL(path.join(directory, "explicit-links-main.jq")).toString() },
         );
 
-        expect(collectDocumentLinks(document)).toEqual([
+        expect(collectDocumentLinks(document, parserService)).toEqual([
             {
                 range: rangeAt(document, '"math.jq"', 1),
                 target: pathToFileURL(path.join(directory, "math.jq")).toString(),
@@ -38,7 +39,7 @@ describe("document links", () => {
             uri: pathToFileURL(path.join(directory, "fallback-link-main.jq")).toString(),
         });
 
-        expect(collectDocumentLinks(document)).toEqual([
+        expect(collectDocumentLinks(document, parserService)).toEqual([
             expect.objectContaining({
                 target: pathToFileURL(path.join(directory, "math.jq")).toString(),
             }),
@@ -50,6 +51,6 @@ describe("document links", () => {
             uri: pathToFileURL(path.join(directory, "urn-link-main.jq")).toString(),
         });
 
-        expect(collectDocumentLinks(document)).toEqual([]);
+        expect(collectDocumentLinks(document, parserService)).toEqual([]);
     });
 });

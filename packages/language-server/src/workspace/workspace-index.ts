@@ -1,4 +1,4 @@
-import { clearParsedDocument } from "server/parser/index.js";
+import { ParserService } from "server/parser/index.js";
 import { createLogger } from "server/utils/logger.js";
 import { DiagnosticSeverity, type Diagnostic, type DocumentUri } from "vscode-languageserver";
 import { TextDocument } from "vscode-languageserver-textdocument";
@@ -36,6 +36,7 @@ export class WorkspaceIndex {
     private readonly failedAnalyses = new Set<DocumentUri>();
 
     public constructor(
+        private readonly parser: ParserService,
         private readonly documents: WorkspaceDocumentStore = new WorkspaceDocumentStore(),
     ) {}
 
@@ -58,7 +59,7 @@ export class WorkspaceIndex {
         this.failedAnalyses.clear();
         const removedDocuments = this.documents.replaceWorkspaceDocuments(uris);
         logger.debug("Tracked documents:", this.documents.getTrackedDocumentUris());
-        for (const uri of removedDocuments) clearParsedDocument(uri);
+        for (const uri of removedDocuments) this.parser.clear(uri);
         this.invalidateAffected(removedDocuments);
         for (const uri of removedDocuments) {
             this.moduleGraph.removeOutgoingDependencies(uri);
@@ -69,7 +70,7 @@ export class WorkspaceIndex {
 
     public updateWorkspaceDocuments(changes: readonly FileEvent[]): void {
         const changedUris = changes.map((change) => change.uri);
-        for (const uri of changedUris) clearParsedDocument(uri);
+        for (const uri of changedUris) this.parser.clear(uri);
         const affected = this.invalidateAffected(changedUris);
 
         this.documents.updateWorkspaceDocuments(changes);
@@ -195,7 +196,7 @@ export class WorkspaceIndex {
         const cached = this.documentIndexes.get(document.uri);
         if (cached?.version === document.version) return cached.index;
 
-        const index = buildDocumentIndex(document);
+        const index = buildDocumentIndex(document, this.parser.parse(document).ast);
         this.documentIndexes.set(document.uri, { version: document.version, index });
         return index;
     }

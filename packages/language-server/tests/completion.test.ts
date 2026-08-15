@@ -1,8 +1,9 @@
-import { findCompletions, findCompletionsWithTypeInfo } from "server/completion.js";
+import { findCompletions, findCompletionsWithTypeInfo } from "server/lsp/features/completion.js";
 import { describe, expect, it } from "vitest";
 import { type CompletionItem, type Position } from "vscode-languageserver";
 import { type TextDocument } from "vscode-languageserver-textdocument";
 
+import { parserService, workspaceService } from "./services.js";
 import { positionAtNth, testDocument, testDocumentFromUri } from "./test-utils.js";
 
 describe("JSONiq completion", () => {
@@ -15,7 +16,12 @@ describe("JSONiq completion", () => {
             "};",
         ]);
 
-        const items = findCompletions(document, positionAtNth(document, "$y", 1));
+        const items = findCompletions(
+            document,
+            positionAtNth(document, "$y", 1),
+            parserService,
+            workspaceService,
+        );
 
         expect(labels(items)).toContain("$x");
         expect(labels(items)).toContain("$y");
@@ -135,7 +141,7 @@ describe("JSONiq completion", () => {
             character: "return $".length,
         };
 
-        const item = findCompletions(document, position).find(
+        const item = findCompletions(document, position, parserService, workspaceService).find(
             (completion) => completion.label === "$a",
         );
 
@@ -263,10 +269,12 @@ describe("JSONiq completion", () => {
         const source = "1 + 2";
         const document = testDocument("completion-complete-document", source);
 
-        const completions = findCompletions(document, {
-            line: 0,
-            character: source.length,
-        });
+        const completions = findCompletions(
+            document,
+            { line: 0, character: source.length },
+            parserService,
+            workspaceService,
+        );
 
         expect(completions).toBeDefined();
     });
@@ -289,7 +297,12 @@ describe("JSONiq completion", () => {
             "$a.",
         ]);
 
-        const items = await findCompletionsWithTypeInfo(document, { line: 5, character: 3 });
+        const items = await findCompletionsWithTypeInfo(
+            document,
+            { line: 5, character: 3 },
+            parserService,
+            workspaceService,
+        );
 
         expect(labels(items)).toContain("age");
         expect(labels(items)).toContain("name");
@@ -312,7 +325,12 @@ describe("JSONiq completion", () => {
             "$a.na",
         ]);
 
-        const items = await findCompletionsWithTypeInfo(document, { line: 5, character: 5 });
+        const items = await findCompletionsWithTypeInfo(
+            document,
+            { line: 5, character: 5 },
+            parserService,
+            workspaceService,
+        );
 
         expect(labels(items)).toContain("name");
         expect(items.find((item) => item.label === "name")?.textEdit).toEqual({
@@ -344,10 +362,12 @@ describe("XQuery completion", () => {
         );
 
         const start = performance.now();
-        const completions = findCompletions(document, {
-            line: 3,
-            character: 0,
-        });
+        const completions = findCompletions(
+            document,
+            { line: 3, character: 0 },
+            parserService,
+            workspaceService,
+        );
         const elapsedMs = performance.now() - start;
 
         expect(completions).toBeDefined();
@@ -372,10 +392,12 @@ describe("XQuery completion", () => {
         );
 
         const start = performance.now();
-        const completions = findCompletions(document, {
-            line: 4,
-            character: "        return $hr + ".length,
-        });
+        const completions = findCompletions(
+            document,
+            { line: 4, character: "        return $hr + ".length },
+            parserService,
+            workspaceService,
+        );
         const elapsedMs = performance.now() - start;
 
         expect(completions).toBeDefined();
@@ -388,5 +410,5 @@ function labels(items: CompletionItem[]): string[] {
 }
 
 function completionLabels(document: TextDocument, position: Position): string[] {
-    return labels(findCompletions(document, position));
+    return labels(findCompletions(document, position, parserService, workspaceService));
 }

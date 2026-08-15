@@ -1,7 +1,7 @@
-import { parseDocument } from "server/parser/index.js";
 import { supportsDocument } from "server/parser/registry.js";
 import { describe, expect, it } from "vitest";
 
+import { parserService } from "./services.js";
 import { testDocumentFromUri } from "./test-utils.js";
 
 describe("JSONiq notebook magic", () => {
@@ -11,7 +11,7 @@ describe("JSONiq notebook magic", () => {
             languageId: "python",
         });
 
-        expect(parseDocument(document).diagnostics).toEqual([]);
+        expect(parserService.parse(document).diagnostics).toEqual([]);
     });
 
     it("only enables JSONiq support for notebook cells that start with %%jsoniq", () => {
@@ -28,6 +28,6 @@ describe("JSONiq notebook magic", () => {
             uri: "file:///test.jq",
         });
 
-        expect(parseDocument(document).diagnostics).not.toEqual([]);
+        expect(parserService.parse(document).diagnostics).not.toEqual([]);
     });
 });

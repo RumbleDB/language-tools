@@ -1,4 +1,3 @@
-import { builtinFunctions } from "server/assets/builtin-functions.js";
 import type {
     ArgumentAstNode,
     AstNode as ParserAstNode,
@@ -26,6 +25,7 @@ import {
     type LexicalQName,
 } from "server/parser/types/name.js";
 import { ParserAstVisitor } from "server/parser/types/visitor.js";
+import { builtinFunctions } from "server/resources/builtin-functions.js";
 import { Diagnostic, DiagnosticSeverity, Range } from "vscode-languageserver";
 
 import type {
