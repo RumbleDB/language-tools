@@ -21,11 +21,18 @@ public final class RunQuery implements RequestHandler {
     public static final String REQUEST_TYPE = "run-query";
     public static final Result EMPTY_RESULT = new Result(null, null);
 
-    public static final Rumble RUMBLE_INSTANCE = new Rumble(RumbleConfiguration.defaultConfiguration());
-
     public record Result(
             String output,
             String error) implements ResponseBody {
+    }
+
+    private static Rumble RUMBLE_INSTANCE = null;
+
+    private static Rumble getRumble() {
+        if (RUMBLE_INSTANCE == null) {
+            RUMBLE_INSTANCE = new Rumble(RumbleConfiguration.defaultConfiguration());
+        }
+        return RUMBLE_INSTANCE;
     }
 
     @Override
@@ -40,8 +47,8 @@ public final class RunQuery implements RequestHandler {
 
         try {
             SequenceOfItems result = query == null
-                    ? RUMBLE_INSTANCE.runQuery(documentUri)
-                    : RUMBLE_INSTANCE.runQuery(query);
+                    ? getRumble().runQuery(documentUri)
+                    : getRumble().runQuery(query);
 
             ObjectMapper mapper = new ObjectMapper();
             ArrayNode arrayNode = mapper.createArrayNode();
