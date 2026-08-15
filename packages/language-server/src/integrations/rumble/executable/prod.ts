@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 
-import { findPackageRoot } from "server/utils/assets.js";
+import { findPackageRoot } from "server/resources/paths.js";
 import { createLogger } from "server/utils/logger.js";
 
 import { createTerminalProgressReporter, downloadWithProgress } from "./download.js";

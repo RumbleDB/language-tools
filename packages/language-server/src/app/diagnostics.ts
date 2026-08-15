@@ -1,19 +1,21 @@
 import type { TextDocument } from "vscode-languageserver-textdocument";
 import type { Connection, TextDocuments } from "vscode-languageserver/node";
 
-import { collectSemanticDiagnostics } from "../analysis/diagnostics.js";
 import { collectStaticTypecheckDiagnostics } from "../lsp/diagnostics/static-typecheck.js";
 import {
     ACTIVE_PARSER_NOTIFICATION,
     type ActiveParserNotificationPayload,
 } from "../notifications/index.js";
-import { parseDocument } from "../parser/index.js";
+import type { ParserService } from "../parser/index.js";
 import { getParserAdapterForDocument, supportsDocument } from "../parser/registry.js";
+import type { WorkspaceService } from "../workspace/service.js";
 
 export class DiagnosticsManager {
     public constructor(
         private readonly connection: Connection,
         private readonly documents: TextDocuments<TextDocument>,
+        private readonly parser: ParserService,
+        private readonly workspace: WorkspaceService,
     ) {}
 
     public async refresh(uri: string): Promise<void> {
@@ -23,9 +25,9 @@ export class DiagnosticsManager {
         const documentVersion = document.version;
         this.notifyActiveParser(document);
 
-        const syntaxDiagnostics = parseDocument(document).diagnostics;
+        const syntaxDiagnostics = this.parser.parse(document).diagnostics;
         const semanticDiagnostics =
-            syntaxDiagnostics.length === 0 ? collectSemanticDiagnostics(document) : [];
+            syntaxDiagnostics.length === 0 ? this.workspace.getAnalysis(document).diagnostics : [];
         const typeDiagnostics =
             syntaxDiagnostics.length === 0 ? await collectStaticTypecheckDiagnostics(document) : [];
 

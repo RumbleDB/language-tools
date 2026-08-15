@@ -23,6 +23,6 @@ export function createServerContext(connection: Connection): ServerContext {
         parser: parserService,
         workspace: workspaceService,
         workspaceController,
-        diagnostics: new DiagnosticsManager(connection, documents),
+        diagnostics: new DiagnosticsManager(connection, documents, parserService, workspaceService),
     };
 }

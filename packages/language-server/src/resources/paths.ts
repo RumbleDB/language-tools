@@ -21,6 +21,6 @@ export function findPackageRoot(): string {
     }
 }
 
-export function getAssetsPath(): string {
+export function getPackageAssetsPath(): string {
     return path.join(findPackageRoot(), "assets");
 }

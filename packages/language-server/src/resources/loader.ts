@@ -1,14 +1,15 @@
 import fs from "node:fs";
 import path from "node:path";
 
-import { getAssetsPath } from "server/utils/assets.js";
 import { createLogger } from "server/utils/logger.js";
+
+import { getPackageAssetsPath } from "./paths.js";
 
 const logger = createLogger("assets:loader");
 
 export function loadJsonAsset<T>(relativeAssetPath: string): T | null {
     try {
-        const assetsPath = getAssetsPath();
+        const assetsPath = getPackageAssetsPath();
         const filePath = path.join(assetsPath, relativeAssetPath);
         if (fs.existsSync(filePath)) {
             const content = fs.readFileSync(filePath, "utf-8");
