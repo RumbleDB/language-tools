@@ -1,7 +1,7 @@
 import type { Position, Range } from "vscode-languageserver";
 
+import type { WrapperRequestSpec } from "../integrations/rumble/protocol.js";
 import type { SequenceType } from "../static-typecheck/types.js";
-import type { WrapperRequestSpec } from "../wrapper/protocol.js";
 
 export const REQUEST_TYPE_TYPE_AT_POSITION = "type-at-position" as const;
 

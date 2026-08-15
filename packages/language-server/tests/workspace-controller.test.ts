@@ -3,15 +3,14 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { FileChangeType, type FileEvent } from "vscode-languageserver/node";
 
 const workspaceService = vi.hoisted(() => ({
-    replaceWorkspaceDocuments: vi.fn<(uris: readonly string[]) => void>(),
-    updateWorkspaceDocuments: vi.fn<(changes: readonly FileEvent[]) => void>(),
+    replaceDocuments: vi.fn<(uris: readonly string[]) => void>(),
+    updateDocuments: vi.fn<(changes: readonly FileEvent[]) => void>(),
 }));
 const discoverWorkspaceDocumentUris = vi.hoisted(() =>
     vi.fn<(folderUris: readonly string[]) => Promise<readonly string[]>>(),
 );
 const logger = vi.hoisted(() => ({ error: vi.fn() }));
 
-vi.mock("server/workspace/service.js", () => workspaceService);
 vi.mock("server/workspace/files.js", () => ({ discoverWorkspaceDocumentUris }));
 vi.mock("server/utils/logger.js", () => ({ createLogger: () => logger }));
 
@@ -22,17 +21,17 @@ beforeEach(() => {
 describe("workspace controller", () => {
     it("serializes discovery and document changes", async () => {
         const events: string[] = [];
-        workspaceService.replaceWorkspaceDocuments.mockImplementation((uris) => {
+        workspaceService.replaceDocuments.mockImplementation((uris) => {
             events.push(`replace:${uris.join(",")}`);
         });
-        workspaceService.updateWorkspaceDocuments.mockImplementation((changes) => {
+        workspaceService.updateDocuments.mockImplementation((changes) => {
             events.push(`update:${changes.map((change) => change.uri).join(",")}`);
         });
         discoverWorkspaceDocumentUris.mockImplementation(async (folderUris) => {
             events.push(`discover:${folderUris.join(",")}`);
             return folderUris.map((uri) => `${uri}/document.jq`);
         });
-        const controller = new WorkspaceController();
+        const controller = new WorkspaceController(workspaceService);
 
         controller.initialize(["file:///workspace"]);
         controller.updateDocuments([
@@ -53,7 +52,7 @@ describe("workspace controller", () => {
             events.push(`discover:${folderUris.join(",")}`);
             return folderUris.map((uri) => `${uri}/document.jq`);
         });
-        const controller = new WorkspaceController();
+        const controller = new WorkspaceController(workspaceService);
 
         controller.initialize(["file:///first"]);
         controller.updateFolders(["file:///second"], ["file:///first"]);
@@ -64,12 +63,12 @@ describe("workspace controller", () => {
 
     it("continues processing after a failed operation", async () => {
         const events: string[] = [];
-        workspaceService.updateWorkspaceDocuments.mockImplementation((changes) => {
+        workspaceService.updateDocuments.mockImplementation((changes) => {
             events.push(`update:${changes.map((change) => change.uri).join(",")}`);
         });
         const error = new Error("discovery failed");
         discoverWorkspaceDocumentUris.mockRejectedValue(error);
-        const controller = new WorkspaceController();
+        const controller = new WorkspaceController(workspaceService);
 
         controller.initialize(["file:///workspace"]);
         controller.updateDocuments([

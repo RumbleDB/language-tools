@@ -1,4 +1,4 @@
-import { getWrapperClient } from "server/wrapper/client.js";
+import { getWrapperClient } from "server/integrations/rumble/client.js";
 
 import { defineNotificationInitializer } from "./types.js";
 

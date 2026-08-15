@@ -3,8 +3,8 @@ import { createLogger } from "server/utils/logger.js";
 import type { DocumentUri } from "vscode-languageserver";
 import { TextDocument } from "vscode-languageserver-textdocument";
 
-import { getWrapperClient } from "../wrapper/client.js";
-import type { WrapperDaemonResponse } from "../wrapper/protocol.js";
+import { getWrapperClient } from "../integrations/rumble/client.js";
+import type { WrapperDaemonResponse } from "../integrations/rumble/protocol.js";
 import { REQUEST_TYPE_STATIC_TYPECHECK, type StaticTypecheckRequestSpec } from "./protocol.js";
 import type { StaticTypecheckWireResult } from "./types.js";
 

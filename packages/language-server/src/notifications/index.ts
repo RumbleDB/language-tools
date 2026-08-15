@@ -1,4 +1,4 @@
-import { type DownloadProgress } from "server/wrapper/executable/download.js";
+import { type DownloadProgress } from "server/integrations/rumble/executable/download.js";
 
 import {
     ACTIVE_PARSER_NOTIFICATION,

@@ -1,5 +1,5 @@
+import { getWrapperClient } from "server/integrations/rumble/client.js";
 import { getTypeAtPosition } from "server/type-at-position/service.js";
-import { getWrapperClient } from "server/wrapper/client.js";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { testDocument } from "./test-utils.js";

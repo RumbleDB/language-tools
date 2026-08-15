@@ -1,5 +1,5 @@
+import type { WrapperRequestSpec } from "server/integrations/rumble/protocol.js";
 import { RequestClient } from "server/requests/types.js";
-import type { WrapperRequestSpec } from "server/wrapper/protocol.js";
 
 import type { RunQueryWireResult } from "./types.js";
 

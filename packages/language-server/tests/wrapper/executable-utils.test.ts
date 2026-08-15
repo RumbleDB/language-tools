@@ -1,7 +1,10 @@
 import os from "node:os";
 import path from "node:path";
 
-import { getBaseCacheDirectory, getWrapperCacheDirectory } from "server/wrapper/executable/utils";
+import {
+    getBaseCacheDirectory,
+    getWrapperCacheDirectory,
+} from "server/integrations/rumble/executable/utils";
 import { describe, expect, it } from "vitest";
 
 describe("wrapper executable cache directories", () => {

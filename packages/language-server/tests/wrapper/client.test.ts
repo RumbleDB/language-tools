@@ -1,4 +1,4 @@
-import { getWrapperClient } from "server/wrapper/client";
+import { getWrapperClient } from "server/integrations/rumble/client";
 import { describe, expect, it } from "vitest";
 
 describe("wrapper client surface", () => {

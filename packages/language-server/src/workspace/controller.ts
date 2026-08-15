@@ -3,13 +3,20 @@ import type { FileEvent } from "vscode-languageserver/node";
 
 import { createLogger } from "../utils/logger.js";
 import { discoverWorkspaceDocumentUris } from "./files.js";
-import { replaceWorkspaceDocuments, updateWorkspaceDocuments } from "./service.js";
+import { workspaceService } from "./service.js";
+
+export interface WorkspaceOperations {
+    replaceDocuments(uris: readonly DocumentUri[]): void;
+    updateDocuments(changes: readonly FileEvent[]): void;
+}
 
 const logger = createLogger("workspace-controller");
 
 export class WorkspaceController {
     private readonly folderUris = new Set<DocumentUri>();
     private pending = Promise.resolve();
+
+    public constructor(private readonly service: WorkspaceOperations = workspaceService) {}
 
     public initialize(folderUris: readonly DocumentUri[]): void {
         for (const uri of folderUris) this.folderUris.add(uri);
@@ -23,7 +30,7 @@ export class WorkspaceController {
     }
 
     public updateDocuments(changes: readonly FileEvent[]): void {
-        this.queue(() => updateWorkspaceDocuments(changes));
+        this.queue(() => this.service.updateDocuments(changes));
     }
 
     public ready(): Promise<void> {
@@ -33,7 +40,7 @@ export class WorkspaceController {
     private queueRebuild(): void {
         this.queue(async () => {
             const documents = await discoverWorkspaceDocumentUris([...this.folderUris]);
-            replaceWorkspaceDocuments(documents);
+            this.service.replaceDocuments(documents);
         });
     }
 

@@ -1,5 +1,5 @@
-import { setWrapperResolutionOptions } from "server/wrapper/client.js";
-import { type DownloadProgress } from "server/wrapper/executable/download.js";
+import { setWrapperResolutionOptions } from "server/integrations/rumble/client.js";
+import { type DownloadProgress } from "server/integrations/rumble/executable/download.js";
 
 import { defineNotificationInitializer } from "./types.js";
 
