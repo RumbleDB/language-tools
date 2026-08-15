@@ -1,11 +1,13 @@
+import type { ArgumentNode, AstNode, FunctionCallNode } from "server/analysis/ast.js";
+import { getBuiltinFunctionDocumentation } from "server/assets/function-docs.js";
+import {
+    chooseBestSignatureIndex,
+    findResolvedSourceFunction,
+} from "server/utils/function-calls.js";
+import { rangesIntersect } from "server/utils/range.js";
+import { getAnalysis } from "server/workspace/service.js";
 import { InlayHintKind, type InlayHint, type Range } from "vscode-languageserver";
 import { TextDocument } from "vscode-languageserver-textdocument";
-
-import type { ArgumentNode, AstNode, FunctionCallNode } from "./analysis/ast.js";
-import { getBuiltinFunctionDocumentation } from "./assets/function-docs.js";
-import { chooseBestSignatureIndex, findResolvedSourceFunction } from "./utils/function-calls.js";
-import { rangesIntersect } from "./utils/range.js";
-import { getAnalysis } from "./workspace/service.js";
 
 export function collectInlayHints(document: TextDocument, range: Range): InlayHint[] {
     const analysis = getAnalysis(document);

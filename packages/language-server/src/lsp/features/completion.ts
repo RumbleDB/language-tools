@@ -1,3 +1,24 @@
+import { defaultNamespaces } from "server/analysis/default-namespaces.js";
+import { definitionNameToString, type ScopeDefinition } from "server/analysis/definitions.js";
+import { QNameToString } from "server/analysis/names.js";
+import { getVisibleDeclarationsAtPosition } from "server/analysis/queries.js";
+import { BuiltinFunctionDefinition, builtinFunctions } from "server/assets/builtin-functions.js";
+import { builtinTypes } from "server/assets/builtin-types.js";
+import {
+    docs,
+    formatFunctionDocEntry,
+    getBuiltinFunctionDocumentation,
+    Signature,
+} from "server/assets/function-docs.js";
+import { collectCompletionIntent } from "server/parser/index.js";
+import { getDocumentText } from "server/parser/utils.js";
+import {
+    formatSequenceType,
+    formatTypeDefinition,
+    type ObjectTypeDefinition,
+} from "server/static-typecheck/types.js";
+import { getTypeAtPositionFromSource } from "server/type-at-position/service.js";
+import { getAnalysis } from "server/workspace/service.js";
 import {
     CompletionItemKind,
     InsertTextFormat,
@@ -7,28 +28,6 @@ import {
     type Position,
 } from "vscode-languageserver";
 import { TextDocument } from "vscode-languageserver-textdocument";
-
-import { defaultNamespaces } from "./analysis/default-namespaces.js";
-import { definitionNameToString, type ScopeDefinition } from "./analysis/definitions.js";
-import { QNameToString } from "./analysis/names.js";
-import { getVisibleDeclarationsAtPosition } from "./analysis/queries.js";
-import { BuiltinFunctionDefinition, builtinFunctions } from "./assets/builtin-functions.js";
-import { builtinTypes } from "./assets/builtin-types.js";
-import {
-    docs,
-    formatFunctionDocEntry,
-    getBuiltinFunctionDocumentation,
-    Signature,
-} from "./assets/function-docs.js";
-import { collectCompletionIntent } from "./parser/index.js";
-import { getDocumentText } from "./parser/utils.js";
-import {
-    formatSequenceType,
-    formatTypeDefinition,
-    type ObjectTypeDefinition,
-} from "./static-typecheck/types.js";
-import { getTypeAtPositionFromSource } from "./type-at-position/service.js";
-import { getAnalysis } from "./workspace/service.js";
 
 const VARIABLE_PREFIX_PATTERN = /\$[A-Za-z0-9_.:-]*$/;
 const OBJECT_FIELD_PREFIX_PATTERN = /[A-Za-z_][A-Za-z0-9_:-]*$/;

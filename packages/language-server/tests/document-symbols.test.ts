@@ -1,4 +1,4 @@
-import { collectDocumentSymbols } from "server/symbols.js";
+import { collectDocumentSymbols } from "server/lsp/features/document-symbols.js";
 import { describe, expect, it } from "vitest";
 import { DocumentSymbol, SymbolKind } from "vscode-languageserver";
 

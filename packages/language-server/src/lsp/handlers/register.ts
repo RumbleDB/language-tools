@@ -1,19 +1,19 @@
 import type { TextDocument } from "vscode-languageserver-textdocument";
 import type { Connection, TextDocuments } from "vscode-languageserver/node";
 
-import { findCompletionsWithTypeInfo } from "../../completion.js";
-import { findDefinitionLocation } from "../../definitions.js";
-import { collectDocumentLinks } from "../../document-links.js";
 import { formatDocument } from "../../formatter/index.js";
-import { findHover } from "../../hover.js";
-import { collectInlayHints } from "../../inlay-hints.js";
 import { supportsDocument } from "../../parser/registry.js";
-import { findReferenceLocations } from "../../references.js";
-import { buildRenameWorkspaceEdit, prepareRename } from "../../rename.js";
-import { collectSemanticTokens } from "../../semantic.js";
-import { findSignatureHelp } from "../../signature-help.js";
-import { collectDocumentSymbols } from "../../symbols.js";
 import type { WorkspaceController } from "../../workspace/controller.js";
+import { findCompletionsWithTypeInfo } from "../features/completion.js";
+import { findDefinitionLocation } from "../features/definition.js";
+import { collectDocumentLinks } from "../features/document-links.js";
+import { collectDocumentSymbols } from "../features/document-symbols.js";
+import { findHover } from "../features/hover.js";
+import { collectInlayHints } from "../features/inlay-hints.js";
+import { findReferenceLocations } from "../features/references.js";
+import { buildRenameWorkspaceEdit, prepareRename } from "../features/rename.js";
+import { collectSemanticTokens } from "../features/semantic-tokens.js";
+import { findSignatureHelp } from "../features/signature-help.js";
 
 export function registerLanguageFeatureHandlers(
     connection: Connection,

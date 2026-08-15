@@ -1,8 +1,7 @@
+import { findSymbolAtPosition } from "server/analysis/queries.js";
+import { getAnalysis, getWorkspaceReferencesToDefinition } from "server/workspace/service.js";
 import { type Location, type Position } from "vscode-languageserver";
 import { TextDocument } from "vscode-languageserver-textdocument";
-
-import { findSymbolAtPosition } from "./analysis/queries.js";
-import { getAnalysis, getWorkspaceReferencesToDefinition } from "./workspace/service.js";
 
 /**
  * Finds all reference locations for the variable at the given position in the document, optionally including the declaration location.

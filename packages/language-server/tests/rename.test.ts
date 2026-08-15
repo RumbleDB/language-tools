@@ -1,4 +1,4 @@
-import { buildRenameWorkspaceEdit, prepareRename } from "server/rename.js";
+import { buildRenameWorkspaceEdit, prepareRename } from "server/lsp/features/rename.js";
 import { describe, expect, it } from "vitest";
 
 import { positionAt, positionAtNth, testDocument } from "./test-utils.js";

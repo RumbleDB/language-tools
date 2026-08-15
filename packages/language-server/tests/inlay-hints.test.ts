@@ -1,4 +1,4 @@
-import { collectInlayHints } from "server/inlay-hints.js";
+import { collectInlayHints } from "server/lsp/features/inlay-hints.js";
 import { describe, expect, it } from "vitest";
 
 import { testDocument } from "./test-utils.js";

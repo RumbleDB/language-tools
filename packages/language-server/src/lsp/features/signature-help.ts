@@ -1,4 +1,13 @@
+import type { ArgumentNode, AstNode, FunctionCallNode } from "server/analysis/ast.js";
+import {
+    definitionNameToString,
+    type DefinitionByReferenceKind,
+} from "server/analysis/definitions.js";
 import { FunctionName, QNameToString } from "server/analysis/names.js";
+import { findNodesThatContainPosition } from "server/analysis/queries.js";
+import { FunctionDocEntry, getBuiltinFunctionDocumentation } from "server/assets/function-docs.js";
+import { chooseBestSignatureIndex } from "server/utils/function-calls.js";
+import { getAnalysis } from "server/workspace/service.js";
 import {
     MarkupKind,
     type Position,
@@ -6,13 +15,6 @@ import {
     type SignatureInformation,
 } from "vscode-languageserver";
 import { TextDocument } from "vscode-languageserver-textdocument";
-
-import type { ArgumentNode, AstNode, FunctionCallNode } from "./analysis/ast.js";
-import { definitionNameToString, type DefinitionByReferenceKind } from "./analysis/definitions.js";
-import { findNodesThatContainPosition } from "./analysis/queries.js";
-import { FunctionDocEntry, getBuiltinFunctionDocumentation } from "./assets/function-docs.js";
-import { chooseBestSignatureIndex } from "./utils/function-calls.js";
-import { getAnalysis } from "./workspace/service.js";
 
 function createSignatureInformation(
     functionName: string,

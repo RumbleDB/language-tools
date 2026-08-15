@@ -1,7 +1,7 @@
 import { ChildProcessWithoutNullStreams, spawn } from "node:child_process";
 
 import pidusage from "pidusage";
-import { config } from "server/config.js";
+import { config } from "server/app/configuration.js";
 import { createLogger } from "server/utils/logger.js";
 
 import { type WrapperResolutionOptions, resolveWrapperLaunchConfig } from "./executable/index.js";

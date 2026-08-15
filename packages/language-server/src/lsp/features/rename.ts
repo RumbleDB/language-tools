@@ -1,3 +1,12 @@
+import { AnalysisResult } from "server/analysis/builder.js";
+import {
+    definitionNameToString,
+    type SourceParameterDefinition,
+    type SourceVariableDefinition,
+} from "server/analysis/definitions.js";
+import type { QName } from "server/analysis/names.js";
+import { findSymbolAtPosition } from "server/analysis/queries.js";
+import { getAnalysis, getWorkspaceReferencesToDefinition } from "server/workspace/service.js";
 import {
     type Position,
     type Range,
@@ -5,16 +14,6 @@ import {
     type WorkspaceEdit,
 } from "vscode-languageserver";
 import { TextDocument } from "vscode-languageserver-textdocument";
-
-import { AnalysisResult } from "./analysis/builder.js";
-import {
-    definitionNameToString,
-    type SourceParameterDefinition,
-    type SourceVariableDefinition,
-} from "./analysis/definitions.js";
-import type { QName } from "./analysis/names.js";
-import { findSymbolAtPosition } from "./analysis/queries.js";
-import { getAnalysis, getWorkspaceReferencesToDefinition } from "./workspace/service.js";
 
 interface RenameTarget {
     declaration: SourceVariableDefinition | SourceParameterDefinition;

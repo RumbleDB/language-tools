@@ -1,5 +1,7 @@
+import { type Definition, DefinitionKind } from "server/analysis/definitions.js";
+import { getResolvedReferences, getSourceDefinitions } from "server/analysis/queries.js";
+import { getAnalysis } from "server/workspace/service.js";
 import {
-    type Diagnostic,
     SemanticTokensBuilder,
     type SemanticTokens,
     SemanticTokensLegend,
@@ -9,19 +11,10 @@ import {
 import { Range } from "vscode-languageserver";
 import { TextDocument } from "vscode-languageserver-textdocument";
 
-import { type Definition, DefinitionKind } from "./analysis/definitions.js";
-import { getResolvedReferences, getSourceDefinitions } from "./analysis/queries.js";
-import { getAnalysis } from "./workspace/service.js";
-
 export const legend: SemanticTokensLegend = {
     tokenTypes: ["function", "parameter", "variable", "namespace", "type"],
     tokenModifiers: ["definition", "defaultLibrary"],
 };
-
-export function collectSemanticDiagnostics(document: TextDocument): readonly Diagnostic[] {
-    const analysis = getAnalysis(document);
-    return analysis.diagnostics;
-}
 
 function getTokenTypeIndex(tokenType: SemanticTokenTypes): number {
     const index = legend.tokenTypes.indexOf(tokenType);

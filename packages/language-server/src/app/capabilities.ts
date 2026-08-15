@@ -1,6 +1,6 @@
 import { TextDocumentSyncKind, type ServerCapabilities } from "vscode-languageserver/node";
 
-import { legend as semanticLegend } from "../semantic.js";
+import { legend as semanticLegend } from "../lsp/features/semantic-tokens.js";
 
 export const serverCapabilities: ServerCapabilities = {
     textDocumentSync: TextDocumentSyncKind.Incremental,

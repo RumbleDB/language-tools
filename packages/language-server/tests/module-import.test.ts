@@ -5,9 +5,9 @@ import { pathToFileURL } from "node:url";
 import { analyzeDocument } from "server/analysis/builder.js";
 import { definitionNameToString } from "server/analysis/definitions.js";
 import { buildDocumentIndex } from "server/analysis/document-index.js";
-import { findDefinitionLocation } from "server/definitions.js";
-import { findReferenceLocations } from "server/references.js";
-import { buildRenameWorkspaceEdit } from "server/rename.js";
+import { findDefinitionLocation } from "server/lsp/features/definition.js";
+import { findReferenceLocations } from "server/lsp/features/references.js";
+import { buildRenameWorkspaceEdit } from "server/lsp/features/rename.js";
 import { getAnalysis, replaceWorkspaceDocuments } from "server/workspace/service.js";
 import { describe, expect, it } from "vitest";
 

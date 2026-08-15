@@ -1,4 +1,4 @@
-import { findCompletions, findCompletionsWithTypeInfo } from "server/completion.js";
+import { findCompletions, findCompletionsWithTypeInfo } from "server/lsp/features/completion.js";
 import { describe, expect, it } from "vitest";
 import { type CompletionItem, type Position } from "vscode-languageserver";
 import { type TextDocument } from "vscode-languageserver-textdocument";

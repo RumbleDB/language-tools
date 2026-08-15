@@ -1,4 +1,5 @@
-import { collectSemanticDiagnostics, collectSemanticTokens } from "server/semantic.js";
+import { collectSemanticDiagnostics } from "server/analysis/diagnostics.js";
+import { collectSemanticTokens } from "server/lsp/features/semantic-tokens.js";
 import { describe, expect, it } from "vitest";
 
 import { testDocument } from "./test-utils.js";

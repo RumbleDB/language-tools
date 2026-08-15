@@ -1,4 +1,4 @@
-import { findDefinitionLocation } from "server/definitions.js";
+import { findDefinitionLocation } from "server/lsp/features/definition.js";
 import { describe, expect, it } from "vitest";
 
 import { positionAtNth, testDocument, testDocumentFromUri } from "./test-utils.js";

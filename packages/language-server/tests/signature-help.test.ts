@@ -1,4 +1,4 @@
-import { findSignatureHelp } from "server/signature-help.js";
+import { findSignatureHelp } from "server/lsp/features/signature-help.js";
 import { describe, expect, it } from "vitest";
 import type { Position } from "vscode-languageserver";
 

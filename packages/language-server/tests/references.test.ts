@@ -1,4 +1,4 @@
-import { findReferenceLocations } from "server/references.js";
+import { findReferenceLocations } from "server/lsp/features/references.js";
 import { describe, expect, it } from "vitest";
 
 import { positionAt, positionAtNth, testDocument, testDocumentFromUri } from "./test-utils.js";

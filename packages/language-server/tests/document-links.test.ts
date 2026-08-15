@@ -1,7 +1,7 @@
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 
-import { collectDocumentLinks } from "server/document-links.js";
+import { collectDocumentLinks } from "server/lsp/features/document-links.js";
 import { describe, expect, it } from "vitest";
 import type { TextDocument } from "vscode-languageserver-textdocument";
 

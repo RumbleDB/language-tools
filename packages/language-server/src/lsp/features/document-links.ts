@@ -1,8 +1,7 @@
+import { buildDocumentIndex } from "server/analysis/document-index.js";
+import { resolveModuleLocations } from "server/workspace/module-resolver.js";
 import type { DocumentLink } from "vscode-languageserver";
 import type { TextDocument } from "vscode-languageserver-textdocument";
-
-import { buildDocumentIndex } from "./analysis/document-index.js";
-import { resolveModuleLocations } from "./workspace/module-resolver.js";
 
 export function collectDocumentLinks(document: TextDocument): DocumentLink[] {
     const index = buildDocumentIndex(document);

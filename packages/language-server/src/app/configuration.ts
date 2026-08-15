@@ -1,5 +1,5 @@
-import type { FormatterOptions } from "./formatter/options.js";
-import { DEFAULT_FORMATTER_OPTIONS } from "./formatter/options.js";
+import type { FormatterOptions } from "server/formatter/options.js";
+import { DEFAULT_FORMATTER_OPTIONS } from "server/formatter/options.js";
 
 export type InitializationOptions = {
     wrapper: {

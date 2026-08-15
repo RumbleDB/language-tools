@@ -5,7 +5,6 @@ import {
     type InitializeResult,
 } from "vscode-languageserver/node";
 
-import { config, InitializationOptions, mergeConfiguration } from "../config.js";
 import { registerLanguageFeatureHandlers } from "../lsp/handlers/register.js";
 import { initializeNotifications } from "../notifications/index.js";
 import { initializeCustomRequests } from "../requests/index.js";
@@ -13,6 +12,7 @@ import { clearStaticTypecheckCache } from "../static-typecheck/service.js";
 import { setLoggerSink } from "../utils/logger.js";
 import { removeOpenDocument, updateOpenDocument } from "../workspace/service.js";
 import { serverCapabilities } from "./capabilities.js";
+import { config, InitializationOptions, mergeConfiguration } from "./configuration.js";
 import { createServerContext } from "./context.js";
 
 export type ClientConfiguration = Partial<InitializationOptions>;
