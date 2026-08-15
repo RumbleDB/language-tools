@@ -1,4 +1,5 @@
-import { formatDocument } from "server/formatter/index.js";
+import { formatParsedDocument } from "server/formatter/index.js";
+import { getParserAdapterForDocument } from "server/parser/registry.js";
 import { describe, expect, it } from "vitest";
 
 import { parserService } from "./services.js";
@@ -13,7 +14,7 @@ let docId = 0;
 function formatText(
     source: string | string[],
     languageId: "jsoniq" | "xquery" = "jsoniq",
-    options?: Parameters<typeof formatDocument>[1],
+    options?: Parameters<typeof formatParsedDocument>[2],
 ): string {
     docId += 1;
     const ext = languageId === "xquery" ? "xq" : "jq";
@@ -21,11 +22,13 @@ function formatText(
         uri: `file:///test-document-${docId}.${ext}`,
         languageId,
     });
-    const edits = formatDocument(doc, parserService, { ...TEST_FORMATTER_OPTIONS, ...options });
-    if (edits.length === 0) {
-        return doc.getText();
-    }
-    return edits[0]!.newText;
+    const parserId = getParserAdapterForDocument(doc)!.id;
+    return (
+        formatParsedDocument(parserService.parse(doc), parserId, {
+            ...TEST_FORMATTER_OPTIONS,
+            ...options,
+        }) ?? doc.getText()
+    );
 }
 
 function semanticAst(value: unknown): unknown {
@@ -950,8 +953,7 @@ describe("JSONiq & XQuery Formatter", () => {
         it("refuses to format documents with syntax errors", () => {
             const input = "declare function local:foo("; // Incomplete syntax
             const doc = testDocument("broken", input);
-            const edits = formatDocument(doc, parserService);
-            expect(edits).toHaveLength(0);
+            expect(formatParsedDocument(parserService.parse(doc), "jsoniq")).toBeUndefined();
         });
     });
 

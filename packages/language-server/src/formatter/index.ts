@@ -1,9 +1,4 @@
-import type { TextEdit } from "vscode-languageserver";
-import type { TextDocument } from "vscode-languageserver-textdocument";
-
-import type { ParserService } from "../parser/index.js";
-import { getParserAdapterForDocument } from "../parser/registry.js";
-import { getDocumentText } from "../parser/utils.js";
+import type { ParseResult } from "../parser/types/result.js";
 import { JsoniqFormatterVisitor } from "./adapters/jsoniq.js";
 import { XQueryFormatterVisitor } from "./adapters/xquery.js";
 import { FormatterContext } from "./context.js";
@@ -12,42 +7,29 @@ import { type FormatterOptions, resolveFormatterOptions } from "./options.js";
 import { printDocToString } from "./printer.js";
 
 /**
- * Formats an entire document and returns a single TextEdit replacing the full content.
+ * Formats a parsed document and returns the formatted text.
  *
- * Returns an empty array if:
- * - The document has syntax errors (we refuse to format invalid documents)
- * - The document language is not supported
- * - The formatted output is identical to the input (no changes needed)
+ * Returns undefined if the document has syntax errors or its parser is unsupported.
  */
-export function formatDocument(
-    document: TextDocument,
-    parser: ParserService,
+export function formatParsedDocument(
+    parsed: ParseResult,
+    parserId: string,
     options?: Partial<FormatterOptions>,
-): TextEdit[] {
-    const adapter = getParserAdapterForDocument(document);
-    if (adapter === undefined) {
-        return [];
-    }
-
-    const parsed = parser.parse(document);
-
-    // Refuse to format documents with syntax errors
-    if (parsed.diagnostics.length > 0) {
-        return [];
-    }
+): string | undefined {
+    if (parsed.diagnostics.length > 0) return undefined;
 
     const resolvedOptions = resolveFormatterOptions(options);
     const ctx = new FormatterContext(resolvedOptions, parsed.tokenStream);
 
     let docTree: Doc;
-    if (adapter.id === "jsoniq") {
+    if (parserId === "jsoniq") {
         const visitor = new JsoniqFormatterVisitor(ctx);
         docTree = visitor.visit(parsed.tree) ?? NIL;
-    } else if (adapter.id === "xquery") {
+    } else if (parserId === "xquery") {
         const visitor = new XQueryFormatterVisitor(ctx);
         docTree = visitor.visit(parsed.tree) ?? NIL;
     } else {
-        return [];
+        return undefined;
     }
 
     let formatted = printDocToString(docTree, resolvedOptions);
@@ -61,24 +43,5 @@ export function formatDocument(
         formatted = formatted.replace(/\n{2,}$/, "\n");
     }
 
-    // If the formatted output is identical, return no edits
-    const originalText = getDocumentText(document);
-    if (formatted === originalText) {
-        return [];
-    }
-
-    // Return a single TextEdit replacing the entire document
-    const lastLine = document.lineCount - 1;
-    const lastLineLength =
-        document.getText().length - document.offsetAt({ line: lastLine, character: 0 });
-
-    return [
-        {
-            range: {
-                start: { line: 0, character: 0 },
-                end: { line: lastLine, character: lastLineLength },
-            },
-            newText: formatted,
-        },
-    ];
+    return formatted;
 }
