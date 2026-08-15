@@ -1,4 +1,5 @@
 import { findReferenceLocations } from "server/lsp/features/references.js";
+import { workspaceService } from "server/workspace/service.js";
 import { describe, expect, it } from "vitest";
 
 import { positionAt, positionAtNth, testDocument, testDocumentFromUri } from "./test-utils.js";
@@ -15,7 +16,12 @@ describe("JSONiq references", () => {
         ].join("\n");
         const document = testDocument("references-shadowing", source);
 
-        const locations = findReferenceLocations(document, positionAtNth(document, "$x", 2), false);
+        const locations = findReferenceLocations(
+            document,
+            positionAtNth(document, "$x", 2),
+            false,
+            workspaceService,
+        );
 
         expect(locations.map((location) => location.range.start.line)).toEqual([2, 3]);
     });
@@ -30,11 +36,13 @@ describe("JSONiq references", () => {
             document,
             positionAtNth(document, "$x", 2),
             false,
+            workspaceService,
         );
         const withDeclaration = findReferenceLocations(
             document,
             positionAtNth(document, "$x", 2),
             true,
+            workspaceService,
         );
 
         expect(withoutDeclaration.map((location) => location.range.start.line)).toEqual([1, 2]);
@@ -45,7 +53,12 @@ describe("JSONiq references", () => {
         const source = "declare function local:f($x) { $x };";
         const document = testDocument("references-miss", source);
 
-        const locations = findReferenceLocations(document, positionAt(document, "declare"), true);
+        const locations = findReferenceLocations(
+            document,
+            positionAt(document, "declare"),
+            true,
+            workspaceService,
+        );
 
         expect(locations).toEqual([]);
     });
@@ -56,7 +69,12 @@ describe("JSONiq references", () => {
         );
         const document = testDocument("references-function", source);
 
-        const locations = findReferenceLocations(document, positionAt(document, "local:f"), true);
+        const locations = findReferenceLocations(
+            document,
+            positionAt(document, "local:f"),
+            true,
+            workspaceService,
+        );
 
         expect(locations.map((location) => location.range.start)).toEqual([
             { line: 0, character: "declare function ".length },
@@ -77,6 +95,7 @@ describe("JSONiq references", () => {
             document,
             positionAt(document, "local:f(1, 2)"),
             true,
+            workspaceService,
         );
 
         expect(locations.map((location) => location.range.start)).toEqual([
@@ -89,7 +108,12 @@ describe("JSONiq references", () => {
         const source = "declare function local:f($x) { $x };";
         const document = testDocument("references-declaration-dollar", source);
 
-        const locations = findReferenceLocations(document, positionAt(document, "$x"), false);
+        const locations = findReferenceLocations(
+            document,
+            positionAt(document, "$x"),
+            false,
+            workspaceService,
+        );
 
         expect(locations.map((location) => location.range.start.line)).toEqual([0]);
     });
@@ -111,6 +135,7 @@ describe("JSONiq references", () => {
             document,
             positionAt(document, "Q{https://example.com}f"),
             true,
+            workspaceService,
         );
 
         expect(locations.map((location) => location.range.start)).toEqual([

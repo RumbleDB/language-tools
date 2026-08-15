@@ -17,13 +17,8 @@ import { registerRename } from "../features/rename.js";
 import { registerSemanticTokens } from "../features/semantic-tokens.js";
 import { registerSignatureHelp } from "../features/signature-help.js";
 
-export function registerLanguageFeatureHandlers(
-    connection: Connection,
-    documents: TextDocuments<TextDocument>,
-    parser: ParserService,
-    workspace: WorkspaceService,
-    workspaceController: WorkspaceController,
-): void {
+export function registerLanguageFeatureHandlers(dependencies: LanguageFeatureDependencies): void {
+    const { connection, documents, parser, workspace, workspaceController } = dependencies;
     const context = createFeatureRegistrationContext(
         connection,
         documents,
@@ -43,4 +38,12 @@ export function registerLanguageFeatureHandlers(
     registerRename(context);
     registerSemanticTokens(context);
     registerSignatureHelp(context);
+}
+
+export interface LanguageFeatureDependencies {
+    readonly connection: Connection;
+    readonly documents: TextDocuments<TextDocument>;
+    readonly parser: ParserService;
+    readonly workspace: WorkspaceService;
+    readonly workspaceController: WorkspaceController;
 }

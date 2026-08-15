@@ -25,7 +25,13 @@ initializeNotifications((method, payload) => {
     connection.sendNotification(method, payload);
 });
 initializeCustomRequests(connection, documents);
-registerLanguageFeatureHandlers(connection, documents, parser, workspace, workspaceController);
+registerLanguageFeatureHandlers({
+    connection,
+    documents,
+    parser,
+    workspace,
+    workspaceController,
+});
 
 connection.onInitialize((params: InitializeParams): InitializeResult => {
     const clientConfiguration: Partial<InitializationOptions> = params.initializationOptions || {};

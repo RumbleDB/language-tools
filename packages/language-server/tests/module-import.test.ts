@@ -8,7 +8,11 @@ import { buildDocumentIndex } from "server/analysis/document-index.js";
 import { findDefinitionLocation } from "server/lsp/features/definition.js";
 import { findReferenceLocations } from "server/lsp/features/references.js";
 import { buildRenameWorkspaceEdit } from "server/lsp/features/rename.js";
-import { getAnalysis, replaceWorkspaceDocuments } from "server/workspace/service.js";
+import {
+    getAnalysis,
+    replaceWorkspaceDocuments,
+    workspaceService,
+} from "server/workspace/service.js";
 import { describe, expect, it } from "vitest";
 
 import { positionAt, testDocument, testDocumentFromUri } from "./test-utils.js";
@@ -92,17 +96,20 @@ describe("module imports", () => {
                 message: "Reference to undefined variable 'value'",
             }),
         ]);
-        expect(findDefinitionLocation(document, positionAt(document, "use:double"))?.uri).toBe(
-            pathToFileURL(fixture).toString(),
-        );
-        expect(findDefinitionLocation(document, positionAt(document, "$use:answer"))?.uri).toBe(
-            pathToFileURL(fixture).toString(),
-        );
+        expect(
+            findDefinitionLocation(document, positionAt(document, "use:double"), workspaceService)
+                ?.uri,
+        ).toBe(pathToFileURL(fixture).toString());
+        expect(
+            findDefinitionLocation(document, positionAt(document, "$use:answer"), workspaceService)
+                ?.uri,
+        ).toBe(pathToFileURL(fixture).toString());
 
         const rename = buildRenameWorkspaceEdit(
             document,
             positionAt(document, "$use:answer"),
             "$renamed",
+            workspaceService,
         );
         expect(rename?.changes?.[document.uri]).toEqual([
             expect.objectContaining({ newText: "$use:renamed" }),
@@ -123,14 +130,23 @@ describe("module imports", () => {
         );
 
         expect(getAnalysis(document).diagnostics).toEqual([]);
-        expect(findDefinitionLocation(document, positionAt(document, "$math:x"))?.uri).toBe(
-            pathToFileURL(fixture).toString(),
-        );
-        expect(findDefinitionLocation(document, positionAt(document, "math:func"))?.uri).toBe(
-            pathToFileURL(fixture).toString(),
-        );
+        expect(
+            findDefinitionLocation(document, positionAt(document, "$math:x"), workspaceService)
+                ?.uri,
+        ).toBe(pathToFileURL(fixture).toString());
+        expect(
+            findDefinitionLocation(document, positionAt(document, "math:func"), workspaceService)
+                ?.uri,
+        ).toBe(pathToFileURL(fixture).toString());
 
-        expect(findReferenceLocations(document, positionAt(document, "$math:x"), true)).toEqual([
+        expect(
+            findReferenceLocations(
+                document,
+                positionAt(document, "$math:x"),
+                true,
+                workspaceService,
+            ),
+        ).toEqual([
             expect.objectContaining({ uri: pathToFileURL(fixture).toString() }),
             expect.objectContaining({ uri: document.uri }),
         ]);
@@ -157,7 +173,12 @@ describe("module imports", () => {
         getAnalysis(moduleDocument);
 
         expect(
-            findReferenceLocations(moduleDocument, positionAt(moduleDocument, "$math:x"), false),
+            findReferenceLocations(
+                moduleDocument,
+                positionAt(moduleDocument, "$math:x"),
+                false,
+                workspaceService,
+            ),
         ).toContainEqual(expect.objectContaining({ uri: importer.uri }));
     });
 
@@ -181,6 +202,7 @@ describe("module imports", () => {
                     moduleDocument,
                     positionAt(moduleDocument, "$math:x"),
                     false,
+                    workspaceService,
                 ),
             ).toContainEqual(expect.objectContaining({ uri: importerUri }));
         } finally {
@@ -217,8 +239,12 @@ describe("module imports", () => {
         );
 
         expect(getAnalysis(document).diagnostics).toEqual([]);
-        expect(findDefinitionLocation(document, positionAt(document, "$a:x"))?.uri).toBe(moduleUri);
-        expect(findReferenceLocations(document, positionAt(document, "$a:x"), false)).toEqual([
+        expect(
+            findDefinitionLocation(document, positionAt(document, "$a:x"), workspaceService)?.uri,
+        ).toBe(moduleUri);
+        expect(
+            findReferenceLocations(document, positionAt(document, "$a:x"), false, workspaceService),
+        ).toEqual([
             expect.objectContaining({
                 uri: pathToFileURL(path.join(directory, "cycle-b.jq")).toString(),
             }),
@@ -252,9 +278,10 @@ describe("module imports", () => {
                 message: "Cannot resolve module location 'missing.jq'.",
             }),
         ]);
-        expect(findDefinitionLocation(document, positionAt(document, "$math:x"))?.uri).toBe(
-            moduleUri,
-        );
+        expect(
+            findDefinitionLocation(document, positionAt(document, "$math:x"), workspaceService)
+                ?.uri,
+        ).toBe(moduleUri);
     });
 
     it("uses a file-like target namespace as the fallback module location", () => {
@@ -265,9 +292,10 @@ describe("module imports", () => {
         );
 
         expect(getAnalysis(document).diagnostics).toEqual([]);
-        expect(findDefinitionLocation(document, positionAt(document, "$math:x"))?.uri).toBe(
-            pathToFileURL(path.join(directory, "math.jq")).toString(),
-        );
+        expect(
+            findDefinitionLocation(document, positionAt(document, "$math:x"), workspaceService)
+                ?.uri,
+        ).toBe(pathToFileURL(path.join(directory, "math.jq")).toString());
     });
 
     it("does not use the target namespace when an explicit location is present", () => {

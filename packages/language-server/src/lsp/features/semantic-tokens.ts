@@ -1,6 +1,6 @@
 import { type Definition, DefinitionKind } from "server/analysis/definitions.js";
 import { getResolvedReferences, getSourceDefinitions } from "server/analysis/queries.js";
-import { getAnalysis } from "server/workspace/service.js";
+import type { WorkspaceService } from "server/workspace/service.js";
 import {
     SemanticTokensBuilder,
     type SemanticTokens,
@@ -56,7 +56,7 @@ function addSemanticToken(
 
 export function collectSemanticTokens(
     document: TextDocument,
-    workspace = { getAnalysis },
+    workspace: WorkspaceService,
 ): SemanticTokens {
     const analysis = workspace.getAnalysis(document);
     const builder = new SemanticTokensBuilder();

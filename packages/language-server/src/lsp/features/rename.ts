@@ -6,7 +6,7 @@ import {
 } from "server/analysis/definitions.js";
 import type { QName } from "server/analysis/names.js";
 import { findSymbolAtPosition } from "server/analysis/queries.js";
-import { getAnalysis, getWorkspaceReferencesToDefinition } from "server/workspace/service.js";
+import type { WorkspaceService } from "server/workspace/service.js";
 import {
     type Position,
     type Range,
@@ -57,7 +57,7 @@ interface RenameValidationResult {
 export function prepareRename(
     document: TextDocument,
     position: Position,
-    workspace = { getAnalysis },
+    workspace: WorkspaceService,
 ): { range: Range; placeholder: string } | null {
     const analysis = workspace.getAnalysis(document);
     const target = findRenameTarget(analysis, position);
@@ -86,7 +86,7 @@ export function buildRenameWorkspaceEdit(
     document: TextDocument,
     position: Position,
     newName: string,
-    workspace = { getAnalysis, getReferencesToDefinition: getWorkspaceReferencesToDefinition },
+    workspace: WorkspaceService,
 ): WorkspaceEdit | null {
     const validation = validateVariableName(newName);
     if (!validation.valid) {

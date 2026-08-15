@@ -5,7 +5,7 @@ import {
     findResolvedSourceFunction,
 } from "server/utils/function-calls.js";
 import { rangesIntersect } from "server/utils/range.js";
-import { getAnalysis } from "server/workspace/service.js";
+import type { WorkspaceService } from "server/workspace/service.js";
 import { InlayHintKind, type InlayHint, type Range } from "vscode-languageserver";
 import { TextDocument } from "vscode-languageserver-textdocument";
 
@@ -25,7 +25,7 @@ export function registerInlayHints({
 export function collectInlayHints(
     document: TextDocument,
     range: Range,
-    workspace = { getAnalysis },
+    workspace: WorkspaceService,
 ): InlayHint[] {
     const analysis = workspace.getAnalysis(document);
     return collectFunctionCallInlayHints(analysis.ast, range);

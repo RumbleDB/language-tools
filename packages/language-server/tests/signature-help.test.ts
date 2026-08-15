@@ -1,4 +1,5 @@
 import { findSignatureHelp } from "server/lsp/features/signature-help.js";
+import { workspaceService } from "server/workspace/service.js";
 import { describe, expect, it } from "vitest";
 import type { Position } from "vscode-languageserver";
 
@@ -11,7 +12,7 @@ describe("JSONiq signature help", () => {
 
             // Cursor inside first argument
             const pos0 = positionAt(document, '"hello"');
-            const help0 = findSignatureHelp(document, pos0);
+            const help0 = findSignatureHelp(document, pos0, workspaceService);
 
             expect(help0).not.toBeNull();
             expect(help0?.activeParameter).toBe(0);
@@ -20,7 +21,7 @@ describe("JSONiq signature help", () => {
 
             // Cursor inside third argument
             const pos2 = positionAt(document, "2");
-            const help2 = findSignatureHelp(document, pos2);
+            const help2 = findSignatureHelp(document, pos2, workspaceService);
 
             expect(help2).not.toBeNull();
             expect(help2?.activeParameter).toBe(2);
@@ -34,7 +35,7 @@ describe("JSONiq signature help", () => {
             const document = testDocument("sig-incomplete", ['fn:substring("hello", )']);
 
             const pos: Position = { line: 0, character: 'fn:substring("hello", '.length };
-            const help = findSignatureHelp(document, pos);
+            const help = findSignatureHelp(document, pos, workspaceService);
 
             expect(help).not.toBeNull();
             expect(help?.activeParameter).toBe(1);
@@ -51,7 +52,7 @@ describe("JSONiq signature help", () => {
             ]);
 
             const pos: Position = { line: 4, character: "local:f('test', ".length };
-            const help = findSignatureHelp(document, pos);
+            const help = findSignatureHelp(document, pos, workspaceService);
 
             expect(help).not.toBeNull();
             expect(help?.activeParameter).toBe(1);
@@ -67,7 +68,7 @@ describe("JSONiq signature help", () => {
             ]);
 
             const pos = positionAt(document, "2");
-            const help = findSignatureHelp(document, pos);
+            const help = findSignatureHelp(document, pos, workspaceService);
 
             expect(help).not.toBeNull();
             expect(help?.activeParameter).toBe(1);
@@ -78,7 +79,7 @@ describe("JSONiq signature help", () => {
             const document = testDocument("sig-null", ["declare variable $x := 10;"]);
 
             const pos = positionAt(document, "$x");
-            const help = findSignatureHelp(document, pos);
+            const help = findSignatureHelp(document, pos, workspaceService);
 
             expect(help).toBeNull();
         });

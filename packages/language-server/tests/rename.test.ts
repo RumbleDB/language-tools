@@ -1,4 +1,5 @@
 import { buildRenameWorkspaceEdit, prepareRename } from "server/lsp/features/rename.js";
+import { workspaceService } from "server/workspace/service.js";
 import { describe, expect, it } from "vitest";
 
 import { positionAt, positionAtNth, testDocument } from "./test-utils.js";
@@ -10,8 +11,16 @@ describe("JSONiq rename", () => {
         );
         const document = testDocument("rename-prepare", source);
 
-        const prepareOnReference = prepareRename(document, positionAtNth(document, "$x", 1));
-        const prepareOnDeclaration = prepareRename(document, positionAtNth(document, "$x", 0));
+        const prepareOnReference = prepareRename(
+            document,
+            positionAtNth(document, "$x", 1),
+            workspaceService,
+        );
+        const prepareOnDeclaration = prepareRename(
+            document,
+            positionAtNth(document, "$x", 0),
+            workspaceService,
+        );
 
         expect(prepareOnReference?.placeholder).toBe("$x");
         expect(prepareOnDeclaration?.placeholder).toBe("$x");
@@ -32,6 +41,7 @@ describe("JSONiq rename", () => {
             document,
             positionAtNth(document, "$x", 2),
             "$renamed",
+            workspaceService,
         );
 
         expect(workspaceEdit).not.toBeNull();
@@ -46,7 +56,12 @@ describe("JSONiq rename", () => {
         const document = testDocument("rename-invalid", source);
 
         expect(() =>
-            buildRenameWorkspaceEdit(document, positionAtNth(document, "$x", 1), "renamed"),
+            buildRenameWorkspaceEdit(
+                document,
+                positionAtNth(document, "$x", 1),
+                "renamed",
+                workspaceService,
+            ),
         ).toThrow("must start with '$'");
     });
 
@@ -58,6 +73,7 @@ describe("JSONiq rename", () => {
             document,
             positionAt(document, "local:f"),
             "$updated",
+            workspaceService,
         );
 
         expect(workspaceEdit).toBeNull();

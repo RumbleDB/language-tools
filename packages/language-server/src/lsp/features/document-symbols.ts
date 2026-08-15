@@ -2,7 +2,7 @@ import { AstNode, DeclarationNode } from "server/analysis/ast.js";
 import { definitionNameToString } from "server/analysis/definitions.js";
 import { QNameToString } from "server/analysis/names.js";
 import { AstVisitor } from "server/analysis/visitor.js";
-import { getAnalysis } from "server/workspace/service.js";
+import type { WorkspaceService } from "server/workspace/service.js";
 import { DocumentSymbol, SymbolKind } from "vscode-languageserver";
 import { TextDocument } from "vscode-languageserver-textdocument";
 
@@ -24,7 +24,7 @@ export function registerDocumentSymbols({
  */
 export async function collectDocumentSymbols(
     document: TextDocument,
-    workspace = { getAnalysis },
+    workspace: WorkspaceService,
 ): Promise<DocumentSymbol[]> {
     return new DocumentSymbolsBuilder(document, workspace).build();
 }
@@ -34,7 +34,7 @@ export class DocumentSymbolsBuilder extends AstVisitor<DocumentSymbol[]> {
 
     public constructor(
         document: TextDocument,
-        private readonly workspace = { getAnalysis },
+        private readonly workspace: WorkspaceService,
     ) {
         super();
         this.document = document;

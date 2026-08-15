@@ -1,4 +1,5 @@
 import { collectDocumentSymbols } from "server/lsp/features/document-symbols.js";
+import { workspaceService } from "server/workspace/service.js";
 import { describe, expect, it } from "vitest";
 import { DocumentSymbol, SymbolKind } from "vscode-languageserver";
 
@@ -17,7 +18,7 @@ describe("JSONiq document symbols", () => {
             "app:double($app:value)",
         ]);
 
-        const symbols = flattenSymbols(await collectDocumentSymbols(document));
+        const symbols = flattenSymbols(await collectDocumentSymbols(document, workspaceService));
 
         expect(symbols.map((symbol) => [symbol.name, symbol.kind])).toEqual(
             expect.arrayContaining([
@@ -34,7 +35,7 @@ describe("JSONiq document symbols", () => {
     it("collects let-variable bindings", async () => {
         const document = testDocument("let-symbols", ["let $x := 2", "return $x"]);
 
-        const symbols = flattenSymbols(await collectDocumentSymbols(document));
+        const symbols = flattenSymbols(await collectDocumentSymbols(document, workspaceService));
 
         expect(symbols.map((symbol) => [symbol.name, symbol.kind])).toEqual([
             ["$x", SymbolKind.Variable],
@@ -51,7 +52,7 @@ describe("JSONiq document symbols", () => {
             "return $a",
         ]);
 
-        const symbols = await collectDocumentSymbols(document);
+        const symbols = await collectDocumentSymbols(document, workspaceService);
         const bSymbol = symbols.find((symbol) => symbol.name === "$b");
 
         expect(symbols.map((symbol) => symbol.name)).toEqual(["$a", "$b"]);
@@ -61,7 +62,7 @@ describe("JSONiq document symbols", () => {
     it("collects for-variable bindings", async () => {
         const document = testDocument("for-symbols", ["for $x in ( 1, 2 )", "return $x"]);
 
-        const symbols = flattenSymbols(await collectDocumentSymbols(document));
+        const symbols = flattenSymbols(await collectDocumentSymbols(document, workspaceService));
 
         expect(symbols.map((symbol) => [symbol.name, symbol.kind])).toEqual([
             ["$x", SymbolKind.Variable],
@@ -74,9 +75,9 @@ describe("JSONiq document symbols", () => {
             "return 10 * $x + $y",
         ]);
 
-        const symbolNames = flattenSymbols(await collectDocumentSymbols(document)).map(
-            (symbol) => symbol.name,
-        );
+        const symbolNames = flattenSymbols(
+            await collectDocumentSymbols(document, workspaceService),
+        ).map((symbol) => symbol.name);
 
         expect(symbolNames).toEqual(["$x", "$y"]);
     });
@@ -92,9 +93,9 @@ describe("JSONiq document symbols", () => {
             "};",
         ]);
 
-        const symbolNames = flattenSymbols(await collectDocumentSymbols(document)).map(
-            (symbol) => symbol.name,
-        );
+        const symbolNames = flattenSymbols(
+            await collectDocumentSymbols(document, workspaceService),
+        ).map((symbol) => symbol.name);
 
         expect(symbolNames).toEqual(
             expect.arrayContaining([
@@ -119,9 +120,9 @@ describe("JSONiq document symbols", () => {
             'return {"k": $group, "i": $index}',
         ]);
 
-        const symbolNames = flattenSymbols(await collectDocumentSymbols(document)).map(
-            (symbol) => symbol.name,
-        );
+        const symbolNames = flattenSymbols(
+            await collectDocumentSymbols(document, workspaceService),
+        ).map((symbol) => symbol.name);
 
         expect(symbolNames).toEqual(["$x", "$group", "$index"]);
     });
@@ -133,7 +134,7 @@ describe("JSONiq document symbols", () => {
             "  return 1",
         ]);
 
-        const symbols = flattenSymbols(await collectDocumentSymbols(document));
+        const symbols = flattenSymbols(await collectDocumentSymbols(document, workspaceService));
 
         expect(
             symbols.every((symbol) => symbol.name.trim().length > 0 && symbol.name !== "$"),
@@ -146,7 +147,7 @@ describe("JSONiq document symbols", () => {
             "}",
         ]);
 
-        const symbols = flattenSymbols(await collectDocumentSymbols(document));
+        const symbols = flattenSymbols(await collectDocumentSymbols(document, workspaceService));
 
         expect(symbols.map((symbol) => symbol.name)).toEqual(
             expect.arrayContaining(["local:f", "$a", "$b"]),

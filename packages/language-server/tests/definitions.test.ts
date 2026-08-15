@@ -1,4 +1,5 @@
 import { findDefinitionLocation } from "server/lsp/features/definition.js";
+import { workspaceService } from "server/workspace/service.js";
 import { describe, expect, it } from "vitest";
 
 import { positionAtNth, testDocument, testDocumentFromUri } from "./test-utils.js";
@@ -14,8 +15,16 @@ describe("JSONiq go-to-definition", () => {
             "local:f($x)",
         ]);
 
-        const localReference = findDefinitionLocation(document, { line: 3, character: 15 });
-        const globalReference = findDefinitionLocation(document, { line: 5, character: 9 });
+        const localReference = findDefinitionLocation(
+            document,
+            { line: 3, character: 15 },
+            workspaceService,
+        );
+        const globalReference = findDefinitionLocation(
+            document,
+            { line: 5, character: 9 },
+            workspaceService,
+        );
 
         expect(localReference?.range.start.line).toBe(1);
         expect(globalReference?.range.start.line).toBe(0);
@@ -30,10 +39,14 @@ describe("JSONiq go-to-definition", () => {
         ]);
 
         const declarationCharacter = firstLine.indexOf("$x") + 1;
-        const location = findDefinitionLocation(document, {
-            line: 0,
-            character: declarationCharacter,
-        });
+        const location = findDefinitionLocation(
+            document,
+            {
+                line: 0,
+                character: declarationCharacter,
+            },
+            workspaceService,
+        );
 
         expect(location).toBeDefined();
         expect(location?.range.start.line).toBe(0);
@@ -47,10 +60,14 @@ describe("JSONiq go-to-definition", () => {
             "};",
         ]);
 
-        const location = findDefinitionLocation(document, {
-            line: 0,
-            character: firstLine.indexOf("$x"),
-        });
+        const location = findDefinitionLocation(
+            document,
+            {
+                line: 0,
+                character: firstLine.indexOf("$x"),
+            },
+            workspaceService,
+        );
 
         expect(location).toBeDefined();
         expect(location?.range.start.line).toBe(0);
@@ -64,7 +81,11 @@ describe("JSONiq go-to-definition", () => {
             "local:f(1)",
         ]);
 
-        const location = findDefinitionLocation(document, { line: 3, character: 2 });
+        const location = findDefinitionLocation(
+            document,
+            { line: 3, character: 2 },
+            workspaceService,
+        );
 
         expect(location).toBeDefined();
         expect(location?.range.start).toEqual({ line: 0, character: "declare function ".length });
@@ -77,7 +98,11 @@ describe("JSONiq go-to-definition", () => {
     it("returns null when position is not on a resolvable variable", () => {
         const document = testDocument("definitions-null", "1 + 2");
 
-        const location = findDefinitionLocation(document, { line: 0, character: 0 });
+        const location = findDefinitionLocation(
+            document,
+            { line: 0, character: 0 },
+            workspaceService,
+        );
 
         expect(location).toBeNull();
     });
@@ -100,6 +125,7 @@ describe("JSONiq go-to-definition", () => {
         const location = findDefinitionLocation(
             document,
             positionAtNth(document, "Q{https://example.com}f", 1),
+            workspaceService,
         );
 
         expect(location).toBeDefined();

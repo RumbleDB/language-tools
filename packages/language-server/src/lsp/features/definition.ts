@@ -1,5 +1,5 @@
 import { findSymbolAtPosition } from "server/analysis/queries.js";
-import { getAnalysis } from "server/workspace/service.js";
+import type { WorkspaceService } from "server/workspace/service.js";
 import { type Location, type Position } from "vscode-languageserver";
 import { TextDocument } from "vscode-languageserver-textdocument";
 
@@ -28,7 +28,7 @@ export function registerDefinition({
 export function findDefinitionLocation(
     document: TextDocument,
     position: Position,
-    workspace = { getAnalysis },
+    workspace: WorkspaceService,
 ): Location | null {
     const analysis = workspace.getAnalysis(document);
     const occurrence = findSymbolAtPosition(analysis, position);

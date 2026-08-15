@@ -44,21 +44,3 @@ export function getAnalysis(document: TextDocument): AnalysisResult {
 export function replaceWorkspaceDocuments(uris: readonly DocumentUri[]): void {
     workspaceService.replaceDocuments(uris);
 }
-
-export function updateWorkspaceDocuments(changes: readonly FileEvent[]): void {
-    workspaceService.updateDocuments(changes);
-}
-
-export function updateOpenDocument(document: TextDocument): void {
-    workspaceService.updateOpenDocument(document);
-}
-
-export function removeOpenDocument(uri: DocumentUri): void {
-    workspaceService.removeOpenDocument(uri);
-}
-
-export function getWorkspaceReferencesToDefinition(
-    definition: Definition,
-): readonly AnyResolvedReference[] {
-    return workspaceService.getReferencesToDefinition(definition);
-}

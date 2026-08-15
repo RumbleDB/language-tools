@@ -1,5 +1,6 @@
 import { collectSemanticDiagnostics } from "server/analysis/diagnostics.js";
 import { collectSemanticTokens } from "server/lsp/features/semantic-tokens.js";
+import { workspaceService } from "server/workspace/service.js";
 import { describe, expect, it } from "vitest";
 
 import { testDocument } from "./test-utils.js";
@@ -12,7 +13,7 @@ describe("JSONiq semantic diagnostics", () => {
             "};",
         ]);
 
-        const diagnostics = collectSemanticDiagnostics(document);
+        const diagnostics = collectSemanticDiagnostics(document, workspaceService);
 
         expect(diagnostics.map((diagnostic) => diagnostic.code)).toEqual(["unresolved-variable"]);
     });
@@ -23,7 +24,7 @@ describe("JSONiq semantic diagnostics", () => {
             "catch * { $err:code, $err:description }",
         ]);
 
-        const tokens = collectSemanticTokens(document);
+        const tokens = collectSemanticTokens(document, workspaceService);
 
         expect(tokens.data).toEqual([
             1,

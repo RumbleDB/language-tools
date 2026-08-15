@@ -6,7 +6,7 @@ import {
     formatFunctionDocEntry,
     getBuiltinFunctionDocumentation,
 } from "server/resources/function-docs.js";
-import { getAnalysis } from "server/workspace/service.js";
+import type { WorkspaceService } from "server/workspace/service.js";
 import { MarkupKind, type Hover, type Position } from "vscode-languageserver";
 import { TextDocument } from "vscode-languageserver-textdocument";
 
@@ -26,7 +26,7 @@ export function registerHover({
 export async function findHover(
     document: TextDocument,
     position: Position,
-    workspace = { getAnalysis },
+    workspace: WorkspaceService,
 ): Promise<Hover | null> {
     const occurrence = findSymbolAtPosition(workspace.getAnalysis(document), position);
     const type = await getTypeAtPosition(document, position);

@@ -8,7 +8,7 @@ import {
     type ObjectTypeDefinition,
 } from "server/analysis/type-system.js";
 import { getTypeAtPositionFromSource } from "server/integrations/rumble/operations/type-at-position/service.js";
-import { collectCompletionIntent } from "server/parser/index.js";
+import type { ParserService } from "server/parser/index.js";
 import { getDocumentText } from "server/parser/utils.js";
 import { BuiltinFunctionDefinition, builtinFunctions } from "server/resources/builtin-functions.js";
 import { builtinTypes } from "server/resources/builtin-types.js";
@@ -18,7 +18,7 @@ import {
     getBuiltinFunctionDocumentation,
     Signature,
 } from "server/resources/function-docs.js";
-import { getAnalysis } from "server/workspace/service.js";
+import type { WorkspaceService } from "server/workspace/service.js";
 import {
     CompletionItemKind,
     InsertTextFormat,
@@ -41,7 +41,7 @@ export function registerCompletion({
         const document = documents.get(params.textDocument.uri);
         return document === undefined
             ? []
-            : findCompletionsWithTypeInfo(document, params.position, { parser, workspace });
+            : findCompletionsWithTypeInfo(document, params.position, parser, workspace);
     });
 }
 
@@ -55,24 +55,15 @@ interface DotCompletionContext {
     syntheticSource: string;
 }
 
-interface CompletionServices {
-    parser: { collectCompletionIntent: typeof collectCompletionIntent };
-    workspace: { getAnalysis: typeof getAnalysis };
-}
-
-const defaultCompletionServices: CompletionServices = {
-    parser: { collectCompletionIntent },
-    workspace: { getAnalysis },
-};
-
 export function findCompletions(
     document: TextDocument,
     position: Position,
-    services: CompletionServices = defaultCompletionServices,
+    parser: ParserService,
+    workspace: WorkspaceService,
 ): CompletionItem[] {
     const source = getDocumentText(document);
     const cursorOffset = document.offsetAt(position);
-    const intent = services.parser.collectCompletionIntent(document, cursorOffset);
+    const intent = parser.collectCompletionIntent(document, cursorOffset);
 
     if (intent === null) {
         return [];
@@ -95,7 +86,7 @@ export function findCompletions(
               };
 
     const availableDeclarations = getVisibleDeclarationsAtPosition(
-        services.workspace.getAnalysis(document),
+        workspace.getAnalysis(document),
         document.offsetAt(position),
     );
     const variables = intent.allowVariableReferences
@@ -140,11 +131,12 @@ export function findCompletions(
 export async function findCompletionsWithTypeInfo(
     document: TextDocument,
     position: Position,
-    services: CompletionServices = defaultCompletionServices,
+    parser: ParserService,
+    workspace: WorkspaceService,
 ): Promise<CompletionItem[]> {
     const source = getDocumentText(document);
     const cursorOffset = document.offsetAt(position);
-    const intent = services.parser.collectCompletionIntent(document, cursorOffset);
+    const intent = parser.collectCompletionIntent(document, cursorOffset);
     const dotContext = getDotCompletionContext(source, cursorOffset);
 
     if (
@@ -156,7 +148,7 @@ export async function findCompletionsWithTypeInfo(
         return findDotCompletions(document, dotContext);
     }
 
-    return findCompletions(document, position, services);
+    return findCompletions(document, position, parser, workspace);
 }
 
 async function findDotCompletions(

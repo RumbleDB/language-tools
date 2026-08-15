@@ -10,7 +10,7 @@ import {
     getBuiltinFunctionDocumentation,
 } from "server/resources/function-docs.js";
 import { chooseBestSignatureIndex } from "server/utils/function-calls.js";
-import { getAnalysis } from "server/workspace/service.js";
+import type { WorkspaceService } from "server/workspace/service.js";
 import {
     MarkupKind,
     type Position,
@@ -164,7 +164,7 @@ function getActiveParameter(call: FunctionCallNode, containingNodes: AstNode[]):
 export function findSignatureHelp(
     document: TextDocument,
     position: Position,
-    workspace = { getAnalysis },
+    workspace: WorkspaceService,
 ): SignatureHelp | null {
     const analysis = workspace.getAnalysis(document);
     const containingNodes = findNodesThatContainPosition(analysis, position);
