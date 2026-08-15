@@ -29,6 +29,15 @@ import {
 } from "vscode-languageserver";
 import { TextDocument } from "vscode-languageserver-textdocument";
 
+import type { FeatureRegistrationContext } from "./context.js";
+
+export function registerCompletion({ connection, documents }: FeatureRegistrationContext): void {
+    connection.onCompletion((params) => {
+        const document = documents.get(params.textDocument.uri);
+        return document === undefined ? [] : findCompletionsWithTypeInfo(document, params.position);
+    });
+}
+
 const VARIABLE_PREFIX_PATTERN = /\$[A-Za-z0-9_.:-]*$/;
 const OBJECT_FIELD_PREFIX_PATTERN = /[A-Za-z_][A-Za-z0-9_:-]*$/;
 const GENERIC_BUILTIN_PARAMETER_PREFIX = "$arg";

@@ -3,6 +3,22 @@ import { getAnalysis, getWorkspaceReferencesToDefinition } from "server/workspac
 import { type Location, type Position } from "vscode-languageserver";
 import { TextDocument } from "vscode-languageserver-textdocument";
 
+import type { FeatureRegistrationContext } from "./context.js";
+
+export function registerReferences({
+    connection,
+    documents,
+    workspace,
+}: FeatureRegistrationContext): void {
+    connection.onReferences(async (params) => {
+        await workspace.ready();
+        const document = documents.get(params.textDocument.uri);
+        return document === undefined
+            ? []
+            : findReferenceLocations(document, params.position, params.context.includeDeclaration);
+    });
+}
+
 /**
  * Finds all reference locations for the variable at the given position in the document, optionally including the declaration location.
  * This is used for the "find references" feature in the language server, allowing users to see all places where a variable is used in the source code.

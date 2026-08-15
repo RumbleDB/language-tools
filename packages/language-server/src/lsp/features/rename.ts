@@ -15,6 +15,27 @@ import {
 } from "vscode-languageserver";
 import { TextDocument } from "vscode-languageserver-textdocument";
 
+import type { FeatureRegistrationContext } from "./context.js";
+
+export function registerRename({
+    connection,
+    documents,
+    workspace,
+}: FeatureRegistrationContext): void {
+    connection.onPrepareRename((params) => {
+        const document = documents.get(params.textDocument.uri);
+        return document === undefined ? null : prepareRename(document, params.position);
+    });
+
+    connection.onRenameRequest(async (params) => {
+        await workspace.ready();
+        const document = documents.get(params.textDocument.uri);
+        return document === undefined
+            ? null
+            : buildRenameWorkspaceEdit(document, params.position, params.newName);
+    });
+}
+
 interface RenameTarget {
     declaration: SourceVariableDefinition | SourceParameterDefinition;
     range: Range;

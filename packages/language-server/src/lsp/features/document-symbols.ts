@@ -6,6 +6,18 @@ import { getAnalysis } from "server/workspace/service.js";
 import { DocumentSymbol, SymbolKind } from "vscode-languageserver";
 import { TextDocument } from "vscode-languageserver-textdocument";
 
+import type { FeatureRegistrationContext } from "./context.js";
+
+export function registerDocumentSymbols({
+    connection,
+    documents,
+}: FeatureRegistrationContext): void {
+    connection.onDocumentSymbol((params) => {
+        const document = documents.get(params.textDocument.uri);
+        return document === undefined ? [] : collectDocumentSymbols(document);
+    });
+}
+
 /**
  * Collects DocumentSymbols from the given TextDocument.
  */

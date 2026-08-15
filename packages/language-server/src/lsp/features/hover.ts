@@ -10,6 +10,15 @@ import { getAnalysis } from "server/workspace/service.js";
 import { MarkupKind, type Hover, type Position } from "vscode-languageserver";
 import { TextDocument } from "vscode-languageserver-textdocument";
 
+import type { FeatureRegistrationContext } from "./context.js";
+
+export function registerHover({ connection, documents }: FeatureRegistrationContext): void {
+    connection.onHover((params) => {
+        const document = documents.get(params.textDocument.uri);
+        return document === undefined ? null : findHover(document, params.position);
+    });
+}
+
 export async function findHover(document: TextDocument, position: Position): Promise<Hover | null> {
     const occurrence = findSymbolAtPosition(getAnalysis(document), position);
     const type = await getTypeAtPosition(document, position);

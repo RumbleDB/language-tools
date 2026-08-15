@@ -9,6 +9,15 @@ import { getAnalysis } from "server/workspace/service.js";
 import { InlayHintKind, type InlayHint, type Range } from "vscode-languageserver";
 import { TextDocument } from "vscode-languageserver-textdocument";
 
+import type { FeatureRegistrationContext } from "./context.js";
+
+export function registerInlayHints({ connection, documents }: FeatureRegistrationContext): void {
+    connection.languages.inlayHint.on((params) => {
+        const document = documents.get(params.textDocument.uri);
+        return document === undefined ? [] : collectInlayHints(document, params.range);
+    });
+}
+
 export function collectInlayHints(document: TextDocument, range: Range): InlayHint[] {
     const analysis = getAnalysis(document);
     return collectFunctionCallInlayHints(analysis.ast, range);

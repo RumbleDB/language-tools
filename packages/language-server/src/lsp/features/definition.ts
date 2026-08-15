@@ -3,6 +3,15 @@ import { getAnalysis } from "server/workspace/service.js";
 import { type Location, type Position } from "vscode-languageserver";
 import { TextDocument } from "vscode-languageserver-textdocument";
 
+import type { FeatureRegistrationContext } from "./context.js";
+
+export function registerDefinition({ connection, documents }: FeatureRegistrationContext): void {
+    connection.onDefinition((params) => {
+        const document = documents.get(params.textDocument.uri);
+        return document === undefined ? null : findDefinitionLocation(document, params.position);
+    });
+}
+
 /**
  * Finds the definition location for the variable at the given position in the document, by analyzing variable scopes and occurrences.
  *

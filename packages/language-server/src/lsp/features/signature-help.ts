@@ -16,6 +16,15 @@ import {
 } from "vscode-languageserver";
 import { TextDocument } from "vscode-languageserver-textdocument";
 
+import type { FeatureRegistrationContext } from "./context.js";
+
+export function registerSignatureHelp({ connection, documents }: FeatureRegistrationContext): void {
+    connection.onSignatureHelp((params) => {
+        const document = documents.get(params.textDocument.uri);
+        return document === undefined ? null : findSignatureHelp(document, params.position);
+    });
+}
+
 function createSignatureInformation(
     functionName: string,
     parameters: { label: string; documentation?: string }[],

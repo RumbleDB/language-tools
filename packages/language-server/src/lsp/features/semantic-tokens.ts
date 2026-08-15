@@ -11,6 +11,18 @@ import {
 import { Range } from "vscode-languageserver";
 import { TextDocument } from "vscode-languageserver-textdocument";
 
+import type { FeatureRegistrationContext } from "./context.js";
+
+export function registerSemanticTokens({
+    connection,
+    documents,
+}: FeatureRegistrationContext): void {
+    connection.languages.semanticTokens.on((params) => {
+        const document = documents.get(params.textDocument.uri);
+        return document === undefined ? { data: [] } : collectSemanticTokens(document);
+    });
+}
+
 export const legend: SemanticTokensLegend = {
     tokenTypes: ["function", "parameter", "variable", "namespace", "type"],
     tokenModifiers: ["definition", "defaultLibrary"],
