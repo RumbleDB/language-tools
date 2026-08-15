@@ -5,10 +5,16 @@ import { TextDocument } from "vscode-languageserver-textdocument";
 
 import type { FeatureRegistrationContext } from "./context.js";
 
-export function registerDefinition({ connection, documents }: FeatureRegistrationContext): void {
+export function registerDefinition({
+    connection,
+    documents,
+    workspace,
+}: FeatureRegistrationContext): void {
     connection.onDefinition((params) => {
         const document = documents.get(params.textDocument.uri);
-        return document === undefined ? null : findDefinitionLocation(document, params.position);
+        return document === undefined
+            ? null
+            : findDefinitionLocation(document, params.position, workspace);
     });
 }
 
@@ -22,8 +28,9 @@ export function registerDefinition({ connection, documents }: FeatureRegistratio
 export function findDefinitionLocation(
     document: TextDocument,
     position: Position,
+    workspace = { getAnalysis },
 ): Location | null {
-    const analysis = getAnalysis(document);
+    const analysis = workspace.getAnalysis(document);
     const occurrence = findSymbolAtPosition(analysis, position);
     const declaration = occurrence?.declaration;
 

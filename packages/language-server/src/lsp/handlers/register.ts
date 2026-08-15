@@ -1,7 +1,9 @@
 import type { TextDocument } from "vscode-languageserver-textdocument";
 import type { Connection, TextDocuments } from "vscode-languageserver/node";
 
+import type { ParserService } from "../../parser/index.js";
 import type { WorkspaceController } from "../../workspace/controller.js";
+import type { WorkspaceService } from "../../workspace/service.js";
 import { registerCompletion } from "../features/completion.js";
 import { createFeatureRegistrationContext } from "../features/context.js";
 import { registerDefinition } from "../features/definition.js";
@@ -18,9 +20,17 @@ import { registerSignatureHelp } from "../features/signature-help.js";
 export function registerLanguageFeatureHandlers(
     connection: Connection,
     documents: TextDocuments<TextDocument>,
-    workspace: WorkspaceController,
+    parser: ParserService,
+    workspace: WorkspaceService,
+    workspaceController: WorkspaceController,
 ): void {
-    const context = createFeatureRegistrationContext(connection, documents, workspace);
+    const context = createFeatureRegistrationContext(
+        connection,
+        documents,
+        parser,
+        workspace,
+        workspaceController,
+    );
 
     registerCompletion(context);
     registerDefinition(context);

@@ -16,10 +16,11 @@ import type { FeatureRegistrationContext } from "./context.js";
 export function registerSemanticTokens({
     connection,
     documents,
+    workspace,
 }: FeatureRegistrationContext): void {
     connection.languages.semanticTokens.on((params) => {
         const document = documents.get(params.textDocument.uri);
-        return document === undefined ? { data: [] } : collectSemanticTokens(document);
+        return document === undefined ? { data: [] } : collectSemanticTokens(document, workspace);
     });
 }
 
@@ -53,8 +54,11 @@ function addSemanticToken(
     );
 }
 
-export function collectSemanticTokens(document: TextDocument): SemanticTokens {
-    const analysis = getAnalysis(document);
+export function collectSemanticTokens(
+    document: TextDocument,
+    workspace = { getAnalysis },
+): SemanticTokens {
+    const analysis = workspace.getAnalysis(document);
     const builder = new SemanticTokensBuilder();
 
     for (const definition of getSourceDefinitions(analysis)) {

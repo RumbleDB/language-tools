@@ -11,15 +11,23 @@ import { TextDocument } from "vscode-languageserver-textdocument";
 
 import type { FeatureRegistrationContext } from "./context.js";
 
-export function registerInlayHints({ connection, documents }: FeatureRegistrationContext): void {
+export function registerInlayHints({
+    connection,
+    documents,
+    workspace,
+}: FeatureRegistrationContext): void {
     connection.languages.inlayHint.on((params) => {
         const document = documents.get(params.textDocument.uri);
-        return document === undefined ? [] : collectInlayHints(document, params.range);
+        return document === undefined ? [] : collectInlayHints(document, params.range, workspace);
     });
 }
 
-export function collectInlayHints(document: TextDocument, range: Range): InlayHint[] {
-    const analysis = getAnalysis(document);
+export function collectInlayHints(
+    document: TextDocument,
+    range: Range,
+    workspace = { getAnalysis },
+): InlayHint[] {
+    const analysis = workspace.getAnalysis(document);
     return collectFunctionCallInlayHints(analysis.ast, range);
 }
 

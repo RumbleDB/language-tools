@@ -21,10 +21,16 @@ import { TextDocument } from "vscode-languageserver-textdocument";
 
 import type { FeatureRegistrationContext } from "./context.js";
 
-export function registerSignatureHelp({ connection, documents }: FeatureRegistrationContext): void {
+export function registerSignatureHelp({
+    connection,
+    documents,
+    workspace,
+}: FeatureRegistrationContext): void {
     connection.onSignatureHelp((params) => {
         const document = documents.get(params.textDocument.uri);
-        return document === undefined ? null : findSignatureHelp(document, params.position);
+        return document === undefined
+            ? null
+            : findSignatureHelp(document, params.position, workspace);
     });
 }
 
@@ -158,8 +164,9 @@ function getActiveParameter(call: FunctionCallNode, containingNodes: AstNode[]):
 export function findSignatureHelp(
     document: TextDocument,
     position: Position,
+    workspace = { getAnalysis },
 ): SignatureHelp | null {
-    const analysis = getAnalysis(document);
+    const analysis = workspace.getAnalysis(document);
     const containingNodes = findNodesThatContainPosition(analysis, position);
 
     const activeCall = containingNodes.findLast((node) => node.kind == "function-call");

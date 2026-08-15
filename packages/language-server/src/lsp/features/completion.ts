@@ -31,10 +31,17 @@ import { TextDocument } from "vscode-languageserver-textdocument";
 
 import type { FeatureRegistrationContext } from "./context.js";
 
-export function registerCompletion({ connection, documents }: FeatureRegistrationContext): void {
+export function registerCompletion({
+    connection,
+    documents,
+    parser,
+    workspace,
+}: FeatureRegistrationContext): void {
     connection.onCompletion((params) => {
         const document = documents.get(params.textDocument.uri);
-        return document === undefined ? [] : findCompletionsWithTypeInfo(document, params.position);
+        return document === undefined
+            ? []
+            : findCompletionsWithTypeInfo(document, params.position, { parser, workspace });
     });
 }
 
@@ -48,10 +55,24 @@ interface DotCompletionContext {
     syntheticSource: string;
 }
 
-export function findCompletions(document: TextDocument, position: Position): CompletionItem[] {
+interface CompletionServices {
+    parser: { collectCompletionIntent: typeof collectCompletionIntent };
+    workspace: { getAnalysis: typeof getAnalysis };
+}
+
+const defaultCompletionServices: CompletionServices = {
+    parser: { collectCompletionIntent },
+    workspace: { getAnalysis },
+};
+
+export function findCompletions(
+    document: TextDocument,
+    position: Position,
+    services: CompletionServices = defaultCompletionServices,
+): CompletionItem[] {
     const source = getDocumentText(document);
     const cursorOffset = document.offsetAt(position);
-    const intent = collectCompletionIntent(document, cursorOffset);
+    const intent = services.parser.collectCompletionIntent(document, cursorOffset);
 
     if (intent === null) {
         return [];
@@ -74,7 +95,7 @@ export function findCompletions(document: TextDocument, position: Position): Com
               };
 
     const availableDeclarations = getVisibleDeclarationsAtPosition(
-        getAnalysis(document),
+        services.workspace.getAnalysis(document),
         document.offsetAt(position),
     );
     const variables = intent.allowVariableReferences
@@ -119,10 +140,11 @@ export function findCompletions(document: TextDocument, position: Position): Com
 export async function findCompletionsWithTypeInfo(
     document: TextDocument,
     position: Position,
+    services: CompletionServices = defaultCompletionServices,
 ): Promise<CompletionItem[]> {
     const source = getDocumentText(document);
     const cursorOffset = document.offsetAt(position);
-    const intent = collectCompletionIntent(document, cursorOffset);
+    const intent = services.parser.collectCompletionIntent(document, cursorOffset);
     const dotContext = getDotCompletionContext(source, cursorOffset);
 
     if (
@@ -134,7 +156,7 @@ export async function findCompletionsWithTypeInfo(
         return findDotCompletions(document, dotContext);
     }
 
-    return findCompletions(document, position);
+    return findCompletions(document, position, services);
 }
 
 async function findDotCompletions(

@@ -21,18 +21,19 @@ export function registerRename({
     connection,
     documents,
     workspace,
+    workspaceReady,
 }: FeatureRegistrationContext): void {
     connection.onPrepareRename((params) => {
         const document = documents.get(params.textDocument.uri);
-        return document === undefined ? null : prepareRename(document, params.position);
+        return document === undefined ? null : prepareRename(document, params.position, workspace);
     });
 
     connection.onRenameRequest(async (params) => {
-        await workspace.ready();
+        await workspaceReady.ready();
         const document = documents.get(params.textDocument.uri);
         return document === undefined
             ? null
-            : buildRenameWorkspaceEdit(document, params.position, params.newName);
+            : buildRenameWorkspaceEdit(document, params.position, params.newName, workspace);
     });
 }
 
@@ -56,8 +57,9 @@ interface RenameValidationResult {
 export function prepareRename(
     document: TextDocument,
     position: Position,
+    workspace = { getAnalysis },
 ): { range: Range; placeholder: string } | null {
-    const analysis = getAnalysis(document);
+    const analysis = workspace.getAnalysis(document);
     const target = findRenameTarget(analysis, position);
 
     if (target === null) {
@@ -84,13 +86,14 @@ export function buildRenameWorkspaceEdit(
     document: TextDocument,
     position: Position,
     newName: string,
+    workspace = { getAnalysis, getReferencesToDefinition: getWorkspaceReferencesToDefinition },
 ): WorkspaceEdit | null {
     const validation = validateVariableName(newName);
     if (!validation.valid) {
         throw new Error(validation.message ?? "Invalid JSONiq variable name.");
     }
 
-    const analysis = getAnalysis(document);
+    const analysis = workspace.getAnalysis(document);
     const target = findRenameTarget(analysis, position);
 
     if (target === null) {
@@ -107,7 +110,7 @@ export function buildRenameWorkspaceEdit(
         ],
     };
 
-    for (const reference of getWorkspaceReferencesToDefinition(target.declaration)) {
+    for (const reference of workspace.getReferencesToDefinition(target.declaration)) {
         if (reference.kind !== "variable") continue;
         (editsByUri[reference.uri] ??= []).push({
             range: reference.range,

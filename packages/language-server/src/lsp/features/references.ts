@@ -9,13 +9,19 @@ export function registerReferences({
     connection,
     documents,
     workspace,
+    workspaceReady,
 }: FeatureRegistrationContext): void {
     connection.onReferences(async (params) => {
-        await workspace.ready();
+        await workspaceReady.ready();
         const document = documents.get(params.textDocument.uri);
         return document === undefined
             ? []
-            : findReferenceLocations(document, params.position, params.context.includeDeclaration);
+            : findReferenceLocations(
+                  document,
+                  params.position,
+                  params.context.includeDeclaration,
+                  workspace,
+              );
     });
 }
 
@@ -31,8 +37,9 @@ export function findReferenceLocations(
     document: TextDocument,
     position: Position,
     includeDeclaration: boolean,
+    workspace = { getAnalysis, getReferencesToDefinition: getWorkspaceReferencesToDefinition },
 ): Location[] {
-    const analysis = getAnalysis(document);
+    const analysis = workspace.getAnalysis(document);
     const occurrence = findSymbolAtPosition(analysis, position);
     const targetDeclaration = occurrence?.declaration;
 
@@ -49,7 +56,7 @@ export function findReferenceLocations(
         });
     }
 
-    for (const reference of getWorkspaceReferencesToDefinition(targetDeclaration)) {
+    for (const reference of workspace.getReferencesToDefinition(targetDeclaration)) {
         locations.push({
             uri: reference.uri,
             range: reference.range,

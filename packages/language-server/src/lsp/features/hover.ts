@@ -12,15 +12,23 @@ import { TextDocument } from "vscode-languageserver-textdocument";
 
 import type { FeatureRegistrationContext } from "./context.js";
 
-export function registerHover({ connection, documents }: FeatureRegistrationContext): void {
+export function registerHover({
+    connection,
+    documents,
+    workspace,
+}: FeatureRegistrationContext): void {
     connection.onHover((params) => {
         const document = documents.get(params.textDocument.uri);
-        return document === undefined ? null : findHover(document, params.position);
+        return document === undefined ? null : findHover(document, params.position, workspace);
     });
 }
 
-export async function findHover(document: TextDocument, position: Position): Promise<Hover | null> {
-    const occurrence = findSymbolAtPosition(getAnalysis(document), position);
+export async function findHover(
+    document: TextDocument,
+    position: Position,
+    workspace = { getAnalysis },
+): Promise<Hover | null> {
+    const occurrence = findSymbolAtPosition(workspace.getAnalysis(document), position);
     const type = await getTypeAtPosition(document, position);
 
     const range = occurrence?.range ?? type?.range;

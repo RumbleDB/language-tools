@@ -11,30 +11,37 @@ import type { FeatureRegistrationContext } from "./context.js";
 export function registerDocumentSymbols({
     connection,
     documents,
+    workspace,
 }: FeatureRegistrationContext): void {
     connection.onDocumentSymbol((params) => {
         const document = documents.get(params.textDocument.uri);
-        return document === undefined ? [] : collectDocumentSymbols(document);
+        return document === undefined ? [] : collectDocumentSymbols(document, workspace);
     });
 }
 
 /**
  * Collects DocumentSymbols from the given TextDocument.
  */
-export async function collectDocumentSymbols(document: TextDocument): Promise<DocumentSymbol[]> {
-    return new DocumentSymbolsBuilder(document).build();
+export async function collectDocumentSymbols(
+    document: TextDocument,
+    workspace = { getAnalysis },
+): Promise<DocumentSymbol[]> {
+    return new DocumentSymbolsBuilder(document, workspace).build();
 }
 
 export class DocumentSymbolsBuilder extends AstVisitor<DocumentSymbol[]> {
     private readonly document: TextDocument;
 
-    public constructor(document: TextDocument) {
+    public constructor(
+        document: TextDocument,
+        private readonly workspace = { getAnalysis },
+    ) {
         super();
         this.document = document;
     }
 
     public build(): DocumentSymbol[] {
-        const analysis = getAnalysis(this.document);
+        const analysis = this.workspace.getAnalysis(this.document);
         return this.visit(analysis.ast);
     }
 
