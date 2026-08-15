@@ -1,6 +1,4 @@
-import type { Range } from "vscode-languageserver";
-
-import { QNameToString, type FunctionName, type QName } from "../analysis/names.js";
+import { QNameToString, type FunctionName, type QName } from "./names.js";
 
 export interface NamedTypeDefinition {
     kind: "named";
@@ -33,17 +31,6 @@ export interface StaticFunctionParameter {
 export interface StaticFunctionSignature {
     parameterTypes: StaticFunctionParameter[];
     returnType: SequenceType;
-}
-
-export interface StaticTypecheckError {
-    code: string;
-    message: string;
-    location: string;
-    range: Range;
-}
-
-export interface StaticTypecheckWireResult {
-    errors: StaticTypecheckError[];
 }
 
 export function formatTypeDefinition(type: TypeDefinition): string {

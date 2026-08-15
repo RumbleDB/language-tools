@@ -1,6 +1,5 @@
-import type { StaticTypecheckWireResult } from "server/static-typecheck/types.js";
-
 import type { WrapperRequestSpec } from "../../protocol.js";
+import type { StaticTypecheckWireResult } from "./types.js";
 
 export const REQUEST_TYPE_STATIC_TYPECHECK = "static-typecheck" as const;
 

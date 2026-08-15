@@ -7,7 +7,7 @@ import {
 } from "server/analysis/default-namespaces.js";
 import { BaseDefinition } from "server/analysis/definitions.js";
 import { functionNameToString, type FunctionName } from "server/analysis/names.js";
-import { type StaticFunctionSignature } from "server/static-typecheck/types.js";
+import { type StaticFunctionSignature } from "server/analysis/type-system.js";
 
 import { loadJsonAsset } from "./loader.js";
 

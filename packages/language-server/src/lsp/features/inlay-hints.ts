@@ -1,5 +1,5 @@
 import type { ArgumentNode, AstNode, FunctionCallNode } from "server/analysis/ast.js";
-import { getBuiltinFunctionDocumentation } from "server/assets/function-docs.js";
+import { getBuiltinFunctionDocumentation } from "server/resources/function-docs.js";
 import {
     chooseBestSignatureIndex,
     findResolvedSourceFunction,

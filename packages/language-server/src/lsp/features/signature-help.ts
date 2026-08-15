@@ -5,7 +5,10 @@ import {
 } from "server/analysis/definitions.js";
 import { FunctionName, QNameToString } from "server/analysis/names.js";
 import { findNodesThatContainPosition } from "server/analysis/queries.js";
-import { FunctionDocEntry, getBuiltinFunctionDocumentation } from "server/assets/function-docs.js";
+import {
+    FunctionDocEntry,
+    getBuiltinFunctionDocumentation,
+} from "server/resources/function-docs.js";
 import { chooseBestSignatureIndex } from "server/utils/function-calls.js";
 import { getAnalysis } from "server/workspace/service.js";
 import {

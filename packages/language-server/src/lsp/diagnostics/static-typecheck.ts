@@ -1,8 +1,7 @@
+import { getStaticTypecheck } from "server/integrations/rumble/operations/static-typecheck/service.js";
+import type { StaticTypecheckError } from "server/integrations/rumble/operations/static-typecheck/types.js";
 import { DiagnosticSeverity, type Diagnostic } from "vscode-languageserver";
 import { TextDocument } from "vscode-languageserver-textdocument";
-
-import { getStaticTypecheck } from "../integrations/rumble/operations/static-typecheck/service.js";
-import type { StaticTypecheckError } from "./types.js";
 
 export async function collectStaticTypecheckDiagnostics(
     document: TextDocument,

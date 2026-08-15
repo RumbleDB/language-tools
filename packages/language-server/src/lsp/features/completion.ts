@@ -2,22 +2,22 @@ import { defaultNamespaces } from "server/analysis/default-namespaces.js";
 import { definitionNameToString, type ScopeDefinition } from "server/analysis/definitions.js";
 import { QNameToString } from "server/analysis/names.js";
 import { getVisibleDeclarationsAtPosition } from "server/analysis/queries.js";
-import { BuiltinFunctionDefinition, builtinFunctions } from "server/assets/builtin-functions.js";
-import { builtinTypes } from "server/assets/builtin-types.js";
+import {
+    formatSequenceType,
+    formatTypeDefinition,
+    type ObjectTypeDefinition,
+} from "server/analysis/type-system.js";
+import { getTypeAtPositionFromSource } from "server/integrations/rumble/operations/type-at-position/service.js";
+import { collectCompletionIntent } from "server/parser/index.js";
+import { getDocumentText } from "server/parser/utils.js";
+import { BuiltinFunctionDefinition, builtinFunctions } from "server/resources/builtin-functions.js";
+import { builtinTypes } from "server/resources/builtin-types.js";
 import {
     docs,
     formatFunctionDocEntry,
     getBuiltinFunctionDocumentation,
     Signature,
-} from "server/assets/function-docs.js";
-import { getTypeAtPositionFromSource } from "server/integrations/rumble/operations/type-at-position/service.js";
-import { collectCompletionIntent } from "server/parser/index.js";
-import { getDocumentText } from "server/parser/utils.js";
-import {
-    formatSequenceType,
-    formatTypeDefinition,
-    type ObjectTypeDefinition,
-} from "server/static-typecheck/types.js";
+} from "server/resources/function-docs.js";
 import { getAnalysis } from "server/workspace/service.js";
 import {
     CompletionItemKind,

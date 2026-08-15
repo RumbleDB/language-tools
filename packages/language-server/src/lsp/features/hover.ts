@@ -1,11 +1,11 @@
 import { Definition, definitionNameToString } from "server/analysis/definitions.js";
 import { findSymbolAtPosition } from "server/analysis/queries.js";
+import { formatSequenceType, type SequenceType } from "server/analysis/type-system.js";
+import { getTypeAtPosition } from "server/integrations/rumble/operations/type-at-position/service.js";
 import {
     formatFunctionDocEntry,
     getBuiltinFunctionDocumentation,
-} from "server/assets/function-docs.js";
-import { getTypeAtPosition } from "server/integrations/rumble/operations/type-at-position/service.js";
-import { formatSequenceType, type SequenceType } from "server/static-typecheck/types.js";
+} from "server/resources/function-docs.js";
 import { getAnalysis } from "server/workspace/service.js";
 import { MarkupKind, type Hover, type Position } from "vscode-languageserver";
 import { TextDocument } from "vscode-languageserver-textdocument";

@@ -2,13 +2,13 @@ import type { TextDocument } from "vscode-languageserver-textdocument";
 import type { Connection, TextDocuments } from "vscode-languageserver/node";
 
 import { collectSemanticDiagnostics } from "../analysis/diagnostics.js";
+import { collectStaticTypecheckDiagnostics } from "../lsp/diagnostics/static-typecheck.js";
 import {
     ACTIVE_PARSER_NOTIFICATION,
     type ActiveParserNotificationPayload,
 } from "../notifications/index.js";
 import { parseDocument } from "../parser/index.js";
 import { getParserAdapterForDocument, supportsDocument } from "../parser/registry.js";
-import { collectStaticTypecheckDiagnostics } from "../static-typecheck/diagnostics.js";
 
 export class DiagnosticsManager {
     public constructor(

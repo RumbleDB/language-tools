@@ -1,7 +1,7 @@
 import { defaultNamespaces } from "../src/analysis/default-namespaces.js";
 import { QNameToString } from "../src/analysis/names.js";
-import { BuiltinFunctionDefinition, builtinFunctions } from "../src/assets/builtin-functions.js";
-import { docs } from "../src/assets/function-docs.js";
+import { BuiltinFunctionDefinition, builtinFunctions } from "../src/resources/builtin-functions.js";
+import { docs } from "../src/resources/function-docs.js";
 
 const prefixByNamespace = new Map<string, string>([
     ["http://www.w3.org/2005/xpath-functions", "fn"],

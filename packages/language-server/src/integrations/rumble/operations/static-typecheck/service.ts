@@ -1,5 +1,4 @@
 import { getDocumentText } from "server/parser/utils.js";
-import type { StaticTypecheckWireResult } from "server/static-typecheck/types.js";
 import { createLogger } from "server/utils/logger.js";
 import type { DocumentUri } from "vscode-languageserver";
 import { TextDocument } from "vscode-languageserver-textdocument";
@@ -7,6 +6,7 @@ import { TextDocument } from "vscode-languageserver-textdocument";
 import { getWrapperClient } from "../../client.js";
 import type { WrapperDaemonResponse } from "../../protocol.js";
 import { REQUEST_TYPE_STATIC_TYPECHECK, type StaticTypecheckRequestSpec } from "./protocol.js";
+import type { StaticTypecheckWireResult } from "./types.js";
 
 export type StaticTypecheckResponse = WrapperDaemonResponse<
     typeof REQUEST_TYPE_STATIC_TYPECHECK,

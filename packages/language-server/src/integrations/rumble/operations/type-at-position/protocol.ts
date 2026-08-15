@@ -1,4 +1,4 @@
-import type { SequenceType } from "server/static-typecheck/types.js";
+import type { SequenceType } from "server/analysis/type-system.js";
 import type { Position, Range } from "vscode-languageserver";
 
 import type { WrapperRequestSpec } from "../../protocol.js";

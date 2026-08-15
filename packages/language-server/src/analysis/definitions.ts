@@ -1,4 +1,4 @@
-import type { BuiltinFunctionDefinition } from "server/assets/builtin-functions.js";
+import type { BuiltinFunctionDefinition } from "server/resources/builtin-functions.js";
 import type { Range } from "vscode-languageserver";
 
 import { functionNameToString, QNameToString, type DeclarationNameByKind } from "./names.js";
