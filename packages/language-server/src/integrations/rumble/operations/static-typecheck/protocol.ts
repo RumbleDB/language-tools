@@ -1,4 +1,5 @@
-import type { WrapperRequestSpec } from "../../protocol.js";
+import type { WrapperRequestSpec } from "server/integrations/rumble/protocol.js";
+
 import type { StaticTypecheckWireResult } from "./types.js";
 
 export const REQUEST_TYPE_STATIC_TYPECHECK = "static-typecheck" as const;

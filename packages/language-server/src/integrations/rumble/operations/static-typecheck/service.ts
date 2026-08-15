@@ -1,10 +1,10 @@
+import { getWrapperClient } from "server/integrations/rumble/client.js";
+import type { WrapperDaemonResponse } from "server/integrations/rumble/protocol.js";
 import { getDocumentText } from "server/parser/utils.js";
 import { createLogger } from "server/utils/logger.js";
 import type { DocumentUri } from "vscode-languageserver";
 import { TextDocument } from "vscode-languageserver-textdocument";
 
-import { getWrapperClient } from "../../client.js";
-import type { WrapperDaemonResponse } from "../../protocol.js";
 import { REQUEST_TYPE_STATIC_TYPECHECK, type StaticTypecheckRequestSpec } from "./protocol.js";
 import type { StaticTypecheckWireResult } from "./types.js";
 

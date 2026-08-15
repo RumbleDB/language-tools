@@ -1,8 +1,8 @@
+import type { ParserService } from "server/parser/index.js";
+import type { WorkspaceService } from "server/workspace/service.js";
 import type { TextDocument } from "vscode-languageserver-textdocument";
 import type { Connection, TextDocuments } from "vscode-languageserver/node";
 
-import type { ParserService } from "../../parser/index.js";
-import type { WorkspaceService } from "../../workspace/service.js";
 import { registerCompletion } from "../features/completion.js";
 import { createFeatureRegistrationContext } from "../features/context.js";
 import { registerDefinition } from "../features/definition.js";

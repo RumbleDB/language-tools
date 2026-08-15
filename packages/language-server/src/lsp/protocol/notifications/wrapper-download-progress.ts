@@ -1,4 +1,5 @@
-import type { DownloadProgress } from "../../../integrations/rumble/executable/download.js";
+import type { DownloadProgress } from "server/integrations/rumble/executable/download.js";
+
 import { defineNotification } from "./types.js";
 
 export type { DownloadProgress };

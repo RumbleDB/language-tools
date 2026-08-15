@@ -1,11 +1,13 @@
-import type { TextDocument } from "vscode-languageserver-textdocument";
-import type { Connection, TextDocuments } from "vscode-languageserver/node";
-
 import {
     runQuery,
     runQueryFromSource,
-} from "../../../integrations/rumble/operations/run-query/service.js";
-import { RUN_QUERY_LSP_METHOD, type RunQueryLSPParams } from "../../protocol/requests/index.js";
+} from "server/integrations/rumble/operations/run-query/service.js";
+import {
+    RUN_QUERY_LSP_METHOD,
+    type RunQueryLSPParams,
+} from "server/lsp/protocol/requests/index.js";
+import type { TextDocument } from "vscode-languageserver-textdocument";
+import type { Connection, TextDocuments } from "vscode-languageserver/node";
 
 export function registerRunQuery(
     connection: Connection,

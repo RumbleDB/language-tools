@@ -1,9 +1,9 @@
+import { getWrapperClient } from "server/integrations/rumble/client.js";
 import { getDocumentText } from "server/parser/utils.js";
 import { createLogger } from "server/utils/logger.js";
 import type { Position } from "vscode-languageserver";
 import type { TextDocument } from "vscode-languageserver-textdocument";
 
-import { getWrapperClient } from "../../client.js";
 import {
     REQUEST_TYPE_TYPE_AT_POSITION,
     type TypeAtPositionRequestSpec,
