@@ -5,7 +5,7 @@ import { collectStaticTypecheckDiagnostics } from "../lsp/diagnostics/static-typ
 import {
     ACTIVE_PARSER_NOTIFICATION,
     type ActiveParserNotificationPayload,
-} from "../notifications/index.js";
+} from "../lsp/protocol/notifications/index.js";
 import type { ParserService } from "../parser/index.js";
 import { getParserAdapterForDocument, supportsDocument } from "../parser/registry.js";
 import type { WorkspaceService } from "../workspace/service.js";

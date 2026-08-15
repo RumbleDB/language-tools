@@ -7,8 +7,8 @@ import {
 
 import { clearStaticTypecheckCache } from "../integrations/rumble/operations/static-typecheck/service.js";
 import { registerLanguageFeatureHandlers } from "../lsp/handlers/register.js";
-import { initializeNotifications } from "../notifications/index.js";
-import { initializeCustomRequests } from "../requests/index.js";
+import { registerRequestHandlers } from "../lsp/handlers/requests/register.js";
+import { registerNotifications } from "../lsp/notifications/register.js";
 import { setLoggerSink } from "../utils/logger.js";
 import { serverCapabilities } from "./capabilities.js";
 import { config, InitializationOptions, mergeConfiguration } from "./configuration.js";
@@ -21,10 +21,8 @@ const context = createServerContext(connection);
 const { documents, parser, workspace, diagnostics } = context;
 
 setLoggerSink(connection.console);
-initializeNotifications((method, payload) => {
-    connection.sendNotification(method, payload);
-});
-initializeCustomRequests(connection, documents);
+registerNotifications(connection);
+registerRequestHandlers(connection, documents);
 registerLanguageFeatureHandlers({
     connection,
     documents,
