@@ -1,5 +1,41 @@
 # jsoniq-language-server
 
+## 2.9.0
+
+### Minor Changes
+
+- [#52](https://github.com/RumbleDB/language-tools/pull/52) [`25ed540`](https://github.com/RumbleDB/language-tools/commit/25ed540166cfabb68a49dbb28beceb4f5479dc74) - Add library-module parsing, import resolution, document links, and cross-file definitions, references, renames, and diagnostics for JSONiq and XQuery.
+
+  Recognize module file extensions in VS Code and keep module analysis synchronized with open documents and workspace file changes.
+
+- [#54](https://github.com/RumbleDB/language-tools/pull/54) [`dded099`](https://github.com/RumbleDB/language-tools/commit/dded0994fe19ab4b7f09866ea93f230e8cac26e6) - fix: declaration and variables in prolog does not have order
+
+  "A variable initializer sees all functions, variables, and namespaces declared/imported anywhere in the Prolog—except the variable currently being initialized."
+
+  "A declared function body sees all Prolog functions, variables, and namespaces, including itself."
+
+- [#53](https://github.com/RumbleDB/language-tools/pull/53) [`1f2eb0c`](https://github.com/RumbleDB/language-tools/commit/1f2eb0cf2a94be4f707b5d956bab7fa58baace7d) - Extend module support from open documents to the entire workspace.
+
+  The language server discovers JSONiq and XQuery files in workspace folders, indexes unopened library modules, and keeps the index synchronized with file and workspace-folder changes. Find References and Rename can therefore locate usages across files, including references from main modules to declarations exported by library modules.
+
+  Workspace handling is separated into document storage, module resolution, dependency tracking, and symbol indexing. Analyses are cached and invalidated transitively when module dependencies change, open editor content takes precedence over disk content, and failures in individual files do not interrupt indexing of the remaining workspace. Module imports also provide document links and support resolving relative file locations
+
+- [#51](https://github.com/RumbleDB/language-tools/pull/51) [`fe20e9a`](https://github.com/RumbleDB/language-tools/commit/fe20e9ae0729a5b2c2fe325d9c8040807042bd37) - refactor: remove `references` field from `Definition` type and `visibleFrom` from `BaseSourceDefinition`
+
+- [#50](https://github.com/RumbleDB/language-tools/pull/50) [`a7a5c26`](https://github.com/RumbleDB/language-tools/commit/a7a5c26de4a36530bc4be52d0852c036d5502829) - refactor: classify definitions into `source`, `implicit` and `builtin`
+
+  $err variable in catch blocks are implicit, but not builtin (it's still scope), this caused some problems with hover functionality (it was considering the whole catch block as selectionRange of the $err variable, which is not correct). Now, the hover functionality works correctly for $err variable in catch blocks.
+
+- [#48](https://github.com/RumbleDB/language-tools/pull/48) [`2aa8734`](https://github.com/RumbleDB/language-tools/commit/2aa8734d98834939aec1af1058e4f5779d07301e) - Adds a new Wadler-style formatter for JSONiq and XQuery.
+
+  It formats core queries, declarations, expressions, collections, scripting statements, and direct XML constructors with configurable indentation and line width. It preserves comments and whitespace-sensitive content such as XML text and string constructors.
+
+  The formatter only runs on valid documents and is covered by parse, idempotence, and regression tests.
+
+- [`f31310b`](https://github.com/RumbleDB/language-tools/commit/f31310bc5da52fbdb938664f5e2e8fb66edf297e) - Improved local development build performance by caching unchanged Java wrapper builds, reusing existing built-in catalogs, and enabling incremental TypeScript type-checking. Production builds continue to regenerate catalogs and bypass development caches.
+
+  Added coordinated watch scripts, separated wrapper tests from development packaging while retaining full CI coverage, and cached the assembled RumbleDB JAR in CI. Also fixed production builds to use the extension’s production configuration.
+
 ## 2.8.1
 
 ### Patch Changes

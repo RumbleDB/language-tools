@@ -19,6 +19,10 @@ function vsceArgs(command: "package" | "publish"): string[] {
     ];
 }
 
+function ovsxArgs(command: "publish"): string[] {
+    return ["dlx", "--allow-build=@vscode/vsce-sign", "--allow-build=keytar", "ovsx", command];
+}
+
 export function cleanVsCodeExtensionInstall(): void {
     /// vsce does not support pnpm's node_modules layout, so package from a clean npm install.
     run("rm", [
@@ -63,6 +67,17 @@ function publishVsCodeExtensionToMarketplace(vsixPath: string): void {
     });
 }
 
+function publishVsCodeExtensionToOpenVsx(vsixPath: string): void {
+    if (process.env.OVSX_PAT === undefined || process.env.OVSX_PAT.length === 0) {
+        throw new Error("OVSX_PAT is required to publish the VS Code extension to Open VSX.");
+    }
+
+    run("pnpm", [...ovsxArgs("publish"), vsixPath], {
+        cwd: VSCODE_EXTENSION_PACKAGE_DIR,
+        env: process.env,
+    });
+}
+
 export async function publishVsCodeExtension(
     extensionPackage: PackageJson,
     languageServerPackagePath?: string,
@@ -86,4 +101,5 @@ export async function publishVsCodeExtension(
 
     await uploadReleaseAsset(release, vsixPath);
     publishVsCodeExtensionToMarketplace(vsixPath);
+    publishVsCodeExtensionToOpenVsx(vsixPath);
 }

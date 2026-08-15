@@ -12,31 +12,20 @@ import org.jsoniq.lsp.wrapper.messages.Request;
 import org.jsoniq.lsp.wrapper.messages.ResponseBody;
 
 import org.rumbledb.api.Item;
-import org.rumbledb.bindings.ExternalBindings;
-import org.rumbledb.compiler.VisitorHelpers;
+import org.rumbledb.api.Rumble;
+import org.rumbledb.api.SequenceOfItems;
 import org.rumbledb.config.RumbleConfiguration;
-import org.rumbledb.context.DynamicContext;
 import org.rumbledb.exceptions.RumbleException;
-import org.rumbledb.expressions.module.MainModule;
-import org.rumbledb.runtime.RuntimeIterator;
 
 public final class RunQuery implements RequestHandler {
     public static final String REQUEST_TYPE = "run-query";
     public static final Result EMPTY_RESULT = new Result(null, null);
 
+    public static final Rumble RUMBLE_INSTANCE = new Rumble(RumbleConfiguration.defaultConfiguration());
+
     public record Result(
             String output,
             String error) implements ResponseBody {
-    }
-
-    private final RumbleConfiguration configuration;
-
-    public RunQuery() {
-        this.configuration = RumbleConfiguration.defaultConfiguration();
-    }
-
-    public RunQuery(RumbleConfiguration configuration) {
-        this.configuration = configuration;
     }
 
     @Override
@@ -50,20 +39,16 @@ public final class RunQuery implements RequestHandler {
         }
 
         try {
-            MainModule module = query != null
-                    ? VisitorHelpers.parseMainModuleFromQuery(query, this.configuration,
-                            ExternalBindings.empty())
-                    : VisitorHelpers.parseMainModuleFromLocation(documentUri, this.configuration,
-                            ExternalBindings.empty());
-
-            DynamicContext context = VisitorHelpers.createDynamicContext(module, this.configuration);
-            RuntimeIterator iterator = VisitorHelpers.generateRuntimeIterator(module, this.configuration);
+            SequenceOfItems result = query == null
+                    ? RUMBLE_INSTANCE.runQuery(documentUri)
+                    : RUMBLE_INSTANCE.runQuery(query);
 
             ObjectMapper mapper = new ObjectMapper();
             ArrayNode arrayNode = mapper.createArrayNode();
-            iterator.open(context);
-            while (iterator.hasNext()) {
-                Item item = iterator.next();
+
+            result.open();
+            while (result.hasNext()) {
+                Item item = result.next();
                 if (item != null) {
                     try {
                         if (item.isObject()) {
@@ -86,7 +71,7 @@ public final class RunQuery implements RequestHandler {
                     }
                 }
             }
-            iterator.close();
+            result.close();
 
             String output = mapper.writeValueAsString(arrayNode);
             return new Result(output, null);

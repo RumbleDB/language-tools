@@ -1,5 +1,24 @@
 # jsoniq-vscode
 
+## 1.6.0
+
+### Minor Changes
+
+- [#52](https://github.com/RumbleDB/language-tools/pull/52) [`25ed540`](https://github.com/RumbleDB/language-tools/commit/25ed540166cfabb68a49dbb28beceb4f5479dc74) - Add library-module parsing, import resolution, document links, and cross-file definitions, references, renames, and diagnostics for JSONiq and XQuery.
+
+  Recognize module file extensions in VS Code and keep module analysis synchronized with open documents and workspace file changes.
+
+- [`b057cd8`](https://github.com/RumbleDB/language-tools/commit/b057cd8eeadcd38e1fa34aeb35019aa5205309eb) - Synced the JSONiq and XQuery TextMate grammar with the latest ANTLR grammar behavior
+
+- [`f31310b`](https://github.com/RumbleDB/language-tools/commit/f31310bc5da52fbdb938664f5e2e8fb66edf297e) - Improved local development build performance by caching unchanged Java wrapper builds, reusing existing built-in catalogs, and enabling incremental TypeScript type-checking. Production builds continue to regenerate catalogs and bypass development caches.
+
+  Added coordinated watch scripts, separated wrapper tests from development packaging while retaining full CI coverage, and cached the assembled RumbleDB JAR in CI. Also fixed production builds to use the extension’s production configuration.
+
+### Patch Changes
+
+- Updated dependencies [[`25ed540`](https://github.com/RumbleDB/language-tools/commit/25ed540166cfabb68a49dbb28beceb4f5479dc74), [`dded099`](https://github.com/RumbleDB/language-tools/commit/dded0994fe19ab4b7f09866ea93f230e8cac26e6), [`1f2eb0c`](https://github.com/RumbleDB/language-tools/commit/1f2eb0cf2a94be4f707b5d956bab7fa58baace7d), [`fe20e9a`](https://github.com/RumbleDB/language-tools/commit/fe20e9ae0729a5b2c2fe325d9c8040807042bd37), [`a7a5c26`](https://github.com/RumbleDB/language-tools/commit/a7a5c26de4a36530bc4be52d0852c036d5502829), [`2aa8734`](https://github.com/RumbleDB/language-tools/commit/2aa8734d98834939aec1af1058e4f5779d07301e), [`f31310b`](https://github.com/RumbleDB/language-tools/commit/f31310bc5da52fbdb938664f5e2e8fb66edf297e)]:
+  - jsoniq-language-server@2.9.0
+
 ## 1.5.1
 
 ### Patch Changes

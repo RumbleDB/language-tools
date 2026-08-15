@@ -60,7 +60,7 @@ public final class StaticTypeChecker implements RequestHandler {
             URI documentUri,
             RumbleConfiguration configuration) {
         if (isLibraryModule(query)) {
-            VisitorHelpers.parseLibraryModuleFromQuery(
+            VisitorHelpers.parseLibraryModuleFromQueryWithStaticContextAndInference(
                 query,
                 documentUri == null ? URI.create(".") : documentUri,
                 configuration
