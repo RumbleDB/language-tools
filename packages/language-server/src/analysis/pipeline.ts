@@ -4,7 +4,6 @@ import type { TextDocument } from "vscode-languageserver-textdocument";
 
 import { analyzeDocument } from "./builder.js";
 import { resolveImports, type ModuleProvider } from "./import-resolution.js";
-import type { ModuleIndex } from "./module-info.js";
 import { collectModulePreamble, type ModulePreamble } from "./module-preamble.js";
 import type { AnalysisResult } from "./result.js";
 
@@ -31,17 +30,7 @@ export function analyzeModule(
     options: AnalyzeModuleOptions,
 ): AnalyzeModuleResult {
     const preamble = options.preamble ?? collectModulePreamble(document.uri, ast);
-    const index: ModuleIndex =
-        preamble.targetNamespace === undefined
-            ? { kind: "main", imports: preamble.imports }
-            : {
-                  kind: "library",
-                  targetNamespace: preamble.targetNamespace,
-                  imports: preamble.imports,
-                  exports: preamble.exports,
-              };
-
-    const importResult = resolveImports(document.uri, index, options.provider);
+    const importResult = resolveImports(document.uri, preamble, options.provider);
     const analysis = analyzeDocument(document, ast, {
         resolvedImports: importResult.resolvedImports,
         preamble,

@@ -6,7 +6,6 @@ import { FileChangeType, type FileEvent } from "vscode-languageserver/node";
 
 import type { Definition } from "../analysis/definitions.js";
 import type { ModuleProvider } from "../analysis/import-resolution.js";
-import type { ModuleIndex } from "../analysis/module-info.js";
 import { collectModulePreamble, type ModulePreamble } from "../analysis/module-preamble.js";
 import { analyzeModule } from "../analysis/pipeline.js";
 import type { AnyResolvedReference } from "../analysis/reference.js";
@@ -85,25 +84,7 @@ export class WorkspaceIndex {
 
         const nextVisiting = new Set(visiting).add(document.uri);
         const preamble = this.getPreamble(document);
-
-        const provider: ModuleProvider = {
-            loadImport: (_importerUri, imported) => {
-                return this.documents.loadImport(document, imported).map((loaded) => {
-                    if (loaded.document !== undefined && !nextVisiting.has(loaded.document.uri)) {
-                        this.analyse(loaded.document, nextVisiting);
-                    }
-                    return {
-                        locationUri: loaded.locationUri,
-                        range: loaded.range,
-                        targetUri: loaded.targetUri,
-                        moduleIndex:
-                            loaded.document !== undefined
-                                ? this.getModuleIndex(loaded.document)
-                                : undefined,
-                    };
-                });
-            },
-        };
+        const provider = this.createModuleProvider(document, nextVisiting);
 
         const { analysis, dependencies } = analyzeModule(
             document,
@@ -121,6 +102,30 @@ export class WorkspaceIndex {
         return analysis;
     }
 
+    private createModuleProvider(
+        document: TextDocument,
+        visiting: Set<DocumentUri>,
+    ): ModuleProvider {
+        return {
+            loadImport: (_importerUri, imported) => {
+                return this.documents.loadImport(document, imported).map((loaded) => {
+                    if (loaded.document !== undefined && !visiting.has(loaded.document.uri)) {
+                        this.analyse(loaded.document, visiting);
+                    }
+                    return {
+                        locationUri: loaded.locationUri,
+                        range: loaded.range,
+                        targetUri: loaded.targetUri,
+                        preamble:
+                            loaded.document !== undefined
+                                ? this.getPreamble(loaded.document)
+                                : undefined,
+                    };
+                });
+            },
+        };
+    }
+
     private getPreamble(document: TextDocument): ModulePreamble {
         const cached = this.preambles.get(document.uri);
         if (cached?.version === document.version) return cached.preamble;
@@ -128,19 +133,6 @@ export class WorkspaceIndex {
         const preamble = collectModulePreamble(document.uri, this.parser.parse(document).ast);
         this.preambles.set(document.uri, { version: document.version, preamble });
         return preamble;
-    }
-
-    private getModuleIndex(document: TextDocument): ModuleIndex {
-        const preamble = this.getPreamble(document);
-        const base = { imports: preamble.imports };
-        return preamble.targetNamespace === undefined
-            ? { ...base, kind: "main" }
-            : {
-                  ...base,
-                  kind: "library",
-                  targetNamespace: preamble.targetNamespace,
-                  exports: preamble.exports,
-              };
     }
 
     public getReferencesToDefinition(definition: Definition): readonly AnyResolvedReference[] {

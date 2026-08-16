@@ -2,21 +2,22 @@ import type { DocumentUri, Range } from "vscode-languageserver";
 import { DiagnosticSeverity, type Diagnostic } from "vscode-languageserver";
 
 import type { SourceModuleExportDefinition } from "./definitions.js";
-import type { ModuleImport, ModuleIndex } from "./module-info.js";
+import type { ModuleImport } from "./module-info.js";
+import type { ModulePreamble } from "./module-preamble.js";
 import type { ResolvedModuleImport } from "./result.js";
 
-/** A resolved import location with its module index, if available. */
+/** A resolved import location with its module preamble, if available. */
 export interface ResolvedImportTarget {
     readonly locationUri: string;
     readonly range: Range;
     readonly targetUri?: DocumentUri;
-    readonly moduleIndex?: ModuleIndex;
+    readonly preamble?: ModulePreamble;
 }
 
 /**
  * Provides the analysis layer with access to resolved module locations and
- * their pre-built indexes. The workspace layer implements this interface,
- * backed by its document store and module index cache.
+ * their preambles. The workspace layer implements this interface,
+ * backed by its document store and preamble cache.
  */
 export interface ModuleProvider {
     loadImport(importerUri: DocumentUri, imported: ModuleImport): readonly ResolvedImportTarget[];
@@ -39,7 +40,7 @@ export interface ImportResolutionResult {
  */
 export function resolveImports(
     importerUri: DocumentUri,
-    index: ModuleIndex,
+    preamble: ModulePreamble,
     provider: ModuleProvider,
 ): ImportResolutionResult {
     const resolvedImports: ResolvedModuleImport[] = [];
@@ -47,7 +48,7 @@ export function resolveImports(
     const importedNamespaces = new Set<string>();
     const dependencies = new Set<DocumentUri>();
 
-    for (const imported of index.imports) {
+    for (const imported of preamble.imports) {
         if (imported.namespaceUri.length === 0) {
             diagnostics.push({
                 severity: DiagnosticSeverity.Error,
@@ -81,7 +82,7 @@ export function resolveImports(
         let foundValidModule = false;
         for (const target of provider.loadImport(importerUri, imported)) {
             if (target.targetUri !== undefined) dependencies.add(target.targetUri);
-            if (target.moduleIndex === undefined) {
+            if (target.preamble === undefined) {
                 diagnostics.push({
                     severity: DiagnosticSeverity.Error,
                     code: "XQST0059",
@@ -91,8 +92,8 @@ export function resolveImports(
                 continue;
             }
             if (
-                target.moduleIndex.kind !== "library" ||
-                target.moduleIndex.targetNamespace !== imported.namespaceUri
+                target.preamble.targetNamespace === undefined ||
+                target.preamble.targetNamespace !== imported.namespaceUri
             ) {
                 diagnostics.push({
                     severity: DiagnosticSeverity.Error,
@@ -103,7 +104,7 @@ export function resolveImports(
                 continue;
             }
             foundValidModule = true;
-            for (const [name, exported] of target.moduleIndex.exports) {
+            for (const [name, exported] of target.preamble.exports) {
                 if (exports.has(name)) {
                     diagnostics.push({
                         severity: DiagnosticSeverity.Error,
