@@ -489,28 +489,16 @@ export function formatCatchClause(
     visit: Visit,
     formatTerminal: FormatTerminal,
 ): Doc {
-    let target: Doc = NIL;
-    if (node._catch_var) {
-        target = concat([
+    const targets = node.catchErrorTarget().map(visit);
+    const target = concat([
+        space,
+        formatTokenSeparatedDocs(
+            targets,
+            node.VBAR(),
+            (bar) => concat([space, formatTerminal(bar, "|")]),
             space,
-            formatTerminal(node.LPAREN(), "("),
-            visit(node._catch_var),
-            formatTerminal(node.RPAREN(), ")"),
-        ]);
-    } else {
-        const targets = node.catchErrorTarget().map(visit);
-        if (targets.length > 0) {
-            target = concat([
-                space,
-                formatTokenSeparatedDocs(
-                    targets,
-                    node.VBAR(),
-                    (bar) => concat([space, formatTerminal(bar, "|")]),
-                    space,
-                ),
-            ]);
-        }
-    }
+        ),
+    ]);
 
     const body = formatBlockDoc(
         formatTerminal(node.LBRACE(), "{"),
