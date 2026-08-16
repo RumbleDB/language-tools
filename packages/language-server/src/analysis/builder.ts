@@ -38,9 +38,6 @@ import type {
     NamespaceDefinition,
     ScopeDefinition,
     SourceDefinition,
-    SourceFunctionDefinition,
-    SourceNamespaceDefinition,
-    SourceTypeDefinition,
     SourceVariableDefinition,
 } from "./model/definitions.js";
 import {
@@ -55,8 +52,7 @@ import { SourceDefinitionFactory } from "./resolution/definition-factory.js";
 import {
     collectModuleProlog,
     type ModuleProlog,
-    type PrologDeclarationAstNode,
-    type PrologDefinition,
+    type ModulePrologDeclarations,
 } from "./resolution/module-prolog.js";
 import { NamespaceResolver } from "./resolution/name-resolution.js";
 
@@ -75,11 +71,7 @@ class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
     private currentScope: ScopeBuilder;
     private readonly definitions: SourceDefinitionFactory;
     private readonly namespaces: ReadonlyMap<Prefix, NamespaceDefinition>;
-    private readonly namespaceDeclarations: ReadonlyMap<
-        ModuleDeclarationAstNode | ModuleImportAstNode | NamespaceDeclarationAstNode,
-        SourceNamespaceDefinition
-    >;
-    private readonly prologDefinitions: ReadonlyMap<PrologDeclarationAstNode, PrologDefinition>;
+    private readonly declarations: ModulePrologDeclarations;
     private readonly resolvedImportsByNamespace: ReadonlyMap<string, ResolvedModuleImport>;
     private readonly diagnostics: Diagnostic[];
     private readonly nameResolver: NamespaceResolver;
@@ -98,8 +90,7 @@ class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
 
         this.definitions = prolog.definitions;
         this.namespaces = prolog.namespaces;
-        this.namespaceDeclarations = prolog.namespaceDeclarations;
-        this.prologDefinitions = prolog.prologDefinitions;
+        this.declarations = prolog.declarations;
         this.diagnostics = [...prolog.diagnostics];
 
         this.resolvedImportsByNamespace = new Map(
@@ -135,7 +126,9 @@ class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
     }
 
     protected override visitNamespaceDeclaration(node: NamespaceDeclarationAstNode): AstNode[] {
-        return [this.createDeclarationNode(this.requireIndexed(this.namespaceDeclarations, node))];
+        return [
+            this.createDeclarationNode(this.requireIndexed(this.declarations.namespaces, node)),
+        ];
     }
 
     protected override visitModuleDeclaration(node: ModuleDeclarationAstNode): AstNode[] {
@@ -143,7 +136,7 @@ class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
         // namespace declaration and visit that prolog so library functions and
         // variables participate in analysis.
         return [
-            this.createDeclarationNode(this.requireIndexed(this.namespaceDeclarations, node)),
+            this.createDeclarationNode(this.requireIndexed(this.declarations.namespaces, node)),
             ...this.visitChildrenAsNodes(node),
         ];
     }
@@ -153,7 +146,9 @@ class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
             return [];
         }
 
-        return [this.createDeclarationNode(this.requireIndexed(this.namespaceDeclarations, node))];
+        return [
+            this.createDeclarationNode(this.requireIndexed(this.declarations.namespaces, node)),
+        ];
     }
 
     protected override visitContextItemDeclaration(node: ContextItemDeclarationAstNode): AstNode[] {
@@ -167,23 +162,11 @@ class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
     }
 
     protected override visitTypeDeclaration(node: TypeDeclarationAstNode): AstNode[] {
-        const definition =
-            (this.prologDefinitions.get(node) as SourceTypeDefinition | undefined) ??
-            this.definitions.type(
-                this.nameResolver.resolveQName(node.name.qname, node.selectionRange),
-                node.range,
-                node.selectionRange,
-            );
-        if (!this.prologDefinitions.has(node)) {
-            this.currentScope.declare(definition, this.document.offsetAt(node.range.end));
-        }
-        return [this.createDeclarationNode(definition)];
+        return [this.createDeclarationNode(this.requireIndexed(this.declarations.types, node))];
     }
 
     protected override visitFunctionDeclaration(node: FunctionDeclarationAstNode): AstNode[] {
-        const definition =
-            (this.prologDefinitions.get(node) as SourceFunctionDefinition | undefined) ??
-            this.createInlineFunctionDefinition(node);
+        const definition = this.requireIndexed(this.declarations.functions, node);
 
         const children = this.enterScope(node.range, () => [
             ...definition.parameters.map((parameter) => {
@@ -198,9 +181,8 @@ class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
 
     protected override visitVariableDeclaration(node: VariableDeclarationAstNode): AstNode[] {
         const definition =
-            (this.prologDefinitions.get(node) as SourceVariableDefinition | undefined) ??
-            this.createVariableDefinition(node);
-        const isPrologDeclaration = this.prologDefinitions.has(node);
+            this.declarations.variables.get(node) ?? this.createVariableDefinition(node);
+        const isPrologDeclaration = this.declarations.variables.has(node);
         if (!isPrologDeclaration) {
             this.currentScope.declare(definition, this.document.offsetAt(node.visibleFrom));
         }
@@ -332,24 +314,6 @@ class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
         };
     }
 
-    private createInlineFunctionDefinition(
-        node: FunctionDeclarationAstNode,
-    ): SourceFunctionDefinition {
-        const definition = this.definitions.function(
-            this.nameResolver.resolveFunctionName(node.name, node.selectionRange),
-            node.range,
-            node.selectionRange,
-        );
-        node.parameters.forEach((parameter) =>
-            this.definitions.addParameter(
-                parameter,
-                this.nameResolver.resolveQName(parameter.name, parameter.selectionRange),
-                definition,
-            ),
-        );
-        return definition;
-    }
-
     private createVariableDefinition(node: VariableDeclarationAstNode): SourceVariableDefinition {
         return this.definitions.variable(
             this.nameResolver.resolveQName(node.name, node.selectionRange),
@@ -450,7 +414,11 @@ class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
     }
 
     private declarePrologDefinitions(): void {
-        for (const definition of this.prologDefinitions.values())
+        for (const definition of this.declarations.functions.values())
+            this.moduleScope.declare(definition, 0);
+        for (const definition of this.declarations.variables.values())
+            this.moduleScope.declare(definition, 0);
+        for (const definition of this.declarations.types.values())
             this.moduleScope.declare(definition, 0);
     }
 

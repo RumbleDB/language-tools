@@ -28,26 +28,22 @@ import type { ModuleImport } from "../model/module-info.js";
 import { SourceDefinitionFactory } from "./definition-factory.js";
 import { NamespaceResolver } from "./name-resolution.js";
 
-export type PrologDeclarationAstNode =
-    | FunctionDeclarationAstNode
-    | VariableDeclarationAstNode
-    | TypeDeclarationAstNode;
-
-export type PrologDefinition =
-    | SourceFunctionDefinition
-    | SourceVariableDefinition
-    | SourceTypeDefinition;
+export interface ModulePrologDeclarations {
+    readonly namespaces: ReadonlyMap<
+        ModuleDeclarationAstNode | ModuleImportAstNode | NamespaceDeclarationAstNode,
+        SourceNamespaceDefinition
+    >;
+    readonly functions: ReadonlyMap<FunctionDeclarationAstNode, SourceFunctionDefinition>;
+    readonly variables: ReadonlyMap<VariableDeclarationAstNode, SourceVariableDefinition>;
+    readonly types: ReadonlyMap<TypeDeclarationAstNode, SourceTypeDefinition>;
+}
 
 export interface ModuleProlog {
     readonly uri: DocumentUri;
     readonly targetNamespace: string | undefined;
     readonly imports: readonly ModuleImport[];
     readonly namespaces: ReadonlyMap<Prefix, NamespaceDefinition>;
-    readonly namespaceDeclarations: ReadonlyMap<
-        ModuleDeclarationAstNode | ModuleImportAstNode | NamespaceDeclarationAstNode,
-        SourceNamespaceDefinition
-    >;
-    readonly prologDefinitions: ReadonlyMap<PrologDeclarationAstNode, PrologDefinition>;
+    readonly declarations: ModulePrologDeclarations;
     readonly exports: ReadonlyMap<string, SourceModuleExportDefinition>;
     readonly diagnostics: readonly Diagnostic[];
     readonly definitions: SourceDefinitionFactory;
@@ -67,12 +63,19 @@ class ModulePrologCollector extends ParserAstVisitor<void> {
             return [prefix, definition];
         }),
     );
-    private readonly namespaceDeclarations = new Map<
-        ModuleDeclarationAstNode | ModuleImportAstNode | NamespaceDeclarationAstNode,
-        SourceNamespaceDefinition
+    private readonly declarations = {
+        namespaces: new Map<
+            ModuleDeclarationAstNode | ModuleImportAstNode | NamespaceDeclarationAstNode,
+            SourceNamespaceDefinition
+        >(),
+        functions: new Map<FunctionDeclarationAstNode, SourceFunctionDefinition>(),
+        variables: new Map<VariableDeclarationAstNode, SourceVariableDefinition>(),
+        types: new Map<TypeDeclarationAstNode, SourceTypeDefinition>(),
+    };
+    private readonly prologDeclarationNames = new Map<
+        string,
+        SourceFunctionDefinition | SourceVariableDefinition | SourceTypeDefinition
     >();
-    private readonly prologDefinitions = new Map<PrologDeclarationAstNode, PrologDefinition>();
-    private readonly prologDeclarationNames = new Map<string, PrologDefinition>();
     private readonly diagnostics: Diagnostic[] = [];
     private readonly definitions: SourceDefinitionFactory;
     private readonly nameResolver: NamespaceResolver;
@@ -97,8 +100,7 @@ class ModulePrologCollector extends ParserAstVisitor<void> {
             targetNamespace: this.targetNamespace,
             imports: this.imports,
             namespaces: this.namespaces,
-            namespaceDeclarations: this.namespaceDeclarations,
-            prologDefinitions: this.prologDefinitions,
+            declarations: this.declarations,
             exports: this.exports,
             diagnostics: this.diagnostics,
             definitions: this.definitions,
@@ -146,15 +148,40 @@ class ModulePrologCollector extends ParserAstVisitor<void> {
     }
 
     protected override visitFunctionDeclaration(node: FunctionDeclarationAstNode): void {
-        this.indexPrologDeclaration(node);
+        const definition = this.definitions.function(
+            this.nameResolver.resolveFunctionName(node.name, node.selectionRange),
+            node.range,
+            node.selectionRange,
+        );
+        node.parameters.forEach((parameter) =>
+            this.definitions.addParameter(
+                parameter,
+                this.nameResolver.resolveQName(parameter.name, parameter.selectionRange),
+                definition,
+            ),
+        );
+        this.declarations.functions.set(node, definition);
+        this.checkDeclaration(node, definition);
     }
 
     protected override visitVariableDeclaration(node: VariableDeclarationAstNode): void {
-        this.indexPrologDeclaration(node);
+        const definition = this.definitions.variable(
+            this.nameResolver.resolveQName(node.name, node.selectionRange),
+            node.range,
+            node.selectionRange,
+        );
+        this.declarations.variables.set(node, definition);
+        this.checkDeclaration(node, definition);
     }
 
     protected override visitTypeDeclaration(node: TypeDeclarationAstNode): void {
-        this.indexPrologDeclaration(node);
+        const definition = this.definitions.type(
+            this.nameResolver.resolveQName(node.name.qname, node.selectionRange),
+            node.range,
+            node.selectionRange,
+        );
+        this.declarations.types.set(node, definition);
+        this.checkDeclaration(node, definition);
     }
 
     // Do not descend into expressions (such as FLWOR let/for bindings or catch clauses)
@@ -176,14 +203,14 @@ class ModulePrologCollector extends ParserAstVisitor<void> {
             node.range,
             selectionRange,
         );
-        this.namespaceDeclarations.set(node, definition);
+        this.declarations.namespaces.set(node, definition);
         this.namespaces.set(node.prefix, definition);
     }
 
-    private indexPrologDeclaration(node: PrologDeclarationAstNode): void {
-        const definition = this.createPrologDefinition(node);
-        this.prologDefinitions.set(node, definition);
-
+    private checkDeclaration(
+        node: FunctionDeclarationAstNode | VariableDeclarationAstNode | TypeDeclarationAstNode,
+        definition: SourceFunctionDefinition | SourceVariableDefinition | SourceTypeDefinition,
+    ): void {
         const name = definitionNameToString(definition, true);
         if (this.prologDeclarationNames.has(name)) {
             this.diagnostics.push({
@@ -220,38 +247,6 @@ class ModulePrologCollector extends ParserAstVisitor<void> {
         if (!("isPrivate" in node && node.isPrivate)) {
             if (!this.exports.has(name)) {
                 this.exports.set(name, definition);
-            }
-        }
-    }
-
-    private createPrologDefinition(node: PrologDeclarationAstNode): PrologDefinition {
-        switch (node.kind) {
-            case "variable-declaration":
-                return this.definitions.variable(
-                    this.nameResolver.resolveQName(node.name, node.selectionRange),
-                    node.range,
-                    node.selectionRange,
-                );
-            case "type-declaration":
-                return this.definitions.type(
-                    this.nameResolver.resolveQName(node.name.qname, node.selectionRange),
-                    node.range,
-                    node.selectionRange,
-                ) satisfies SourceTypeDefinition;
-            case "function-declaration": {
-                const definition = this.definitions.function(
-                    this.nameResolver.resolveFunctionName(node.name, node.selectionRange),
-                    node.range,
-                    node.selectionRange,
-                );
-                node.parameters.forEach((parameter) =>
-                    this.definitions.addParameter(
-                        parameter,
-                        this.nameResolver.resolveQName(parameter.name, parameter.selectionRange),
-                        definition,
-                    ),
-                );
-                return definition;
             }
         }
     }
