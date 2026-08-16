@@ -585,7 +585,7 @@ class JsoniqAstBuilder extends JsoniqParserVisitor<AstVisitResult> {
                 kind: "catch-clause",
                 range: rangeFromNode(node, this.document),
                 bodyStart:
-                    bodyStart === undefined
+                    bodyStart == null
                         ? rangeFromNode(node, this.document).start
                         : rangeFromNode(bodyStart, this.document).end,
                 children: [...this.visitChildrenAsNodes(node)],
