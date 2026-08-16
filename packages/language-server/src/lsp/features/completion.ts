@@ -12,6 +12,7 @@ import type { ParserService } from "server/parser/index.js";
 import { getDocumentText } from "server/parser/utils.js";
 import { BuiltinFunctionDefinition, builtinFunctions } from "server/resources/builtin-functions.js";
 import { builtinTypes } from "server/resources/builtin-types.js";
+import { errorCodes } from "server/resources/error-codes.js";
 import {
     docs,
     formatFunctionDocEntry,
@@ -47,6 +48,10 @@ export function registerCompletion({
 
 const VARIABLE_PREFIX_PATTERN = /\$[A-Za-z0-9_.:-]*$/;
 const OBJECT_FIELD_PREFIX_PATTERN = /[A-Za-z_][A-Za-z0-9_:-]*$/;
+const CATCH_ERROR_TARGET_PREFIX_PATTERN =
+    /(?:\*|[A-Za-z_][A-Za-z0-9_.-]*)(?::(?:\*|[A-Za-z_][A-Za-z0-9_.-]*)?)?$/;
+const CATCH_ERROR_TARGET_CONTEXT_PATTERN =
+    /\bcatch\s+(?:(?:\*|[A-Za-z_][A-Za-z0-9_.-]*)(?::(?:\*|[A-Za-z_][A-Za-z0-9_.-]*)?)?(?:\s*\|\s*(?:\*|[A-Za-z_][A-Za-z0-9_.-]*)(?::(?:\*|[A-Za-z_][A-Za-z0-9_.-]*)?)?)*)?$/;
 const GENERIC_BUILTIN_PARAMETER_PREFIX = "$arg";
 
 interface DotCompletionContext {
@@ -71,20 +76,11 @@ export function findCompletions(
 
     // Find the prefix of the variable or name being typed, if any.
     // This is used to determine whether to offer variable or name completions, and to limit the completion suggestions to those matching the prefix.
-    const variablePrefix =
-        source.slice(0, cursorOffset).match(VARIABLE_PREFIX_PATTERN)?.[0] ?? null;
+    const variablePrefix = typedPrefix(source, cursorOffset, VARIABLE_PREFIX_PATTERN);
     const typingVariablePrefix = variablePrefix !== null;
 
     // If we have already typed part of a variable name, we want to replace that prefix with the completion,
     // This is to avoid inserting the completion after the prefix, which would result in an invalid variable name
-    const variableReplaceRange =
-        variablePrefix === null
-            ? null
-            : {
-                  start: document.positionAt(cursorOffset - variablePrefix.length),
-                  end: position,
-              };
-
     const availableDeclarations = getVisibleDeclarationsAtPosition(
         workspace.getAnalysis(document),
         document.offsetAt(position),
@@ -99,6 +95,10 @@ export function findCompletions(
     const builtinFunctions = intent.allowFunctions ? getBuiltinFunctionCompletionItems() : [];
     const builtinTypeItems = intent.allowTypes ? getBuiltinTypeCompletionItems() : [];
     const keywords = keywordCompletions(intent.keywords);
+
+    if (intent.allowErrorCodeTargets || isInCatchErrorTarget(source, cursorOffset)) {
+        return withSortText(getErrorCodeCompletionItems(document, source, cursorOffset));
+    }
 
     if (intent.allowVariableDeclarations && !typingVariablePrefix) {
         return [
@@ -115,8 +115,8 @@ export function findCompletions(
             const name = definitionNameToString(v);
             return {
                 ...toCompletionItem(v),
-                ...(variableReplaceRange !== null
-                    ? { textEdit: TextEdit.replace(variableReplaceRange, name) }
+                ...(variablePrefix !== null
+                    ? { textEdit: replaceTypedPrefix(document, cursorOffset, variablePrefix, name) }
                     : {}),
             };
         }),
@@ -126,6 +126,73 @@ export function findCompletions(
         ...builtinTypeItems,
         ...keywords,
     ]);
+}
+
+function isInCatchErrorTarget(source: string, cursorOffset: number): boolean {
+    return CATCH_ERROR_TARGET_CONTEXT_PATTERN.test(source.slice(0, cursorOffset));
+}
+
+function getErrorCodeCompletionItems(
+    document: TextDocument,
+    source: string,
+    cursorOffset: number,
+): CompletionItem[] {
+    const targetPrefix = typedPrefix(source, cursorOffset, CATCH_ERROR_TARGET_PREFIX_PATTERN) ?? "";
+    const entries = Object.values(errorCodes);
+    const wildcardItems = wildcardErrorCodeCompletions();
+
+    return [
+        ...wildcardItems,
+        ...entries.map((entry) => {
+            const label = formatErrorCodeLabel(entry.code, targetPrefix);
+            return {
+                label,
+                kind: CompletionItemKind.Value,
+                detail: `${entry.category} error code`,
+                documentation: {
+                    kind: MarkupKind.Markdown,
+                    value: `${entry.description}\n\n[View the normative definition](${entry.specificationUrl})`,
+                },
+                labelDetails: {
+                    description: entry.description,
+                },
+            } satisfies CompletionItem;
+        }),
+    ]
+        .filter((item) => item.label.startsWith(targetPrefix))
+        .map((item) => ({
+            ...item,
+            textEdit: replaceTypedPrefix(document, cursorOffset, targetPrefix, item.label),
+        }));
+}
+
+function formatErrorCodeLabel(code: string, targetPrefix: string): string {
+    const localName = code.slice("err:".length);
+    if (targetPrefix.startsWith("err:")) {
+        return code;
+    }
+    if (targetPrefix.startsWith("*:")) {
+        return `*:${localName}`;
+    }
+    return code;
+}
+
+function wildcardErrorCodeCompletions(): CompletionItem[] {
+    return [
+        {
+            label: "*",
+            kind: CompletionItemKind.Value,
+            detail: "Catch any error",
+            labelDetails: {
+                description: "Wildcard error code",
+            },
+        },
+        {
+            label: "err:*",
+            kind: CompletionItemKind.Value,
+            detail: "Catch any W3C XPath/XQuery error",
+        },
+    ];
 }
 
 export async function findCompletionsWithTypeInfo(
@@ -166,17 +233,17 @@ async function findDotCompletions(
         return [];
     }
 
-    const replaceRange = {
-        start: document.positionAt(context.dotOffset + 1),
-        end: document.positionAt(context.dotOffset + 1 + context.fieldPrefix.length),
-    };
-
     return withSortText(
         objectFieldCompletions(objectType, context.fieldPrefix).map(([fieldName, fieldType]) => ({
             label: fieldName,
             kind: CompletionItemKind.Field,
             detail: formatTypeDefinition(fieldType),
-            textEdit: TextEdit.replace(replaceRange, fieldName),
+            textEdit: replaceTypedPrefix(
+                document,
+                context.dotOffset + 1 + context.fieldPrefix.length,
+                context.fieldPrefix,
+                fieldName,
+            ),
         })),
     );
 }
@@ -194,8 +261,7 @@ function getDotCompletionContext(
     source: string,
     cursorOffset: number,
 ): DotCompletionContext | null {
-    const prefix = source.slice(0, cursorOffset);
-    const fieldPrefix = prefix.match(OBJECT_FIELD_PREFIX_PATTERN)?.[0] ?? "";
+    const fieldPrefix = typedPrefix(source, cursorOffset, OBJECT_FIELD_PREFIX_PATTERN) ?? "";
     const dotOffset = cursorOffset - fieldPrefix.length - 1;
 
     if (dotOffset < 0 || source[dotOffset] !== ".") {
@@ -207,6 +273,25 @@ function getDotCompletionContext(
         fieldPrefix,
         syntheticSource: source.slice(0, dotOffset) + source.slice(cursorOffset),
     };
+}
+
+function typedPrefix(source: string, cursorOffset: number, pattern: RegExp): string | null {
+    return source.slice(0, cursorOffset).match(pattern)?.[0] ?? null;
+}
+
+function replaceTypedPrefix(
+    document: TextDocument,
+    cursorOffset: number,
+    prefix: string,
+    newText: string,
+): TextEdit {
+    return TextEdit.replace(
+        {
+            start: document.positionAt(cursorOffset - prefix.length),
+            end: document.positionAt(cursorOffset),
+        },
+        newText,
+    );
 }
 
 function toCompletionItem(declaration: ScopeDefinition): CompletionItem {
