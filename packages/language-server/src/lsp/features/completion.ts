@@ -1,36 +1,40 @@
-import { defaultNamespaces } from "server/analysis/default-namespaces.js";
-import { definitionNameToString, type ScopeDefinition } from "server/analysis/definitions.js";
-import { QNameToString } from "server/analysis/names.js";
-import { getVisibleDeclarationsAtPosition } from "server/analysis/queries.js";
-import {
-    formatSequenceType,
-    formatTypeDefinition,
-    type ObjectTypeDefinition,
-} from "server/analysis/type-system.js";
-import { getTypeAtPositionFromSource } from "server/integrations/rumble/operations/type-at-position/service.js";
 import type { ParserService } from "server/parser/index.js";
-import { getDocumentText } from "server/parser/utils.js";
-import { BuiltinFunctionDefinition, builtinFunctions } from "server/resources/builtin-functions.js";
-import { builtinTypes } from "server/resources/builtin-types.js";
-import { errorCodes } from "server/resources/error-codes.js";
-import {
-    docs,
-    formatFunctionDocEntry,
-    getBuiltinFunctionDocumentation,
-    Signature,
-} from "server/resources/function-docs.js";
 import type { WorkspaceService } from "server/workspace/service.js";
-import {
-    CompletionItemKind,
-    InsertTextFormat,
-    MarkupKind,
-    TextEdit,
-    type CompletionItem,
-    type Position,
-} from "vscode-languageserver";
-import { TextDocument } from "vscode-languageserver-textdocument";
+import type { CompletionItem, Position } from "vscode-languageserver";
+import type { TextDocument } from "vscode-languageserver-textdocument";
 
+import { createCompletionContext } from "./completion/context.js";
+import { finalizeCompletionItems } from "./completion/finalize.js";
+import {
+    provideBuiltinFunctionCompletions,
+    provideBuiltinTypeCompletions,
+} from "./completion/providers/builtins.js";
+import {
+    provideSourceFunctionCompletions,
+    provideSourceTypeCompletions,
+    provideVariableCompletions,
+} from "./completion/providers/declarations.js";
+import { provideErrorCodeCompletions } from "./completion/providers/error-codes.js";
+import { provideKeywordCompletions } from "./completion/providers/keywords.js";
+import { provideObjectFieldCompletions } from "./completion/providers/object-fields.js";
+import { provideVariableDeclarationCompletions } from "./completion/providers/variable-declaration.js";
+import type { CompletionProvider } from "./completion/types.js";
 import type { FeatureRegistrationContext } from "./context.js";
+
+const exclusiveProviders: CompletionProvider[] = [
+    provideErrorCodeCompletions,
+    provideVariableDeclarationCompletions,
+    provideObjectFieldCompletions,
+];
+
+const additiveProviders: CompletionProvider[] = [
+    provideVariableCompletions,
+    provideSourceFunctionCompletions,
+    provideBuiltinFunctionCompletions,
+    provideSourceTypeCompletions,
+    provideBuiltinTypeCompletions,
+    provideKeywordCompletions,
+];
 
 export function registerCompletion({
     connection,
@@ -38,431 +42,35 @@ export function registerCompletion({
     parser,
     workspace,
 }: FeatureRegistrationContext): void {
-    connection.onCompletion((params) => {
+    connection.onCompletion(async (params) => {
         const document = documents.get(params.textDocument.uri);
         return document === undefined
             ? []
-            : findCompletionsWithTypeInfo(document, params.position, parser, workspace);
+            : await findCompletions(document, params.position, parser, workspace);
     });
 }
 
-const VARIABLE_PREFIX_PATTERN = /\$[A-Za-z0-9_.:-]*$/;
-const OBJECT_FIELD_PREFIX_PATTERN = /[A-Za-z_][A-Za-z0-9_:-]*$/;
-const CATCH_ERROR_TARGET_PREFIX_PATTERN =
-    /(?:\*|[A-Za-z_][A-Za-z0-9_.-]*)(?::(?:\*|[A-Za-z_][A-Za-z0-9_.-]*)?)?$/;
-const CATCH_ERROR_TARGET_CONTEXT_PATTERN =
-    /\bcatch\s+(?:(?:\*|[A-Za-z_][A-Za-z0-9_.-]*)(?::(?:\*|[A-Za-z_][A-Za-z0-9_.-]*)?)?(?:\s*\|\s*(?:\*|[A-Za-z_][A-Za-z0-9_.-]*)(?::(?:\*|[A-Za-z_][A-Za-z0-9_.-]*)?)?)*)?$/;
-const GENERIC_BUILTIN_PARAMETER_PREFIX = "$arg";
-
-interface DotCompletionContext {
-    dotOffset: number;
-    fieldPrefix: string;
-    syntheticSource: string;
-}
-
-export function findCompletions(
-    document: TextDocument,
-    position: Position,
-    parser: ParserService,
-    workspace: WorkspaceService,
-): CompletionItem[] {
-    const source = getDocumentText(document);
-    const cursorOffset = document.offsetAt(position);
-    const intent = parser.collectCompletionIntent(document, cursorOffset);
-
-    if (intent === null) {
-        return [];
-    }
-
-    // Find the prefix of the variable or name being typed, if any.
-    // This is used to determine whether to offer variable or name completions, and to limit the completion suggestions to those matching the prefix.
-    const variablePrefix = typedPrefix(source, cursorOffset, VARIABLE_PREFIX_PATTERN);
-    const typingVariablePrefix = variablePrefix !== null;
-
-    // If we have already typed part of a variable name, we want to replace that prefix with the completion,
-    // This is to avoid inserting the completion after the prefix, which would result in an invalid variable name
-    const availableDeclarations = getVisibleDeclarationsAtPosition(
-        workspace.getAnalysis(document),
-        document.offsetAt(position),
-    );
-    const variables = intent.allowVariableReferences
-        ? availableDeclarations.filter((v) => v.kind === "variable" || v.kind === "parameter")
-        : [];
-    const functions = intent.allowFunctions
-        ? availableDeclarations.filter((v) => v.kind === "function")
-        : [];
-    const types = intent.allowTypes ? availableDeclarations.filter((v) => v.kind === "type") : [];
-    const builtinFunctions = intent.allowFunctions ? getBuiltinFunctionCompletionItems() : [];
-    const builtinTypeItems = intent.allowTypes ? getBuiltinTypeCompletionItems() : [];
-    const keywords = keywordCompletions(intent.keywords);
-
-    if (intent.allowErrorCodeTargets || isInCatchErrorTarget(source, cursorOffset)) {
-        return withSortText(getErrorCodeCompletionItems(document, source, cursorOffset));
-    }
-
-    if (intent.allowVariableDeclarations && !typingVariablePrefix) {
-        return [
-            {
-                label: "$",
-                kind: CompletionItemKind.Keyword,
-                detail: "Start a variable declaration",
-            },
-        ];
-    }
-
-    return withSortText([
-        ...variables.map((v) => {
-            const name = definitionNameToString(v);
-            return {
-                ...toCompletionItem(v),
-                ...(variablePrefix !== null
-                    ? { textEdit: replaceTypedPrefix(document, cursorOffset, variablePrefix, name) }
-                    : {}),
-            };
-        }),
-        ...functions.map(toCompletionItem),
-        ...types.map(toCompletionItem),
-        ...builtinFunctions,
-        ...builtinTypeItems,
-        ...keywords,
-    ]);
-}
-
-function isInCatchErrorTarget(source: string, cursorOffset: number): boolean {
-    return CATCH_ERROR_TARGET_CONTEXT_PATTERN.test(source.slice(0, cursorOffset));
-}
-
-function getErrorCodeCompletionItems(
-    document: TextDocument,
-    source: string,
-    cursorOffset: number,
-): CompletionItem[] {
-    const targetPrefix = typedPrefix(source, cursorOffset, CATCH_ERROR_TARGET_PREFIX_PATTERN) ?? "";
-    const entries = Object.values(errorCodes);
-    const wildcardItems = wildcardErrorCodeCompletions();
-
-    return [
-        ...wildcardItems,
-        ...entries.map((entry) => {
-            const label = formatErrorCodeLabel(entry.code, targetPrefix);
-            return {
-                label,
-                kind: CompletionItemKind.Value,
-                detail: `${entry.category} error code`,
-                documentation: {
-                    kind: MarkupKind.Markdown,
-                    value: `${entry.description}\n\n[View the normative definition](${entry.specificationUrl})`,
-                },
-                labelDetails: {
-                    description: entry.description,
-                },
-            } satisfies CompletionItem;
-        }),
-    ]
-        .filter((item) => item.label.startsWith(targetPrefix))
-        .map((item) => ({
-            ...item,
-            textEdit: replaceTypedPrefix(document, cursorOffset, targetPrefix, item.label),
-        }));
-}
-
-function formatErrorCodeLabel(code: string, targetPrefix: string): string {
-    const localName = code.slice("err:".length);
-    if (targetPrefix.startsWith("err:")) {
-        return code;
-    }
-    if (targetPrefix.startsWith("*:")) {
-        return `*:${localName}`;
-    }
-    return code;
-}
-
-function wildcardErrorCodeCompletions(): CompletionItem[] {
-    return [
-        {
-            label: "*",
-            kind: CompletionItemKind.Value,
-            detail: "Catch any error",
-            labelDetails: {
-                description: "Wildcard error code",
-            },
-        },
-        {
-            label: "err:*",
-            kind: CompletionItemKind.Value,
-            detail: "Catch any W3C XPath/XQuery error",
-        },
-    ];
-}
-
-export async function findCompletionsWithTypeInfo(
+export async function findCompletions(
     document: TextDocument,
     position: Position,
     parser: ParserService,
     workspace: WorkspaceService,
 ): Promise<CompletionItem[]> {
-    const source = getDocumentText(document);
-    const cursorOffset = document.offsetAt(position);
-    const intent = parser.collectCompletionIntent(document, cursorOffset);
-    const dotContext = getDotCompletionContext(source, cursorOffset);
-
-    if (
-        dotContext !== null &&
-        intent?.allowObjectLookup &&
-        intent.objectLookupDotOffset === dotContext.dotOffset
-    ) {
-        /// Return only dot completions because it's more relevant
-        return findDotCompletions(document, dotContext);
-    }
-
-    return findCompletions(document, position, parser, workspace);
-}
-
-async function findDotCompletions(
-    document: TextDocument,
-    context: DotCompletionContext,
-): Promise<CompletionItem[]> {
-    const result = await getTypeAtPositionFromSource(
-        document.uri,
-        context.syntheticSource,
-        document.positionAt(context.dotOffset),
-    );
-    const objectType = result.sequenceType?.itemType;
-
-    if (objectType?.kind !== "object") {
+    const context = createCompletionContext(document, position, parser, workspace);
+    if (context === null) {
         return [];
     }
 
-    return withSortText(
-        objectFieldCompletions(objectType, context.fieldPrefix).map(([fieldName, fieldType]) => ({
-            label: fieldName,
-            kind: CompletionItemKind.Field,
-            detail: formatTypeDefinition(fieldType),
-            textEdit: replaceTypedPrefix(
-                document,
-                context.dotOffset + 1 + context.fieldPrefix.length,
-                context.fieldPrefix,
-                fieldName,
-            ),
-        })),
-    );
-}
-
-function objectFieldCompletions(
-    objectType: ObjectTypeDefinition,
-    fieldPrefix: string,
-): Array<[string, ObjectTypeDefinition["fields"][string]]> {
-    return Object.entries(objectType.fields).filter(([fieldName]) =>
-        fieldName.startsWith(fieldPrefix),
-    );
-}
-
-function getDotCompletionContext(
-    source: string,
-    cursorOffset: number,
-): DotCompletionContext | null {
-    const fieldPrefix = typedPrefix(source, cursorOffset, OBJECT_FIELD_PREFIX_PATTERN) ?? "";
-    const dotOffset = cursorOffset - fieldPrefix.length - 1;
-
-    if (dotOffset < 0 || source[dotOffset] !== ".") {
-        return null;
-    }
-
-    return {
-        dotOffset,
-        fieldPrefix,
-        syntheticSource: source.slice(0, dotOffset) + source.slice(cursorOffset),
-    };
-}
-
-function typedPrefix(source: string, cursorOffset: number, pattern: RegExp): string | null {
-    return source.slice(0, cursorOffset).match(pattern)?.[0] ?? null;
-}
-
-function replaceTypedPrefix(
-    document: TextDocument,
-    cursorOffset: number,
-    prefix: string,
-    newText: string,
-): TextEdit {
-    return TextEdit.replace(
-        {
-            start: document.positionAt(cursorOffset - prefix.length),
-            end: document.positionAt(cursorOffset),
-        },
-        newText,
-    );
-}
-
-function toCompletionItem(declaration: ScopeDefinition): CompletionItem {
-    const name = definitionNameToString(declaration);
-    if (declaration.origin === "source" && declaration.kind === "function") {
-        const label = QNameToString(declaration.name.qname, false);
-        const parameterNames = declaration.parameters.map((parameter) =>
-            definitionNameToString(parameter),
-        );
-        const signature = `${label}(${parameterNames.join(", ")})`;
-
-        return {
-            label,
-            kind: CompletionItemKind.Function,
-            detail: signature,
-            insertText: createFunctionCallSnippet(label, parameterNames),
-            insertTextFormat: InsertTextFormat.Snippet,
-            documentation: {
-                kind: MarkupKind.Markdown,
-                value: [
-                    "```jsoniq",
-                    signature,
-                    "```",
-                    `declared at line ${declaration.selectionRange.start.line + 1}`,
-                ].join("\n"),
-            },
-        };
-    }
-
-    if (declaration.origin === "source" && declaration.kind === "type") {
-        const label = QNameToString(declaration.name, false);
-        const expandedName = QNameToString(declaration.name, true);
-
-        return {
-            label,
-            kind: CompletionItemKind.Class,
-            detail: "JSONiq schema type",
-            documentation: {
-                kind: MarkupKind.Markdown,
-                value: [
-                    "```jsoniq",
-                    expandedName,
-                    "```",
-                    `declared at line ${declaration.selectionRange.start.line + 1}`,
-                ].join("\n"),
-            },
-        };
-    }
-
-    return {
-        label: name,
-        kind: CompletionItemKind.Variable,
-        detail: `JSONiq ${declaration.kind}`,
-    };
-}
-
-function getBuiltinFunctionCompletionItems(): CompletionItem[] {
-    const itemsByName = new Map<string, { item: CompletionItem; parameterCount: number }>();
-
-    for (const definition of builtinFunctions.all) {
-        const { qname, arity } = definition.name;
-        const functionName = QNameToString(qname, false);
-        const ns = qname.namespaceUri ?? defaultNamespaces.get(qname.prefix || "fn");
-        const docsKey = QNameToString(
-            {
-                localName: qname.localName,
-                ...(ns === undefined ? {} : { namespaceUri: ns }),
-            },
-            true,
-        );
-        const docEntry = docs[docsKey];
-        const overloadCount = docEntry?.signatures.length;
-        const parameterNames = getBuiltinCompletionParameterNames(definition, docEntry?.signatures);
-        const parameterTypes = definition.signature.parameterTypes
-            .map((parameter) => formatSequenceType(parameter.type))
-            .join(", ");
-        const signature = `${functionName}(${parameterTypes}) as ${formatSequenceType(definition.signature.returnType)}`;
-        const item: CompletionItem = {
-            label: functionName,
-            kind: CompletionItemKind.Function,
-            insertText: createFunctionCallSnippet(functionName, parameterNames),
-            insertTextFormat: InsertTextFormat.Snippet,
-            detail:
-                overloadCount !== undefined && overloadCount > 1
-                    ? `${functionName}(...) • ${overloadCount} overloads`
-                    : arity === undefined
-                      ? signature
-                      : `${signature} / ${arity}`,
-            documentation: {
-                kind: MarkupKind.Markdown,
-                value: getBuiltinFunctionDocumentation(definition.name.qname)
-                    ? formatFunctionDocEntry(
-                          getBuiltinFunctionDocumentation(definition.name.qname)!,
-                          arity,
-                      )
-                    : "No documentation available.",
-            },
-        };
-
-        const existing = itemsByName.get(functionName);
-        if (existing === undefined || parameterNames.length < existing.parameterCount) {
-            itemsByName.set(functionName, {
-                item,
-                parameterCount: parameterNames.length,
-            });
+    for (const provider of exclusiveProviders) {
+        const items = await provider(context);
+        if (items !== null) {
+            return finalizeCompletionItems(items);
         }
     }
 
-    return [...itemsByName.values()].map(({ item }) => item);
-}
+    const additiveItems = await Promise.all(additiveProviders.map((provider) => provider(context)));
 
-function getBuiltinTypeCompletionItems(): CompletionItem[] {
-    return builtinTypes.all.map((definition) => {
-        const label = QNameToString(definition.name, false);
-        const expandedName = QNameToString(definition.name, true);
-
-        return {
-            label,
-            kind: CompletionItemKind.Class,
-            detail: "Builtin JSONiq type",
-            documentation: {
-                kind: MarkupKind.Markdown,
-                value: `\`\`\`jsoniq\n${expandedName}\n\`\`\``,
-            },
-        } satisfies CompletionItem;
-    });
-}
-
-function keywordCompletions(
-    keywords: Array<{ label: string; insertText?: string }>,
-): CompletionItem[] {
-    return keywords.map((completion) => ({
-        label: completion.label,
-        ...(completion.insertText === undefined ? {} : { insertText: completion.insertText }),
-        kind: CompletionItemKind.Keyword,
-        detail: "JSONiq keyword",
-    }));
-}
-
-function withSortText(items: CompletionItem[]): CompletionItem[] {
-    return items
-        .sort((left, right) => left.label.localeCompare(right.label))
-        .map((item, index) => ({
-            ...item,
-            sortText: `${index.toString().padStart(5, "0")}:${item.label}`,
-        }));
-}
-
-function getBuiltinCompletionParameterNames(
-    definition: BuiltinFunctionDefinition,
-    signatures: Signature[] | undefined,
-): string[] {
-    const preferredSignature = signatures?.reduce((best, current) =>
-        current.params.length < best.params.length ? current : best,
+    return finalizeCompletionItems(
+        additiveItems.filter((items): items is CompletionItem[] => items !== null).flat(),
     );
-    if (preferredSignature !== undefined) {
-        return preferredSignature.params.map((parameter) => `$${parameter.name}`);
-    }
-
-    return definition.signature.parameterTypes.map(
-        (_parameter, index) => `${GENERIC_BUILTIN_PARAMETER_PREFIX}${index + 1}`,
-    );
-}
-
-function createFunctionCallSnippet(functionName: string, parameterNames: string[]): string {
-    const placeholders = parameterNames.map(
-        (parameterName, index) => `\${${index + 1}:${escapeSnippetText(parameterName)}}`,
-    );
-    return `${functionName}(${placeholders.join(", ")})$0`;
-}
-
-function escapeSnippetText(text: string): string {
-    return text.replaceAll("\\", "\\\\").replaceAll("$", "\\$").replaceAll("}", "\\}");
 }
