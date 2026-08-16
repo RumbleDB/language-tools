@@ -1,10 +1,8 @@
-import { comparePositions } from "server/utils/position.js";
 import { rangeContainsPosition } from "server/utils/range.js";
 import type { Position } from "vscode-languageserver";
 
 import type { AstNode, SymbolOccurrence } from "./ast.js";
-import { ScopeDefinition, SourceDefinition } from "./definitions.js";
-import { AnyResolvedReference } from "./reference.js";
+import { ScopeDefinition } from "./definitions.js";
 import type { AnalysisResult } from "./result.js";
 
 export function getVisibleDeclarationsAtPosition(
@@ -13,16 +11,6 @@ export function getVisibleDeclarationsAtPosition(
 ): ScopeDefinition[] {
     const scope = analysis.scope.findInnermostScope(positionOffset);
     return [...scope.listVisibleDefinitions(positionOffset).values()];
-}
-
-export function getSourceDefinitions(analysis: AnalysisResult): SourceDefinition[] {
-    return [...analysis.definitions].sort((left, right) =>
-        comparePositions(left.range.start, right.range.start),
-    );
-}
-
-export function getResolvedReferences(analysis: AnalysisResult): AnyResolvedReference[] {
-    return [...analysis.references];
 }
 
 export function findSymbolAtPosition(
