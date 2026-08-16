@@ -22,6 +22,7 @@ type CompletionOptions<T extends TokenContextAnalyzer> = {
     isFunctionCallRule(ruleIndex: number): boolean;
     isObjectLookupRule(ruleIndex: number): boolean;
     isObjectLookupDotToken(tokenType: number): boolean;
+    isCatchErrorTargetRule(ruleIndex: number): boolean;
     isVariableReferenceRule(ruleIndex: number): boolean;
     tokenName(tokenType: number): string | number;
     ruleName(ruleIndex: number): string | number;
@@ -57,6 +58,7 @@ export function getCompletionIntent<T extends TokenContextAnalyzer>(
         hasCandidateRule(candidates, options.isObjectLookupRule) &&
         objectLookupDotOffset !== undefined;
     const allowTypes = candidates.tokenContext.allowTypeReferences;
+    const allowErrorCodeTargets = hasCandidateRule(candidates, options.isCatchErrorTargetRule);
     const keywords = keywordCompletions(candidates, options.languageKeywords);
 
     const expectedTokens = [...candidates.tokenTypes].map(options.tokenName);
@@ -82,6 +84,7 @@ export function getCompletionIntent<T extends TokenContextAnalyzer>(
         allowObjectLookup,
         ...(objectLookupDotOffset === undefined ? {} : { objectLookupDotOffset }),
         allowTypes,
+        allowErrorCodeTargets,
         keywords,
     };
 }
