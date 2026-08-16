@@ -120,3 +120,19 @@ export function definitionNameToString(
             throw definition satisfies never;
     }
 }
+
+export function duplicateSymbolErrorCode(kind: DefinitionKind): string {
+    switch (kind) {
+        case "variable":
+        case "parameter":
+            return "XQST0049";
+        case "function":
+            return "XQST0034";
+        case "type":
+            return "duplicate-type";
+        case "namespace":
+            return "XQST0033";
+        default:
+            throw kind satisfies never;
+    }
+}

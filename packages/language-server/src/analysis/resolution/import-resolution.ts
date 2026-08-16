@@ -1,7 +1,10 @@
 import type { DocumentUri, Range } from "vscode-languageserver";
 import { DiagnosticSeverity, type Diagnostic } from "vscode-languageserver";
 
-import type { SourceModuleExportDefinition } from "../model/definitions.js";
+import {
+    duplicateSymbolErrorCode,
+    type SourceModuleExportDefinition,
+} from "../model/definitions.js";
 import type { ModuleImport } from "../model/module-info.js";
 import type { ResolvedModuleImport } from "../model/result.js";
 import type { ModuleProlog } from "./module-prolog.js";
@@ -108,12 +111,7 @@ export function resolveImports(
                 if (exports.has(name)) {
                     diagnostics.push({
                         severity: DiagnosticSeverity.Error,
-                        code:
-                            exported.kind === "variable"
-                                ? "XQST0049"
-                                : exported.kind === "function"
-                                  ? "XQST0034"
-                                  : "duplicate-type",
+                        code: duplicateSymbolErrorCode(exported.kind),
                         message: `Module export '${name}' is defined more than once.`,
                         range: target.range,
                     });

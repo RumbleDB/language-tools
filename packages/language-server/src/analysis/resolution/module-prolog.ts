@@ -13,7 +13,7 @@ import type { Prefix } from "server/parser/types/name.js";
 import { ParserAstVisitor } from "server/parser/types/visitor.js";
 import { DiagnosticSeverity, type Diagnostic, type DocumentUri } from "vscode-languageserver";
 
-import { definitionNameToString } from "../model/definitions.js";
+import { definitionNameToString, duplicateSymbolErrorCode } from "../model/definitions.js";
 import type {
     SourceFunctionDefinition,
     SourceModuleExportDefinition,
@@ -202,12 +202,7 @@ class ModulePrologCollector extends ParserAstVisitor<void> {
         if (this.prologDeclarationNames.has(name)) {
             this.diagnostics.push({
                 severity: DiagnosticSeverity.Error,
-                code:
-                    definition.kind === "variable"
-                        ? "XQST0049"
-                        : definition.kind === "function"
-                          ? "XQST0034"
-                          : "duplicate-type",
+                code: duplicateSymbolErrorCode(definition.kind),
                 message: `Prolog ${definition.kind} '${name}' is defined more than once.`,
                 range: definition.selectionRange,
             });
