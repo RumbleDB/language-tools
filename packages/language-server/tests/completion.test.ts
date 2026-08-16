@@ -1,4 +1,4 @@
-import { findCompletions, findCompletionsWithTypeInfo } from "server/lsp/features/completion.js";
+import { findCompletions } from "server/lsp/features/completion.js";
 import { describe, expect, it } from "vitest";
 import { type CompletionItem, type Position } from "vscode-languageserver";
 import { type TextDocument } from "vscode-languageserver-textdocument";
@@ -7,7 +7,7 @@ import { parserService, workspaceService } from "./services.js";
 import { positionAtNth, testDocument, testDocumentFromUri } from "./test-utils.js";
 
 describe("JSONiq completion", () => {
-    it("returns visible declarations in", () => {
+    it("returns visible declarations in", async () => {
         const document = testDocument("completion-scope", [
             "declare variable $global := 10;",
             "declare function local:f($x) {",
@@ -16,7 +16,7 @@ describe("JSONiq completion", () => {
             "};",
         ]);
 
-        const items = findCompletions(
+        const items = await findCompletions(
             document,
             positionAtNth(document, "$y", 1),
             parserService,
@@ -28,13 +28,13 @@ describe("JSONiq completion", () => {
         expect(labels(items)).toContain("$global");
     });
 
-    it("suggests '$' before typing a variable declaration prefix", () => {
+    it("suggests '$' before typing a variable declaration prefix", async () => {
         const document = testDocument("completion-declare-var-name", [
             "declare variable $global := 1;",
             "declare variable ",
         ]);
 
-        const labelsAtCursor = completionLabels(document, {
+        const labelsAtCursor = await completionLabels(document, {
             line: 1,
             character: "declare variable ".length,
         });
@@ -42,13 +42,13 @@ describe("JSONiq completion", () => {
         expect(labelsAtCursor).toEqual(["$"]);
     });
 
-    it("does not suggest anything after typing a variable declaration prefix", () => {
+    it("does not suggest anything after typing a variable declaration prefix", async () => {
         const document = testDocument("completion-declare-var-name-after-dollar", [
             "declare variable $global := 1;",
             "declare variable $",
         ]);
 
-        const labelsAtCursor = completionLabels(document, {
+        const labelsAtCursor = await completionLabels(document, {
             line: 1,
             character: "declare variable $".length,
         });
@@ -57,14 +57,14 @@ describe("JSONiq completion", () => {
         expect(labelsAtCursor.length).toBe(0); /// Declaring variable name, avoid any suggestion
     });
 
-    it("does not suggest anything after typing a function parameter prefix", () => {
+    it("does not suggest anything after typing a function parameter prefix", async () => {
         const document = testDocument("completion-param-name", [
             "declare function local:f($a, $) {",
             "  1",
             "};",
         ]);
 
-        const labelsAtCursor = completionLabels(document, {
+        const labelsAtCursor = await completionLabels(document, {
             line: 0,
             character: "declare function local:f($a, $".length,
         });
@@ -72,14 +72,14 @@ describe("JSONiq completion", () => {
         expect(labelsAtCursor.length).toBe(0);
     });
 
-    it("suggests only '$' after let before variable name", () => {
+    it("suggests only '$' after let before variable name", async () => {
         const document = testDocument("completion-let-clause-decl", [
             "declare function x:f($a) {",
             "  let ",
             "};",
         ]);
 
-        const labelsAtCursor = completionLabels(document, {
+        const labelsAtCursor = await completionLabels(document, {
             line: 1,
             character: "  let ".length,
         });
@@ -87,10 +87,10 @@ describe("JSONiq completion", () => {
         expect(labelsAtCursor).toEqual(["$"]);
     });
 
-    it("does not suggest keywords when a function name is expected", () => {
+    it("does not suggest keywords when a function name is expected", async () => {
         const document = testDocument("completion-function-name", ["declare function "]);
 
-        const labelsAtCursor = completionLabels(document, {
+        const labelsAtCursor = await completionLabels(document, {
             line: 0,
             character: "declare function ".length,
         });
@@ -98,13 +98,13 @@ describe("JSONiq completion", () => {
         expect(labelsAtCursor.length).toBe(0);
     });
 
-    it("suggests visible variables and expression keywords in expression context", () => {
+    it("suggests visible variables and expression keywords in expression context", async () => {
         const document = testDocument("completion-expression", [
             "declare variable $global := 1;",
             "let $x := ",
         ]);
 
-        const labelsAtCursor = completionLabels(document, {
+        const labelsAtCursor = await completionLabels(document, {
             line: 1,
             character: "let $x := ".length,
         });
@@ -114,14 +114,14 @@ describe("JSONiq completion", () => {
         expect(labelsAtCursor).toContain("for");
     });
 
-    it("suggests variables while typing '$' in expression context", () => {
+    it("suggests variables while typing '$' in expression context", async () => {
         const document = testDocument("completion-var-prefix", [
             "let $a := 2",
             "let $b := 3",
             "return $",
         ]);
 
-        const labelsAtCursor = completionLabels(document, {
+        const labelsAtCursor = await completionLabels(document, {
             line: 2,
             character: "return $".length,
         });
@@ -131,7 +131,7 @@ describe("JSONiq completion", () => {
         expect(labelsAtCursor).not.toContain("if");
     });
 
-    it("replaces typed variable prefix to avoid duplicating '$'", () => {
+    it("replaces typed variable prefix to avoid duplicating '$'", async () => {
         const document = testDocument("completion-var-prefix-text-edit", [
             "let $a := 2",
             "return $",
@@ -141,9 +141,9 @@ describe("JSONiq completion", () => {
             character: "return $".length,
         };
 
-        const item = findCompletions(document, position, parserService, workspaceService).find(
-            (completion) => completion.label === "$a",
-        );
+        const item = (
+            await findCompletions(document, position, parserService, workspaceService)
+        ).find((completion) => completion.label === "$a");
 
         expect(item?.textEdit).toEqual({
             range: {
@@ -160,10 +160,10 @@ describe("JSONiq completion", () => {
         });
     });
 
-    it("suggests prefixed W3C error codes and wildcard patterns in a catch target", () => {
+    it("suggests prefixed W3C error codes and wildcard patterns in a catch target", async () => {
         const document = testDocument("completion-catch-error", "try { 1 div 0 } catch ");
         const position = document.positionAt(document.getText().length);
-        const items = findCompletions(document, position, parserService, workspaceService);
+        const items = await findCompletions(document, position, parserService, workspaceService);
 
         expect(labels(items)).toContain("err:FOAR0001");
         expect(labels(items)).toContain("*");
@@ -171,15 +171,15 @@ describe("JSONiq completion", () => {
         expect(labels(items)).not.toContain("fn:abs");
     });
 
-    it("filters and replaces a partially typed catch error code", () => {
+    it("filters and replaces a partially typed catch error code", async () => {
         const document = testDocument(
             "completion-catch-error-prefix",
             "try { 1 div 0 } catch err:FOAR",
         );
         const position = document.positionAt(document.getText().length);
-        const item = findCompletions(document, position, parserService, workspaceService).find(
-            (completion) => completion.label === "err:FOAR0001",
-        );
+        const item = (
+            await findCompletions(document, position, parserService, workspaceService)
+        ).find((completion) => completion.label === "err:FOAR0001");
 
         expect(item?.textEdit).toEqual({
             range: {
@@ -193,11 +193,11 @@ describe("JSONiq completion", () => {
         });
     });
 
-    it("does not suggest variables when non-expression clause keywords are expected", () => {
+    it("does not suggest variables when non-expression clause keywords are expected", async () => {
         const source = "for $x in 1 ";
         const document = testDocument("completion-flwor-keywords", source);
 
-        const labelsAtCursor = completionLabels(document, {
+        const labelsAtCursor = await completionLabels(document, {
             line: 0,
             character: source.length,
         });
@@ -207,12 +207,12 @@ describe("JSONiq completion", () => {
         expect(labelsAtCursor).not.toContain("$x");
     });
 
-    it("does not suggest prolog starters inside variable initializer expression", () => {
+    it("does not suggest prolog starters inside variable initializer expression", async () => {
         const document = testDocument("completion-declare-variable-initializer", [
             "declare variable $x := ",
         ]);
 
-        const labelsAtCursor = completionLabels(document, {
+        const labelsAtCursor = await completionLabels(document, {
             line: 0,
             character: "declare variable $x := ".length,
         });
@@ -224,12 +224,12 @@ describe("JSONiq completion", () => {
         expect(labelsAtCursor).not.toContain("jsoniq version");
     });
 
-    it("does not suggest declared variable inside its own initializer", () => {
+    it("does not suggest declared variable inside its own initializer", async () => {
         const document = testDocument("completion-declare-variable-self-initializer", [
             "declare variable $a := ",
         ]);
 
-        const labelsAtCursor = completionLabels(document, {
+        const labelsAtCursor = await completionLabels(document, {
             line: 0,
             character: "declare variable $a := ".length,
         });
@@ -237,12 +237,12 @@ describe("JSONiq completion", () => {
         expect(labelsAtCursor).not.toContain("$a");
     });
 
-    it("does not suggest prolog starters while typing a name in variable initializer expression", () => {
+    it("does not suggest prolog starters while typing a name in variable initializer expression", async () => {
         const document = testDocument("completion-declare-variable-initializer-name", [
             "declare variable $a := f",
         ]);
 
-        const labelsAtCursor = completionLabels(document, {
+        const labelsAtCursor = await completionLabels(document, {
             line: 0,
             character: "declare variable $a := f".length,
         });
@@ -253,14 +253,14 @@ describe("JSONiq completion", () => {
         expect(labelsAtCursor).not.toContain("jsoniq version");
     });
 
-    it("does not suggest prolog starters inside function body", () => {
+    it("does not suggest prolog starters inside function body", async () => {
         const document = testDocument("completion-function-body-no-prolog", [
             "declare function x() {",
             "  ",
             "};",
         ]);
 
-        const labelsAtCursor = completionLabels(document, {
+        const labelsAtCursor = await completionLabels(document, {
             line: 1,
             character: "  ".length,
         });
@@ -271,10 +271,10 @@ describe("JSONiq completion", () => {
         expect(labelsAtCursor).not.toContain("jsoniq version");
     });
 
-    it("suggests builtin types in type annotation context", () => {
+    it("suggests builtin types in type annotation context", async () => {
         const document = testDocument("completion-type-annotation", ["declare variable $x as "]);
 
-        const labelsAtCursor = completionLabels(document, {
+        const labelsAtCursor = await completionLabels(document, {
             line: 0,
             character: "declare variable $x as ".length,
         });
@@ -283,14 +283,14 @@ describe("JSONiq completion", () => {
         expect(labelsAtCursor).toContain("item");
     });
 
-    it("suggests custom schema types in type annotation context", () => {
+    it("suggests custom schema types in type annotation context", async () => {
         const document = testDocument("completion-custom-type-annotation", [
             'declare namespace app = "http://example.com/app";',
             'declare type app:Item as { "name" : "string" };',
             "declare variable $x as ",
         ]);
 
-        const labelsAtCursor = completionLabels(document, {
+        const labelsAtCursor = await completionLabels(document, {
             line: 2,
             character: "declare variable $x as ".length,
         });
@@ -298,11 +298,11 @@ describe("JSONiq completion", () => {
         expect(labelsAtCursor).toContain("app:Item");
     });
 
-    it("does not throw when completing at the end of a complete document", () => {
+    it("does not throw when completing at the end of a complete document", async () => {
         const source = "1 + 2";
         const document = testDocument("completion-complete-document", source);
 
-        const completions = findCompletions(
+        const completions = await findCompletions(
             document,
             { line: 0, character: source.length },
             parserService,
@@ -312,9 +312,9 @@ describe("JSONiq completion", () => {
         expect(completions).toBeDefined();
     });
 
-    it("offers top-level declaration starters in an empty document", () => {
+    it("offers top-level declaration starters in an empty document", async () => {
         const document = testDocument("completion-empty-document", "");
-        const labelsAtCursor = completionLabels(document, { line: 0, character: 0 });
+        const labelsAtCursor = await completionLabels(document, { line: 0, character: 0 });
 
         expect(labelsAtCursor).toContain("declare function");
         expect(labelsAtCursor).toContain("declare variable");
@@ -330,7 +330,7 @@ describe("JSONiq completion", () => {
             "$a.",
         ]);
 
-        const items = await findCompletionsWithTypeInfo(
+        const items = await findCompletions(
             document,
             { line: 5, character: 3 },
             parserService,
@@ -358,7 +358,7 @@ describe("JSONiq completion", () => {
             "$a.na",
         ]);
 
-        const items = await findCompletionsWithTypeInfo(
+        const items = await findCompletions(
             document,
             { line: 5, character: 5 },
             parserService,
@@ -377,21 +377,21 @@ describe("JSONiq completion", () => {
 });
 
 describe("XQuery completion", () => {
-    it("suggests prefixed W3C error codes in a catch target", () => {
+    it("suggests prefixed W3C error codes in a catch target", async () => {
         const document = testDocumentFromUri("try { 1 div 0 } catch err:FOAR", {
             uri: "file:///completion-catch-error.xq",
             languageId: "xquery",
         });
         const position = document.positionAt(document.getText().length);
         const labelsAtCursor = labels(
-            findCompletions(document, position, parserService, workspaceService),
+            await findCompletions(document, position, parserService, workspaceService),
         );
 
         expect(labelsAtCursor).toContain("err:FOAR0001");
     });
 
     /// This has been added because the original XQuery grammar had string rules that caused the C3 completion engine to freeze.
-    it("returns promptly after a long namespace URI before an XML element", () => {
+    it("returns promptly after a long namespace URI before an XML element", async () => {
         const document = testDocumentFromUri(
             [
                 'xquery version "3.1";',
@@ -408,7 +408,7 @@ describe("XQuery completion", () => {
         );
 
         const start = performance.now();
-        const completions = findCompletions(
+        const completions = await findCompletions(
             document,
             { line: 3, character: 0 },
             parserService,
@@ -420,7 +420,7 @@ describe("XQuery completion", () => {
         expect(elapsedMs).toBeLessThan(1_000);
     });
 
-    it("returns promptly inside an XML enclosed expression after a long attribute URI", () => {
+    it("returns promptly inside an XML enclosed expression after a long attribute URI", async () => {
         const document = testDocumentFromUri(
             [
                 'declare namespace xlink = "http://www.w3.org/1999/xlink"; ',
@@ -438,7 +438,7 @@ describe("XQuery completion", () => {
         );
 
         const start = performance.now();
-        const completions = findCompletions(
+        const completions = await findCompletions(
             document,
             { line: 4, character: "        return $hr + ".length },
             parserService,
@@ -455,6 +455,6 @@ function labels(items: CompletionItem[]): string[] {
     return items.map((item) => item.label);
 }
 
-function completionLabels(document: TextDocument, position: Position): string[] {
-    return labels(findCompletions(document, position, parserService, workspaceService));
+async function completionLabels(document: TextDocument, position: Position): Promise<string[]> {
+    return labels(await findCompletions(document, position, parserService, workspaceService));
 }
