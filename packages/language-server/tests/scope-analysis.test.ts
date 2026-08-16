@@ -7,7 +7,6 @@ import {
     getSourceDefinitions,
     getResolvedReferences,
     getVisibleDeclarationsAtPosition,
-    getReferencesToDefinition,
 } from "server/analysis/queries.js";
 import { describe, expect, it } from "vitest";
 
@@ -171,7 +170,9 @@ describe("JSONiq variable scope analysis", () => {
         const analysis = await buildAnalysis(document);
 
         expect(
-            analysis.diagnostics.filter((diagnostic) => diagnostic.code?.startsWith("unresolved-")),
+            analysis.diagnostics.filter((diagnostic) =>
+                diagnostic.code?.toString().startsWith("unresolved-"),
+            ),
         ).toEqual([]);
         expect(
             getResolvedReferences(analysis)
@@ -250,10 +251,10 @@ describe("JSONiq variable scope analysis", () => {
         }
 
         expect(firstReference.declaration).toBe(secondReference.declaration);
-        expect(getReferencesToDefinition(firstAnalysis, firstReference.declaration)).toHaveLength(
+        expect(firstAnalysis.referencesByDefinition.get(firstReference.declaration)).toHaveLength(
             1,
         );
-        expect(getReferencesToDefinition(secondAnalysis, secondReference.declaration)).toHaveLength(
+        expect(secondAnalysis.referencesByDefinition.get(secondReference.declaration)).toHaveLength(
             2,
         );
     });
@@ -672,9 +673,9 @@ describe("JSONiq variable scope analysis", () => {
         }
 
         expect(
-            getReferencesToDefinition(analysis, parameter).map(
-                (reference) => reference.range.start.line,
-            ),
+            analysis.referencesByDefinition
+                .get(parameter)
+                ?.map((reference) => reference.range.start.line),
         ).toEqual([1, 2]);
 
         const occurrence = findSymbolAtPosition(analysis, { line: 2, character: 14 });
@@ -703,9 +704,9 @@ describe("JSONiq variable scope analysis", () => {
         }
 
         expect(
-            getReferencesToDefinition(analysis, parameter).map(
-                (reference) => reference.range.start.line,
-            ),
+            analysis.referencesByDefinition
+                .get(parameter)
+                ?.map((reference) => reference.range.start.line),
         ).toEqual([1, 1]);
 
         const occurrence = findSymbolAtPosition(analysis, { line: 1, character: 13 });
