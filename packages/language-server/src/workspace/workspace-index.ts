@@ -4,11 +4,11 @@ import type { DocumentUri } from "vscode-languageserver";
 import { TextDocument } from "vscode-languageserver-textdocument";
 import { FileChangeType, type FileEvent } from "vscode-languageserver/node";
 
-import { analyzeDocument } from "../analysis/builder.js";
 import type { Definition } from "../analysis/definitions.js";
-import { resolveImports, type ModuleProvider } from "../analysis/import-resolution.js";
-import { buildModuleIndex } from "../analysis/module-index.js";
+import type { ModuleProvider } from "../analysis/import-resolution.js";
 import type { ModuleIndex } from "../analysis/module-info.js";
+import { collectModulePreamble, type ModulePreamble } from "../analysis/module-preamble.js";
+import { analyzeModule } from "../analysis/pipeline.js";
 import type { AnyResolvedReference } from "../analysis/reference.js";
 import type { AnalysisResult } from "../analysis/result.js";
 import { WorkspaceDocumentStore } from "./document-store.js";
@@ -20,9 +20,9 @@ interface CachedAnalysis {
     analysis: AnalysisResult;
 }
 
-interface CachedModuleIndex {
+interface CachedPreamble {
     version: number;
-    index: ModuleIndex;
+    preamble: ModulePreamble;
 }
 
 const logger = createLogger("workspace-analysis");
@@ -31,7 +31,7 @@ export class WorkspaceIndex {
     private readonly moduleGraph = new ModuleGraph();
     private readonly symbols = new WorkspaceSymbolIndex();
     private readonly analyses = new Map<DocumentUri, CachedAnalysis>();
-    private readonly moduleIndexes = new Map<DocumentUri, CachedModuleIndex>();
+    private readonly preambles = new Map<DocumentUri, CachedPreamble>();
     private readonly failedAnalyses = new Set<DocumentUri>();
 
     public constructor(
@@ -84,7 +84,7 @@ export class WorkspaceIndex {
         if (cached?.version === document.version) return cached.analysis;
 
         const nextVisiting = new Set(visiting).add(document.uri);
-        const index = this.getModuleIndex(document);
+        const preamble = this.getPreamble(document);
 
         const provider: ModuleProvider = {
             loadImport: (_importerUri, imported) => {
@@ -105,29 +105,42 @@ export class WorkspaceIndex {
             },
         };
 
-        const importResult = resolveImports(document.uri, index, provider);
-        this.moduleGraph.replaceDependencies(document.uri, importResult.dependencies);
+        const { analysis, dependencies } = analyzeModule(
+            document,
+            this.parser.parse(document).ast,
+            {
+                provider,
+                preamble,
+            },
+        );
 
-        const analysis = analyzeDocument(document, this.parser.parse(document).ast, {
-            resolvedImports: importResult.resolvedImports,
-        });
-        const result: AnalysisResult = {
-            ...analysis,
-            diagnostics: [...importResult.diagnostics, ...analysis.diagnostics],
-        };
-        this.analyses.set(document.uri, { version: document.version, analysis: result });
+        this.moduleGraph.replaceDependencies(document.uri, dependencies);
+        this.analyses.set(document.uri, { version: document.version, analysis });
         this.failedAnalyses.delete(document.uri);
-        this.symbols.update(document.uri, result);
-        return result;
+        this.symbols.update(document.uri, analysis);
+        return analysis;
+    }
+
+    private getPreamble(document: TextDocument): ModulePreamble {
+        const cached = this.preambles.get(document.uri);
+        if (cached?.version === document.version) return cached.preamble;
+
+        const preamble = collectModulePreamble(document.uri, this.parser.parse(document).ast);
+        this.preambles.set(document.uri, { version: document.version, preamble });
+        return preamble;
     }
 
     private getModuleIndex(document: TextDocument): ModuleIndex {
-        const cached = this.moduleIndexes.get(document.uri);
-        if (cached?.version === document.version) return cached.index;
-
-        const index = buildModuleIndex(document.uri, this.parser.parse(document).ast);
-        this.moduleIndexes.set(document.uri, { version: document.version, index });
-        return index;
+        const preamble = this.getPreamble(document);
+        const base = { imports: preamble.imports };
+        return preamble.targetNamespace === undefined
+            ? { ...base, kind: "main" }
+            : {
+                  ...base,
+                  kind: "library",
+                  targetNamespace: preamble.targetNamespace,
+                  exports: preamble.exports,
+              };
     }
 
     public getReferencesToDefinition(definition: Definition): readonly AnyResolvedReference[] {
@@ -162,7 +175,7 @@ export class WorkspaceIndex {
             this.failedAnalyses.delete(uri);
             this.symbols.remove(uri);
         }
-        for (const uri of uris) this.moduleIndexes.delete(uri);
+        for (const uri of uris) this.preambles.delete(uri);
         return affected;
     }
 }
