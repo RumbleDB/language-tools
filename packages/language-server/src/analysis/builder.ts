@@ -27,7 +27,6 @@ import {
 } from "server/parser/types/name.js";
 import { ParserAstVisitor } from "server/parser/types/visitor.js";
 import { builtinFunctions } from "server/resources/builtin-functions.js";
-import { getErrorCodeEntry } from "server/resources/error-codes.js";
 import { Diagnostic, DiagnosticSeverity, Range } from "vscode-languageserver";
 
 import type {
@@ -287,14 +286,12 @@ class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
         }
 
         const name = this.resolveQName(node.target.name, node.range);
-        const entry = getErrorCodeEntry(name);
         return [
             {
                 kind: "error-code-target",
                 range: node.range,
                 children: [],
                 target: { kind: "exact", name },
-                ...(entry === undefined ? {} : { entry }),
             } satisfies ErrorCodeTargetNode,
         ];
     }

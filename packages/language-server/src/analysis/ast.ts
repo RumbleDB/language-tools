@@ -1,4 +1,3 @@
-import type { ErrorCodeEntry } from "server/resources/error-codes.js";
 import type { Range } from "vscode-languageserver";
 
 import { Definition, SourceDefinition } from "./definitions.js";
@@ -43,7 +42,6 @@ export type ErrorCodeTarget =
 
 export interface ErrorCodeTargetNode extends AstNodeBase<"error-code-target"> {
     readonly target: ErrorCodeTarget;
-    readonly entry?: ErrorCodeEntry;
 }
 
 export interface FunctionCallNode extends AstNodeBase<"function-call"> {
