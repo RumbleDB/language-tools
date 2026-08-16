@@ -2,6 +2,7 @@ import type {
     ArgumentAstNode,
     AstNode as ParserAstNode,
     AstParameter,
+    CatchErrorTargetAstNode,
     CatchClauseAstNode,
     ContextItemDeclarationAstNode,
     ContextItemExpressionAstNode,
@@ -26,12 +27,14 @@ import {
 } from "server/parser/types/name.js";
 import { ParserAstVisitor } from "server/parser/types/visitor.js";
 import { builtinFunctions } from "server/resources/builtin-functions.js";
+import { getErrorCodeEntry } from "server/resources/error-codes.js";
 import { Diagnostic, DiagnosticSeverity, Range } from "vscode-languageserver";
 
 import type {
     ArgumentNode,
     AstNode,
     DeclarationNode,
+    ErrorCodeTargetNode,
     FunctionCallNode,
     ModuleNode,
     ReferenceNode,
@@ -269,6 +272,31 @@ class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
             }
             return this.visitChildrenAsNodes(node);
         });
+    }
+
+    protected override visitCatchErrorTarget(node: CatchErrorTargetAstNode): AstNode[] {
+        if (node.target.kind === "wildcard") {
+            return [
+                {
+                    kind: "error-code-target",
+                    range: node.range,
+                    children: [],
+                    target: node.target,
+                },
+            ];
+        }
+
+        const name = this.resolveQName(node.target.name, node.range);
+        const entry = getErrorCodeEntry(name);
+        return [
+            {
+                kind: "error-code-target",
+                range: node.range,
+                children: [],
+                target: { kind: "exact", name },
+                ...(entry === undefined ? {} : { entry }),
+            } satisfies ErrorCodeTargetNode,
+        ];
     }
 
     protected override visitVariableReference(node: VariableReferenceAstNode): AstNode[] {
