@@ -5,12 +5,14 @@ import {
     type ModuleAstNode,
     type VariableDeclarationAstNode,
 } from "server/parser/types/ast.js";
+import { parseQNameText } from "server/parser/types/name.js";
 import { rangeFromNode } from "server/utils/range.js";
 import { TextDocument } from "vscode-languageserver-textdocument";
 
 import {
     CatchCaseStatementContext,
     CatchClauseContext,
+    CatchErrorTargetContext,
     CaseClauseContext,
     CaseStatementContext,
     CopyDeclContext,
@@ -480,6 +482,21 @@ class JsoniqAstBuilder extends JsoniqParserVisitor<AstVisitResult> {
 
     public override visitCatchClause = (node: CatchClauseContext): AstVisitResult =>
         this.catchClause(node);
+
+    public override visitCatchErrorTarget = (node: CatchErrorTargetContext): AstVisitResult => {
+        const name = node.eqName();
+        return [
+            {
+                kind: "catch-error-target",
+                target:
+                    name === null
+                        ? { kind: "wildcard", value: node.getText() }
+                        : { kind: "exact", name: parseQNameText(name.getText()) },
+                range: rangeFromNode(node, this.document),
+                children: [],
+            },
+        ];
+    };
 
     public override visitArgument = (node: ArgumentContext): AstVisitResult => [
         {

@@ -18,6 +18,7 @@ export type AstNodeKind =
     | "variable-declaration"
     | "flowr-expression"
     | "catch-clause"
+    | "catch-error-target"
     | "declaration"
     | "reference"
     | "type-reference"
@@ -93,6 +94,14 @@ export interface CatchClauseAstNode extends AstNodeBase<"catch-clause"> {
     readonly bodyStart: Position;
 }
 
+export type LexicalErrorCodeTarget =
+    | { readonly kind: "exact"; readonly name: LexicalQName }
+    | { readonly kind: "wildcard"; readonly value: string };
+
+export interface CatchErrorTargetAstNode extends AstNodeBase<"catch-error-target"> {
+    readonly target: LexicalErrorCodeTarget;
+}
+
 export interface FunctionCallAstNode extends AstNodeBase<"function-call"> {
     readonly name: LexicalFunctionName;
     readonly selectionRange: Range;
@@ -130,6 +139,7 @@ export type AstNode =
     | VariableDeclarationAstNode
     | FlowrExpressionAstNode
     | CatchClauseAstNode
+    | CatchErrorTargetAstNode
     | FunctionCallAstNode
     | TypeReferenceAstNode
     | NamedFunctionReferenceAstNode
