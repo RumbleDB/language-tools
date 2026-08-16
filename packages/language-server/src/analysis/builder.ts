@@ -36,9 +36,9 @@ import { STANDARD_CATCH_VARIABLES } from "./model/constants.js";
 import type {
     DefinitionByReferenceKind,
     ImplicitVariableDefinition,
-    NamespaceDefinition,
     ScopeDefinition,
     SourceDefinition,
+    SourceNamespaceDefinition,
     SourceVariableDefinition,
 } from "./model/definitions.js";
 import {
@@ -61,7 +61,7 @@ class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
     private readonly moduleScope: ScopeBuilder;
     private currentScope: ScopeBuilder;
     private readonly definitions: SourceDefinitionFactory;
-    private readonly namespaces: ReadonlyMap<Prefix, NamespaceDefinition>;
+    private readonly namespaces: ReadonlyMap<Prefix, SourceNamespaceDefinition>;
     private readonly declarations: ModulePrologDeclarations;
     private readonly resolvedImportsByNamespace: ReadonlyMap<string, ResolvedModuleImport>;
     private readonly diagnostics: Diagnostic[];

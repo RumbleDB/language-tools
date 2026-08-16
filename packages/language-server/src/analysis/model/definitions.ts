@@ -76,14 +76,6 @@ export interface ImplicitVariableDefinition extends AbstractDefinition<"variable
     readonly origin: "implicit";
 }
 
-export interface ImplicitNamespaceDefinition extends AbstractDefinition<"namespace"> {
-    readonly kind: "namespace";
-    readonly origin: "implicit";
-    readonly namespaceUri: string;
-}
-
-export type NamespaceDefinition = SourceNamespaceDefinition | ImplicitNamespaceDefinition;
-
 export type ScopeDefinition =
     | SourceVariableDefinition
     | SourceParameterDefinition
@@ -108,11 +100,7 @@ export interface DefinitionByReferenceKind {
     type: SourceTypeDefinition;
 }
 
-export type Definition =
-    | SourceDefinition
-    | ImplicitVariableDefinition
-    | ImplicitNamespaceDefinition
-    | BuiltinFunctionDefinition;
+export type Definition = SourceDefinition | ImplicitVariableDefinition | BuiltinFunctionDefinition;
 
 export function definitionNameToString(
     definition: BaseDefinition,

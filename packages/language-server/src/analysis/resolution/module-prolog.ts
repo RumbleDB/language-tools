@@ -13,11 +13,8 @@ import type { Prefix } from "server/parser/types/name.js";
 import { ParserAstVisitor } from "server/parser/types/visitor.js";
 import { DiagnosticSeverity, type Diagnostic, type DocumentUri } from "vscode-languageserver";
 
-import { defaultNamespaces } from "../model/constants.js";
 import { definitionNameToString } from "../model/definitions.js";
 import type {
-    ImplicitNamespaceDefinition,
-    NamespaceDefinition,
     SourceFunctionDefinition,
     SourceModuleExportDefinition,
     SourceNamespaceDefinition,
@@ -42,7 +39,7 @@ export interface ModuleProlog {
     readonly uri: DocumentUri;
     readonly targetNamespace: string | undefined;
     readonly imports: readonly ModuleImport[];
-    readonly namespaces: ReadonlyMap<Prefix, NamespaceDefinition>;
+    readonly namespaces: ReadonlyMap<Prefix, SourceNamespaceDefinition>;
     readonly declarations: ModulePrologDeclarations;
     readonly exports: ReadonlyMap<string, SourceModuleExportDefinition>;
     readonly diagnostics: readonly Diagnostic[];
@@ -52,17 +49,7 @@ export interface ModuleProlog {
 class ModulePrologCollector extends ParserAstVisitor<void> {
     private readonly imports: ModuleImport[] = [];
     private readonly exports = new Map<string, SourceModuleExportDefinition>();
-    private readonly namespaces = new Map<Prefix, NamespaceDefinition>(
-        defaultNamespaces.entries().map(([prefix, namespaceUri]) => {
-            const definition: ImplicitNamespaceDefinition = {
-                kind: "namespace",
-                name: { prefix },
-                namespaceUri,
-                origin: "implicit",
-            };
-            return [prefix, definition];
-        }),
-    );
+    private readonly namespaces = new Map<Prefix, SourceNamespaceDefinition>();
     private readonly declarations = {
         namespaces: new Map<
             ModuleDeclarationAstNode | ModuleImportAstNode | NamespaceDeclarationAstNode,

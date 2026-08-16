@@ -22,7 +22,7 @@ export {
     ERR_NAMESPACE,
 };
 
-export const defaultNamespaces: Map<string, string> = new Map([
+export const DEFAULT_NAMESPACES: ReadonlyMap<string, string> = new Map([
     ["local", LOCAL_NAMESPACE],
     ["fn", FN_NAMESPACE],
     ["math", MATH_NAMESPACE],

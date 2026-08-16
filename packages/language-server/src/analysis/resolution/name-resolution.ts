@@ -7,12 +7,13 @@ import {
 } from "server/parser/types/name.js";
 import { DiagnosticSeverity, type Diagnostic, type Range } from "vscode-languageserver";
 
-import type { NamespaceDefinition } from "../model/definitions.js";
+import { DEFAULT_NAMESPACES } from "../model/constants.js";
+import type { SourceNamespaceDefinition } from "../model/definitions.js";
 import type { FunctionName, QName } from "../model/names.js";
 
 export class NamespaceResolver {
     public constructor(
-        private readonly namespaces: ReadonlyMap<Prefix, NamespaceDefinition>,
+        private readonly namespaces: ReadonlyMap<Prefix, SourceNamespaceDefinition>,
         private readonly reportDiagnostic: (diagnostic: Diagnostic) => void,
     ) {}
 
@@ -24,7 +25,8 @@ export class NamespaceResolver {
         const namespaceUri = isUriQualifiedQName(qname)
             ? qname.namespaceUri
             : isPrefixedQName(qname)
-              ? this.namespaces.get(qname.prefix)?.namespaceUri
+              ? (this.namespaces.get(qname.prefix)?.namespaceUri ??
+                DEFAULT_NAMESPACES.get(qname.prefix))
               : undefined;
 
         if (namespaceUri === undefined && isPrefixedQName(qname)) {
