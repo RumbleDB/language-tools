@@ -64,14 +64,12 @@ export class WorkspaceIndex {
         for (const uri of removedDocuments) {
             this.moduleGraph.removeOutgoingDependencies(uri);
         }
-
-        this.ensureDocumentsAnalysed(this.documents.getTrackedDocumentUris());
     }
 
     public updateWorkspaceDocuments(changes: readonly FileEvent[]): void {
         const changedUris = changes.map((change) => change.uri);
         for (const uri of changedUris) this.parser.clear(uri);
-        const affected = this.invalidateAffected(changedUris);
+        this.invalidateAffected(changedUris);
 
         this.documents.updateWorkspaceDocuments(changes);
         logger.debug("Tracked documents:", this.documents.getTrackedDocumentUris());
@@ -80,8 +78,6 @@ export class WorkspaceIndex {
                 this.moduleGraph.removeOutgoingDependencies(change.uri);
             }
         }
-
-        this.ensureDocumentsAnalysed([...affected]);
     }
 
     private analyse(document: TextDocument, visiting: Set<DocumentUri>): AnalysisResult {

@@ -40,6 +40,7 @@ describe("workspace indexing", () => {
         const analysis = coordinator.getAnalysis(validDocument);
 
         expect(() => coordinator.replaceWorkspaceDocuments([failingUri, validUri])).not.toThrow();
+        expect(failedLoads).toBe(0); /// The failing document is not loaded until a definition is requested.
         const definition = analysis.definitions.find((candidate) => candidate.kind === "variable");
         expect(definition).toBeDefined();
         if (definition === undefined) return;
