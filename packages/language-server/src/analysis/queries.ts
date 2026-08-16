@@ -3,9 +3,9 @@ import { rangeContainsPosition } from "server/utils/range.js";
 import type { Position } from "vscode-languageserver";
 
 import type { AstNode, SymbolOccurrence } from "./ast.js";
-import { AnalysisResult } from "./builder.js";
 import { Definition, ScopeDefinition, SourceDefinition } from "./definitions.js";
 import { AnyResolvedReference } from "./reference.js";
+import type { AnalysisResult } from "./result.js";
 
 export function getVisibleDeclarationsAtPosition(
     analysis: AnalysisResult,

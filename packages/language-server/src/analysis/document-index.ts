@@ -9,13 +9,7 @@ import type {
     TypeDeclarationAstNode,
     VariableDeclarationAstNode,
 } from "server/parser/types/ast.js";
-import {
-    isPrefixedQName,
-    isUriQualifiedQName,
-    type LexicalFunctionName,
-    type LexicalQName,
-    type Prefix,
-} from "server/parser/types/name.js";
+import type { Prefix } from "server/parser/types/name.js";
 import { ParserAstVisitor } from "server/parser/types/visitor.js";
 import { DiagnosticSeverity, type Diagnostic, type Range } from "vscode-languageserver";
 import type { TextDocument } from "vscode-languageserver-textdocument";
@@ -33,7 +27,8 @@ import type {
     SourceVariableDefinition,
 } from "./definitions.js";
 import type { ModuleDeclaration, ModuleInterface } from "./module-info.js";
-import { functionNameToString, QNameToString, type FunctionName, type QName } from "./names.js";
+import { NamespaceResolver } from "./name-resolution.js";
+import { functionNameToString, QNameToString, type QName } from "./names.js";
 
 export interface DocumentIndex {
     /** The text document being analyzed. */
@@ -93,6 +88,7 @@ export interface IndexedDefinitions {
  */
 class DocumentIndexBuilder extends ParserAstVisitor<void> {
     private readonly result: DocumentIndex;
+    private readonly nameResolver: NamespaceResolver;
     private readonly symbolOccurrences = new Map<string, number>();
     private readonly moduleLevelDeclarations = new Set<ParserAstNode>();
     private readonly prologDefinitionsByName = new Map<
@@ -129,6 +125,9 @@ class DocumentIndexBuilder extends ParserAstVisitor<void> {
             diagnostics: [],
             prologDeclarations: new Set(),
         };
+        this.nameResolver = new NamespaceResolver(this.result.namespaces, (diagnostic) =>
+            this.result.diagnostics.push(diagnostic),
+        );
     }
 
     public build(): DocumentIndex {
@@ -272,7 +271,7 @@ class DocumentIndexBuilder extends ParserAstVisitor<void> {
 
     protected override visitContextItemDeclaration(node: ContextItemDeclarationAstNode): void {
         const definition = this.variableDefinition(
-            this.resolveQName(node.name, node.selectionRange),
+            this.nameResolver.resolveQName(node.name, node.selectionRange),
             node.range,
             node.selectionRange,
         );
@@ -281,7 +280,7 @@ class DocumentIndexBuilder extends ParserAstVisitor<void> {
     }
 
     protected override visitTypeDeclaration(node: TypeDeclarationAstNode): void {
-        const name = this.resolveQName(node.name.qname, node.selectionRange);
+        const name = this.nameResolver.resolveQName(node.name.qname, node.selectionRange);
         const definition: Extract<SourceDefinition, { kind: "type" }> = {
             ...this.sourceDefinitionBase(
                 node.range,
@@ -297,7 +296,7 @@ class DocumentIndexBuilder extends ParserAstVisitor<void> {
 
     protected override visitFunctionDeclaration(node: FunctionDeclarationAstNode): void {
         const parameters: SourceParameterDefinition[] = [];
-        const name = this.resolveFunctionName(node.name, node.selectionRange);
+        const name = this.nameResolver.resolveFunctionName(node.name, node.selectionRange);
         const definition: SourceFunctionDefinition = {
             ...this.sourceDefinitionBase(
                 node.range,
@@ -322,7 +321,7 @@ class DocumentIndexBuilder extends ParserAstVisitor<void> {
                     `${definition.id}:parameter:${parameter.index}`,
                 ),
                 kind: "parameter",
-                name: this.resolveQName(parameter.name, parameter.selectionRange),
+                name: this.nameResolver.resolveQName(parameter.name, parameter.selectionRange),
                 function: definition,
             };
             this.result.definitions.push(parameterDefinition);
@@ -334,7 +333,7 @@ class DocumentIndexBuilder extends ParserAstVisitor<void> {
 
     protected override visitVariableDeclaration(node: VariableDeclarationAstNode): void {
         const definition = this.variableDefinition(
-            this.resolveQName(node.name, node.selectionRange),
+            this.nameResolver.resolveQName(node.name, node.selectionRange),
             node.range,
             node.selectionRange,
         );
@@ -430,33 +429,6 @@ class DocumentIndexBuilder extends ParserAstVisitor<void> {
             ),
             kind: "variable",
             name,
-        };
-    }
-
-    private resolveFunctionName(name: LexicalFunctionName, range: Range): FunctionName {
-        return { ...name, qname: this.resolveQName(name.qname, range) };
-    }
-
-    private resolveQName(qname: LexicalQName, range: Range): QName {
-        const namespaceUri = isUriQualifiedQName(qname)
-            ? qname.namespaceUri
-            : isPrefixedQName(qname)
-              ? this.result.namespaces.get(qname.prefix)?.namespaceUri
-              : undefined;
-
-        if (namespaceUri === undefined && isPrefixedQName(qname)) {
-            this.result.diagnostics.push({
-                severity: DiagnosticSeverity.Warning,
-                message: `Undefined namespace prefix '${qname.prefix}'`,
-                range,
-                code: "undefined-namespace-prefix",
-            });
-        }
-
-        return {
-            localName: qname.localName,
-            ...(namespaceUri === undefined ? {} : { namespaceUri }),
-            ...(isPrefixedQName(qname) ? { prefix: qname.prefix } : {}),
         };
     }
 }

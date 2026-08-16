@@ -4,14 +4,11 @@ import { DiagnosticSeverity, type Diagnostic, type DocumentUri } from "vscode-la
 import { TextDocument } from "vscode-languageserver-textdocument";
 import { FileChangeType, type FileEvent } from "vscode-languageserver/node";
 
-import {
-    analyzeDocument,
-    type AnalysisResult,
-    type ResolvedModuleImport,
-} from "../analysis/builder.js";
+import { analyzeDocument } from "../analysis/builder.js";
 import { type Definition, type SourceModuleExportDefinition } from "../analysis/definitions.js";
 import { buildDocumentIndex, type DocumentIndex } from "../analysis/document-index.js";
 import type { AnyResolvedReference } from "../analysis/reference.js";
+import type { AnalysisResult, ResolvedModuleImport } from "../analysis/result.js";
 import { WorkspaceDocumentStore } from "./document-store.js";
 import { ModuleGraph } from "./module-graph.js";
 import { WorkspaceSymbolIndex } from "./symbol-index.js";

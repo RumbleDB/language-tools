@@ -1,4 +1,4 @@
-import type { AnalysisResult } from "server/analysis/builder.js";
+import type { AnalysisResult } from "server/analysis/result.js";
 import type { WorkspaceService } from "server/workspace/service.js";
 import type { Position } from "vscode-languageserver";
 import type { TextDocument } from "vscode-languageserver-textdocument";

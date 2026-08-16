@@ -2,9 +2,9 @@ import type { DocumentUri } from "vscode-languageserver";
 import type { TextDocument } from "vscode-languageserver-textdocument";
 import type { FileEvent } from "vscode-languageserver/node";
 
-import type { AnalysisResult } from "../analysis/builder.js";
 import type { Definition } from "../analysis/definitions.js";
 import type { AnyResolvedReference } from "../analysis/reference.js";
+import type { AnalysisResult } from "../analysis/result.js";
 import { createLogger } from "../utils/logger.js";
 import { discoverWorkspaceDocumentUris } from "./files.js";
 import { WorkspaceIndex } from "./workspace-index.js";

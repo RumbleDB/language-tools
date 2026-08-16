@@ -1,4 +1,3 @@
-import { AnalysisResult } from "server/analysis/builder.js";
 import {
     definitionNameToString,
     type SourceParameterDefinition,
@@ -6,6 +5,7 @@ import {
 } from "server/analysis/definitions.js";
 import type { QName } from "server/analysis/names.js";
 import { findSymbolAtPosition } from "server/analysis/queries.js";
+import type { AnalysisResult } from "server/analysis/result.js";
 import type { WorkspaceService } from "server/workspace/service.js";
 import {
     type Position,
