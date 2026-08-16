@@ -257,9 +257,7 @@ export function formatCatchCaseStatement(
     visit: Visit,
     formatTerminal: FormatTerminal,
 ): Doc {
-    const targets = [...node.wildcard(), ...node.eqName()]
-        .sort((left, right) => left.start!.tokenIndex - right.start!.tokenIndex)
-        .map(visit);
+    const targets = node.catchErrorTarget().map(visit);
     return concat([
         formatTerminal(node.KW_CATCH(), "catch"),
         space,

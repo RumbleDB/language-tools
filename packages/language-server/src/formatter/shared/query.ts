@@ -498,9 +498,7 @@ export function formatCatchClause(
             formatTerminal(node.RPAREN(), ")"),
         ]);
     } else {
-        const targets = [...(node._jokers ?? []), ...(node._errors ?? [])]
-            .sort((left, right) => left.start!.tokenIndex - right.start!.tokenIndex)
-            .map(visit);
+        const targets = node.catchErrorTarget().map(visit);
         if (targets.length > 0) {
             target = concat([
                 space,
