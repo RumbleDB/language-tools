@@ -45,11 +45,11 @@ import type {
     SourceVariableDefinition,
 } from "./definitions.js";
 import {
-    collectModulePreamble,
-    type ModulePreamble,
+    collectModuleProlog,
+    type ModuleProlog,
     type PrologDeclarationAstNode,
     type PrologDefinition,
-} from "./module-preamble.js";
+} from "./module-prolog.js";
 import { NamespaceResolver } from "./name-resolution.js";
 import { referenceNameToString, type FunctionName, type ReferenceNameByKind } from "./names.js";
 import type { ResolvedReference } from "./reference.js";
@@ -89,14 +89,14 @@ class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
         environment: AnalysisEnvironment,
     ) {
         super();
-        const preamble: ModulePreamble =
-            environment.preamble ?? collectModulePreamble(document.uri, parserAst);
+        const prolog: ModuleProlog =
+            environment.prolog ?? collectModuleProlog(document.uri, parserAst);
 
-        this.definitions = preamble.definitions;
-        this.namespaces = preamble.namespaces;
-        this.namespaceDeclarations = preamble.namespaceDeclarations;
-        this.prologDefinitions = preamble.prologDefinitions;
-        this.diagnostics = [...preamble.diagnostics];
+        this.definitions = prolog.definitions;
+        this.namespaces = prolog.namespaces;
+        this.namespaceDeclarations = prolog.namespaceDeclarations;
+        this.prologDefinitions = prolog.prologDefinitions;
+        this.diagnostics = [...prolog.diagnostics];
 
         this.resolvedImportsByNamespace = new Map(
             (environment.resolvedImports ?? []).map((moduleImport) => [

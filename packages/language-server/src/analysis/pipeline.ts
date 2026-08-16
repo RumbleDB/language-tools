@@ -4,12 +4,12 @@ import type { TextDocument } from "vscode-languageserver-textdocument";
 
 import { analyzeDocument } from "./builder.js";
 import { resolveImports, type ModuleProvider } from "./import-resolution.js";
-import { collectModulePreamble, type ModulePreamble } from "./module-preamble.js";
+import { collectModuleProlog, type ModuleProlog } from "./module-prolog.js";
 import type { AnalysisResult } from "./result.js";
 
 export interface AnalyzeModuleOptions {
     readonly provider: ModuleProvider;
-    readonly preamble?: ModulePreamble;
+    readonly prolog?: ModuleProlog;
 }
 
 export interface AnalyzeModuleResult {
@@ -19,21 +19,21 @@ export interface AnalyzeModuleResult {
 
 /**
  * Runs the full semantic analysis pipeline for a single module document:
- * 1. Collects or reuses the module preamble (namespaces, prolog declarations, exports).
+ * 1. Collects or reuses the module prolog (namespaces, prolog declarations, exports).
  * 2. Resolves module imports and collects exports from dependencies via the {@link ModuleProvider}.
  * 3. Builds the semantic AST and lexical scopes, resolving symbol references.
- * 4. Merges preamble, import, and semantic diagnostics into a unified {@link AnalysisResult}.
+ * 4. Merges prolog, import, and semantic diagnostics into a unified {@link AnalysisResult}.
  */
 export function analyzeModule(
     document: TextDocument,
     ast: ParserAstNode,
     options: AnalyzeModuleOptions,
 ): AnalyzeModuleResult {
-    const preamble = options.preamble ?? collectModulePreamble(document.uri, ast);
-    const importResult = resolveImports(document.uri, preamble, options.provider);
+    const prolog = options.prolog ?? collectModuleProlog(document.uri, ast);
+    const importResult = resolveImports(document.uri, prolog, options.provider);
     const analysis = analyzeDocument(document, ast, {
         resolvedImports: importResult.resolvedImports,
-        preamble,
+        prolog,
     });
 
     const unifiedResult: AnalysisResult = {

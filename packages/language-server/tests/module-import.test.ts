@@ -4,7 +4,7 @@ import { pathToFileURL } from "node:url";
 
 import { analyzeDocument } from "server/analysis/builder.js";
 import { definitionNameToString } from "server/analysis/definitions.js";
-import { collectModulePreamble } from "server/analysis/module-preamble.js";
+import { collectModuleProlog } from "server/analysis/module-prolog.js";
 import { findDefinitionLocation } from "server/lsp/features/definition.js";
 import { findReferenceLocations } from "server/lsp/features/references.js";
 import { buildRenameWorkspaceEdit } from "server/lsp/features/rename.js";
@@ -37,15 +37,15 @@ describe("module imports", () => {
             "declare function lib:identity($value) { $value };",
         ]);
         const ast = parserService.parse(document).ast;
-        const preamble = collectModulePreamble(document.uri, ast);
+        const prolog = collectModuleProlog(document.uri, ast);
         const analysis = analyzeDocument(document, ast);
 
-        expect(preamble).toMatchObject({
+        expect(prolog).toMatchObject({
             targetNamespace: "urn:lib",
             imports: [{ prefix: "dep", namespaceUri: "urn:dep" }],
         });
         expect(
-            [...preamble.exports.values()].map((definition) => definitionNameToString(definition)),
+            [...prolog.exports.values()].map((definition) => definitionNameToString(definition)),
         ).toEqual(["$lib:value", "lib:Item", "lib:identity#1"]);
         expect(analysis.diagnostics).toContainEqual(expect.objectContaining({ code: "XQST0048" }));
     });
@@ -59,9 +59,9 @@ describe("module imports", () => {
             "declare function lib:value() { 2 };",
         ]);
 
-        const preamble = collectModulePreamble(document.uri, parserService.parse(document).ast);
+        const prolog = collectModuleProlog(document.uri, parserService.parse(document).ast);
 
-        expect([...preamble.exports.keys()]).toEqual(["$Q{urn:lib}value", "Q{urn:lib}value#0"]);
+        expect([...prolog.exports.keys()]).toEqual(["$Q{urn:lib}value", "Q{urn:lib}value#0"]);
         expect(analyzeDocument(document, parserService.parse(document).ast).diagnostics).toEqual([
             expect.objectContaining({ code: "XQST0049" }),
             expect.objectContaining({ code: "XQST0034" }),

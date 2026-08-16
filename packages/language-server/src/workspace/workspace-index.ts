@@ -6,7 +6,7 @@ import { FileChangeType, type FileEvent } from "vscode-languageserver/node";
 
 import type { Definition } from "../analysis/definitions.js";
 import type { ModuleProvider } from "../analysis/import-resolution.js";
-import { collectModulePreamble, type ModulePreamble } from "../analysis/module-preamble.js";
+import { collectModuleProlog, type ModuleProlog } from "../analysis/module-prolog.js";
 import { analyzeModule } from "../analysis/pipeline.js";
 import type { AnyResolvedReference } from "../analysis/reference.js";
 import type { AnalysisResult } from "../analysis/result.js";
@@ -19,9 +19,9 @@ interface CachedAnalysis {
     analysis: AnalysisResult;
 }
 
-interface CachedPreamble {
+interface CachedProlog {
     version: number;
-    preamble: ModulePreamble;
+    prolog: ModuleProlog;
 }
 
 const logger = createLogger("workspace-analysis");
@@ -30,7 +30,7 @@ export class WorkspaceIndex {
     private readonly moduleGraph = new ModuleGraph();
     private readonly symbols = new WorkspaceSymbolIndex();
     private readonly analyses = new Map<DocumentUri, CachedAnalysis>();
-    private readonly preambles = new Map<DocumentUri, CachedPreamble>();
+    private readonly prologs = new Map<DocumentUri, CachedProlog>();
     private readonly failedAnalyses = new Set<DocumentUri>();
 
     public constructor(
@@ -83,7 +83,7 @@ export class WorkspaceIndex {
         if (cached?.version === document.version) return cached.analysis;
 
         const nextVisiting = new Set(visiting).add(document.uri);
-        const preamble = this.getPreamble(document);
+        const prolog = this.getProlog(document);
         const provider = this.createModuleProvider(document, nextVisiting);
 
         const { analysis, dependencies } = analyzeModule(
@@ -91,7 +91,7 @@ export class WorkspaceIndex {
             this.parser.parse(document).ast,
             {
                 provider,
-                preamble,
+                prolog,
             },
         );
 
@@ -116,9 +116,9 @@ export class WorkspaceIndex {
                         locationUri: loaded.locationUri,
                         range: loaded.range,
                         targetUri: loaded.targetUri,
-                        preamble:
+                        prolog:
                             loaded.document !== undefined
-                                ? this.getPreamble(loaded.document)
+                                ? this.getProlog(loaded.document)
                                 : undefined,
                     };
                 });
@@ -126,13 +126,13 @@ export class WorkspaceIndex {
         };
     }
 
-    private getPreamble(document: TextDocument): ModulePreamble {
-        const cached = this.preambles.get(document.uri);
-        if (cached?.version === document.version) return cached.preamble;
+    private getProlog(document: TextDocument): ModuleProlog {
+        const cached = this.prologs.get(document.uri);
+        if (cached?.version === document.version) return cached.prolog;
 
-        const preamble = collectModulePreamble(document.uri, this.parser.parse(document).ast);
-        this.preambles.set(document.uri, { version: document.version, preamble });
-        return preamble;
+        const prolog = collectModuleProlog(document.uri, this.parser.parse(document).ast);
+        this.prologs.set(document.uri, { version: document.version, prolog });
+        return prolog;
     }
 
     public getReferencesToDefinition(definition: Definition): readonly AnyResolvedReference[] {
@@ -167,7 +167,7 @@ export class WorkspaceIndex {
             this.failedAnalyses.delete(uri);
             this.symbols.remove(uri);
         }
-        for (const uri of uris) this.preambles.delete(uri);
+        for (const uri of uris) this.prologs.delete(uri);
         return affected;
     }
 }

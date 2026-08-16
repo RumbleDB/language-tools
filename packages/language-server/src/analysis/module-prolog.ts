@@ -38,7 +38,7 @@ export type PrologDefinition =
     | SourceVariableDefinition
     | SourceTypeDefinition;
 
-export interface ModulePreamble {
+export interface ModuleProlog {
     readonly uri: DocumentUri;
     readonly targetNamespace: string | undefined;
     readonly imports: readonly ModuleImport[];
@@ -53,7 +53,7 @@ export interface ModulePreamble {
     readonly definitions: SourceDefinitionFactory;
 }
 
-class ModulePreambleCollector extends ParserAstVisitor<void> {
+class ModulePrologCollector extends ParserAstVisitor<void> {
     private readonly imports: ModuleImport[] = [];
     private readonly exports = new Map<string, SourceModuleExportDefinition>();
     private readonly namespaces = new Map<Prefix, NamespaceDefinition>(
@@ -89,7 +89,7 @@ class ModulePreambleCollector extends ParserAstVisitor<void> {
         );
     }
 
-    public collect(): ModulePreamble {
+    public collect(): ModuleProlog {
         this.visit(this.ast);
 
         return {
@@ -257,6 +257,6 @@ class ModulePreambleCollector extends ParserAstVisitor<void> {
     }
 }
 
-export function collectModulePreamble(uri: DocumentUri, ast: ParserAstNode): ModulePreamble {
-    return new ModulePreambleCollector(uri, ast).collect();
+export function collectModuleProlog(uri: DocumentUri, ast: ParserAstNode): ModuleProlog {
+    return new ModulePrologCollector(uri, ast).collect();
 }

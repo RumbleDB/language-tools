@@ -3,21 +3,21 @@ import { DiagnosticSeverity, type Diagnostic } from "vscode-languageserver";
 
 import type { SourceModuleExportDefinition } from "./definitions.js";
 import type { ModuleImport } from "./module-info.js";
-import type { ModulePreamble } from "./module-preamble.js";
+import type { ModuleProlog } from "./module-prolog.js";
 import type { ResolvedModuleImport } from "./result.js";
 
-/** A resolved import location with its module preamble, if available. */
+/** A resolved import location with its module prolog, if available. */
 export interface ResolvedImportTarget {
     readonly locationUri: string;
     readonly range: Range;
     readonly targetUri?: DocumentUri;
-    readonly preamble?: ModulePreamble;
+    readonly prolog?: ModuleProlog;
 }
 
 /**
  * Provides the analysis layer with access to resolved module locations and
- * their preambles. The workspace layer implements this interface,
- * backed by its document store and preamble cache.
+ * their prologs. The workspace layer implements this interface,
+ * backed by its document store and prolog cache.
  */
 export interface ModuleProvider {
     loadImport(importerUri: DocumentUri, imported: ModuleImport): readonly ResolvedImportTarget[];
@@ -40,7 +40,7 @@ export interface ImportResolutionResult {
  */
 export function resolveImports(
     importerUri: DocumentUri,
-    preamble: ModulePreamble,
+    prolog: ModuleProlog,
     provider: ModuleProvider,
 ): ImportResolutionResult {
     const resolvedImports: ResolvedModuleImport[] = [];
@@ -48,7 +48,7 @@ export function resolveImports(
     const importedNamespaces = new Set<string>();
     const dependencies = new Set<DocumentUri>();
 
-    for (const imported of preamble.imports) {
+    for (const imported of prolog.imports) {
         if (imported.namespaceUri.length === 0) {
             diagnostics.push({
                 severity: DiagnosticSeverity.Error,
@@ -82,7 +82,7 @@ export function resolveImports(
         let foundValidModule = false;
         for (const target of provider.loadImport(importerUri, imported)) {
             if (target.targetUri !== undefined) dependencies.add(target.targetUri);
-            if (target.preamble === undefined) {
+            if (target.prolog === undefined) {
                 diagnostics.push({
                     severity: DiagnosticSeverity.Error,
                     code: "XQST0059",
@@ -92,8 +92,8 @@ export function resolveImports(
                 continue;
             }
             if (
-                target.preamble.targetNamespace === undefined ||
-                target.preamble.targetNamespace !== imported.namespaceUri
+                target.prolog.targetNamespace === undefined ||
+                target.prolog.targetNamespace !== imported.namespaceUri
             ) {
                 diagnostics.push({
                     severity: DiagnosticSeverity.Error,
@@ -104,7 +104,7 @@ export function resolveImports(
                 continue;
             }
             foundValidModule = true;
-            for (const [name, exported] of target.preamble.exports) {
+            for (const [name, exported] of target.prolog.exports) {
                 if (exports.has(name)) {
                     diagnostics.push({
                         severity: DiagnosticSeverity.Error,
