@@ -349,7 +349,7 @@ tryCatchExpr
 
 catchClause
    : KW_CATCH
-   (catchErrorTarget (VBAR catchErrorTarget)* | (LPAREN catch_var = varBinding RPAREN))
+   catchErrorTarget (VBAR catchErrorTarget)*
    // replaced with the enclosedExpression production to match the JSONiq grammar
    LBRACE catch_expression = expr? RBRACE
    ;
