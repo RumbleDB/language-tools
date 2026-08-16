@@ -1,4 +1,4 @@
-import { errorCodes } from "server/resources/error-codes.js";
+import { errorCodes, formatErrorCodeDocumentation } from "server/resources/error-codes.js";
 import { CompletionItemKind, MarkupKind, type CompletionItem } from "vscode-languageserver";
 
 import { replaceTypedPrefix, typedPrefix } from "../context.js";
@@ -40,7 +40,7 @@ function errorCodeCompletions(targetPrefix: string): CompletionItem[] {
         detail: `${entry.category} error code`,
         documentation: {
             kind: MarkupKind.Markdown,
-            value: `${entry.description}\n\n[View the normative definition](${entry.specificationUrl})`,
+            value: formatErrorCodeDocumentation(entry),
         },
         labelDetails: {
             description: entry.description,
