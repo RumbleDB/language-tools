@@ -1,5 +1,5 @@
-import { ScopeDefinition, ScopeDefinitionByReferenceKind } from "./definitions.js";
-import { QName, QNameToString, type FunctionName, type ReferenceNameByKind } from "./names.js";
+import type { ScopeDefinition, ScopeDefinitionByReferenceKind } from "./definitions.js";
+import { QNameToString, type FunctionName, type QName, type ReferenceNameByKind } from "./names.js";
 
 interface ScopeEntry {
     definition: ScopeDefinition;
@@ -80,7 +80,7 @@ export class ScopeBuilder implements Scope {
     public findInnermostScope(offset: number): Scope {
         for (const child of this.children) {
             if (child.contains(offset)) {
-                /// We can return early because we know that scopes cannot overlap, only nest.
+                // We can return early because we know that scopes cannot overlap, only nest.
                 return child.findInnermostScope(offset);
             }
         }
@@ -92,19 +92,14 @@ export class ScopeBuilder implements Scope {
      * Lists all definitions that are visible at the given offset,
      * i.e. all definitions declared in this scope or any parent scope that are visible at the given offset.
      *
-     * This method should be called on the innermost scope at the given offset
+     * This method should be called on the innermost scope at the given offset.
      */
     public listVisibleDefinitions(offset: number): Map<string, ScopeDefinition> {
         const visible = new Map<string, ScopeDefinition>();
 
-        for (const [name, entries] of this.entriesByName.entries()) {
-            const entry = entries.findLast((candidate) => candidate.visibleFrom <= offset);
-            if (entry !== undefined) {
-                visible.set(name, entry.definition);
-            }
-        }
+        // oxlint-disable-next-line typescript/no-this-alias
+        let current: ScopeBuilder | undefined = this;
 
-        let current = this.parent;
         while (current !== undefined) {
             for (const [name, entries] of current.entriesByName.entries()) {
                 if (visible.has(name)) {
@@ -112,7 +107,6 @@ export class ScopeBuilder implements Scope {
                 }
 
                 const entry = entries.findLast((candidate) => candidate.visibleFrom <= offset);
-
                 if (entry !== undefined) {
                     visible.set(name, entry.definition);
                 }
