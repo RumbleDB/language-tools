@@ -32,6 +32,7 @@ import type {
     ModuleNode,
     ReferenceNode,
 } from "./model/ast.js";
+import { STANDARD_CATCH_VARIABLES } from "./model/constants.js";
 import type {
     DefinitionByReferenceKind,
     ImplicitVariableDefinition,
@@ -55,16 +56,6 @@ import {
     type ModulePrologDeclarations,
 } from "./resolution/module-prolog.js";
 import { NamespaceResolver } from "./resolution/name-resolution.js";
-
-const CATCH_VARIABLES = [
-    { kind: "prefixed-qname", prefix: "err", localName: "code" },
-    { kind: "prefixed-qname", prefix: "err", localName: "description" },
-    { kind: "prefixed-qname", prefix: "err", localName: "value" },
-    { kind: "prefixed-qname", prefix: "err", localName: "module" },
-    { kind: "prefixed-qname", prefix: "err", localName: "line-number" },
-    { kind: "prefixed-qname", prefix: "err", localName: "column-number" },
-    { kind: "prefixed-qname", prefix: "err", localName: "additional" },
-] as const;
 
 class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
     private readonly moduleScope: ScopeBuilder;
@@ -194,7 +185,7 @@ class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
 
     protected override visitCatchClause(node: CatchClauseAstNode): AstNode[] {
         return this.enterScope(node.range, () => {
-            for (const name of CATCH_VARIABLES) {
+            for (const name of STANDARD_CATCH_VARIABLES) {
                 const definition: ImplicitVariableDefinition = {
                     kind: "variable",
                     name: this.nameResolver.resolveQName(name, node.range),

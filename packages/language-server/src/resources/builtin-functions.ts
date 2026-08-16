@@ -4,7 +4,7 @@ import {
     JN_NAMESPACE,
     MAP_NAMESPACE,
     MATH_NAMESPACE,
-} from "server/analysis/model/default-namespaces.js";
+} from "server/analysis/model/constants.js";
 import type { BaseDefinition } from "server/analysis/model/definitions.js";
 import { functionNameToString, type FunctionName } from "server/analysis/model/names.js";
 import { type StaticFunctionSignature } from "server/analysis/model/type-system.js";

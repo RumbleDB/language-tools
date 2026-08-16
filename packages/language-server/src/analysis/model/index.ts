@@ -1,5 +1,5 @@
 export * from "./ast.js";
-export * from "./default-namespaces.js";
+export * from "./constants.js";
 export * from "./definitions.js";
 export * from "./module-info.js";
 export * from "./names.js";

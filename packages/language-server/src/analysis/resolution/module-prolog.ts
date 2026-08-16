@@ -13,7 +13,7 @@ import type { Prefix } from "server/parser/types/name.js";
 import { ParserAstVisitor } from "server/parser/types/visitor.js";
 import { DiagnosticSeverity, type Diagnostic, type DocumentUri } from "vscode-languageserver";
 
-import { defaultNamespaces } from "../model/default-namespaces.js";
+import { defaultNamespaces } from "../model/constants.js";
 import { definitionNameToString } from "../model/definitions.js";
 import type {
     ImplicitNamespaceDefinition,
