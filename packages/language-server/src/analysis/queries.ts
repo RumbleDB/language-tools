@@ -3,7 +3,7 @@ import { rangeContainsPosition } from "server/utils/range.js";
 import type { Position } from "vscode-languageserver";
 
 import type { AstNode, SymbolOccurrence } from "./ast.js";
-import { Definition, ScopeDefinition, SourceDefinition } from "./definitions.js";
+import { ScopeDefinition, SourceDefinition } from "./definitions.js";
 import { AnyResolvedReference } from "./reference.js";
 import type { AnalysisResult } from "./result.js";
 
@@ -23,13 +23,6 @@ export function getSourceDefinitions(analysis: AnalysisResult): SourceDefinition
 
 export function getResolvedReferences(analysis: AnalysisResult): AnyResolvedReference[] {
     return [...analysis.references];
-}
-
-export function getReferencesToDefinition(
-    analysis: AnalysisResult,
-    definition: Definition,
-): readonly AnyResolvedReference[] {
-    return analysis.referencesByDefinition.get(definition) ?? [];
 }
 
 export function findSymbolAtPosition(
