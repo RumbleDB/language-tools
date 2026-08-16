@@ -126,9 +126,7 @@ class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
     }
 
     protected override visitNamespaceDeclaration(node: NamespaceDeclarationAstNode): AstNode[] {
-        return [
-            this.createDeclarationNode(this.requireIndexed(this.declarations.namespaces, node)),
-        ];
+        return [this.createDeclarationNode(this.declarations.namespaces.get(node)!)];
     }
 
     protected override visitModuleDeclaration(node: ModuleDeclarationAstNode): AstNode[] {
@@ -136,7 +134,7 @@ class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
         // namespace declaration and visit that prolog so library functions and
         // variables participate in analysis.
         return [
-            this.createDeclarationNode(this.requireIndexed(this.declarations.namespaces, node)),
+            this.createDeclarationNode(this.declarations.namespaces.get(node)!),
             ...this.visitChildrenAsNodes(node),
         ];
     }
@@ -146,9 +144,7 @@ class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
             return [];
         }
 
-        return [
-            this.createDeclarationNode(this.requireIndexed(this.declarations.namespaces, node)),
-        ];
+        return [this.createDeclarationNode(this.declarations.namespaces.get(node)!)];
     }
 
     protected override visitContextItemDeclaration(node: ContextItemDeclarationAstNode): AstNode[] {
@@ -162,11 +158,11 @@ class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
     }
 
     protected override visitTypeDeclaration(node: TypeDeclarationAstNode): AstNode[] {
-        return [this.createDeclarationNode(this.requireIndexed(this.declarations.types, node))];
+        return [this.createDeclarationNode(this.declarations.types.get(node)!)];
     }
 
     protected override visitFunctionDeclaration(node: FunctionDeclarationAstNode): AstNode[] {
-        const definition = this.requireIndexed(this.declarations.functions, node);
+        const definition = this.declarations.functions.get(node)!;
 
         const children = this.enterScope(node.range, () => [
             ...definition.parameters.map((parameter) => {
@@ -333,16 +329,6 @@ class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
         } finally {
             this.currentScope = previousScope;
         }
-    }
-
-    private requireIndexed<K, V>(definitions: ReadonlyMap<K, V>, node: K): V {
-        const definition = definitions.get(node);
-        if (definition !== undefined) return definition;
-        const nodeKind =
-            typeof node === "object" && node !== null && "kind" in node
-                ? ` for '${String(node.kind)}' node`
-                : "";
-        throw new Error(`Missing indexed definition${nodeKind}.`);
     }
 
     private resolve<K extends keyof ReferenceNameByKind>(
