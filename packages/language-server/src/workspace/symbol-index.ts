@@ -1,6 +1,7 @@
 import type { DocumentUri } from "vscode-languageserver";
 
 import type { SourceDefinition, SymbolId } from "../analysis/definitions.js";
+import { getResolvedReferences } from "../analysis/queries.js";
 import type { AnyResolvedReference } from "../analysis/reference.js";
 import type { AnalysisResult } from "../analysis/result.js";
 
@@ -24,7 +25,7 @@ export class WorkspaceSymbolIndex {
     public update(uri: DocumentUri, analysis: AnalysisResult): void {
         this.remove(uri);
         const symbols = new Set<SymbolId>();
-        for (const reference of analysis.references) {
+        for (const reference of getResolvedReferences(analysis.ast)) {
             if (reference.declaration.origin !== "source") continue;
 
             const symbolId = reference.declaration.id;

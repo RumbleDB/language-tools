@@ -49,7 +49,11 @@ export interface SourceFunctionDefinition extends BaseSourceDefinition<"function
     readonly parameters: readonly SourceParameterDefinition[];
 }
 
-export type SourceModuleExportDefinition = SourceVariableDefinition | SourceFunctionDefinition;
+/** A declaration made visible by importing a RumbleDB library module. */
+export type SourceModuleExportDefinition =
+    | SourceVariableDefinition
+    | SourceFunctionDefinition
+    | SourceTypeDefinition;
 
 export interface SourceNamespaceDefinition extends BaseSourceDefinition<"namespace"> {
     readonly kind: "namespace";

@@ -1,7 +1,7 @@
 import type { Prefix } from "server/parser/types/name.js";
 import type { Range } from "vscode-languageserver";
 
-import type { SourceModuleExportDefinition, SourceNamespaceDefinition } from "./definitions.js";
+import type { SourceModuleExportDefinition } from "./definitions.js";
 
 export interface ModuleImport {
     readonly prefix?: Prefix;
@@ -12,22 +12,18 @@ export interface ModuleImport {
     readonly range: Range;
 }
 
-interface BaseModuleDeclaration {
-    readonly imports: ModuleImport[];
+interface BaseModuleIndex {
+    readonly imports: readonly ModuleImport[];
 }
 
-export interface MainModuleDeclaration extends BaseModuleDeclaration {
+export interface MainModuleIndex extends BaseModuleIndex {
     readonly kind: "main";
 }
 
-export interface LibraryModuleDeclaration extends BaseModuleDeclaration {
+export interface LibraryModuleIndex extends BaseModuleIndex {
     readonly kind: "library";
-    readonly targetNamespace: SourceNamespaceDefinition;
+    readonly targetNamespace: string;
+    readonly exports: ReadonlyMap<string, SourceModuleExportDefinition>;
 }
 
-export type ModuleDeclaration = MainModuleDeclaration | LibraryModuleDeclaration;
-
-export interface ModuleInterface {
-    readonly namespaceUri: string;
-    readonly exports: Map<string, SourceModuleExportDefinition>;
-}
+export type ModuleIndex = MainModuleIndex | LibraryModuleIndex;

@@ -1,8 +1,9 @@
 import { rangeContainsPosition } from "server/utils/range.js";
 import type { Position } from "vscode-languageserver";
 
-import type { AstNode, SymbolOccurrence } from "./ast.js";
-import { ScopeDefinition } from "./definitions.js";
+import type { AstNode, ModuleNode, SymbolOccurrence } from "./ast.js";
+import type { ScopeDefinition, SourceDefinition } from "./definitions.js";
+import type { AnyResolvedReference } from "./reference.js";
 import type { AnalysisResult } from "./result.js";
 
 export function getVisibleDeclarationsAtPosition(
@@ -32,6 +33,23 @@ export function findNodesThatContainPosition(
     position: Position,
 ): AstNode[] {
     return findContainingNodePath(analysis.ast, position) ?? [];
+}
+
+export function* walkAst(node: AstNode): Iterable<AstNode> {
+    yield node;
+    for (const child of node.children) yield* walkAst(child);
+}
+
+export function* getDefinitions(ast: ModuleNode): Iterable<SourceDefinition> {
+    for (const node of walkAst(ast)) {
+        if (node.kind === "declaration") yield node.declaration;
+    }
+}
+
+export function* getResolvedReferences(ast: ModuleNode): Iterable<AnyResolvedReference> {
+    for (const node of walkAst(ast)) {
+        if (node.kind === "reference" && node.resolution !== undefined) yield node.resolution;
+    }
 }
 
 function findContainingNodePath(node: AstNode, position: Position): AstNode[] | undefined {

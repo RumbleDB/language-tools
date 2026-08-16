@@ -1,4 +1,5 @@
 import { type Definition, DefinitionKind } from "server/analysis/definitions.js";
+import { getDefinitions, getResolvedReferences } from "server/analysis/queries.js";
 import type { WorkspaceService } from "server/workspace/service.js";
 import {
     SemanticTokensBuilder,
@@ -60,13 +61,13 @@ export function collectSemanticTokens(
     const analysis = workspace.getAnalysis(document);
     const builder = new SemanticTokensBuilder();
 
-    for (const definition of analysis.definitions) {
+    for (const definition of getDefinitions(analysis.ast)) {
         const tokenType = getTokenTypeForDefinition(definition.kind);
         const tokenModifiers = getTokenModifierForDefinition(definition);
         addSemanticToken(builder, definition.selectionRange, tokenType, tokenModifiers);
     }
 
-    for (const reference of analysis.references) {
+    for (const reference of getResolvedReferences(analysis.ast)) {
         const tokenType = getTokenTypeForDefinition(reference.declaration.kind);
         const tokenModifiers = getTokenModifierForDefinition(reference.declaration);
         addSemanticToken(builder, reference.range, tokenType, tokenModifiers);

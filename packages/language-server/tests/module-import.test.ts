@@ -4,7 +4,7 @@ import { pathToFileURL } from "node:url";
 
 import { analyzeDocument } from "server/analysis/builder.js";
 import { definitionNameToString } from "server/analysis/definitions.js";
-import { buildDocumentIndex } from "server/analysis/document-index.js";
+import { buildModuleIndex } from "server/analysis/module-index.js";
 import { findDefinitionLocation } from "server/lsp/features/definition.js";
 import { findReferenceLocations } from "server/lsp/features/references.js";
 import { buildRenameWorkspaceEdit } from "server/lsp/features/rename.js";
@@ -33,24 +33,23 @@ describe("module imports", () => {
             "declare variable $lib:value := 1;",
             "declare %private variable $lib:secret := 2;",
             "declare variable $other:invalid := 3;",
+            'declare type lib:Item as { "value": "string" };',
             "declare function lib:identity($value) { $value };",
         ]);
-        const index = buildDocumentIndex(document, parserService.parse(document).ast);
-        const analysis = analyzeDocument(index);
+        const ast = parserService.parse(document).ast;
+        const index = buildModuleIndex(document.uri, ast);
+        const analysis = analyzeDocument(document, ast);
 
-        expect(analysis.moduleDeclaration).toBe(index.moduleDeclaration);
-        expect(analysis.moduleInterface).toBe(index.moduleInterface);
-        expect(analysis.definitions).toBe(index.definitions);
-        expect(analysis.moduleDeclaration).toMatchObject({
+        expect(index).toMatchObject({
             kind: "library",
-            targetNamespace: { namespaceUri: "urn:lib" },
+            targetNamespace: "urn:lib",
             imports: [{ prefix: "dep", namespaceUri: "urn:dep" }],
         });
         expect(
-            [...(analysis.moduleInterface?.exports.values() ?? [])].map((definition) =>
+            [...(index.kind === "library" ? index.exports.values() : [])].map((definition) =>
                 definitionNameToString(definition),
             ),
-        ).toEqual(["$lib:value", "lib:identity#1"]);
+        ).toEqual(["$lib:value", "lib:Item", "lib:identity#1"]);
         expect(analysis.diagnostics).toContainEqual(expect.objectContaining({ code: "XQST0048" }));
     });
 
@@ -63,13 +62,12 @@ describe("module imports", () => {
             "declare function lib:value() { 2 };",
         ]);
 
-        const index = buildDocumentIndex(document, parserService.parse(document).ast);
+        const index = buildModuleIndex(document.uri, parserService.parse(document).ast);
 
-        expect([...index.moduleInterface!.exports.keys()]).toEqual([
-            "$Q{urn:lib}value",
-            "Q{urn:lib}value#0",
-        ]);
-        expect(index.diagnostics).toEqual([
+        expect(index.kind).toBe("library");
+        if (index.kind !== "library") return;
+        expect([...index.exports.keys()]).toEqual(["$Q{urn:lib}value", "Q{urn:lib}value#0"]);
+        expect(analyzeDocument(document, parserService.parse(document).ast).diagnostics).toEqual([
             expect.objectContaining({ code: "XQST0049" }),
             expect.objectContaining({ code: "XQST0034" }),
         ]);
@@ -113,6 +111,25 @@ describe("module imports", () => {
         expect(rename?.changes?.[pathToFileURL(fixture).toString()]).toEqual([
             expect.objectContaining({ newText: "$lib:renamed" }),
         ]);
+    });
+
+    it("imports RumbleDB user-defined types from library modules", () => {
+        const fixture = path.join(process.cwd(), "tests", "samples", "modules", "typed.jq");
+        const document = testDocumentFromUri(
+            [
+                'import module namespace typed = "urn:language-server:typed" at "typed.jq";',
+                "declare variable $value as typed:Item := {};",
+                "$value",
+            ],
+            { uri: pathToFileURL(path.join(path.dirname(fixture), "typed-main.jq")).toString() },
+        );
+
+        const analysis = workspaceService.getAnalysis(document);
+        expect(analysis.diagnostics).toEqual([]);
+        expect(
+            findDefinitionLocation(document, positionAt(document, "typed:Item"), workspaceService)
+                ?.uri,
+        ).toBe(pathToFileURL(fixture).toString());
     });
 
     it("resolves the Rumble-style module namespace used by ImportMath.jq", async () => {
