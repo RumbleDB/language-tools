@@ -1,10 +1,16 @@
 import type { Range } from "vscode-languageserver";
 
 import { Definition, SourceDefinition } from "./definitions.js";
-import type { FunctionName, ReferenceNameByKind } from "./names.js";
+import type { FunctionName, QName, ReferenceNameByKind } from "./names.js";
 import { AnyResolvedReference, ResolvedReference } from "./reference.js";
 
-export type AstNodeKind = "module" | "declaration" | "reference" | "function-call" | "argument";
+export type AstNodeKind =
+    | "module"
+    | "declaration"
+    | "reference"
+    | "error-code-target"
+    | "function-call"
+    | "argument";
 
 export interface AstNodeBase<K extends AstNodeKind> {
     readonly kind: K;
@@ -30,6 +36,14 @@ export type AnyReferenceNode = {
     [K in keyof ReferenceNameByKind]: ReferenceNode<K>;
 }[keyof ReferenceNameByKind];
 
+export type ErrorCodeTarget =
+    | { readonly kind: "exact"; readonly name: QName }
+    | { readonly kind: "wildcard"; readonly value: string };
+
+export interface ErrorCodeTargetNode extends AstNodeBase<"error-code-target"> {
+    readonly target: ErrorCodeTarget;
+}
+
 export interface FunctionCallNode extends AstNodeBase<"function-call"> {
     readonly name: FunctionName;
     readonly selectionRange: Range;
@@ -45,6 +59,7 @@ export type AstNode =
     | ModuleNode
     | DeclarationNode
     | AnyReferenceNode
+    | ErrorCodeTargetNode
     | FunctionCallNode
     | ArgumentNode;
 

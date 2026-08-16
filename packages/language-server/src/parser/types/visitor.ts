@@ -1,6 +1,7 @@
 import type {
     ArgumentAstNode,
     AstNode,
+    CatchErrorTargetAstNode,
     CatchClauseAstNode,
     ContextItemDeclarationAstNode,
     ContextItemExpressionAstNode,
@@ -41,6 +42,8 @@ export abstract class ParserAstVisitor<R = void> {
                 return this.visitFlowrExpression(node);
             case "catch-clause":
                 return this.visitCatchClause(node);
+            case "catch-error-target":
+                return this.visitCatchErrorTarget(node);
             case "function-call":
                 return this.visitFunctionCall(node);
             case "named-function-reference":
@@ -104,6 +107,10 @@ export abstract class ParserAstVisitor<R = void> {
     }
 
     protected visitCatchClause(node: CatchClauseAstNode): R {
+        return this.defaultVisit(node);
+    }
+
+    protected visitCatchErrorTarget(node: CatchErrorTargetAstNode): R {
         return this.defaultVisit(node);
     }
 

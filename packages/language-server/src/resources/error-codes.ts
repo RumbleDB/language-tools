@@ -1,3 +1,6 @@
+import { ERR_NAMESPACE } from "server/analysis/default-namespaces.js";
+import type { QName } from "server/analysis/names.js";
+
 import { loadJsonAsset } from "./loader.js";
 
 export interface ErrorCodeEntry {
@@ -9,3 +12,17 @@ export interface ErrorCodeEntry {
 
 export const errorCodes =
     loadJsonAsset<Record<string, ErrorCodeEntry>>("error-doc/w3-errors.json") ?? {};
+
+export function getErrorCodeEntry(name: QName): ErrorCodeEntry | undefined {
+    return name.namespaceUri === ERR_NAMESPACE ? errorCodes[`err:${name.localName}`] : undefined;
+}
+
+export function formatErrorCodeDocumentation(entry: ErrorCodeEntry): string {
+    return [
+        `**${entry.code}** · ${entry.category} error`,
+        "",
+        entry.description,
+        "",
+        `[View the normative definition](${entry.specificationUrl})`,
+    ].join("\n");
+}

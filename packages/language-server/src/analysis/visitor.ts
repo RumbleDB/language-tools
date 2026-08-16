@@ -3,6 +3,7 @@ import type {
     AnyReferenceNode,
     AstNode,
     DeclarationNode,
+    ErrorCodeTargetNode,
     FunctionCallNode,
     ModuleNode,
 } from "./ast.js";
@@ -16,6 +17,8 @@ export abstract class AstVisitor<R = void> {
                 return this.visitDeclaration(node);
             case "reference":
                 return this.visitReference(node);
+            case "error-code-target":
+                return this.visitErrorCodeTarget(node);
             case "function-call":
                 return this.visitFunctionCall(node);
             case "argument":
@@ -43,6 +46,10 @@ export abstract class AstVisitor<R = void> {
     }
 
     protected visitReference(node: AnyReferenceNode): R {
+        return this.defaultVisit(node);
+    }
+
+    protected visitErrorCodeTarget(node: ErrorCodeTargetNode): R {
         return this.defaultVisit(node);
     }
 

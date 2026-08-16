@@ -2,6 +2,7 @@ import type {
     ArgumentAstNode,
     AstNode as ParserAstNode,
     AstParameter,
+    CatchErrorTargetAstNode,
     CatchClauseAstNode,
     ContextItemDeclarationAstNode,
     ContextItemExpressionAstNode,
@@ -32,6 +33,7 @@ import type {
     ArgumentNode,
     AstNode,
     DeclarationNode,
+    ErrorCodeTargetNode,
     FunctionCallNode,
     ModuleNode,
     ReferenceNode,
@@ -269,6 +271,29 @@ class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
             }
             return this.visitChildrenAsNodes(node);
         });
+    }
+
+    protected override visitCatchErrorTarget(node: CatchErrorTargetAstNode): AstNode[] {
+        if (node.target.kind === "wildcard") {
+            return [
+                {
+                    kind: "error-code-target",
+                    range: node.range,
+                    children: [],
+                    target: node.target,
+                },
+            ];
+        }
+
+        const name = this.resolveQName(node.target.name, node.range);
+        return [
+            {
+                kind: "error-code-target",
+                range: node.range,
+                children: [],
+                target: { kind: "exact", name },
+            } satisfies ErrorCodeTargetNode,
+        ];
     }
 
     protected override visitVariableReference(node: VariableReferenceAstNode): AstNode[] {
