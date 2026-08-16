@@ -1,4 +1,4 @@
-import { findNodeThatContainsPosition } from "server/analysis/queries.js";
+import { findNodeThatContainsPosition } from "server/analysis/index.js";
 import { formatErrorCodeDocumentation, getErrorCodeEntry } from "server/resources/error-codes.js";
 import { MarkupKind } from "vscode-languageserver";
 

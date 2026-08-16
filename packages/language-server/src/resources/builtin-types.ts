@@ -1,4 +1,4 @@
-import { QNameToString, type QName } from "server/analysis/names.js";
+import { QNameToString, type QName } from "server/analysis/model/names.js";
 
 import { loadJsonAsset } from "./loader.js";
 

@@ -1,10 +1,10 @@
 import { rangeContainsPosition } from "server/utils/range.js";
 import type { Position } from "vscode-languageserver";
 
-import type { AstNode, ModuleNode, SymbolOccurrence } from "./ast.js";
-import type { ScopeDefinition, SourceDefinition } from "./definitions.js";
-import type { AnyResolvedReference } from "./reference.js";
-import type { AnalysisResult } from "./result.js";
+import type { AstNode, ModuleNode, SymbolOccurrence } from "./model/ast.js";
+import type { ScopeDefinition, SourceDefinition } from "./model/definitions.js";
+import type { AnyResolvedReference } from "./model/reference.js";
+import type { AnalysisResult } from "./model/result.js";
 
 export function getVisibleDeclarationsAtPosition(
     analysis: AnalysisResult,

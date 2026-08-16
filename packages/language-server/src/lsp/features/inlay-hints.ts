@@ -1,4 +1,4 @@
-import type { ArgumentNode, AstNode, FunctionCallNode } from "server/analysis/ast.js";
+import type { ArgumentNode, AstNode, FunctionCallNode } from "server/analysis/index.js";
 import { getBuiltinFunctionDocumentation } from "server/resources/function-docs.js";
 import {
     chooseBestSignatureIndex,

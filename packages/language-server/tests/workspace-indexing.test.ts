@@ -3,8 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 
-import { analyzeDocument } from "server/analysis/builder.js";
-import { getDefinitions } from "server/analysis/queries.js";
+import { analyzeDocument, getDefinitions } from "server/analysis/index.js";
 import { WorkspaceDocumentStore } from "server/workspace/document-store.js";
 import { loadSourceFile } from "server/workspace/files.js";
 import { WorkspaceIndex } from "server/workspace/workspace-index.js";

@@ -1,5 +1,4 @@
-import { defaultNamespaces } from "../src/analysis/default-namespaces.js";
-import { QNameToString } from "../src/analysis/names.js";
+import { defaultNamespaces, QNameToString } from "../src/analysis/index.js";
 import { BuiltinFunctionDefinition, builtinFunctions } from "../src/resources/builtin-functions.js";
 import { docs } from "../src/resources/function-docs.js";
 

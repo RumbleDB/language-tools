@@ -3,9 +3,9 @@ import type { DocumentUri } from "vscode-languageserver";
 import type { TextDocument } from "vscode-languageserver-textdocument";
 
 import { analyzeDocument } from "./builder.js";
-import { resolveImports, type ModuleProvider } from "./import-resolution.js";
-import { collectModuleProlog, type ModuleProlog } from "./module-prolog.js";
-import type { AnalysisResult } from "./result.js";
+import type { AnalysisResult } from "./model/result.js";
+import { resolveImports, type ModuleProvider } from "./resolution/import-resolution.js";
+import { collectModuleProlog, type ModuleProlog } from "./resolution/module-prolog.js";
 
 export interface AnalyzeModuleOptions {
     readonly provider: ModuleProvider;

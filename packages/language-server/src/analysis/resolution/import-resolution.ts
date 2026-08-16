@@ -1,17 +1,17 @@
 import type { DocumentUri, Range } from "vscode-languageserver";
 import { DiagnosticSeverity, type Diagnostic } from "vscode-languageserver";
 
-import type { SourceModuleExportDefinition } from "./definitions.js";
-import type { ModuleImport } from "./module-info.js";
+import type { SourceModuleExportDefinition } from "../model/definitions.js";
+import type { ModuleImport } from "../model/module-info.js";
+import type { ResolvedModuleImport } from "../model/result.js";
 import type { ModuleProlog } from "./module-prolog.js";
-import type { ResolvedModuleImport } from "./result.js";
 
 /** A resolved import location with its module prolog, if available. */
 export interface ResolvedImportTarget {
     readonly locationUri: string;
     readonly range: Range;
-    readonly targetUri?: DocumentUri;
-    readonly prolog?: ModuleProlog;
+    readonly targetUri?: DocumentUri | undefined;
+    readonly prolog?: ModuleProlog | undefined;
 }
 
 /**

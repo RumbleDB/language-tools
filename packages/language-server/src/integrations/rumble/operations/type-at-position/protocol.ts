@@ -1,4 +1,4 @@
-import type { SequenceType } from "server/analysis/type-system.js";
+import type { SequenceType } from "server/analysis/index.js";
 import type { WrapperRequestSpec } from "server/integrations/rumble/protocol.js";
 import type { Position, Range } from "vscode-languageserver";
 

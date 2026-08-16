@@ -1,8 +1,8 @@
 import type { Diagnostic } from "vscode-languageserver";
 
+import type { ModuleProlog } from "../resolution/module-prolog.js";
 import type { ModuleNode } from "./ast.js";
 import type { SourceModuleExportDefinition } from "./definitions.js";
-import type { ModuleProlog } from "./module-prolog.js";
 import type { Scope } from "./scope.js";
 
 export interface AnalysisResult {

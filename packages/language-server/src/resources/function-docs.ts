@@ -22,8 +22,8 @@ export type FunctionDocEntry = {
     signatures: Signature[];
 };
 
-import { defaultNamespaces } from "server/analysis/default-namespaces.js";
-import { QName, QNameToString } from "server/analysis/names.js";
+import { defaultNamespaces } from "server/analysis/model/default-namespaces.js";
+import { type QName, QNameToString } from "server/analysis/model/names.js";
 
 import { loadJsonAsset } from "./loader.js";
 

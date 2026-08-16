@@ -1,5 +1,4 @@
-import { analyzeDocument } from "server/analysis/builder.js";
-import { getDefinitions } from "server/analysis/queries.js";
+import { analyzeDocument, getDefinitions } from "server/analysis/index.js";
 import { WorkspaceSymbolIndex } from "server/workspace/symbol-index.js";
 import { describe, expect, it } from "vitest";
 

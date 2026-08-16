@@ -13,9 +13,8 @@ import type { Prefix } from "server/parser/types/name.js";
 import { ParserAstVisitor } from "server/parser/types/visitor.js";
 import { DiagnosticSeverity, type Diagnostic, type DocumentUri } from "vscode-languageserver";
 
-import { defaultNamespaces } from "./default-namespaces.js";
-import { SourceDefinitionFactory } from "./definition-factory.js";
-import { definitionNameToString } from "./definitions.js";
+import { defaultNamespaces } from "../model/default-namespaces.js";
+import { definitionNameToString } from "../model/definitions.js";
 import type {
     ImplicitNamespaceDefinition,
     NamespaceDefinition,
@@ -24,8 +23,9 @@ import type {
     SourceNamespaceDefinition,
     SourceTypeDefinition,
     SourceVariableDefinition,
-} from "./definitions.js";
-import type { ModuleImport } from "./module-info.js";
+} from "../model/definitions.js";
+import type { ModuleImport } from "../model/module-info.js";
+import { SourceDefinitionFactory } from "./definition-factory.js";
 import { NamespaceResolver } from "./name-resolution.js";
 
 export type PrologDeclarationAstNode =

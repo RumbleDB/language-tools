@@ -1,4 +1,4 @@
-import { collectModuleProlog } from "server/analysis/module-prolog.js";
+import { collectModuleProlog } from "server/analysis/index.js";
 import type { ParserService } from "server/parser/index.js";
 import { resolveModuleLocations } from "server/workspace/module-resolver.js";
 import type { DocumentLink } from "vscode-languageserver";

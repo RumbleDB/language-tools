@@ -1,5 +1,4 @@
-import { ERR_NAMESPACE } from "server/analysis/default-namespaces.js";
-import { findNodeThatContainsPosition } from "server/analysis/queries.js";
+import { ERR_NAMESPACE, findNodeThatContainsPosition } from "server/analysis/index.js";
 import { findHover } from "server/lsp/features/hover.js";
 import { describe, expect, it } from "vitest";
 

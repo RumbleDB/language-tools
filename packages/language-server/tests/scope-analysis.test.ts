@@ -1,13 +1,13 @@
-import { analyzeDocument } from "server/analysis/builder.js";
 import {
+    analyzeDocument,
     findNodesThatContainPosition,
     findNodeThatContainsPosition,
     findSymbolAtPosition,
     getDefinitions,
     getResolvedReferences,
     getVisibleDeclarationsAtPosition,
-} from "server/analysis/queries.js";
-import type { AnalysisResult } from "server/analysis/result.js";
+    type AnalysisResult,
+} from "server/analysis/index.js";
 import { describe, expect, it } from "vitest";
 import type { TextDocument } from "vscode-languageserver-textdocument";
 

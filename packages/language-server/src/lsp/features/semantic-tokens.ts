@@ -1,5 +1,9 @@
-import { type Definition, DefinitionKind } from "server/analysis/definitions.js";
-import { getDefinitions, getResolvedReferences } from "server/analysis/queries.js";
+import {
+    getDefinitions,
+    getResolvedReferences,
+    type Definition,
+    type DefinitionKind,
+} from "server/analysis/index.js";
 import type { WorkspaceService } from "server/workspace/service.js";
 import {
     SemanticTokensBuilder,

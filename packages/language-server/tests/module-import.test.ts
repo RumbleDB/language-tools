@@ -2,9 +2,11 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 
-import { analyzeDocument } from "server/analysis/builder.js";
-import { definitionNameToString } from "server/analysis/definitions.js";
-import { collectModuleProlog } from "server/analysis/module-prolog.js";
+import {
+    analyzeDocument,
+    collectModuleProlog,
+    definitionNameToString,
+} from "server/analysis/index.js";
 import { findDefinitionLocation } from "server/lsp/features/definition.js";
 import { findReferenceLocations } from "server/lsp/features/references.js";
 import { buildRenameWorkspaceEdit } from "server/lsp/features/rename.js";

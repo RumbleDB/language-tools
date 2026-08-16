@@ -7,8 +7,8 @@ import {
 } from "server/parser/types/name.js";
 import { DiagnosticSeverity, type Diagnostic, type Range } from "vscode-languageserver";
 
-import type { NamespaceDefinition } from "./definitions.js";
-import type { FunctionName, QName } from "./names.js";
+import type { NamespaceDefinition } from "../model/definitions.js";
+import type { FunctionName, QName } from "../model/names.js";
 
 export class NamespaceResolver {
     public constructor(

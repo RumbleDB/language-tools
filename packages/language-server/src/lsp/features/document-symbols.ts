@@ -1,7 +1,10 @@
-import { AstNode, DeclarationNode } from "server/analysis/ast.js";
-import { definitionNameToString } from "server/analysis/definitions.js";
-import { QNameToString } from "server/analysis/names.js";
-import { AstVisitor } from "server/analysis/visitor.js";
+import {
+    AstVisitor,
+    definitionNameToString,
+    QNameToString,
+    type AstNode,
+    type DeclarationNode,
+} from "server/analysis/index.js";
 import type { WorkspaceService } from "server/workspace/service.js";
 import { DocumentSymbol, SymbolKind } from "vscode-languageserver";
 import { TextDocument } from "vscode-languageserver-textdocument";

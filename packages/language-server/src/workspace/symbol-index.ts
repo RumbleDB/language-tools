@@ -1,9 +1,9 @@
 import type { DocumentUri } from "vscode-languageserver";
 
-import type { SourceDefinition, SymbolId } from "../analysis/definitions.js";
+import type { SourceDefinition, SymbolId } from "../analysis/model/definitions.js";
+import type { AnyResolvedReference } from "../analysis/model/reference.js";
+import type { AnalysisResult } from "../analysis/model/result.js";
 import { getResolvedReferences } from "../analysis/queries.js";
-import type { AnyResolvedReference } from "../analysis/reference.js";
-import type { AnalysisResult } from "../analysis/result.js";
 
 /** Maintains cross-document reference lookup independently from analysis caches. */
 export class WorkspaceSymbolIndex {

@@ -31,8 +31,7 @@ import type {
     FunctionCallNode,
     ModuleNode,
     ReferenceNode,
-} from "./ast.js";
-import { SourceDefinitionFactory } from "./definition-factory.js";
+} from "./model/ast.js";
 import type {
     DefinitionByReferenceKind,
     ImplicitVariableDefinition,
@@ -43,18 +42,23 @@ import type {
     SourceNamespaceDefinition,
     SourceTypeDefinition,
     SourceVariableDefinition,
-} from "./definitions.js";
+} from "./model/definitions.js";
+import {
+    referenceNameToString,
+    type FunctionName,
+    type ReferenceNameByKind,
+} from "./model/names.js";
+import type { ResolvedReference } from "./model/reference.js";
+import type { AnalysisEnvironment, AnalysisResult, ResolvedModuleImport } from "./model/result.js";
+import { ScopeBuilder } from "./model/scope.js";
+import { SourceDefinitionFactory } from "./resolution/definition-factory.js";
 import {
     collectModuleProlog,
     type ModuleProlog,
     type PrologDeclarationAstNode,
     type PrologDefinition,
-} from "./module-prolog.js";
-import { NamespaceResolver } from "./name-resolution.js";
-import { referenceNameToString, type FunctionName, type ReferenceNameByKind } from "./names.js";
-import type { ResolvedReference } from "./reference.js";
-import type { AnalysisEnvironment, AnalysisResult, ResolvedModuleImport } from "./result.js";
-import { ScopeBuilder } from "./scope.js";
+} from "./resolution/module-prolog.js";
+import { NamespaceResolver } from "./resolution/name-resolution.js";
 
 const CATCH_VARIABLES = [
     { kind: "prefixed-qname", prefix: "err", localName: "code" },

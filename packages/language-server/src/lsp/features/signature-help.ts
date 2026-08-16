@@ -1,10 +1,13 @@
-import type { ArgumentNode, AstNode, FunctionCallNode } from "server/analysis/ast.js";
 import {
     definitionNameToString,
+    findNodesThatContainPosition,
+    QNameToString,
+    type ArgumentNode,
+    type AstNode,
     type DefinitionByReferenceKind,
-} from "server/analysis/definitions.js";
-import { FunctionName, QNameToString } from "server/analysis/names.js";
-import { findNodesThatContainPosition } from "server/analysis/queries.js";
+    type FunctionCallNode,
+    type FunctionName,
+} from "server/analysis/index.js";
 import {
     FunctionDocEntry,
     getBuiltinFunctionDocumentation,

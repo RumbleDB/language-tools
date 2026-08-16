@@ -1,6 +1,6 @@
 import type {
-    ArgumentNode,
     AnyReferenceNode,
+    ArgumentNode,
     AstNode,
     DeclarationNode,
     ErrorCodeTargetNode,

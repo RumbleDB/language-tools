@@ -9,8 +9,13 @@ import type {
     SourceTypeDefinition,
     SourceVariableDefinition,
     SymbolId,
-} from "./definitions.js";
-import { functionNameToString, QNameToString, type FunctionName, type QName } from "./names.js";
+} from "../model/definitions.js";
+import {
+    functionNameToString,
+    QNameToString,
+    type FunctionName,
+    type QName,
+} from "../model/names.js";
 
 /** Creates stable source-symbol identities independently in each analysis phase. */
 export class SourceDefinitionFactory {

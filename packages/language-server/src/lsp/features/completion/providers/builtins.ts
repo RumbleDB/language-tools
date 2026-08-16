@@ -1,6 +1,4 @@
-import { defaultNamespaces } from "server/analysis/default-namespaces.js";
-import { QNameToString } from "server/analysis/names.js";
-import { formatSequenceType } from "server/analysis/type-system.js";
+import { defaultNamespaces, formatSequenceType, QNameToString } from "server/analysis/index.js";
 import {
     builtinFunctions,
     type BuiltinFunctionDefinition,

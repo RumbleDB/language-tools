@@ -4,12 +4,12 @@ import type { DocumentUri } from "vscode-languageserver";
 import { TextDocument } from "vscode-languageserver-textdocument";
 import { FileChangeType, type FileEvent } from "vscode-languageserver/node";
 
-import type { Definition } from "../analysis/definitions.js";
-import type { ModuleProvider } from "../analysis/import-resolution.js";
-import { collectModuleProlog, type ModuleProlog } from "../analysis/module-prolog.js";
+import type { Definition } from "../analysis/model/definitions.js";
+import type { AnyResolvedReference } from "../analysis/model/reference.js";
+import type { AnalysisResult } from "../analysis/model/result.js";
 import { analyzeModule } from "../analysis/pipeline.js";
-import type { AnyResolvedReference } from "../analysis/reference.js";
-import type { AnalysisResult } from "../analysis/result.js";
+import type { ModuleProvider } from "../analysis/resolution/import-resolution.js";
+import { collectModuleProlog, type ModuleProlog } from "../analysis/resolution/module-prolog.js";
 import { WorkspaceDocumentStore } from "./document-store.js";
 import { ModuleGraph } from "./module-graph.js";
 import { WorkspaceSymbolIndex } from "./symbol-index.js";
