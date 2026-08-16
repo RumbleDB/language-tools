@@ -580,25 +580,15 @@ class JsoniqAstBuilder extends JsoniqParserVisitor<AstVisitResult> {
     private catchClause(node: CatchCaseStatementContext | CatchClauseContext): AstVisitResult {
         const bodyStart =
             node instanceof CatchClauseContext ? node.LBRACE() : node._catch_block?.LBRACE();
-        const explicitDeclaration =
-            node instanceof CatchClauseContext
-                ? this.variableDeclaration(
-                      node._catch_var,
-                      rangeFromNode(node.LBRACE(), this.document).end,
-                  )
-                : null;
         return [
             {
                 kind: "catch-clause",
                 range: rangeFromNode(node, this.document),
                 bodyStart:
-                    bodyStart === undefined
+                    bodyStart == null
                         ? rangeFromNode(node, this.document).start
                         : rangeFromNode(bodyStart, this.document).end,
-                children: [
-                    ...(explicitDeclaration === null ? [] : [explicitDeclaration]),
-                    ...this.visitChildrenAsNodes(node),
-                ],
+                children: [...this.visitChildrenAsNodes(node)],
             },
         ];
     }

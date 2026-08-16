@@ -25,6 +25,7 @@ export const xqueryParserAdapter: ParserAdapter = {
             isFunctionCallRule: (ruleIndex) => ruleIndex === XQueryParser.RULE_functionCall,
             isObjectLookupRule: () => false,
             isObjectLookupDotToken: () => false,
+            isCatchErrorTargetRule: (ruleIndex) => ruleIndex === XQueryParser.RULE_catchErrorTarget,
             isVariableReferenceRule: (ruleIndex) => ruleIndex === XQueryParser.RULE_varRef,
             tokenName: (tokenType) => XQueryParser.symbolicNames[tokenType] ?? tokenType,
             ruleName: (ruleIndex) => XQueryParser.ruleNames[ruleIndex] ?? ruleIndex,

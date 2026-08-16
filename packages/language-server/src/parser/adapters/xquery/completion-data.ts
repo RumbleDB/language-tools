@@ -29,6 +29,7 @@ export const IGNORED_COMPLETION_TOKENS = new Set([
 ]);
 
 export const PREFERRED_COMPLETION_RULES = new Set([
+    XQueryParser.RULE_catchErrorTarget,
     XQueryParser.RULE_varRef,
     XQueryParser.RULE_qname,
     XQueryParser.RULE_functionCall,

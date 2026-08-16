@@ -160,6 +160,39 @@ describe("JSONiq completion", () => {
         });
     });
 
+    it("suggests prefixed W3C error codes and wildcard patterns in a catch target", () => {
+        const document = testDocument("completion-catch-error", "try { 1 div 0 } catch ");
+        const position = document.positionAt(document.getText().length);
+        const items = findCompletions(document, position, parserService, workspaceService);
+
+        expect(labels(items)).toContain("err:FOAR0001");
+        expect(labels(items)).toContain("*");
+        expect(labels(items)).toContain("err:*");
+        expect(labels(items)).not.toContain("fn:abs");
+    });
+
+    it("filters and replaces a partially typed catch error code", () => {
+        const document = testDocument(
+            "completion-catch-error-prefix",
+            "try { 1 div 0 } catch err:FOAR",
+        );
+        const position = document.positionAt(document.getText().length);
+        const item = findCompletions(document, position, parserService, workspaceService).find(
+            (completion) => completion.label === "err:FOAR0001",
+        );
+
+        expect(item?.textEdit).toEqual({
+            range: {
+                start: document.positionAt(document.getText().length - "err:FOAR".length),
+                end: position,
+            },
+            newText: "err:FOAR0001",
+        });
+        expect(item?.documentation).toMatchObject({
+            value: expect.stringContaining("Division by zero."),
+        });
+    });
+
     it("does not suggest variables when non-expression clause keywords are expected", () => {
         const source = "for $x in 1 ";
         const document = testDocument("completion-flwor-keywords", source);
@@ -344,6 +377,19 @@ describe("JSONiq completion", () => {
 });
 
 describe("XQuery completion", () => {
+    it("suggests prefixed W3C error codes in a catch target", () => {
+        const document = testDocumentFromUri("try { 1 div 0 } catch err:FOAR", {
+            uri: "file:///completion-catch-error.xq",
+            languageId: "xquery",
+        });
+        const position = document.positionAt(document.getText().length);
+        const labelsAtCursor = labels(
+            findCompletions(document, position, parserService, workspaceService),
+        );
+
+        expect(labelsAtCursor).toContain("err:FOAR0001");
+    });
+
     /// This has been added because the original XQuery grammar had string rules that caused the C3 completion engine to freeze.
     it("returns promptly after a long namespace URI before an XML element", () => {
         const document = testDocumentFromUri(

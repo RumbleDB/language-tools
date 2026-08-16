@@ -1057,9 +1057,9 @@ describe("JSONiq & XQuery Formatter", () => {
 
     describe("Control flow expressions", () => {
         it("formats try-catch expressions with catch block on a new line", () => {
-            const input = "try { 1 / 0 } catch ($e) { 0 }";
+            const input = "try { 1 / 0 } catch * { 0 }";
             const formatted = formatText(input);
-            expect(formatted).toBe("try { 1 / 0 }\ncatch ($e) { 0 }\n");
+            expect(formatted).toBe("try { 1 / 0 }\ncatch * { 0 }\n");
         });
 
         it.each(["jsoniq", "xquery"] as const)(
