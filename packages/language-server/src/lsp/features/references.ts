@@ -1,4 +1,4 @@
-import { findSymbolAtPosition } from "server/analysis/queries.js";
+import { findSymbolAtPosition } from "server/analysis/index.js";
 import type { WorkspaceService } from "server/workspace/service.js";
 import { type Location, type Position } from "vscode-languageserver";
 import { TextDocument } from "vscode-languageserver-textdocument";

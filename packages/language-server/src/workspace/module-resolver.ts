@@ -1,6 +1,6 @@
 import type { DocumentUri, Range } from "vscode-languageserver";
 
-import type { ModuleImport } from "../analysis/module-info.js";
+import type { ModuleImport } from "../analysis/model/module-info.js";
 
 export interface ResolvedModuleLocation {
     readonly locationUri: string;

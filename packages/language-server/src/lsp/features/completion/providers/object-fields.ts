@@ -1,4 +1,4 @@
-import { formatTypeDefinition, type ObjectTypeDefinition } from "server/analysis/type-system.js";
+import { formatTypeDefinition, type ObjectTypeDefinition } from "server/analysis/index.js";
 import { getTypeAtPositionFromSource } from "server/integrations/rumble/operations/type-at-position/service.js";
 import { CompletionItemKind } from "vscode-languageserver";
 

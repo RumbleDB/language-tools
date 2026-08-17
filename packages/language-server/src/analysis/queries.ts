@@ -1,11 +1,10 @@
-import { comparePositions } from "server/utils/position.js";
 import { rangeContainsPosition } from "server/utils/range.js";
 import type { Position } from "vscode-languageserver";
 
-import type { AstNode, SymbolOccurrence } from "./ast.js";
-import { AnalysisResult } from "./builder.js";
-import { Definition, ScopeDefinition, SourceDefinition } from "./definitions.js";
-import { AnyResolvedReference } from "./reference.js";
+import type { AstNode, ModuleNode, SymbolOccurrence } from "./model/ast.js";
+import type { ScopeDefinition, SourceDefinition } from "./model/definitions.js";
+import type { AnyResolvedReference } from "./model/reference.js";
+import type { AnalysisResult } from "./model/result.js";
 
 export function getVisibleDeclarationsAtPosition(
     analysis: AnalysisResult,
@@ -13,23 +12,6 @@ export function getVisibleDeclarationsAtPosition(
 ): ScopeDefinition[] {
     const scope = analysis.scope.findInnermostScope(positionOffset);
     return [...scope.listVisibleDefinitions(positionOffset).values()];
-}
-
-export function getSourceDefinitions(analysis: AnalysisResult): SourceDefinition[] {
-    return [...analysis.definitions].sort((left, right) =>
-        comparePositions(left.range.start, right.range.start),
-    );
-}
-
-export function getResolvedReferences(analysis: AnalysisResult): AnyResolvedReference[] {
-    return [...analysis.references];
-}
-
-export function getReferencesToDefinition(
-    analysis: AnalysisResult,
-    definition: Definition,
-): readonly AnyResolvedReference[] {
-    return analysis.referencesByDefinition.get(definition) ?? [];
 }
 
 export function findSymbolAtPosition(
@@ -51,6 +33,23 @@ export function findNodesThatContainPosition(
     position: Position,
 ): AstNode[] {
     return findContainingNodePath(analysis.ast, position) ?? [];
+}
+
+export function* walkAst(node: AstNode): Iterable<AstNode> {
+    yield node;
+    for (const child of node.children) yield* walkAst(child);
+}
+
+export function* getDefinitions(ast: ModuleNode): Iterable<SourceDefinition> {
+    for (const node of walkAst(ast)) {
+        if (node.kind === "declaration") yield node.declaration;
+    }
+}
+
+export function* getResolvedReferences(ast: ModuleNode): Iterable<AnyResolvedReference> {
+    for (const node of walkAst(ast)) {
+        if (node.kind === "reference" && node.resolution !== undefined) yield node.resolution;
+    }
 }
 
 function findContainingNodePath(node: AstNode, position: Position): AstNode[] | undefined {

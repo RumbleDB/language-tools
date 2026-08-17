@@ -1,8 +1,9 @@
 import type { DocumentUri } from "vscode-languageserver";
 
-import type { AnalysisResult } from "../analysis/builder.js";
-import type { SourceDefinition, SymbolId } from "../analysis/definitions.js";
-import type { AnyResolvedReference } from "../analysis/reference.js";
+import type { SourceDefinition, SymbolId } from "../analysis/model/definitions.js";
+import type { AnyResolvedReference } from "../analysis/model/reference.js";
+import type { AnalysisResult } from "../analysis/model/result.js";
+import { getResolvedReferences } from "../analysis/queries.js";
 
 /** Maintains cross-document reference lookup independently from analysis caches. */
 export class WorkspaceSymbolIndex {
@@ -24,7 +25,7 @@ export class WorkspaceSymbolIndex {
     public update(uri: DocumentUri, analysis: AnalysisResult): void {
         this.remove(uri);
         const symbols = new Set<SymbolId>();
-        for (const reference of analysis.references) {
+        for (const reference of getResolvedReferences(analysis.ast)) {
             if (reference.declaration.origin !== "source") continue;
 
             const symbolId = reference.declaration.id;

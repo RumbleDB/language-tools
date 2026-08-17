@@ -1,6 +1,4 @@
-import { defaultNamespaces } from "server/analysis/default-namespaces.js";
-import { QNameToString } from "server/analysis/names.js";
-import { formatSequenceType } from "server/analysis/type-system.js";
+import { DEFAULT_NAMESPACES, formatSequenceType, QNameToString } from "server/analysis/index.js";
 import {
     builtinFunctions,
     type BuiltinFunctionDefinition,
@@ -38,7 +36,7 @@ function createBuiltinFunctionCompletionItems(): CompletionItem[] {
     for (const definition of builtinFunctions.all) {
         const { qname, arity } = definition.name;
         const functionName = QNameToString(qname, false);
-        const ns = qname.namespaceUri ?? defaultNamespaces.get(qname.prefix || "fn");
+        const ns = qname.namespaceUri ?? DEFAULT_NAMESPACES.get(qname.prefix || "fn");
         const docsKey = QNameToString(
             {
                 localName: qname.localName,

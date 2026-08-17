@@ -1,5 +1,5 @@
-import { ScopeDefinition, ScopeDefinitionByReferenceKind } from "./definitions.js";
-import { QName, QNameToString, type FunctionName, type ReferenceNameByKind } from "./names.js";
+import type { ScopeDefinition, ScopeDefinitionByReferenceKind } from "./definitions.js";
+import { QNameToString, type FunctionName, type QName, type ReferenceNameByKind } from "./names.js";
 
 interface ScopeEntry {
     definition: ScopeDefinition;
@@ -42,7 +42,7 @@ export class ScopeBuilder implements Scope {
     }
 
     public declare(definition: ScopeDefinition, visibleFrom: number): void {
-        const name = this.definitionLookupKey(definition);
+        const name = ScopeBuilder.definitionLookupKey(definition);
         if (!this.entriesByName.has(name)) {
             this.entriesByName.set(name, []);
         }
@@ -56,7 +56,7 @@ export class ScopeBuilder implements Scope {
         offset: number,
         excludedDefinitions: ReadonlySet<ScopeDefinition> = new Set(),
     ): ScopeDefinitionByReferenceKind[K] | undefined {
-        const entries = this.entriesByName.get(this.referenceLookupKey(name, kind));
+        const entries = this.entriesByName.get(ScopeBuilder.lookupKey(kind, name));
         const entry = entries?.findLast(
             (candidate) =>
                 candidate.visibleFrom <= offset && !excludedDefinitions.has(candidate.definition),
@@ -80,7 +80,7 @@ export class ScopeBuilder implements Scope {
     public findInnermostScope(offset: number): Scope {
         for (const child of this.children) {
             if (child.contains(offset)) {
-                /// We can return early because we know that scopes cannot overlap, only nest.
+                // We can return early because we know that scopes cannot overlap, only nest.
                 return child.findInnermostScope(offset);
             }
         }
@@ -92,19 +92,13 @@ export class ScopeBuilder implements Scope {
      * Lists all definitions that are visible at the given offset,
      * i.e. all definitions declared in this scope or any parent scope that are visible at the given offset.
      *
-     * This method should be called on the innermost scope at the given offset
+     * This method should be called on the innermost scope at the given offset.
      */
     public listVisibleDefinitions(offset: number): Map<string, ScopeDefinition> {
         const visible = new Map<string, ScopeDefinition>();
 
-        for (const [name, entries] of this.entriesByName.entries()) {
-            const entry = entries.findLast((candidate) => candidate.visibleFrom <= offset);
-            if (entry !== undefined) {
-                visible.set(name, entry.definition);
-            }
-        }
-
-        let current = this.parent;
+        // oxlint-disable-next-line typescript/no-this-alias
+        let current: ScopeBuilder | undefined = this;
         while (current !== undefined) {
             for (const [name, entries] of current.entriesByName.entries()) {
                 if (visible.has(name)) {
@@ -112,7 +106,6 @@ export class ScopeBuilder implements Scope {
                 }
 
                 const entry = entries.findLast((candidate) => candidate.visibleFrom <= offset);
-
                 if (entry !== undefined) {
                     visible.set(name, entry.definition);
                 }
@@ -124,37 +117,19 @@ export class ScopeBuilder implements Scope {
         return visible;
     }
 
-    private functionLookupKey(name: FunctionName): string {
-        return `${QNameToString(name.qname, true)}#${name.arity ?? "?"}`;
-    }
-
-    private definitionLookupKey(definition: ScopeDefinition): string {
-        switch (definition.kind) {
-            case "function":
-                return `function:${this.functionLookupKey(definition.name)}`;
-            case "type":
-                return `type:${QNameToString(definition.name, true)}`;
-            case "parameter":
-            case "variable":
-                return `variable:${QNameToString(definition.name, true)}`;
-            default:
-                throw definition satisfies never;
-        }
-    }
-
-    private referenceLookupKey<K extends keyof ReferenceNameByKind>(
-        name: ReferenceNameByKind[K],
+    private static lookupKey<K extends keyof ReferenceNameByKind>(
         kind: K,
+        name: ReferenceNameByKind[K],
     ): string {
-        switch (kind) {
-            case "function":
-                return `function:${this.functionLookupKey(name as FunctionName)}`;
-            case "variable":
-                return `variable:${QNameToString(name as QName, true)}`;
-            case "type":
-                return `type:${QNameToString(name as QName, true)}`;
-            default:
-                throw kind satisfies never;
+        if (kind === "function") {
+            const fn = name as FunctionName;
+            return `function:${QNameToString(fn.qname, true)}#${fn.arity ?? "?"}`;
         }
+        return `${kind}:${QNameToString(name as QName, true)}`;
+    }
+
+    private static definitionLookupKey(definition: ScopeDefinition): string {
+        const kind = definition.kind === "parameter" ? "variable" : definition.kind;
+        return ScopeBuilder.lookupKey(kind, definition.name);
     }
 }

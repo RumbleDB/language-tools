@@ -1,5 +1,4 @@
-import type { ScopeDefinition } from "server/analysis/definitions.js";
-import { getVisibleDeclarationsAtPosition } from "server/analysis/queries.js";
+import { getVisibleDeclarationsAtPosition, type ScopeDefinition } from "server/analysis/index.js";
 import type { ParserService } from "server/parser/index.js";
 import { getDocumentText } from "server/parser/utils.js";
 import type { WorkspaceService } from "server/workspace/service.js";

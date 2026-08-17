@@ -1,13 +1,12 @@
-import { analyzeDocument } from "server/analysis/builder.js";
-import { buildDocumentIndex } from "server/analysis/document-index.js";
+import { analyzeDocument, getDefinitions } from "server/analysis/index.js";
 import { WorkspaceSymbolIndex } from "server/workspace/symbol-index.js";
 import { describe, expect, it } from "vitest";
 
 import { parserService } from "./services.js";
 import { testDocument, testDocumentFromUri } from "./test-utils.js";
 
-const buildIndex = (document: Parameters<typeof buildDocumentIndex>[0]) =>
-    buildDocumentIndex(document, parserService.parse(document).ast);
+const buildAnalysis = (document: Parameters<typeof analyzeDocument>[0]) =>
+    analyzeDocument(document, parserService.parse(document).ast);
 
 describe("workspace symbol index", () => {
     it("indexes and removes references by symbol identity", () => {
@@ -15,8 +14,8 @@ describe("workspace symbol index", () => {
             "declare variable $value := 1;",
             "$value",
         ]);
-        const analysis = analyzeDocument(buildIndex(document));
-        const definition = analysis.definitions.find(
+        const analysis = buildAnalysis(document);
+        const definition = [...getDefinitions(analysis.ast)].find(
             (candidate) => candidate.kind === "variable" && candidate.name.localName === "value",
         );
         expect(definition).toBeDefined();
@@ -32,17 +31,17 @@ describe("workspace symbol index", () => {
 
     it("keeps symbol identities stable when declaration ranges move", () => {
         const uri = "file:///stable-symbol.jq";
-        const first = buildIndex(
+        const first = buildAnalysis(
             testDocumentFromUri("declare variable $value := 1;", { uri, version: 1 }),
         );
-        const second = buildIndex(
+        const second = buildAnalysis(
             testDocumentFromUri(["", "declare variable $value := 1;"], { uri, version: 2 }),
         );
 
-        const firstVariable = first.definitions.find(
+        const firstVariable = [...getDefinitions(first.ast)].find(
             (definition) => definition.kind === "variable",
         );
-        const secondVariable = second.definitions.find(
+        const secondVariable = [...getDefinitions(second.ast)].find(
             (definition) => definition.kind === "variable",
         );
         expect(firstVariable?.selectionRange).not.toEqual(secondVariable?.selectionRange);

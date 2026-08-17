@@ -1,4 +1,4 @@
-import { buildDocumentIndex } from "server/analysis/document-index.js";
+import { collectModuleProlog } from "server/analysis/index.js";
 import type { ParserService } from "server/parser/index.js";
 import { resolveModuleLocations } from "server/workspace/module-resolver.js";
 import type { DocumentLink } from "vscode-languageserver";
@@ -21,8 +21,8 @@ export function collectDocumentLinks(
     document: TextDocument,
     parser: ParserService,
 ): DocumentLink[] {
-    const index = buildDocumentIndex(document, parser.parse(document).ast);
-    return index.moduleDeclaration.imports.flatMap((imported) =>
+    const prolog = collectModuleProlog(document.uri, parser.parse(document).ast);
+    return prolog.imports.flatMap((imported) =>
         resolveModuleLocations(document.uri, imported).flatMap(({ range, targetUri }) =>
             targetUri?.startsWith("file:") === true ? [{ range, target: targetUri }] : [],
         ),

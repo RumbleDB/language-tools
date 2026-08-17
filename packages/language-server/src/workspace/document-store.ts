@@ -2,7 +2,7 @@ import type { DocumentUri, Range } from "vscode-languageserver";
 import { TextDocument } from "vscode-languageserver-textdocument";
 import { FileChangeType, type FileEvent } from "vscode-languageserver/node";
 
-import type { ModuleImport } from "../analysis/module-info.js";
+import type { ModuleImport } from "../analysis/model/module-info.js";
 import { isSupportedSourceUri, loadSourceFile } from "./files.js";
 import { resolveModuleLocations } from "./module-resolver.js";
 

@@ -49,7 +49,11 @@ export interface SourceFunctionDefinition extends BaseSourceDefinition<"function
     readonly parameters: readonly SourceParameterDefinition[];
 }
 
-export type SourceModuleExportDefinition = SourceVariableDefinition | SourceFunctionDefinition;
+/** A declaration made visible by importing a RumbleDB library module. */
+export type SourceModuleExportDefinition =
+    | SourceVariableDefinition
+    | SourceFunctionDefinition
+    | SourceTypeDefinition;
 
 export interface SourceNamespaceDefinition extends BaseSourceDefinition<"namespace"> {
     readonly kind: "namespace";
@@ -71,14 +75,6 @@ export interface ImplicitVariableDefinition extends AbstractDefinition<"variable
     readonly kind: "variable";
     readonly origin: "implicit";
 }
-
-export interface ImplicitNamespaceDefinition extends AbstractDefinition<"namespace"> {
-    readonly kind: "namespace";
-    readonly origin: "implicit";
-    readonly namespaceUri: string;
-}
-
-export type NamespaceDefinition = SourceNamespaceDefinition | ImplicitNamespaceDefinition;
 
 export type ScopeDefinition =
     | SourceVariableDefinition
@@ -104,11 +100,7 @@ export interface DefinitionByReferenceKind {
     type: SourceTypeDefinition;
 }
 
-export type Definition =
-    | SourceDefinition
-    | ImplicitVariableDefinition
-    | ImplicitNamespaceDefinition
-    | BuiltinFunctionDefinition;
+export type Definition = SourceDefinition | ImplicitVariableDefinition | BuiltinFunctionDefinition;
 
 export function definitionNameToString(
     definition: BaseDefinition,
@@ -126,5 +118,21 @@ export function definitionNameToString(
             return `$${QNameToString(definition.name, expanded)}`;
         default:
             throw definition satisfies never;
+    }
+}
+
+export function duplicateSymbolErrorCode(kind: DefinitionKind): string {
+    switch (kind) {
+        case "variable":
+        case "parameter":
+            return "XQST0049";
+        case "function":
+            return "XQST0034";
+        case "type":
+            return "duplicate-type";
+        case "namespace":
+            return "XQST0033";
+        default:
+            throw kind satisfies never;
     }
 }

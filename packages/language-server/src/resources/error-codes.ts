@@ -1,5 +1,5 @@
-import { ERR_NAMESPACE } from "server/analysis/default-namespaces.js";
-import type { QName } from "server/analysis/names.js";
+import { ERR_NAMESPACE } from "server/analysis/model/constants.js";
+import type { QName } from "server/analysis/model/names.js";
 
 import { loadJsonAsset } from "./loader.js";
 

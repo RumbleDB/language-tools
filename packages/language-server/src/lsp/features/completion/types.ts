@@ -1,4 +1,4 @@
-import type { ScopeDefinition } from "server/analysis/definitions.js";
+import type { ScopeDefinition } from "server/analysis/index.js";
 import type { CompletionIntent } from "server/parser/types/completion.js";
 import type { CompletionItem } from "vscode-languageserver";
 import type { TextDocument } from "vscode-languageserver-textdocument";

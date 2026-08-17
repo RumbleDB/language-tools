@@ -1,5 +1,8 @@
-import { definitionNameToString, type ScopeDefinition } from "server/analysis/definitions.js";
-import { QNameToString } from "server/analysis/names.js";
+import {
+    definitionNameToString,
+    QNameToString,
+    type ScopeDefinition,
+} from "server/analysis/index.js";
 import {
     CompletionItemKind,
     InsertTextFormat,

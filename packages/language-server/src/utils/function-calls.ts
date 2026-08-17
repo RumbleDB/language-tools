@@ -1,11 +1,11 @@
 import type { Position } from "vscode-languageserver";
 
-import type { ArgumentNode, FunctionCallNode } from "../analysis/ast.js";
-import type { AnalysisResult } from "../analysis/builder.js";
+import type { ArgumentNode, FunctionCallNode } from "../analysis/model/ast.js";
 import type {
     DefinitionByReferenceKind,
     SourceFunctionDefinition,
-} from "../analysis/definitions.js";
+} from "../analysis/model/definitions.js";
+import type { AnalysisResult } from "../analysis/model/result.js";
 import { findNodesThatContainPosition } from "../analysis/queries.js";
 
 export function chooseBestSignatureIndex(

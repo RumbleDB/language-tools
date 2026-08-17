@@ -4,10 +4,10 @@ import {
     JN_NAMESPACE,
     MAP_NAMESPACE,
     MATH_NAMESPACE,
-} from "server/analysis/default-namespaces.js";
-import { BaseDefinition } from "server/analysis/definitions.js";
-import { functionNameToString, type FunctionName } from "server/analysis/names.js";
-import { type StaticFunctionSignature } from "server/analysis/type-system.js";
+} from "server/analysis/model/constants.js";
+import type { BaseDefinition } from "server/analysis/model/definitions.js";
+import { functionNameToString, type FunctionName } from "server/analysis/model/names.js";
+import { type StaticFunctionSignature } from "server/analysis/model/type-system.js";
 
 import { loadJsonAsset } from "./loader.js";
 

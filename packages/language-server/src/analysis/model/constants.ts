@@ -22,7 +22,7 @@ export {
     ERR_NAMESPACE,
 };
 
-export const defaultNamespaces: Map<string, string> = new Map([
+export const DEFAULT_NAMESPACES: ReadonlyMap<string, string> = new Map([
     ["local", LOCAL_NAMESPACE],
     ["fn", FN_NAMESPACE],
     ["math", MATH_NAMESPACE],
@@ -34,3 +34,14 @@ export const defaultNamespaces: Map<string, string> = new Map([
     ["js", JS_NAMESPACE],
     ["err", ERR_NAMESPACE],
 ]);
+
+/** Standard error variables implicitly bound in try/catch clauses (XQuery / JSONiq 3.0). */
+export const STANDARD_CATCH_VARIABLES = [
+    { kind: "prefixed-qname", prefix: "err", localName: "code" },
+    { kind: "prefixed-qname", prefix: "err", localName: "description" },
+    { kind: "prefixed-qname", prefix: "err", localName: "value" },
+    { kind: "prefixed-qname", prefix: "err", localName: "module" },
+    { kind: "prefixed-qname", prefix: "err", localName: "line-number" },
+    { kind: "prefixed-qname", prefix: "err", localName: "column-number" },
+    { kind: "prefixed-qname", prefix: "err", localName: "additional" },
+] as const;

@@ -22,8 +22,8 @@ export type FunctionDocEntry = {
     signatures: Signature[];
 };
 
-import { defaultNamespaces } from "server/analysis/default-namespaces.js";
-import { QName, QNameToString } from "server/analysis/names.js";
+import { DEFAULT_NAMESPACES } from "server/analysis/model/constants.js";
+import { type QName, QNameToString } from "server/analysis/model/names.js";
 
 import { loadJsonAsset } from "./loader.js";
 
@@ -35,7 +35,7 @@ FILES_TO_LOAD.map(loadJsonAsset<Record<string, FunctionDocEntry>>).forEach((doc)
 
     for (const [originalKey, value] of Object.entries(doc)) {
         const [prefix, localName] = originalKey.split(":");
-        const namespace = defaultNamespaces.get(prefix!);
+        const namespace = DEFAULT_NAMESPACES.get(prefix!);
         if (!namespace) {
             continue;
         }
@@ -49,7 +49,7 @@ export function getBuiltinFunctionDocumentation(name: QName): FunctionDocEntry |
 
     if (name.namespaceUri === undefined) {
         /// Try to resolve with different default namespace Uris
-        for (const ns of defaultNamespaces.values()) {
+        for (const ns of DEFAULT_NAMESPACES.values()) {
             const tryKey = QNameToString(
                 {
                     ...name,

@@ -1,17 +1,15 @@
 import { ParserService } from "server/parser/index.js";
 import { createLogger } from "server/utils/logger.js";
-import { DiagnosticSeverity, type Diagnostic, type DocumentUri } from "vscode-languageserver";
+import type { DocumentUri } from "vscode-languageserver";
 import { TextDocument } from "vscode-languageserver-textdocument";
 import { FileChangeType, type FileEvent } from "vscode-languageserver/node";
 
-import {
-    analyzeDocument,
-    type AnalysisResult,
-    type ResolvedModuleImport,
-} from "../analysis/builder.js";
-import { type Definition, type SourceModuleExportDefinition } from "../analysis/definitions.js";
-import { buildDocumentIndex, type DocumentIndex } from "../analysis/document-index.js";
-import type { AnyResolvedReference } from "../analysis/reference.js";
+import type { Definition } from "../analysis/model/definitions.js";
+import type { AnyResolvedReference } from "../analysis/model/reference.js";
+import type { AnalysisResult } from "../analysis/model/result.js";
+import { analyzeModule } from "../analysis/pipeline.js";
+import type { ModuleProvider } from "../analysis/resolution/import-resolution.js";
+import { collectModuleProlog, type ModuleProlog } from "../analysis/resolution/module-prolog.js";
 import { WorkspaceDocumentStore } from "./document-store.js";
 import { ModuleGraph } from "./module-graph.js";
 import { WorkspaceSymbolIndex } from "./symbol-index.js";
@@ -21,9 +19,9 @@ interface CachedAnalysis {
     analysis: AnalysisResult;
 }
 
-interface CachedDocumentIndex {
+interface CachedProlog {
     version: number;
-    index: DocumentIndex;
+    prolog: ModuleProlog;
 }
 
 const logger = createLogger("workspace-analysis");
@@ -32,7 +30,7 @@ export class WorkspaceIndex {
     private readonly moduleGraph = new ModuleGraph();
     private readonly symbols = new WorkspaceSymbolIndex();
     private readonly analyses = new Map<DocumentUri, CachedAnalysis>();
-    private readonly documentIndexes = new Map<DocumentUri, CachedDocumentIndex>();
+    private readonly prologs = new Map<DocumentUri, CachedProlog>();
     private readonly failedAnalyses = new Set<DocumentUri>();
 
     public constructor(
@@ -85,116 +83,56 @@ export class WorkspaceIndex {
         if (cached?.version === document.version) return cached.analysis;
 
         const nextVisiting = new Set(visiting).add(document.uri);
-        const index = this.getDocumentIndex(document);
-        const resolvedImports: ResolvedModuleImport[] = [];
-        const importDiagnostics: Diagnostic[] = [];
-        const importedNamespaces = new Set<string>();
-        const dependencies = new Set<DocumentUri>();
+        const prolog = this.getProlog(document);
+        const provider = this.createModuleProvider(document, nextVisiting);
 
-        for (const imported of index.moduleDeclaration.imports) {
-            if (imported.namespaceUri.length === 0) {
-                importDiagnostics.push({
-                    severity: DiagnosticSeverity.Error,
-                    code: "XQST0088",
-                    message: "A module import target namespace cannot be empty.",
-                    range: imported.namespaceUriRange,
-                });
-                continue;
-            }
-            if (imported.prefix === "xml" || imported.prefix === "xmlns") {
-                importDiagnostics.push({
-                    severity: DiagnosticSeverity.Error,
-                    code: "XQST0070",
-                    message: `Prefix '${imported.prefix}' cannot be used for a module import.`,
-                    range: imported.range,
-                });
-                continue;
-            }
-            if (importedNamespaces.has(imported.namespaceUri)) {
-                importDiagnostics.push({
-                    severity: DiagnosticSeverity.Error,
-                    code: "XQST0047",
-                    message: `Module namespace '${imported.namespaceUri}' is imported more than once.`,
-                    range: imported.namespaceUriRange,
-                });
-                continue;
-            }
-            importedNamespaces.add(imported.namespaceUri);
-
-            const exports = new Map<string, SourceModuleExportDefinition>();
-            let foundValidModule = false;
-            for (const loaded of this.documents.loadImport(document, imported)) {
-                if (loaded.targetUri !== undefined) dependencies.add(loaded.targetUri);
-                if (loaded.document === undefined) {
-                    importDiagnostics.push({
-                        severity: DiagnosticSeverity.Error,
-                        code: "XQST0059",
-                        message: `Cannot resolve module location '${loaded.locationUri}'.`,
-                        range: loaded.range,
-                    });
-                    continue;
-                }
-
-                const dependency = loaded.document;
-                const dependencyIndex = this.getDocumentIndex(dependency);
-                if (!nextVisiting.has(dependency.uri)) {
-                    // Populate the dependency graph and workspace reference index for the
-                    // library itself. Its exports are already available from its document index.
-                    this.analyse(dependency, nextVisiting);
-                }
-                if (
-                    dependencyIndex.moduleDeclaration.kind !== "library" ||
-                    dependencyIndex.moduleInterface?.namespaceUri !== imported.namespaceUri
-                ) {
-                    importDiagnostics.push({
-                        severity: DiagnosticSeverity.Error,
-                        code: "XQST0059",
-                        message: `Imported module must declare namespace '${imported.namespaceUri}'.`,
-                        range: loaded.range,
-                    });
-                    continue;
-                }
-                foundValidModule = true;
-                for (const [name, exported] of dependencyIndex.moduleInterface.exports) {
-                    if (exports.has(name)) {
-                        importDiagnostics.push({
-                            severity: DiagnosticSeverity.Error,
-                            code: exported.kind === "variable" ? "XQST0049" : "XQST0034",
-                            message: `Module export '${name}' is defined more than once.`,
-                            range: loaded.range,
-                        });
-                        continue;
-                    }
-                    exports.set(name, exported);
-                }
-            }
-            if (foundValidModule) {
-                resolvedImports.push({
-                    targetNamespaceUri: imported.namespaceUri,
-                    exports,
-                });
-            }
-        }
+        const { analysis, dependencies } = analyzeModule(
+            document,
+            this.parser.parse(document).ast,
+            {
+                provider,
+                prolog,
+            },
+        );
 
         this.moduleGraph.replaceDependencies(document.uri, dependencies);
-
-        const analysis = analyzeDocument(index, {
-            resolvedImports,
-            diagnostics: importDiagnostics,
-        });
         this.analyses.set(document.uri, { version: document.version, analysis });
         this.failedAnalyses.delete(document.uri);
         this.symbols.update(document.uri, analysis);
         return analysis;
     }
 
-    private getDocumentIndex(document: TextDocument): DocumentIndex {
-        const cached = this.documentIndexes.get(document.uri);
-        if (cached?.version === document.version) return cached.index;
+    private createModuleProvider(
+        document: TextDocument,
+        visiting: Set<DocumentUri>,
+    ): ModuleProvider {
+        return {
+            loadImport: (_importerUri, imported) => {
+                return this.documents.loadImport(document, imported).map((loaded) => {
+                    if (loaded.document !== undefined && !visiting.has(loaded.document.uri)) {
+                        this.analyse(loaded.document, visiting);
+                    }
+                    return {
+                        locationUri: loaded.locationUri,
+                        range: loaded.range,
+                        targetUri: loaded.targetUri,
+                        prolog:
+                            loaded.document !== undefined
+                                ? this.getProlog(loaded.document)
+                                : undefined,
+                    };
+                });
+            },
+        };
+    }
 
-        const index = buildDocumentIndex(document, this.parser.parse(document).ast);
-        this.documentIndexes.set(document.uri, { version: document.version, index });
-        return index;
+    private getProlog(document: TextDocument): ModuleProlog {
+        const cached = this.prologs.get(document.uri);
+        if (cached?.version === document.version) return cached.prolog;
+
+        const prolog = collectModuleProlog(document.uri, this.parser.parse(document).ast);
+        this.prologs.set(document.uri, { version: document.version, prolog });
+        return prolog;
     }
 
     public getReferencesToDefinition(definition: Definition): readonly AnyResolvedReference[] {
@@ -229,7 +167,7 @@ export class WorkspaceIndex {
             this.failedAnalyses.delete(uri);
             this.symbols.remove(uri);
         }
-        for (const uri of uris) this.documentIndexes.delete(uri);
+        for (const uri of uris) this.prologs.delete(uri);
         return affected;
     }
 }

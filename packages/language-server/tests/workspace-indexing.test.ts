@@ -3,7 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 
-import { buildDocumentIndex } from "server/analysis/document-index.js";
+import { analyzeDocument, getDefinitions } from "server/analysis/index.js";
 import { WorkspaceDocumentStore } from "server/workspace/document-store.js";
 import { loadSourceFile } from "server/workspace/files.js";
 import { WorkspaceIndex } from "server/workspace/workspace-index.js";
@@ -13,8 +13,9 @@ import { FileChangeType } from "vscode-languageserver/node";
 
 import { parserService } from "./services.js";
 
-const buildIndex = (document: TextDocument) =>
-    buildDocumentIndex(document, parserService.parse(document).ast);
+const definitionsOf = (document: TextDocument) => [
+    ...getDefinitions(analyzeDocument(document, parserService.parse(document).ast).ast),
+];
 
 describe("workspace indexing", () => {
     it("isolates and remembers a document loading failure", () => {
@@ -41,7 +42,9 @@ describe("workspace indexing", () => {
 
         expect(() => coordinator.replaceWorkspaceDocuments([failingUri, validUri])).not.toThrow();
         expect(failedLoads).toBe(0); /// The failing document is not loaded until a definition is requested.
-        const definition = analysis.definitions.find((candidate) => candidate.kind === "variable");
+        const definition = [...getDefinitions(analysis.ast)].find(
+            (candidate) => candidate.kind === "variable",
+        );
         expect(definition).toBeDefined();
         if (definition === undefined) return;
         coordinator.getReferencesToDefinition(definition);
@@ -85,7 +88,7 @@ describe("workspace indexing", () => {
             const moduleDocument = loadSourceFile(moduleUri);
             expect(moduleDocument).toBeDefined();
             if (moduleDocument === undefined) return;
-            const definition = buildIndex(moduleDocument).definitions.find(
+            const definition = definitionsOf(moduleDocument).find(
                 (candidate) => candidate.kind === "variable",
             );
             expect(definition).toBeDefined();
@@ -123,7 +126,7 @@ describe("workspace indexing", () => {
             const moduleDocument = loadSourceFile(moduleUri);
             expect(moduleDocument).toBeDefined();
             if (moduleDocument === undefined) return;
-            const definition = buildIndex(moduleDocument).definitions.find(
+            const definition = definitionsOf(moduleDocument).find(
                 (candidate) => candidate.kind === "variable",
             );
             expect(definition).toBeDefined();
