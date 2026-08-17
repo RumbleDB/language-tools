@@ -1,5 +1,23 @@
 # jsoniq-language-server
 
+## 2.10.0
+
+### Minor Changes
+
+- [#58](https://github.com/RumbleDB/language-tools/pull/58) [`00cc55f`](https://github.com/RumbleDB/language-tools/commit/00cc55f0714ee89109ed1795e79d0b0c5d7fa228) - refactor: change the inline completion to use a provider-based pipeline to decouple the logic between different types of completion items.
+
+- [`fdb6004`](https://github.com/RumbleDB/language-tools/commit/fdb6004071e096647f34da3e78236f35a9c23743) - refactor: delay workspace analysis until explicit analysis request or workspace wide definition or reference fetch
+
+- [#59](https://github.com/RumbleDB/language-tools/pull/59) [`bf09ff0`](https://github.com/RumbleDB/language-tools/commit/bf09ff0977b8ff52dcbcf17046ad1cb78a5a7d48) - feat: add hover support to error code by including error-code-target in parser and analysis AST
+
+- [#57](https://github.com/RumbleDB/language-tools/pull/57) [`a9c1047`](https://github.com/RumbleDB/language-tools/commit/a9c104751eee2948461cf88a8243dd705a982340) - feat: load W3C XQuery and XPath error code into the language server and provide information about them in completion.
+
+  Old `catchVar` has been removed from the parser grammar, because it was not part of the W3C XQuery and XPath specification and never used.
+
+### Patch Changes
+
+- [#56](https://github.com/RumbleDB/language-tools/pull/56) [`85d3b1b`](https://github.com/RumbleDB/language-tools/commit/85d3b1b041608d7c6e81a52c9db192910d1240ca) - refactor: reorganize different modules, make them more cohesive and easier to maintain.
+
 ## 2.9.0
 
 ### Minor Changes
