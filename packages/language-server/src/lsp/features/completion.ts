@@ -1,3 +1,4 @@
+import type { RumbleWrapperClient } from "server/integrations/rumble/client.js";
 import type { ParserService } from "server/parser/index.js";
 import type { WorkspaceService } from "server/workspace/service.js";
 import type { CompletionItem, Position } from "vscode-languageserver";
@@ -41,12 +42,13 @@ export function registerCompletion({
     documents,
     parser,
     workspace,
+    wrapper,
 }: FeatureRegistrationContext): void {
     connection.onCompletion(async (params) => {
         const document = documents.get(params.textDocument.uri);
         return document === undefined
             ? []
-            : await findCompletions(document, params.position, parser, workspace);
+            : await findCompletions(document, params.position, parser, workspace, wrapper);
     });
 }
 
@@ -55,8 +57,9 @@ export async function findCompletions(
     position: Position,
     parser: ParserService,
     workspace: WorkspaceService,
+    wrapper?: RumbleWrapperClient,
 ): Promise<CompletionItem[]> {
-    const context = createCompletionContext(document, position, parser, workspace);
+    const context = createCompletionContext(document, position, parser, workspace, wrapper);
     if (context === null) {
         return [];
     }

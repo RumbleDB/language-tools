@@ -31,7 +31,7 @@ export type WrapperMemoryUsage = {
     rssBytes: number;
 };
 
-class RumbleWrapperClient {
+export class RumbleWrapperClient {
     private child: ChildProcessWithoutNullStreams | undefined;
     private nextRequestId = 1;
     private stdoutBuffer = "";
@@ -43,6 +43,14 @@ class RumbleWrapperClient {
     private rumbleCommitShort: string | null = null;
     private rumbleRef: string | null = null;
     private unavailableError: Error | null = null;
+
+    public constructor(
+        private resolutionOptions: WrapperResolutionOptions = wrapperResolutionOptions,
+    ) {}
+
+    public setResolutionOptions(options: WrapperResolutionOptions): void {
+        this.resolutionOptions = { ...this.resolutionOptions, ...options };
+    }
 
     public isConfiguredEnabled(): boolean {
         return config.wrapper.enabled;
@@ -88,7 +96,7 @@ class RumbleWrapperClient {
     private async startAndHandshake(): Promise<void> {
         if (this.child === undefined) {
             await ensureJavaAvailable();
-            const launchConfig = await resolveWrapperLaunchConfig(wrapperResolutionOptions);
+            const launchConfig = await resolveWrapperLaunchConfig(this.resolutionOptions);
             logger.info(`Launching wrapper with args: ${launchConfig.args.join(" ")}`);
 
             this.child = spawn("java", launchConfig.args, {

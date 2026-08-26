@@ -1,4 +1,5 @@
 import { getVisibleDeclarationsAtPosition, type ScopeDefinition } from "server/analysis/index.js";
+import type { RumbleWrapperClient } from "server/integrations/rumble/client.js";
 import type { ParserService } from "server/parser/index.js";
 import { getDocumentText } from "server/parser/utils.js";
 import type { WorkspaceService } from "server/workspace/service.js";
@@ -12,6 +13,7 @@ export function createCompletionContext(
     position: Position,
     parser: ParserService,
     workspace: WorkspaceService,
+    wrapper?: RumbleWrapperClient,
 ): CompletionContext | null {
     const source = getDocumentText(document);
     const cursorOffset = document.offsetAt(position);
@@ -28,6 +30,7 @@ export function createCompletionContext(
         source,
         cursorOffset,
         intent,
+        wrapper,
         getVisibleDeclarations() {
             visibleDeclarations ??= getVisibleDeclarationsAtPosition(
                 workspace.getAnalysis(document),
