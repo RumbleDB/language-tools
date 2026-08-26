@@ -1,5 +1,13 @@
 # rumble-lsp-wrapper
 
+## 0.7.1
+
+### Patch Changes
+
+- [`f79f941`](https://github.com/RumbleDB/language-tools/commit/f79f9410ad593365f50de1b63c8b1d5541621c3c) - refactor: use Rumble public API to run the query, and upgrade RumbleDB to commit 7abb4441baf9235e12e88f0073df24296e0f2007, where we no longer use RuntimeIterator, and switched to ItemRuntimePlan.
+
+- [`23743c4`](https://github.com/RumbleDB/language-tools/commit/23743c45b1cb22443812763edc2549b4d2a42851) - refactor: lazy initialize Rumble instance in RunQuery handler
+
 ## 0.7.0
 
 ### Minor Changes
