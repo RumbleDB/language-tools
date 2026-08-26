@@ -10,3 +10,4 @@
 !node_modules/jsoniq-language-server
 !node_modules/jsoniq-language-server/**
 !assets/**
+!CHANGELOG.md
