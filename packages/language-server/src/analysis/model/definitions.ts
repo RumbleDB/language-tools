@@ -1,7 +1,8 @@
-import type { BuiltinFunctionDefinition } from "server/resources/builtin-functions.js";
 import type { Range } from "vscode-languageserver";
 
+import type { FunctionName } from "./names.js";
 import { functionNameToString, QNameToString, type DeclarationNameByKind } from "./names.js";
+import type { StaticFunctionSignature } from "./type-system.js";
 
 export type DefinitionKind = "variable" | "namespace" | "type" | "parameter" | "function";
 
@@ -19,6 +20,13 @@ interface AbstractDefinition<K extends DefinitionKind> {
 export type BaseDefinition<K extends DefinitionKind = DefinitionKind> = K extends DefinitionKind
     ? AbstractDefinition<K>
     : never;
+
+export interface BuiltinFunctionDefinition extends BaseDefinition<"function"> {
+    readonly name: FunctionName;
+    readonly kind: "function";
+    readonly signature: StaticFunctionSignature;
+    readonly origin: "builtin";
+}
 
 export interface BaseSourceDefinition<
     K extends DefinitionKind = DefinitionKind,

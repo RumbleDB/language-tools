@@ -1,8 +1,10 @@
-import { DEFAULT_NAMESPACES, formatSequenceType, QNameToString } from "server/analysis/index.js";
 import {
-    builtinFunctions,
-    type BuiltinFunctionDefinition,
-} from "server/resources/builtin-functions.js";
+    DEFAULT_NAMESPACES,
+    formatSequenceType,
+    QNameToString,
+    BuiltinFunctionDefinition,
+} from "server/analysis/index.js";
+import { builtinFunctions } from "server/resources/builtin-functions.js";
 import { builtinTypes } from "server/resources/builtin-types.js";
 import {
     docs,

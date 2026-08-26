@@ -2,7 +2,9 @@ import type { Diagnostic } from "vscode-languageserver";
 
 import type { ModuleProlog } from "../resolution/module-prolog.js";
 import type { ModuleNode } from "./ast.js";
+import type { BuiltinFunctionDefinition } from "./definitions.js";
 import type { SourceModuleExportDefinition } from "./definitions.js";
+import type { FunctionName } from "./names.js";
 import type { Scope } from "./scope.js";
 
 export interface AnalysisResult {
@@ -31,4 +33,9 @@ export interface ResolvedModuleImport {
 export interface AnalysisEnvironment {
     readonly resolvedImports?: readonly ResolvedModuleImport[];
     readonly prolog?: ModuleProlog;
+    /**
+     * Resolves a function name to its builtin definition, if one exists.
+     * Provided by the workspace layer so that `analysis` stays decoupled from `resources`.
+     */
+    readonly resolveBuiltin?: (name: FunctionName) => BuiltinFunctionDefinition | undefined;
 }

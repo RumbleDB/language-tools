@@ -19,7 +19,6 @@ import type {
 } from "server/parser/types/ast.js";
 import type { Prefix } from "server/parser/types/name.js";
 import { ParserAstVisitor } from "server/parser/types/visitor.js";
-import { builtinFunctions } from "server/resources/builtin-functions.js";
 import { DiagnosticSeverity, type Diagnostic, type Range } from "vscode-languageserver";
 import type { TextDocument } from "vscode-languageserver-textdocument";
 
@@ -66,6 +65,7 @@ class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
     private readonly resolvedImportsByNamespace: ReadonlyMap<string, ResolvedModuleImport>;
     private readonly diagnostics: Diagnostic[];
     private readonly nameResolver: NamespaceResolver;
+    private readonly resolveBuiltin: NonNullable<AnalysisEnvironment["resolveBuiltin"]>;
 
     /** Definitions temporarily hidden while resolving a Prolog variable initializer. */
     private readonly excludedDefinitions = new Set<ScopeDefinition>();
@@ -83,6 +83,7 @@ class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
         this.namespaces = prolog.namespaces;
         this.declarations = prolog.declarations;
         this.diagnostics = [...prolog.diagnostics];
+        this.resolveBuiltin = environment.resolveBuiltin ?? (() => undefined);
 
         this.resolvedImportsByNamespace = new Map(
             (environment.resolvedImports ?? []).map((moduleImport) => [
@@ -328,7 +329,7 @@ class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
         offset: number,
     ): DefinitionByReferenceKind[K] | undefined {
         if (kind === "function") {
-            const builtinDefinition = builtinFunctions.find(name as FunctionName);
+            const builtinDefinition = this.resolveBuiltin(name as FunctionName);
             if (builtinDefinition !== undefined) {
                 return builtinDefinition as DefinitionByReferenceKind[K];
             }

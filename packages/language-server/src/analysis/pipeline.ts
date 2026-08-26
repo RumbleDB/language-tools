@@ -3,13 +3,14 @@ import type { DocumentUri } from "vscode-languageserver";
 import type { TextDocument } from "vscode-languageserver-textdocument";
 
 import { analyzeDocument } from "./builder.js";
-import type { AnalysisResult } from "./model/result.js";
+import type { AnalysisEnvironment, AnalysisResult } from "./model/result.js";
 import { resolveImports, type ModuleProvider } from "./resolution/import-resolution.js";
 import { collectModuleProlog, type ModuleProlog } from "./resolution/module-prolog.js";
 
 export interface AnalyzeModuleOptions {
     readonly provider: ModuleProvider;
     readonly prolog?: ModuleProlog;
+    readonly resolveBuiltin?: AnalysisEnvironment["resolveBuiltin"];
 }
 
 export interface AnalyzeModuleResult {
@@ -34,6 +35,7 @@ export function analyzeModule(
     const analysis = analyzeDocument(document, ast, {
         resolvedImports: importResult.resolvedImports,
         prolog,
+        ...(options.resolveBuiltin !== undefined && { resolveBuiltin: options.resolveBuiltin }),
     });
 
     const unifiedResult: AnalysisResult = {
