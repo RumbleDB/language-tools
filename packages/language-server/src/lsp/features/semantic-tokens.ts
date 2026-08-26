@@ -2,7 +2,6 @@ import {
     AstVisitor,
     type AnyReferenceNode,
     type DeclarationNode,
-    type Definition,
     type DefinitionKind,
 } from "server/analysis/index.js";
 import type { WorkspaceService } from "server/workspace/service.js";
@@ -43,7 +42,7 @@ class SemanticTokensVisitor extends AstVisitor<void> {
         this.addToken(
             node.declaration.selectionRange,
             SemanticTokensVisitor.getTokenTypeForDefinition(node.declaration.kind),
-            SemanticTokensVisitor.getTokenModifierForDefinition(node.declaration),
+            SemanticTokensVisitor.getTokenModifierMask(SemanticTokenModifiers.definition),
         );
         this.visitChildren(node);
     }
@@ -53,23 +52,23 @@ class SemanticTokensVisitor extends AstVisitor<void> {
             this.addToken(
                 node.range,
                 SemanticTokensVisitor.getTokenTypeForDefinition(node.resolution.declaration.kind),
-                SemanticTokensVisitor.getTokenModifierForDefinition(node.resolution.declaration),
+                node.resolution.declaration.origin === "builtin"
+                    ? SemanticTokensVisitor.getTokenModifierMask(
+                          SemanticTokenModifiers.defaultLibrary,
+                      )
+                    : 0,
             );
         }
         this.visitChildren(node);
     }
 
-    private addToken(
-        range: Range,
-        tokenType: SemanticTokenTypes,
-        tokenModifiers: SemanticTokenModifiers,
-    ): void {
+    private addToken(range: Range, tokenType: SemanticTokenTypes, tokenModifierMask: number): void {
         this.builder.push(
             range.start.line,
             range.start.character,
             range.end.character - range.start.character,
             SemanticTokensVisitor.getTokenTypeIndex(tokenType),
-            SemanticTokensVisitor.getTokenModifierMask(tokenModifiers),
+            tokenModifierMask,
         );
     }
 
@@ -96,12 +95,6 @@ class SemanticTokensVisitor extends AstVisitor<void> {
             case "variable":
                 return SemanticTokenTypes.variable;
         }
-    }
-
-    private static getTokenModifierForDefinition(definition: Definition): SemanticTokenModifiers {
-        return definition.origin === "builtin"
-            ? SemanticTokenModifiers.defaultLibrary
-            : SemanticTokenModifiers.definition;
     }
 }
 

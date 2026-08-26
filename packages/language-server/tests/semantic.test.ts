@@ -30,12 +30,30 @@ describe("JSONiq semantic diagnostics", () => {
             10,
             9,
             2,
-            1, // $err:code
+            0, // $err:code
             0,
             11,
             16,
             2,
-            1, // $err:description
+            0, // $err:description
+        ]);
+    });
+
+    it("distinguishes declarations, source references, and builtin references", () => {
+        const document = testDocument("semantic-token-modifiers", [
+            "declare variable $source := 1;",
+            "$source + fn:abs(-1)",
+        ]);
+
+        const tokens = collectSemanticTokens(document, workspaceService);
+        const tokenTypesAndModifiers = Array.from({ length: tokens.data.length / 5 }, (_, index) =>
+            tokens.data.slice(index * 5 + 3, index * 5 + 5),
+        );
+
+        expect(tokenTypesAndModifiers).toEqual([
+            [2, 1], // variable declaration
+            [2, 0], // source variable reference
+            [0, 2], // builtin function reference
         ]);
     });
 });
