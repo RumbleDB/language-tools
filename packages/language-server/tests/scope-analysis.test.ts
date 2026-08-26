@@ -8,6 +8,7 @@ import {
     getVisibleDeclarationsAtPosition,
     type AnalysisResult,
 } from "server/analysis/index.js";
+import { builtinFunctions } from "server/resources/builtin-functions.js";
 import { describe, expect, it } from "vitest";
 import type { TextDocument } from "vscode-languageserver-textdocument";
 
@@ -15,7 +16,9 @@ import { parserService, workspaceService } from "./services.js";
 import { positionAt, testDocument } from "./test-utils.js";
 
 const buildAnalysis = (document: TextDocument) =>
-    analyzeDocument(document, parserService.parse(document).ast);
+    analyzeDocument(document, parserService.parse(document).ast, {
+        resolveBuiltin: builtinFunctions.find,
+    });
 const definitionsOf = (analysis: AnalysisResult) => [...getDefinitions(analysis.ast)];
 const referencesOf = (analysis: AnalysisResult) => [...getResolvedReferences(analysis.ast)];
 
