@@ -58,14 +58,14 @@
     "devDependencies": {
         "@types/node": "catalog:",
         "@types/pidusage": "^2.0.5",
-        "fast-xml-parser": "^5.10.1",
+        "fast-xml-parser": "^5.11.0",
         "gray-matter": "^4.0.3",
         "oxfmt": "catalog:",
         "oxlint": "catalog:",
-        "tsc-alias": "^1.9.1",
+        "tsc-alias": "^1.9.2",
         "tsdown": "^0.22.14",
-        "tsx": "^4.23.1",
+        "tsx": "^4.23.12",
         "typescript": "^7.0.2",
-        "vitest": "^4.1.10"
+        "vitest": "^4.1.11"
     }
 }
