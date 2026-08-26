@@ -56,7 +56,7 @@
         "vscode-languageserver-textdocument": "^1.0.12"
     },
     "devDependencies": {
-        "@types/node": "^26.1.2",
+        "@types/node": "catalog:",
         "@types/pidusage": "^2.0.5",
         "fast-xml-parser": "^5.10.1",
         "gray-matter": "^4.0.3",
