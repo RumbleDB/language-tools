@@ -1,4 +1,4 @@
-import type { RumbleWrapperClient } from "server/integrations/rumble/client.js";
+import type { WrapperClient } from "server/integrations/rumble/client.js";
 import type { ParserService } from "server/parser/index.js";
 import type { WorkspaceService } from "server/workspace/service.js";
 import type { TextDocument } from "vscode-languageserver-textdocument";
@@ -45,5 +45,5 @@ export interface LanguageFeatureDependencies {
     readonly documents: TextDocuments<TextDocument>;
     readonly parser: ParserService;
     readonly workspace: WorkspaceService;
-    readonly wrapper: RumbleWrapperClient;
+    readonly wrapper: WrapperClient;
 }

@@ -66,3 +66,14 @@ export function positionAtNth(
 
     return document.positionAt(offset);
 }
+
+export function createMockWrapperClient(
+    overrides: Partial<import("server/integrations/rumble/client.js").WrapperClient> = {},
+): import("server/integrations/rumble/client.js").WrapperClient {
+    return {
+        isUsable: () => true,
+        getUnavailableError: () => null,
+        sendRequest: async () => ({ id: 0, responseType: "", body: {}, error: null }),
+        ...overrides,
+    };
+}

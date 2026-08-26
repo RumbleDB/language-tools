@@ -1,4 +1,4 @@
-import type { RumbleWrapperClient } from "server/integrations/rumble/client.js";
+import type { WrapperClient } from "server/integrations/rumble/client.js";
 import type { ParserService } from "server/parser/index.js";
 import type { WorkspaceService } from "server/workspace/service.js";
 import type { CompletionItem, Position } from "vscode-languageserver";
@@ -57,7 +57,7 @@ export async function findCompletions(
     position: Position,
     parser: ParserService,
     workspace: WorkspaceService,
-    wrapper: RumbleWrapperClient,
+    wrapper: WrapperClient,
 ): Promise<CompletionItem[]> {
     const context = createCompletionContext(document, position, parser, workspace, wrapper);
     if (context === null) {

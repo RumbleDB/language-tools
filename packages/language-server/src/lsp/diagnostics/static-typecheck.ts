@@ -1,4 +1,4 @@
-import type { RumbleWrapperClient } from "server/integrations/rumble/client.js";
+import type { WrapperClient } from "server/integrations/rumble/client.js";
 import { getStaticTypecheck } from "server/integrations/rumble/operations/static-typecheck/service.js";
 import type { StaticTypecheckError } from "server/integrations/rumble/operations/static-typecheck/types.js";
 import { DiagnosticSeverity, type Diagnostic } from "vscode-languageserver";
@@ -6,7 +6,7 @@ import { TextDocument } from "vscode-languageserver-textdocument";
 
 export async function collectStaticTypecheckDiagnostics(
     document: TextDocument,
-    wrapper: RumbleWrapperClient,
+    wrapper: WrapperClient,
 ): Promise<Diagnostic[]> {
     const response = await getStaticTypecheck(document, wrapper);
 

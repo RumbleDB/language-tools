@@ -79,7 +79,7 @@ connection.onInitialized(() => {
 });
 
 connection.onShutdown(() => {
-    wrapper.dispose();
+    wrapper.dispose?.();
 });
 
 documents.listen(connection);

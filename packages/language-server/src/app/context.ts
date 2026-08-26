@@ -1,7 +1,7 @@
 import { TextDocument } from "vscode-languageserver-textdocument";
 import { TextDocuments, type Connection } from "vscode-languageserver/node";
 
-import { RumbleWrapperClient } from "../integrations/rumble/client.js";
+import { type WrapperClient, RumbleWrapperClient } from "../integrations/rumble/client.js";
 import { ParserService } from "../parser/index.js";
 import { WorkspaceDocumentStore } from "../workspace/document-store.js";
 import { WorkspaceService } from "../workspace/service.js";
@@ -13,16 +13,18 @@ export interface ServerContext {
     readonly parser: ParserService;
     readonly workspace: WorkspaceService;
     readonly diagnostics: DiagnosticsManager;
-    readonly wrapper: RumbleWrapperClient;
+    readonly wrapper: WrapperClient;
 }
 
-export function createServerContext(connection: Connection): ServerContext {
+export function createServerContext(
+    connection: Connection,
+    wrapper: WrapperClient = new RumbleWrapperClient(),
+): ServerContext {
     const documents = new TextDocuments(TextDocument);
     const parser = new ParserService();
     const workspace = new WorkspaceService(
         new WorkspaceIndex(parser, new WorkspaceDocumentStore()),
     );
-    const wrapper = new RumbleWrapperClient();
 
     return {
         documents,

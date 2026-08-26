@@ -1,4 +1,4 @@
-import type { RumbleWrapperClient } from "server/integrations/rumble/client.js";
+import type { WrapperClient } from "server/integrations/rumble/client.js";
 import { getDocumentText } from "server/parser/utils.js";
 import { createLogger } from "server/utils/logger.js";
 import type { TextDocument } from "vscode-languageserver-textdocument";
@@ -10,7 +10,7 @@ const logger = createLogger("run-query");
 
 export async function runQuery(
     document: TextDocument,
-    wrapper: RumbleWrapperClient,
+    wrapper: WrapperClient,
 ): Promise<RunQueryWireResult> {
     return runQueryFromSource(document.uri, getDocumentText(document), wrapper);
 }
@@ -18,7 +18,7 @@ export async function runQuery(
 export async function runQueryFromSource(
     documentUri: string | undefined,
     source: string | undefined,
-    wrapper: RumbleWrapperClient,
+    wrapper: WrapperClient,
 ): Promise<RunQueryWireResult> {
     const client = wrapper;
     if (!client.isUsable()) {

@@ -1,4 +1,4 @@
-import type { RumbleWrapperClient } from "server/integrations/rumble/client.js";
+import type { WrapperClient } from "server/integrations/rumble/client.js";
 import { getDocumentText } from "server/parser/utils.js";
 import { createLogger } from "server/utils/logger.js";
 import type { Position } from "vscode-languageserver";
@@ -17,7 +17,7 @@ const EMPTY_RESULT: TypeAtPositionWireResult = {};
 export async function getTypeAtPosition(
     document: TextDocument,
     position: Position,
-    wrapper: RumbleWrapperClient,
+    wrapper: WrapperClient,
 ): Promise<TypeAtPositionWireResult> {
     return getTypeAtPositionFromSource(document.uri, getDocumentText(document), position, wrapper);
 }
@@ -26,7 +26,7 @@ export async function getTypeAtPositionFromSource(
     documentUri: string,
     source: string,
     position: Position,
-    wrapper: RumbleWrapperClient,
+    wrapper: WrapperClient,
 ): Promise<TypeAtPositionWireResult> {
     const client = wrapper;
     if (!client.isUsable()) {

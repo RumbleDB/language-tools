@@ -1,18 +1,11 @@
-import { RumbleWrapperClient } from "server/integrations/rumble/client.js";
 import { getTypeAtPosition } from "server/integrations/rumble/operations/type-at-position/service.js";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
-import { testDocument } from "./test-utils.js";
+import { createMockWrapperClient, testDocument } from "./test-utils.js";
 
 describe("type at position", () => {
-    afterEach(() => {
-        vi.restoreAllMocks();
-    });
-
     it("sends the document and position to the wrapper", async () => {
-        const wrapper = new RumbleWrapperClient();
-        const document = testDocument("type-at-position", "1 + 2");
-        const sendRequest = vi.spyOn(wrapper, "sendRequest").mockResolvedValue({
+        const sendRequest = vi.fn().mockResolvedValue({
             id: 1,
             responseType: "type-at-position",
             body: {
@@ -34,6 +27,8 @@ describe("type at position", () => {
             },
             error: null,
         });
+        const wrapper = createMockWrapperClient({ sendRequest });
+        const document = testDocument("type-at-position", "1 + 2");
 
         const result = await getTypeAtPosition(document, { line: 0, character: 5 }, wrapper);
 
@@ -48,9 +43,10 @@ describe("type at position", () => {
     });
 
     it("returns an empty result when the wrapper request fails", async () => {
-        const wrapper = new RumbleWrapperClient();
+        const wrapper = createMockWrapperClient({
+            sendRequest: vi.fn().mockRejectedValue(new Error("unavailable")),
+        });
         const document = testDocument("type-at-position-error", "1 + 2");
-        vi.spyOn(wrapper, "sendRequest").mockRejectedValue(new Error("unavailable"));
 
         await expect(
             getTypeAtPosition(document, { line: 0, character: 5 }, wrapper),

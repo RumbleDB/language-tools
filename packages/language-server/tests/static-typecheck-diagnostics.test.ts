@@ -5,46 +5,43 @@ import { pathToFileURL } from "node:url";
 import { RumbleWrapperClient } from "server/integrations/rumble/client.js";
 import { clearStaticTypecheckCache } from "server/integrations/rumble/operations/static-typecheck/service.js";
 import { collectStaticTypecheckDiagnostics } from "server/lsp/diagnostics/static-typecheck.js";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
-import { testDocument, testDocumentFromUri } from "./test-utils.js";
+import { createMockWrapperClient, testDocument, testDocumentFromUri } from "./test-utils.js";
 
 describe("static typecheck diagnostics", () => {
-    afterEach(() => {
-        vi.restoreAllMocks();
-    });
-
     it("does not attach imported module errors to the importing document", async () => {
-        const wrapper = new RumbleWrapperClient();
         const document = testDocument("static-typecheck-main", "1");
         const importedModuleUri = "file:///static-typecheck-library.jq";
         clearStaticTypecheckCache(document.uri);
-        vi.spyOn(wrapper, "sendRequest").mockResolvedValue({
-            id: 1,
-            responseType: "static-typecheck",
-            body: {
-                errors: [
-                    {
-                        code: "XPTY0004",
-                        message: "Error in imported module",
-                        location: importedModuleUri,
-                        range: {
-                            start: { line: 1, character: 0 },
-                            end: { line: 1, character: 1 },
+        const wrapper = createMockWrapperClient({
+            sendRequest: vi.fn().mockResolvedValue({
+                id: 1,
+                responseType: "static-typecheck",
+                body: {
+                    errors: [
+                        {
+                            code: "XPTY0004",
+                            message: "Error in imported module",
+                            location: importedModuleUri,
+                            range: {
+                                start: { line: 1, character: 0 },
+                                end: { line: 1, character: 1 },
+                            },
                         },
-                    },
-                    {
-                        code: "XPTY0004",
-                        message: "Error in main module",
-                        location: document.uri,
-                        range: {
-                            start: { line: 0, character: 0 },
-                            end: { line: 0, character: 1 },
+                        {
+                            code: "XPTY0004",
+                            message: "Error in main module",
+                            location: document.uri,
+                            range: {
+                                start: { line: 0, character: 0 },
+                                end: { line: 0, character: 1 },
+                            },
                         },
-                    },
-                ],
-            },
-            error: null,
+                    ],
+                },
+                error: null,
+            }),
         });
 
         await expect(collectStaticTypecheckDiagnostics(document, wrapper)).resolves.toEqual([

@@ -30,7 +30,25 @@ export type WrapperMemoryUsage = {
     rssBytes: number;
 };
 
-export class RumbleWrapperClient {
+export interface WrapperClient {
+    isConfiguredEnabled?(): boolean;
+    isUsable(): boolean;
+    getUnavailableError(): Error | null;
+    connect?(): Promise<void>;
+    sendRequest<Spec extends AnyWrapperRequestSpec>(
+        payload: Spec["request"],
+        timeoutMs?: number,
+    ): Promise<WrapperDaemonResponse<Spec["requestType"], Spec["response"]>>;
+    dispose?(): void;
+    getRumbleVersion?(): string | null;
+    getRumbleCommit?(): string | null;
+    getRumbleCommitShort?(): string | null;
+    getRumbleRef?(): string | null;
+    getMemoryUsage?(): Promise<WrapperMemoryUsage | null>;
+    setResolutionOptions?(options: WrapperResolutionOptions): void;
+}
+
+export class RumbleWrapperClient implements WrapperClient {
     private child: ChildProcessWithoutNullStreams | undefined;
     private nextRequestId = 1;
     private stdoutBuffer = "";

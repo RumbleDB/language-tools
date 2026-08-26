@@ -2,7 +2,7 @@ import type { Diagnostic, DocumentUri } from "vscode-languageserver";
 import type { TextDocument } from "vscode-languageserver-textdocument";
 import type { Connection, TextDocuments } from "vscode-languageserver/node";
 
-import type { RumbleWrapperClient } from "../integrations/rumble/client.js";
+import type { WrapperClient } from "../integrations/rumble/client.js";
 import { collectStaticTypecheckDiagnostics } from "../lsp/diagnostics/static-typecheck.js";
 import {
     ACTIVE_PARSER_NOTIFICATION,
@@ -24,7 +24,7 @@ export class DiagnosticsManager {
         private readonly documents: TextDocuments<TextDocument>,
         private readonly parser: ParserService,
         private readonly workspace: WorkspaceService,
-        private readonly wrapper: RumbleWrapperClient,
+        private readonly wrapper: WrapperClient,
     ) {}
 
     public async refresh(document: TextDocument): Promise<void> {

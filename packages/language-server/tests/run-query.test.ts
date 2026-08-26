@@ -1,21 +1,14 @@
-import { RumbleWrapperClient } from "server/integrations/rumble/client.js";
 import {
     runQuery,
     runQueryFromSource,
 } from "server/integrations/rumble/operations/run-query/service.js";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
-import { testDocument } from "./test-utils.js";
+import { createMockWrapperClient, testDocument } from "./test-utils.js";
 
 describe("run query service", () => {
-    afterEach(() => {
-        vi.restoreAllMocks();
-    });
-
     it("sends document text and documentUri to wrapper", async () => {
-        const wrapper = new RumbleWrapperClient();
-        const document = testDocument("run-query-test", "1 + 1");
-        const sendRequest = vi.spyOn(wrapper, "sendRequest").mockResolvedValue({
+        const sendRequest = vi.fn().mockResolvedValue({
             id: 1,
             responseType: "run-query",
             body: {
@@ -24,6 +17,8 @@ describe("run query service", () => {
             },
             error: null,
         });
+        const wrapper = createMockWrapperClient({ sendRequest });
+        const document = testDocument("run-query-test", "1 + 1");
 
         const result = await runQuery(document, wrapper);
 
@@ -37,9 +32,10 @@ describe("run query service", () => {
     });
 
     it("handles error response from wrapper", async () => {
-        const wrapper = new RumbleWrapperClient();
+        const wrapper = createMockWrapperClient({
+            sendRequest: vi.fn().mockRejectedValue(new Error("Syntax error")),
+        });
         const document = testDocument("run-query-error-test", "1 +");
-        vi.spyOn(wrapper, "sendRequest").mockRejectedValue(new Error("Syntax error"));
 
         const result = await runQuery(document, wrapper);
 
@@ -48,8 +44,7 @@ describe("run query service", () => {
     });
 
     it("allows running query directly from source and URI", async () => {
-        const wrapper = new RumbleWrapperClient();
-        const sendRequest = vi.spyOn(wrapper, "sendRequest").mockResolvedValue({
+        const sendRequest = vi.fn().mockResolvedValue({
             id: 2,
             responseType: "run-query",
             body: {
@@ -58,6 +53,7 @@ describe("run query service", () => {
             },
             error: null,
         });
+        const wrapper = createMockWrapperClient({ sendRequest });
 
         const result = await runQueryFromSource("file:///test.jq", "40 + 2", wrapper);
 

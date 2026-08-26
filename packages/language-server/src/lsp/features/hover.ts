@@ -1,4 +1,4 @@
-import type { RumbleWrapperClient } from "server/integrations/rumble/client.js";
+import type { WrapperClient } from "server/integrations/rumble/client.js";
 import type { WorkspaceService } from "server/workspace/service.js";
 import type { Hover, Position } from "vscode-languageserver";
 import type { TextDocument } from "vscode-languageserver-textdocument";
@@ -29,7 +29,7 @@ export async function findHover(
     document: TextDocument,
     position: Position,
     workspace: WorkspaceService,
-    wrapper: RumbleWrapperClient,
+    wrapper: WrapperClient,
 ): Promise<Hover | null> {
     const context = createHoverContext(document, position, workspace, wrapper);
 
