@@ -1,7 +1,12 @@
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+
 import { ensureRelease, releaseTag, uploadReleaseAsset } from "./github.mts";
 import {
     findOneFile,
     LANGUAGE_SERVER_PACKAGE_DIR,
+    output,
     readChangelogEntry,
     readPackage,
     run,
@@ -24,12 +29,33 @@ function ovsxArgs(command: "publish"): string[] {
 }
 
 export function cleanVsCodeExtensionInstall(): void {
-    /// vsce does not support pnpm's node_modules layout, so package from a clean npm install.
+    /// vsce expects npm's node_modules layout, so package from a clean npm install.
     run("rm", [
         "-rf",
         `${VSCODE_EXTENSION_PACKAGE_DIR}/node_modules`,
         `${VSCODE_EXTENSION_PACKAGE_DIR}/package-lock.json`,
     ]);
+}
+
+function materializeVsCodeExtensionManifestForNpm(): void {
+    const packDir = fs.mkdtempSync(path.join(os.tmpdir(), "jsoniq-vscode-pack-"));
+
+    try {
+        run("pnpm", ["pack", "--pack-destination", packDir], {
+            cwd: VSCODE_EXTENSION_PACKAGE_DIR,
+        });
+
+        const packagePath = findOneFile(packDir, ".tgz");
+        const packageJson = output("tar", ["-xOf", packagePath, "package/package.json"]);
+
+        fs.writeFileSync(
+            path.join(VSCODE_EXTENSION_PACKAGE_DIR, "package.json"),
+            `${packageJson}\n`,
+            "utf8",
+        );
+    } finally {
+        fs.rmSync(packDir, { recursive: true, force: true });
+    }
 }
 
 export function setVsCodeExtensionLanguageServerDependency(versionSpec: string): void {
@@ -40,6 +66,9 @@ export function setVsCodeExtensionLanguageServerDependency(versionSpec: string):
 }
 
 export function installAndBuildVsCodeExtension(): void {
+    /// npm cannot resolve pnpm's catalog: or workspace: protocols. pnpm pack creates the
+    /// publishable manifest that replaces them with regular dependency versions.
+    materializeVsCodeExtensionManifestForNpm();
     run("npm", ["install"], { cwd: VSCODE_EXTENSION_PACKAGE_DIR });
     run("npm", ["run", "build:prod"], { cwd: VSCODE_EXTENSION_PACKAGE_DIR });
 }
