@@ -7,10 +7,8 @@ const MEMORY_USAGE_POLL_INTERVAL_MS = 5000;
 
 export function registerMemoryUsageNotification(
     connection: Connection,
-    wrapper: WrapperClient,
+    client: WrapperClient,
 ): void {
-    const client = wrapper;
-
     const poll = async (): Promise<void> => {
         try {
             const wrapperUsage = client.isUsable()

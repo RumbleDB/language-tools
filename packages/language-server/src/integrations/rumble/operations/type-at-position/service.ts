@@ -26,9 +26,8 @@ export async function getTypeAtPositionFromSource(
     documentUri: string,
     source: string,
     position: Position,
-    wrapper: WrapperClient,
+    client: WrapperClient,
 ): Promise<TypeAtPositionWireResult> {
-    const client = wrapper;
     if (!client.isUsable()) {
         return EMPTY_RESULT;
     }

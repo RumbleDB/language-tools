@@ -18,9 +18,8 @@ export async function runQuery(
 export async function runQueryFromSource(
     documentUri: string | undefined,
     source: string | undefined,
-    wrapper: WrapperClient,
+    client: WrapperClient,
 ): Promise<RunQueryWireResult> {
-    const client = wrapper;
     if (!client.isUsable()) {
         const unavailableErr = client.getUnavailableError();
         return {

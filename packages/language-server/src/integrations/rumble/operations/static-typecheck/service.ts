@@ -48,10 +48,8 @@ function createEmptyStaticTypecheckResponse(): StaticTypecheckResponse {
 
 export async function getStaticTypecheck(
     document: TextDocument,
-    wrapper: WrapperClient,
+    client: WrapperClient,
 ): Promise<StaticTypecheckResponse> {
-    const client = wrapper;
-
     if (!client.isUsable()) {
         return createEmptyStaticTypecheckResponse();
     }
