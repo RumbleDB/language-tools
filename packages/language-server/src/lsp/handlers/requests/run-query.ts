@@ -1,5 +1,4 @@
 import type { RumbleWrapperClient } from "server/integrations/rumble/client.js";
-import { getWrapperClient } from "server/integrations/rumble/client.js";
 import {
     runQuery,
     runQueryFromSource,
@@ -14,7 +13,7 @@ import type { Connection, TextDocuments } from "vscode-languageserver/node";
 export function registerRunQuery(
     connection: Connection,
     documents: TextDocuments<TextDocument>,
-    wrapper: RumbleWrapperClient = getWrapperClient(),
+    wrapper: RumbleWrapperClient,
 ): void {
     connection.onRequest(RUN_QUERY_LSP_METHOD, async (params: RunQueryLSPParams) => {
         if (params.uri !== undefined) {

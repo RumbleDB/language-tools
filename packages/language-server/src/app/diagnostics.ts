@@ -24,7 +24,7 @@ export class DiagnosticsManager {
         private readonly documents: TextDocuments<TextDocument>,
         private readonly parser: ParserService,
         private readonly workspace: WorkspaceService,
-        private readonly wrapper?: RumbleWrapperClient,
+        private readonly wrapper: RumbleWrapperClient,
     ) {}
 
     public async refresh(document: TextDocument): Promise<void> {

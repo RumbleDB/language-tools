@@ -57,7 +57,7 @@ export async function findCompletions(
     position: Position,
     parser: ParserService,
     workspace: WorkspaceService,
-    wrapper?: RumbleWrapperClient,
+    wrapper: RumbleWrapperClient,
 ): Promise<CompletionItem[]> {
     const context = createCompletionContext(document, position, parser, workspace, wrapper);
     if (context === null) {

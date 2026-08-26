@@ -45,5 +45,5 @@ export interface LanguageFeatureDependencies {
     readonly documents: TextDocuments<TextDocument>;
     readonly parser: ParserService;
     readonly workspace: WorkspaceService;
-    readonly wrapper?: RumbleWrapperClient;
+    readonly wrapper: RumbleWrapperClient;
 }

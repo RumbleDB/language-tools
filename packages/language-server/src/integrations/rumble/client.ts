@@ -17,7 +17,6 @@ import type {
 type AnyWrapperRequestSpec = WrapperRequestSpec<string, WrapperRequestPayload, object>;
 type AnyWrapperResponse = WrapperDaemonResponse<string, object>;
 const logger = createLogger("wrapper:client");
-let wrapperResolutionOptions: WrapperResolutionOptions = {};
 
 interface PendingRequest {
     expectedResponseType: string;
@@ -44,9 +43,7 @@ export class RumbleWrapperClient {
     private rumbleRef: string | null = null;
     private unavailableError: Error | null = null;
 
-    public constructor(
-        private resolutionOptions: WrapperResolutionOptions = wrapperResolutionOptions,
-    ) {}
+    public constructor(private resolutionOptions: WrapperResolutionOptions = {}) {}
 
     public setResolutionOptions(options: WrapperResolutionOptions): void {
         this.resolutionOptions = { ...this.resolutionOptions, ...options };
@@ -348,17 +345,4 @@ export class RumbleWrapperClient {
             rssBytes: stats.memory,
         };
     }
-}
-
-export function setWrapperResolutionOptions(options: WrapperResolutionOptions): void {
-    wrapperResolutionOptions = options;
-}
-
-let instance: RumbleWrapperClient | null = null;
-
-export function getWrapperClient(): RumbleWrapperClient {
-    if (instance === null) {
-        instance = new RumbleWrapperClient();
-    }
-    return instance;
 }

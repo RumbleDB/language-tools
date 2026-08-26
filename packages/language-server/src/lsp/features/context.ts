@@ -1,5 +1,4 @@
 import type { RumbleWrapperClient } from "server/integrations/rumble/client.js";
-import { getWrapperClient } from "server/integrations/rumble/client.js";
 import type { ParserService } from "server/parser/index.js";
 import { supportsDocument } from "server/parser/registry.js";
 import type { WorkspaceService } from "server/workspace/service.js";
@@ -23,7 +22,7 @@ export function createFeatureRegistrationContext(
     documents: TextDocuments<TextDocument>,
     parser: ParserService,
     workspace: WorkspaceService,
-    wrapper: RumbleWrapperClient = getWrapperClient(),
+    wrapper: RumbleWrapperClient,
 ): FeatureRegistrationContext {
     return {
         connection,

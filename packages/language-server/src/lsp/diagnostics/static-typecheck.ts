@@ -6,7 +6,7 @@ import { TextDocument } from "vscode-languageserver-textdocument";
 
 export async function collectStaticTypecheckDiagnostics(
     document: TextDocument,
-    wrapper?: RumbleWrapperClient,
+    wrapper: RumbleWrapperClient,
 ): Promise<Diagnostic[]> {
     const response = await getStaticTypecheck(document, wrapper);
 

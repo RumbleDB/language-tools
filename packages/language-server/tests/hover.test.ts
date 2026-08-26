@@ -2,7 +2,7 @@ import { ERR_NAMESPACE, findNodeThatContainsPosition } from "server/analysis/ind
 import { findHover } from "server/lsp/features/hover.js";
 import { describe, expect, it } from "vitest";
 
-import { workspaceService } from "./services.js";
+import { workspaceService, wrapperClient } from "./services.js";
 import { positionAt, testDocument, testDocumentFromUri } from "./test-utils.js";
 
 describe("error code hover", () => {
@@ -12,7 +12,12 @@ describe("error code hover", () => {
             "try { 1 div 0 } catch err:FOAR0001 { 0 }",
         );
 
-        const hover = await findHover(document, positionAt(document, "FOAR0001"), workspaceService);
+        const hover = await findHover(
+            document,
+            positionAt(document, "FOAR0001"),
+            workspaceService,
+            wrapperClient,
+        );
 
         expect(hover).toEqual({
             range: {
@@ -34,7 +39,12 @@ describe("error code hover", () => {
             "try { 1 div 0 } catch errors:FOAR0001 { 0 }",
         ]);
 
-        const hover = await findHover(document, positionAt(document, "FOAR0001"), workspaceService);
+        const hover = await findHover(
+            document,
+            positionAt(document, "FOAR0001"),
+            workspaceService,
+            wrapperClient,
+        );
 
         expect(hover?.contents).toMatchObject({
             value: expect.stringContaining("err:FOAR0001"),
@@ -53,7 +63,12 @@ describe("error code hover", () => {
             languageId: "xquery",
         });
 
-        const hover = await findHover(document, positionAt(document, "FOAR0001"), workspaceService);
+        const hover = await findHover(
+            document,
+            positionAt(document, "FOAR0001"),
+            workspaceService,
+            wrapperClient,
+        );
 
         expect(hover?.contents).toMatchObject({
             value: expect.stringContaining("Division by zero."),

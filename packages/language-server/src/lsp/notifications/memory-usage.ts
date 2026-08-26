@@ -1,12 +1,15 @@
-import { getWrapperClient } from "server/integrations/rumble/client.js";
+import type { RumbleWrapperClient } from "server/integrations/rumble/client.js";
 import type { Connection } from "vscode-languageserver/node";
 
 import { MEMORY_USAGE_NOTIFICATION, type MemoryUsage } from "../protocol/notifications/index.js";
 
 const MEMORY_USAGE_POLL_INTERVAL_MS = 5000;
 
-export function registerMemoryUsageNotification(connection: Connection): void {
-    const client = getWrapperClient();
+export function registerMemoryUsageNotification(
+    connection: Connection,
+    wrapper: RumbleWrapperClient,
+): void {
+    const client = wrapper;
 
     const poll = async (): Promise<void> => {
         try {

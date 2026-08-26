@@ -29,7 +29,7 @@ export async function findHover(
     document: TextDocument,
     position: Position,
     workspace: WorkspaceService,
-    wrapper?: RumbleWrapperClient,
+    wrapper: RumbleWrapperClient,
 ): Promise<Hover | null> {
     const context = createHoverContext(document, position, workspace, wrapper);
 

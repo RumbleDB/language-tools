@@ -10,7 +10,7 @@ export function createHoverContext(
     document: TextDocument,
     position: Position,
     workspace: WorkspaceService,
-    wrapper?: RumbleWrapperClient,
+    wrapper: RumbleWrapperClient,
 ): HoverContext {
     let analysis: AnalysisResult | undefined;
 

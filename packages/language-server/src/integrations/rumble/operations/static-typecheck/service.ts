@@ -1,4 +1,4 @@
-import { type RumbleWrapperClient, getWrapperClient } from "server/integrations/rumble/client.js";
+import type { RumbleWrapperClient } from "server/integrations/rumble/client.js";
 import type { WrapperDaemonResponse } from "server/integrations/rumble/protocol.js";
 import { getDocumentText } from "server/parser/utils.js";
 import { createLogger } from "server/utils/logger.js";
@@ -48,7 +48,7 @@ function createEmptyStaticTypecheckResponse(): StaticTypecheckResponse {
 
 export async function getStaticTypecheck(
     document: TextDocument,
-    wrapper: RumbleWrapperClient = getWrapperClient(),
+    wrapper: RumbleWrapperClient,
 ): Promise<StaticTypecheckResponse> {
     const client = wrapper;
 

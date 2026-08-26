@@ -13,7 +13,7 @@ export function createCompletionContext(
     position: Position,
     parser: ParserService,
     workspace: WorkspaceService,
-    wrapper?: RumbleWrapperClient,
+    wrapper: RumbleWrapperClient,
 ): CompletionContext | null {
     const source = getDocumentText(document);
     const cursorOffset = document.offsetAt(position);

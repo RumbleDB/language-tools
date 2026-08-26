@@ -9,7 +9,7 @@ export interface CompletionContext {
     source: string;
     cursorOffset: number;
     intent: CompletionIntent;
-    wrapper?: RumbleWrapperClient | undefined;
+    wrapper: RumbleWrapperClient;
 
     // This is a lazy getter, because computing visible declarations can be expensive and is not always needed.
     getVisibleDeclarations(): readonly ScopeDefinition[];

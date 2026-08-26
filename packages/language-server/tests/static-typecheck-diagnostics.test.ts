@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 
-import { getWrapperClient } from "server/integrations/rumble/client.js";
+import { RumbleWrapperClient } from "server/integrations/rumble/client.js";
 import { clearStaticTypecheckCache } from "server/integrations/rumble/operations/static-typecheck/service.js";
 import { collectStaticTypecheckDiagnostics } from "server/lsp/diagnostics/static-typecheck.js";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -15,10 +15,11 @@ describe("static typecheck diagnostics", () => {
     });
 
     it("does not attach imported module errors to the importing document", async () => {
+        const wrapper = new RumbleWrapperClient();
         const document = testDocument("static-typecheck-main", "1");
         const importedModuleUri = "file:///static-typecheck-library.jq";
         clearStaticTypecheckCache(document.uri);
-        vi.spyOn(getWrapperClient(), "sendRequest").mockResolvedValue({
+        vi.spyOn(wrapper, "sendRequest").mockResolvedValue({
             id: 1,
             responseType: "static-typecheck",
             body: {
@@ -46,12 +47,13 @@ describe("static typecheck diagnostics", () => {
             error: null,
         });
 
-        await expect(collectStaticTypecheckDiagnostics(document)).resolves.toEqual([
+        await expect(collectStaticTypecheckDiagnostics(document, wrapper)).resolves.toEqual([
             expect.objectContaining({ message: "Error in main module" }),
         ]);
     });
 
     it("reports an imported library error only on the library document", async () => {
+        const wrapper = new RumbleWrapperClient();
         const fixture = path.join(process.cwd(), "tests", "samples", "modules", "invalid-type.jq");
         const libraryUri = pathToFileURL(fixture).toString();
         const importer = testDocumentFromUri(
@@ -69,8 +71,8 @@ describe("static typecheck diagnostics", () => {
         clearStaticTypecheckCache(importer.uri);
         clearStaticTypecheckCache(library.uri);
 
-        await expect(collectStaticTypecheckDiagnostics(importer)).resolves.toEqual([]);
-        await expect(collectStaticTypecheckDiagnostics(library)).resolves.toContainEqual(
+        await expect(collectStaticTypecheckDiagnostics(importer, wrapper)).resolves.toEqual([]);
+        await expect(collectStaticTypecheckDiagnostics(library, wrapper)).resolves.toContainEqual(
             expect.objectContaining({ code: "XPTY0004" }),
         );
     });

@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { type CompletionItem, type Position } from "vscode-languageserver";
 import { type TextDocument } from "vscode-languageserver-textdocument";
 
-import { parserService, workspaceService } from "./services.js";
+import { parserService, workspaceService, wrapperClient } from "./services.js";
 import { positionAtNth, testDocument, testDocumentFromUri } from "./test-utils.js";
 
 describe("JSONiq completion", () => {
@@ -21,6 +21,7 @@ describe("JSONiq completion", () => {
             positionAtNth(document, "$y", 1),
             parserService,
             workspaceService,
+            wrapperClient,
         );
 
         expect(labels(items)).toContain("$x");
@@ -142,7 +143,13 @@ describe("JSONiq completion", () => {
         };
 
         const item = (
-            await findCompletions(document, position, parserService, workspaceService)
+            await findCompletions(
+                document,
+                position,
+                parserService,
+                workspaceService,
+                wrapperClient,
+            )
         ).find((completion) => completion.label === "$a");
 
         expect(item?.textEdit).toEqual({
@@ -163,7 +170,13 @@ describe("JSONiq completion", () => {
     it("suggests prefixed W3C error codes and wildcard patterns in a catch target", async () => {
         const document = testDocument("completion-catch-error", "try { 1 div 0 } catch ");
         const position = document.positionAt(document.getText().length);
-        const items = await findCompletions(document, position, parserService, workspaceService);
+        const items = await findCompletions(
+            document,
+            position,
+            parserService,
+            workspaceService,
+            wrapperClient,
+        );
 
         expect(labels(items)).toContain("err:FOAR0001");
         expect(labels(items)).toContain("*");
@@ -178,7 +191,13 @@ describe("JSONiq completion", () => {
         );
         const position = document.positionAt(document.getText().length);
         const item = (
-            await findCompletions(document, position, parserService, workspaceService)
+            await findCompletions(
+                document,
+                position,
+                parserService,
+                workspaceService,
+                wrapperClient,
+            )
         ).find((completion) => completion.label === "err:FOAR0001");
 
         expect(item?.textEdit).toEqual({
@@ -307,6 +326,7 @@ describe("JSONiq completion", () => {
             { line: 0, character: source.length },
             parserService,
             workspaceService,
+            wrapperClient,
         );
 
         expect(completions).toBeDefined();
@@ -335,6 +355,7 @@ describe("JSONiq completion", () => {
             { line: 5, character: 3 },
             parserService,
             workspaceService,
+            wrapperClient,
         );
 
         expect(labels(items)).toContain("age");
@@ -363,6 +384,7 @@ describe("JSONiq completion", () => {
             { line: 5, character: 5 },
             parserService,
             workspaceService,
+            wrapperClient,
         );
 
         expect(labels(items)).toContain("name");
@@ -384,7 +406,13 @@ describe("XQuery completion", () => {
         });
         const position = document.positionAt(document.getText().length);
         const labelsAtCursor = labels(
-            await findCompletions(document, position, parserService, workspaceService),
+            await findCompletions(
+                document,
+                position,
+                parserService,
+                workspaceService,
+                wrapperClient,
+            ),
         );
 
         expect(labelsAtCursor).toContain("err:FOAR0001");
@@ -413,6 +441,7 @@ describe("XQuery completion", () => {
             { line: 3, character: 0 },
             parserService,
             workspaceService,
+            wrapperClient,
         );
         const elapsedMs = performance.now() - start;
 
@@ -443,6 +472,7 @@ describe("XQuery completion", () => {
             { line: 4, character: "        return $hr + ".length },
             parserService,
             workspaceService,
+            wrapperClient,
         );
         const elapsedMs = performance.now() - start;
 
@@ -456,5 +486,7 @@ function labels(items: CompletionItem[]): string[] {
 }
 
 async function completionLabels(document: TextDocument, position: Position): Promise<string[]> {
-    return labels(await findCompletions(document, position, parserService, workspaceService));
+    return labels(
+        await findCompletions(document, position, parserService, workspaceService, wrapperClient),
+    );
 }

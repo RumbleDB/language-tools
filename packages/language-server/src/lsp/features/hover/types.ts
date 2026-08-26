@@ -6,7 +6,7 @@ import type { TextDocument } from "vscode-languageserver-textdocument";
 export interface HoverContext {
     document: TextDocument;
     position: Position;
-    wrapper?: RumbleWrapperClient | undefined;
+    wrapper: RumbleWrapperClient;
     getAnalysis(): AnalysisResult;
 }
 
