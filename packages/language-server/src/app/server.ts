@@ -18,16 +18,17 @@ export type ClientConfiguration = Partial<InitializationOptions>;
 
 const connection = createConnection(ProposedFeatures.all);
 const context = createServerContext(connection);
-const { documents, parser, workspace, diagnostics } = context;
+const { documents, parser, workspace, diagnostics, wrapper } = context;
 
 setLoggerSink(connection.console);
-registerNotifications(connection);
-registerRequestHandlers(connection, documents);
+registerNotifications(connection, wrapper);
+registerRequestHandlers(connection, documents, wrapper);
 registerLanguageFeatureHandlers({
     connection,
     documents,
     parser,
     workspace,
+    wrapper,
 });
 
 connection.onInitialize((params: InitializeParams): InitializeResult => {
@@ -75,6 +76,10 @@ connection.onInitialized(() => {
             params.removed.map((folder) => folder.uri),
         );
     });
+});
+
+connection.onShutdown(() => {
+    wrapper.dispose?.();
 });
 
 documents.listen(connection);

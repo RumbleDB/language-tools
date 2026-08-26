@@ -27,6 +27,7 @@ export const provideObjectFieldCompletions: CompletionProvider = async (context)
         context.document.uri,
         dotContext.syntheticSource,
         context.document.positionAt(dotContext.dotOffset),
+        context.wrapper,
     );
     const objectType = result.sequenceType?.itemType;
 

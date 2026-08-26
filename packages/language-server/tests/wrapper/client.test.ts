@@ -1,31 +1,36 @@
-import { getWrapperClient } from "server/integrations/rumble/client";
+import { RumbleWrapperClient } from "server/integrations/rumble/client.js";
 import { describe, expect, it } from "vitest";
 
 describe("wrapper client surface", () => {
-    it("exports a singleton wrapper client", () => {
-        expect(getWrapperClient()).toBeDefined();
+    it("can be instantiated", () => {
+        const client = new RumbleWrapperClient();
+        expect(client).toBeDefined();
     });
 
     it("is configured enabled by default", () => {
-        expect(getWrapperClient().isConfiguredEnabled()).toBe(true);
+        const client = new RumbleWrapperClient();
+        expect(client.isConfiguredEnabled()).toBe(true);
     });
 
     it("is usable by default", () => {
-        expect(getWrapperClient().isUsable()).toBe(true);
+        const client = new RumbleWrapperClient();
+        expect(client.isUsable()).toBe(true);
     });
 
     it("starts with unknown rumble version", () => {
-        expect(getWrapperClient().getRumbleVersion()).toBeNull();
-        expect(getWrapperClient().getRumbleCommit()).toBeNull();
-        expect(getWrapperClient().getRumbleCommitShort()).toBeNull();
+        const client = new RumbleWrapperClient();
+        expect(client.getRumbleVersion()).toBeNull();
+        expect(client.getRumbleCommit()).toBeNull();
+        expect(client.getRumbleCommitShort()).toBeNull();
     });
 
     it("dispose can be called safely", () => {
-        expect(() => getWrapperClient().dispose()).not.toThrow();
+        const client = new RumbleWrapperClient();
+        expect(() => client.dispose()).not.toThrow();
     });
 
     it("after connect, rumble version is set", async () => {
-        const client = getWrapperClient();
+        const client = new RumbleWrapperClient();
         if (client.isUsable()) {
             await expect(client.connect()).resolves.toBeUndefined();
             expect(client.getRumbleVersion()).toBeDefined();

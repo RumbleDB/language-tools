@@ -1,20 +1,14 @@
-import { getWrapperClient } from "server/integrations/rumble/client.js";
 import {
     runQuery,
     runQueryFromSource,
 } from "server/integrations/rumble/operations/run-query/service.js";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
-import { testDocument } from "./test-utils.js";
+import { createMockWrapperClient, testDocument } from "./test-utils.js";
 
 describe("run query service", () => {
-    afterEach(() => {
-        vi.restoreAllMocks();
-    });
-
     it("sends document text and documentUri to wrapper", async () => {
-        const document = testDocument("run-query-test", "1 + 1");
-        const sendRequest = vi.spyOn(getWrapperClient(), "sendRequest").mockResolvedValue({
+        const sendRequest = vi.fn().mockResolvedValue({
             id: 1,
             responseType: "run-query",
             body: {
@@ -23,8 +17,10 @@ describe("run query service", () => {
             },
             error: null,
         });
+        const wrapper = createMockWrapperClient({ sendRequest });
+        const document = testDocument("run-query-test", "1 + 1");
 
-        const result = await runQuery(document);
+        const result = await runQuery(document, wrapper);
 
         expect(sendRequest).toHaveBeenCalledWith({
             requestType: "run-query",
@@ -36,17 +32,19 @@ describe("run query service", () => {
     });
 
     it("handles error response from wrapper", async () => {
+        const wrapper = createMockWrapperClient({
+            sendRequest: vi.fn().mockRejectedValue(new Error("Syntax error")),
+        });
         const document = testDocument("run-query-error-test", "1 +");
-        vi.spyOn(getWrapperClient(), "sendRequest").mockRejectedValue(new Error("Syntax error"));
 
-        const result = await runQuery(document);
+        const result = await runQuery(document, wrapper);
 
         expect(result.output).toBeNull();
         expect(result.error).toBe("Syntax error");
     });
 
     it("allows running query directly from source and URI", async () => {
-        const sendRequest = vi.spyOn(getWrapperClient(), "sendRequest").mockResolvedValue({
+        const sendRequest = vi.fn().mockResolvedValue({
             id: 2,
             responseType: "run-query",
             body: {
@@ -55,8 +53,9 @@ describe("run query service", () => {
             },
             error: null,
         });
+        const wrapper = createMockWrapperClient({ sendRequest });
 
-        const result = await runQueryFromSource("file:///test.jq", "40 + 2");
+        const result = await runQueryFromSource("file:///test.jq", "40 + 2", wrapper);
 
         expect(sendRequest).toHaveBeenCalledWith({
             requestType: "run-query",

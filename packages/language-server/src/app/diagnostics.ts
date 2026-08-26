@@ -2,6 +2,7 @@ import type { Diagnostic, DocumentUri } from "vscode-languageserver";
 import type { TextDocument } from "vscode-languageserver-textdocument";
 import type { Connection, TextDocuments } from "vscode-languageserver/node";
 
+import type { WrapperClient } from "../integrations/rumble/client.js";
 import { collectStaticTypecheckDiagnostics } from "../lsp/diagnostics/static-typecheck.js";
 import {
     ACTIVE_PARSER_NOTIFICATION,
@@ -23,6 +24,7 @@ export class DiagnosticsManager {
         private readonly documents: TextDocuments<TextDocument>,
         private readonly parser: ParserService,
         private readonly workspace: WorkspaceService,
+        private readonly wrapper: WrapperClient,
     ) {}
 
     public async refresh(document: TextDocument): Promise<void> {
@@ -44,7 +46,7 @@ export class DiagnosticsManager {
         // Phase 2: collect static type-check diagnostics asynchronously and
         // send a combined update — unless a newer refresh has superseded us.
         if (syntaxDiagnostics.length === 0) {
-            const typeDiagnostics = await collectStaticTypecheckDiagnostics(document);
+            const typeDiagnostics = await collectStaticTypecheckDiagnostics(document, this.wrapper);
             if (this.refreshVersions.get(uri) !== refreshVersion) return;
             if (typeDiagnostics.length > 0) {
                 this.connection.sendDiagnostics({

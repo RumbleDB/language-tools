@@ -1,4 +1,5 @@
 import type { AnalysisResult } from "server/analysis/index.js";
+import type { WrapperClient } from "server/integrations/rumble/client.js";
 import type { WorkspaceService } from "server/workspace/service.js";
 import type { Position } from "vscode-languageserver";
 import type { TextDocument } from "vscode-languageserver-textdocument";
@@ -9,12 +10,14 @@ export function createHoverContext(
     document: TextDocument,
     position: Position,
     workspace: WorkspaceService,
+    wrapper: WrapperClient,
 ): HoverContext {
     let analysis: AnalysisResult | undefined;
 
     return {
         document,
         position,
+        wrapper,
         getAnalysis() {
             analysis ??= workspace.getAnalysis(document);
             return analysis;

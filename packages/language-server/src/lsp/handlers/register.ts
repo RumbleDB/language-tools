@@ -1,3 +1,4 @@
+import type { WrapperClient } from "server/integrations/rumble/client.js";
 import type { ParserService } from "server/parser/index.js";
 import type { WorkspaceService } from "server/workspace/service.js";
 import type { TextDocument } from "vscode-languageserver-textdocument";
@@ -17,8 +18,14 @@ import { registerSemanticTokens } from "../features/semantic-tokens.js";
 import { registerSignatureHelp } from "../features/signature-help.js";
 
 export function registerLanguageFeatureHandlers(dependencies: LanguageFeatureDependencies): void {
-    const { connection, documents, parser, workspace } = dependencies;
-    const context = createFeatureRegistrationContext(connection, documents, parser, workspace);
+    const { connection, documents, parser, workspace, wrapper } = dependencies;
+    const context = createFeatureRegistrationContext(
+        connection,
+        documents,
+        parser,
+        workspace,
+        wrapper,
+    );
 
     registerCompletion(context);
     registerDefinition(context);
@@ -38,4 +45,5 @@ export interface LanguageFeatureDependencies {
     readonly documents: TextDocuments<TextDocument>;
     readonly parser: ParserService;
     readonly workspace: WorkspaceService;
+    readonly wrapper: WrapperClient;
 }

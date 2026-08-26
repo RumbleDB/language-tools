@@ -17,7 +17,6 @@ import type {
 type AnyWrapperRequestSpec = WrapperRequestSpec<string, WrapperRequestPayload, object>;
 type AnyWrapperResponse = WrapperDaemonResponse<string, object>;
 const logger = createLogger("wrapper:client");
-let wrapperResolutionOptions: WrapperResolutionOptions = {};
 
 interface PendingRequest {
     expectedResponseType: string;
@@ -31,7 +30,25 @@ export type WrapperMemoryUsage = {
     rssBytes: number;
 };
 
-class RumbleWrapperClient {
+export interface WrapperClient {
+    isConfiguredEnabled?(): boolean;
+    isUsable(): boolean;
+    getUnavailableError(): Error | null;
+    connect?(): Promise<void>;
+    sendRequest<Spec extends AnyWrapperRequestSpec>(
+        payload: Spec["request"],
+        timeoutMs?: number,
+    ): Promise<WrapperDaemonResponse<Spec["requestType"], Spec["response"]>>;
+    dispose?(): void;
+    getRumbleVersion?(): string | null;
+    getRumbleCommit?(): string | null;
+    getRumbleCommitShort?(): string | null;
+    getRumbleRef?(): string | null;
+    getMemoryUsage?(): Promise<WrapperMemoryUsage | null>;
+    setResolutionOptions?(options: WrapperResolutionOptions): void;
+}
+
+export class RumbleWrapperClient implements WrapperClient {
     private child: ChildProcessWithoutNullStreams | undefined;
     private nextRequestId = 1;
     private stdoutBuffer = "";
@@ -43,6 +60,12 @@ class RumbleWrapperClient {
     private rumbleCommitShort: string | null = null;
     private rumbleRef: string | null = null;
     private unavailableError: Error | null = null;
+
+    public constructor(private resolutionOptions: WrapperResolutionOptions = {}) {}
+
+    public setResolutionOptions(options: WrapperResolutionOptions): void {
+        this.resolutionOptions = { ...this.resolutionOptions, ...options };
+    }
 
     public isConfiguredEnabled(): boolean {
         return config.wrapper.enabled;
@@ -88,7 +111,7 @@ class RumbleWrapperClient {
     private async startAndHandshake(): Promise<void> {
         if (this.child === undefined) {
             await ensureJavaAvailable();
-            const launchConfig = await resolveWrapperLaunchConfig(wrapperResolutionOptions);
+            const launchConfig = await resolveWrapperLaunchConfig(this.resolutionOptions);
             logger.info(`Launching wrapper with args: ${launchConfig.args.join(" ")}`);
 
             this.child = spawn("java", launchConfig.args, {
@@ -340,17 +363,4 @@ class RumbleWrapperClient {
             rssBytes: stats.memory,
         };
     }
-}
-
-export function setWrapperResolutionOptions(options: WrapperResolutionOptions): void {
-    wrapperResolutionOptions = options;
-}
-
-let instance: RumbleWrapperClient | null = null;
-
-export function getWrapperClient(): RumbleWrapperClient {
-    if (instance === null) {
-        instance = new RumbleWrapperClient();
-    }
-    return instance;
 }

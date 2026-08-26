@@ -1,3 +1,4 @@
+import type { WrapperClient } from "server/integrations/rumble/client.js";
 import type { ParserService } from "server/parser/index.js";
 import { supportsDocument } from "server/parser/registry.js";
 import type { WorkspaceService } from "server/workspace/service.js";
@@ -9,6 +10,7 @@ export interface FeatureRegistrationContext {
     readonly documents: SupportedDocuments;
     readonly parser: ParserService;
     readonly workspace: WorkspaceService;
+    readonly wrapper: WrapperClient;
 }
 
 export interface SupportedDocuments {
@@ -20,11 +22,13 @@ export function createFeatureRegistrationContext(
     documents: TextDocuments<TextDocument>,
     parser: ParserService,
     workspace: WorkspaceService,
+    wrapper: WrapperClient,
 ): FeatureRegistrationContext {
     return {
         connection,
         parser,
         workspace,
+        wrapper,
         documents: {
             get(uri) {
                 const document = documents.get(uri);
