@@ -53,14 +53,15 @@ jobs:
 
             - name: Create release PR or publish packages
               id: changesets
-              uses: changesets/action@v1
+              uses: changesets/action@v2
               with:
-                  version: pnpm release:version
-                  publish: pnpm release:publish
-                  createGithubReleases: false
-                  title: "[ci] release"
-                  commit: "[ci] release"
+                  version-script: pnpm release:version
+                  publish-script: pnpm release:publish
+                  create-github-releases: false
+                  push-git-tags: false
+                  pr-title: "[ci] release"
+                  commit-message: "[ci] release"
+                  github-token: ${{ secrets.GITHUB_TOKEN }}
               env:
-                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
                   VSCE_PAT: ${{ secrets.VSCE_PAT }}
                   OVSX_PAT: ${{ secrets.OVSX_PAT }}
