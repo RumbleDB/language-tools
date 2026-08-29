@@ -19,8 +19,8 @@ describe("JSONiq rename", () => {
         );
         const varPrepare = prepareRename(document, positionAt(document, "$x"), workspaceService);
 
-        expect(fnPrepare?.placeholder).toBe("local:greet");
-        expect(varPrepare?.placeholder).toBe("$x");
+        expect(fnPrepare?.placeholder).toBe("greet");
+        expect(varPrepare?.placeholder).toBe("x");
     });
 
     it("renames variables across scopes (accepting both '$name' and bare 'name')", async () => {
@@ -120,8 +120,12 @@ describe("JSONiq rename", () => {
     });
 
     it("rejects invalid identifier names", async () => {
-        const document = testDocument("rename-invalid", "declare function local:f($x) { $x };");
+        const document = testDocument(
+            "rename-invalid",
+            "declare function local:f($x) { $x }; let $y := 1 return $y",
+        );
 
+        // empty
         await expect(
             buildRenameWorkspaceEdit(
                 document,
@@ -131,6 +135,7 @@ describe("JSONiq rename", () => {
             ),
         ).rejects.toThrow("cannot be empty");
 
+        // function with $
         await expect(
             buildRenameWorkspaceEdit(
                 document,
@@ -140,6 +145,7 @@ describe("JSONiq rename", () => {
             ),
         ).rejects.toThrow("must not start with '$'");
 
+        // arity suffix
         await expect(
             buildRenameWorkspaceEdit(
                 document,
@@ -149,6 +155,7 @@ describe("JSONiq rename", () => {
             ),
         ).rejects.toThrow("arity suffix");
 
+        // invalid characters
         await expect(
             buildRenameWorkspaceEdit(
                 document,
@@ -157,5 +164,25 @@ describe("JSONiq rename", () => {
                 workspaceService,
             ),
         ).rejects.toThrow("Invalid identifier");
+
+        // prefix mismatch
+        await expect(
+            buildRenameWorkspaceEdit(
+                document,
+                positionAt(document, "local:f"),
+                "other:f",
+                workspaceService,
+            ),
+        ).rejects.toThrow("Cannot change namespace prefix");
+
+        // adding prefix to unprefixed identifier
+        await expect(
+            buildRenameWorkspaceEdit(
+                document,
+                positionAt(document, "$y"),
+                "$local:z",
+                workspaceService,
+            ),
+        ).rejects.toThrow("Cannot add namespace prefix");
     });
 });

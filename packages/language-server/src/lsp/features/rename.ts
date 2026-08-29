@@ -68,15 +68,9 @@ export function prepareRename(
     }
 
     const { declaration } = target;
-    const isVariable = isVariableLike(declaration.kind);
     const qname = getTargetQName(declaration);
 
-    const prefixPart = qname.prefix !== undefined ? `${qname.prefix}:` : "";
-    const placeholder = isVariable
-        ? `$${prefixPart}${qname.localName}`
-        : `${prefixPart}${qname.localName}`;
-
-    return { range: target.range, placeholder };
+    return { range: target.range, placeholder: qname.localName };
 }
 
 /**
@@ -98,7 +92,7 @@ export async function buildRenameWorkspaceEdit(
 
     const { declaration } = target;
     const isVariable = isVariableLike(declaration.kind);
-    const newLocalName = extractAndValidateLocalName(newName, declaration.kind);
+    const newLocalName = extractAndValidateLocalName(newName, declaration);
 
     const editsByUri: Record<string, TextEdit[]> = {
         [declaration.uri]: [
@@ -167,8 +161,9 @@ function formatRenamedQName(name: QName, newLocalName: string, isVariable: boole
     return isVariable ? `$${result}` : result;
 }
 
-function extractAndValidateLocalName(newName: string, kind: DefinitionKind): string {
-    const isVariable = isVariableLike(kind);
+function extractAndValidateLocalName(newName: string, declaration: RenameableDeclaration): string {
+    const isVariable = isVariableLike(declaration.kind);
+    const targetQName = getTargetQName(declaration);
 
     let raw = newName.trim();
 
@@ -193,7 +188,15 @@ function extractAndValidateLocalName(newName: string, kind: DefinitionKind): str
         throw new Error("Identifier name can contain at most one namespace prefix separator ':'.");
     }
 
-    const localName = parts.at(-1)!;
+    let inputPrefix: string | undefined;
+    let localName: string;
+
+    if (parts.length === 2) {
+        [inputPrefix, localName] = parts as [string, string, ...string[]];
+    } else {
+        localName = parts[0]!;
+    }
+
     if (localName.length === 0) {
         throw new Error("Local identifier name cannot be empty.");
     }
@@ -201,6 +204,19 @@ function extractAndValidateLocalName(newName: string, kind: DefinitionKind): str
     const ncNamePattern = /^[A-Za-z_][A-Za-z0-9._-]*$/;
     if (!ncNamePattern.test(localName)) {
         throw new Error(`Invalid identifier '${localName}'. Expected a valid NCName.`);
+    }
+
+    if (inputPrefix !== undefined) {
+        if (targetQName.prefix === undefined) {
+            throw new Error(
+                `Cannot add namespace prefix '${inputPrefix}' to unprefixed identifier '${targetQName.localName}'.`,
+            );
+        }
+        if (inputPrefix !== targetQName.prefix) {
+            throw new Error(
+                `Cannot change namespace prefix '${targetQName.prefix}' to '${inputPrefix}' during symbol rename.`,
+            );
+        }
     }
 
     return localName;
