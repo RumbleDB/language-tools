@@ -8,20 +8,30 @@ import {
     type RunQueryLSPParams,
 } from "server/lsp/protocol/requests/index.js";
 import type { TextDocument } from "vscode-languageserver-textdocument";
-import type { Connection, TextDocuments } from "vscode-languageserver/node";
+import type { CancellationToken, Connection, TextDocuments } from "vscode-languageserver/node";
 
 export function registerRunQuery(
     connection: Connection,
     documents: TextDocuments<TextDocument>,
     wrapper: WrapperClient,
 ): void {
-    connection.onRequest(RUN_QUERY_LSP_METHOD, async (params: RunQueryLSPParams) => {
-        if (params.uri !== undefined) {
-            const document = documents.get(params.uri);
-            if (document !== undefined) return runQuery(document, wrapper);
-        }
+    connection.onRequest(
+        RUN_QUERY_LSP_METHOD,
+        async (params: RunQueryLSPParams, token: CancellationToken) => {
+            const controller = new AbortController();
+            const { dispose } = token.onCancellationRequested(() => controller.abort());
+            try {
+                if (params.uri !== undefined) {
+                    const document = documents.get(params.uri);
+                    if (document !== undefined)
+                        return await runQuery(document, wrapper, controller.signal);
+                }
 
-        const uri = params.uri?.startsWith("untitled:") ? undefined : params.uri;
-        return runQueryFromSource(uri, params.query, wrapper);
-    });
+                const uri = params.uri?.startsWith("untitled:") ? undefined : params.uri;
+                return await runQueryFromSource(uri, params.query, wrapper, controller.signal);
+            } finally {
+                dispose();
+            }
+        },
+    );
 }

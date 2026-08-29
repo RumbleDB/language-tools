@@ -11,14 +11,16 @@ const logger = createLogger("run-query");
 export async function runQuery(
     document: TextDocument,
     wrapper: WrapperClient,
+    signal?: AbortSignal,
 ): Promise<RunQueryWireResult> {
-    return runQueryFromSource(document.uri, getDocumentText(document), wrapper);
+    return runQueryFromSource(document.uri, getDocumentText(document), wrapper, signal);
 }
 
 export async function runQueryFromSource(
     documentUri: string | undefined,
     source: string | undefined,
     client: WrapperClient,
+    signal?: AbortSignal,
 ): Promise<RunQueryWireResult> {
     if (!client.isUsable()) {
         const unavailableErr = client.getUnavailableError();
@@ -44,7 +46,11 @@ export async function runQueryFromSource(
     };
 
     try {
-        const response = await client.sendRequest<RunQueryRequestSpec>(request);
+        const response = await client.sendRequest<RunQueryRequestSpec>(
+            request,
+            undefined, // no timeout — rely on AbortSignal for cancellation
+            signal,
+        );
         return response.body;
     } catch (error) {
         const message = error instanceof Error ? error.message : String(error);

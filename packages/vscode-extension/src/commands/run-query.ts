@@ -23,14 +23,18 @@ export function registerRunQueryCommand(
             {
                 location: vscode.ProgressLocation.Notification,
                 title: "Executing Query with RumbleDB...",
-                cancellable: false,
+                cancellable: true,
             },
-            async () => {
+            async (_, token) => {
                 try {
-                    const response = await RUN_QUERY_REQUEST.send(client, {
-                        uri,
-                        query: queryText,
-                    });
+                    const response = await RUN_QUERY_REQUEST.send(
+                        client,
+                        {
+                            uri,
+                            query: queryText,
+                        },
+                        token,
+                    );
                     const durationMs = Date.now() - startTime;
                     const timestamp = new Date().toLocaleTimeString();
 

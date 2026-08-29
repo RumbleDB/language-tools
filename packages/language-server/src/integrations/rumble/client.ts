@@ -22,7 +22,9 @@ interface PendingRequest {
     expectedResponseType: string;
     resolve: (response: AnyWrapperResponse) => void;
     reject: (error: Error) => void;
-    timeout: NodeJS.Timeout;
+    timeout: NodeJS.Timeout | undefined;
+    signal: AbortSignal | undefined;
+    onAbort?: () => void;
 }
 
 export type WrapperMemoryUsage = {
@@ -39,6 +41,7 @@ export interface WrapperClient {
     sendRequest<Spec extends AnyWrapperRequestSpec>(
         payload: Spec["request"],
         timeoutMs?: number,
+        signal?: AbortSignal,
     ): Promise<WrapperDaemonResponse<Spec["requestType"], Spec["response"]>>;
     dispose?(): void;
     getRumbleVersion?(): string | null;
@@ -153,9 +156,12 @@ export class RumbleWrapperClient implements WrapperClient {
         }
 
         try {
-            const handshakeResponse = await this.sendRequestInternal<HandshakeRequestSpec>({
-                requestType: REQUEST_TYPE_HANDSHAKE,
-            });
+            const handshakeResponse = await this.sendRequestInternal<HandshakeRequestSpec>(
+                {
+                    requestType: REQUEST_TYPE_HANDSHAKE,
+                },
+                30_000,
+            );
 
             this.rumbleVersion = handshakeResponse.body.rumbleVersion;
             this.rumbleCommit = handshakeResponse.body.rumbleCommit;
@@ -182,11 +188,7 @@ export class RumbleWrapperClient implements WrapperClient {
         this.rumbleCommitShort = null;
         this.rumbleRef = null;
 
-        for (const pendingRequest of this.pending.values()) {
-            clearTimeout(pendingRequest.timeout);
-            pendingRequest.reject(new Error("Wrapper client disposed."));
-        }
-        this.pending.clear();
+        this.rejectAllPending(new Error("Wrapper client disposed."));
 
         if (this.child !== undefined) {
             this.child.kill();
@@ -204,6 +206,7 @@ export class RumbleWrapperClient implements WrapperClient {
     public async sendRequest<Spec extends AnyWrapperRequestSpec>(
         payload: Spec["request"],
         timeoutMs?: number,
+        signal?: AbortSignal,
     ): Promise<WrapperDaemonResponse<Spec["requestType"], Spec["response"]>> {
         if (!this.isConfiguredEnabled()) {
             throw new Error("LSP wrapper is disabled.");
@@ -214,7 +217,7 @@ export class RumbleWrapperClient implements WrapperClient {
         }
 
         await this.connect();
-        return this.sendRequestInternal<Spec>(payload, timeoutMs);
+        return this.sendRequestInternal<Spec>(payload, timeoutMs, signal);
     }
 
     private markUnavailable(error: Error): void {
@@ -228,7 +231,8 @@ export class RumbleWrapperClient implements WrapperClient {
 
     private async sendRequestInternal<Spec extends AnyWrapperRequestSpec>(
         payload: Spec["request"],
-        timeoutMs: number = 12_000,
+        timeoutMs?: number,
+        signal?: AbortSignal,
     ): Promise<WrapperDaemonResponse<Spec["requestType"], Spec["response"]>> {
         const id = this.nextRequestId;
         this.nextRequestId += 1;
@@ -246,18 +250,44 @@ export class RumbleWrapperClient implements WrapperClient {
             throw new Error("Wrapper process is not available.");
         }
 
+        if (signal?.aborted === true) {
+            throw signal.reason instanceof Error
+                ? signal.reason
+                : new Error("Operation was cancelled.");
+        }
+
         return new Promise<WrapperDaemonResponse<Spec["requestType"], Spec["response"]>>(
             (resolve, reject) => {
-                const timeout = setTimeout(() => {
-                    this.pending.delete(id);
-                    reject(new Error("Wrapper timed out."));
-                }, timeoutMs);
+                const timeout =
+                    timeoutMs !== undefined
+                        ? setTimeout(() => {
+                              this.pending.delete(id);
+                              reject(new Error("Wrapper timed out."));
+                          }, timeoutMs)
+                        : undefined;
+
+                const onAbort = () => {
+                    // Reject with AbortError before dispose() can reject it generically
+                    const reason =
+                        signal?.reason instanceof Error
+                            ? signal.reason
+                            : new Error("Operation was cancelled.");
+                    this.rejectPending(id, reason);
+                    // Kill the Java process so it's immediately free for the next request.
+                    // Next sendRequest call will reconnect lazily via connect().
+                    this.dispose();
+                    this.unavailableError = null;
+                };
+
+                signal?.addEventListener("abort", onAbort, { once: true });
 
                 this.pending.set(id, {
                     expectedResponseType: payload.requestType,
                     resolve: resolve as (response: AnyWrapperResponse) => void,
                     reject,
                     timeout,
+                    signal,
+                    onAbort,
                 });
 
                 try {
@@ -312,7 +342,12 @@ export class RumbleWrapperClient implements WrapperClient {
             return;
         }
 
-        clearTimeout(pendingRequest.timeout);
+        if (pendingRequest.timeout !== undefined) {
+            clearTimeout(pendingRequest.timeout);
+        }
+        if (pendingRequest.onAbort !== undefined) {
+            pendingRequest.signal?.removeEventListener("abort", pendingRequest.onAbort);
+        }
         this.pending.delete(response.id);
 
         logger.debug(`Received response from wrapper: ${JSON.stringify(response, null, 2)}`);
@@ -335,14 +370,24 @@ export class RumbleWrapperClient implements WrapperClient {
             return;
         }
 
-        clearTimeout(pendingRequest.timeout);
+        if (pendingRequest.timeout !== undefined) {
+            clearTimeout(pendingRequest.timeout);
+        }
+        if (pendingRequest.onAbort !== undefined) {
+            pendingRequest.signal?.removeEventListener("abort", pendingRequest.onAbort);
+        }
         this.pending.delete(id);
         pendingRequest.reject(error);
     }
 
     private rejectAllPending(error: Error): void {
         for (const [id, pendingRequest] of this.pending.entries()) {
-            clearTimeout(pendingRequest.timeout);
+            if (pendingRequest.timeout !== undefined) {
+                clearTimeout(pendingRequest.timeout);
+            }
+            if (pendingRequest.onAbort !== undefined) {
+                pendingRequest.signal?.removeEventListener("abort", pendingRequest.onAbort);
+            }
             pendingRequest.reject(error);
             this.pending.delete(id);
         }
