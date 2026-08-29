@@ -1,5 +1,5 @@
 import { RumbleWrapperClient } from "server/integrations/rumble/client.js";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 describe("wrapper client surface", () => {
     it("can be instantiated", () => {
@@ -27,6 +27,20 @@ describe("wrapper client surface", () => {
     it("dispose can be called safely", () => {
         const client = new RumbleWrapperClient();
         expect(() => client.dispose()).not.toThrow();
+    });
+
+    it("restart disposes and reconnects the wrapper", async () => {
+        const client = new RumbleWrapperClient();
+        const dispose = vi.spyOn(client, "dispose");
+        const connect = vi.spyOn(client, "connect").mockResolvedValue();
+
+        await client.restart();
+
+        expect(dispose).toHaveBeenCalledOnce();
+        expect(connect).toHaveBeenCalledOnce();
+        expect(dispose.mock.invocationCallOrder[0]).toBeLessThan(
+            connect.mock.invocationCallOrder[0],
+        );
     });
 
     it("after connect, rumble version is set", async () => {

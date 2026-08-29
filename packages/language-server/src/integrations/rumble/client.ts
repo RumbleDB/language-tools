@@ -35,6 +35,7 @@ export interface WrapperClient {
     isUsable(): boolean;
     getUnavailableError(): Error | null;
     connect?(): Promise<void>;
+    restart?(): Promise<void>;
     sendRequest<Spec extends AnyWrapperRequestSpec>(
         payload: Spec["request"],
         timeoutMs?: number,
@@ -114,30 +115,36 @@ export class RumbleWrapperClient implements WrapperClient {
             const launchConfig = await resolveWrapperLaunchConfig(this.resolutionOptions);
             logger.info(`Launching wrapper with args: ${launchConfig.args.join(" ")}`);
 
-            this.child = spawn("java", launchConfig.args, {
+            const child = spawn("java", launchConfig.args, {
                 stdio: "pipe",
             });
+            this.child = child;
 
             this.handshakeCompleted = false;
-            this.child.stdout.setEncoding("utf8");
-            this.child.stderr.setEncoding("utf8");
-            this.child.stdout.on("data", (chunk: string) => {
+            child.stdout.setEncoding("utf8");
+            child.stderr.setEncoding("utf8");
+            child.stdout.on("data", (chunk: string) => {
+                if (this.child !== child) return;
                 this.handleStdoutChunk(chunk);
             });
-            this.child.stderr.on("data", (chunk: string) => {
+            child.stderr.on("data", (chunk: string) => {
+                if (this.child !== child) return;
                 this.handleStderrChunk(chunk);
             });
 
-            this.child.on("error", (error) => {
+            child.on("error", (error) => {
                 logger.error("Wrapper process error:", error);
+                if (this.child !== child) return;
                 this.rejectAllPending(error);
                 this.child = undefined;
                 this.stdoutBuffer = "";
                 this.handshakeCompleted = false;
             });
 
-            this.child.on("close", () => {
+            child.on("close", () => {
                 logger.warn("Wrapper process closed.");
+                if (this.child !== child) return;
+
                 this.rejectAllPending(new Error("Wrapper process closed."));
                 this.child = undefined;
                 this.stdoutBuffer = "";
@@ -185,6 +192,13 @@ export class RumbleWrapperClient implements WrapperClient {
             this.child.kill();
             this.child = undefined;
         }
+    }
+
+    public async restart(): Promise<void> {
+        logger.info("Restarting wrapper process.");
+        this.dispose();
+        this.unavailableError = null;
+        await this.connect();
     }
 
     public async sendRequest<Spec extends AnyWrapperRequestSpec>(
