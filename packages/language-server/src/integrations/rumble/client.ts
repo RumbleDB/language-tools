@@ -23,7 +23,7 @@ interface PendingRequest {
     resolve: (response: AnyWrapperResponse) => void;
     reject: (error: Error) => void;
     timeout: NodeJS.Timeout | undefined;
-    signal?: AbortSignal;
+    signal: AbortSignal | undefined;
     onAbort?: () => void;
 }
 
