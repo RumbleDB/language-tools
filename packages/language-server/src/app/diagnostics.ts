@@ -57,6 +57,13 @@ export class DiagnosticsManager {
         }
     }
 
+    public async refreshOpenDocuments(uris: ReadonlySet<DocumentUri>): Promise<void> {
+        for (const uri of uris) {
+            const document = this.documents.get(uri);
+            if (document !== undefined) await this.refresh(document);
+        }
+    }
+
     public clear(document: TextDocument): void {
         this.refreshVersions.delete(document.uri);
         this.connection.sendDiagnostics({ uri: document.uri, diagnostics: [] });

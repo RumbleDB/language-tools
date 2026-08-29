@@ -68,8 +68,9 @@ export function startServer() {
         diagnostics.clear(event.document);
     });
 
-    connection.onDidChangeWatchedFiles((params) => {
-        workspace.updateWatchedFiles(params.changes);
+    connection.onDidChangeWatchedFiles(async (params) => {
+        const affectedUris = await workspace.updateWatchedFiles(params.changes);
+        await diagnostics.refreshOpenDocuments(affectedUris);
     });
 
     connection.onInitialized(() => {

@@ -136,6 +136,11 @@ describe("workspace indexing", () => {
                 expect.objectContaining({ uri: importerUri }),
             );
 
+            const affectedByModuleChange = coordinator.updateWorkspaceDocuments([
+                { uri: moduleUri, type: FileChangeType.Changed },
+            ]);
+            expect(affectedByModuleChange).toEqual(new Set([moduleUri, importerUri]));
+
             await writeFile(importerPath, "1");
             coordinator.updateWorkspaceDocuments([
                 { uri: importerUri, type: FileChangeType.Changed },

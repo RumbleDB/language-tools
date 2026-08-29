@@ -37,8 +37,14 @@ export class WorkspaceService {
         return this.queueWorkspaceScan();
     }
 
-    public updateWatchedFiles(changes: readonly FileEvent[]): Promise<void> {
-        return this.queue(() => this.index.updateWorkspaceDocuments(changes));
+    public async updateWatchedFiles(
+        changes: readonly FileEvent[],
+    ): Promise<ReadonlySet<DocumentUri>> {
+        let affected: ReadonlySet<DocumentUri> = new Set();
+        await this.queue(() => {
+            affected = this.index.updateWorkspaceDocuments(changes);
+        });
+        return affected;
     }
 
     public getAnalysis(document: TextDocument): AnalysisResult {

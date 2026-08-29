@@ -24,6 +24,7 @@ describe("workspace service lifecycle", () => {
         });
         vi.spyOn(index, "updateWorkspaceDocuments").mockImplementation((changes) => {
             events.push(`update:${changes.map((change) => change.uri).join(",")}`);
+            return new Set(changes.map((change) => change.uri));
         });
         discoverWorkspaceDocumentUris.mockImplementation(async (folderUris) => {
             events.push(`discover:${folderUris.join(",")}`);
@@ -32,7 +33,7 @@ describe("workspace service lifecycle", () => {
         const workspace = new WorkspaceService(index, discoverWorkspaceDocumentUris);
 
         void workspace.setWorkspaceFolders(["file:///workspace"]);
-        await workspace.updateWatchedFiles([
+        const affected = await workspace.updateWatchedFiles([
             { uri: "file:///workspace/changed.jq", type: FileChangeType.Changed },
         ]);
 
@@ -41,6 +42,7 @@ describe("workspace service lifecycle", () => {
             "replace:file:///workspace/document.jq",
             "update:file:///workspace/changed.jq",
         ]);
+        expect(affected).toEqual(new Set(["file:///workspace/changed.jq"]));
     });
 
     it("rebuilds with the current workspace folders", async () => {
@@ -65,6 +67,7 @@ describe("workspace service lifecycle", () => {
         const index = new WorkspaceIndex(new ParserService());
         vi.spyOn(index, "updateWorkspaceDocuments").mockImplementation((changes) => {
             events.push(`update:${changes.map((change) => change.uri).join(",")}`);
+            return new Set(changes.map((change) => change.uri));
         });
         const error = new Error("discovery failed");
         discoverWorkspaceDocumentUris.mockRejectedValue(error);
