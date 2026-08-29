@@ -37,6 +37,16 @@ describe("document printer", () => {
         expect(printDocToString(doc, options)).toBe("a\nb");
     });
 
+    it("stops fitting a group at a hard line in its continuation", () => {
+        const doc = concat([
+            group(concat([text("a"), line, text("b")])),
+            text(" "),
+            group(concat([text("{"), hardline, text("}")])),
+        ]);
+
+        expect(printDocToString(doc, options)).toBe("a b {\n}");
+    });
+
     it("does not inject indentation into verbatim multiline text", () => {
         const doc = indent(concat([hardline, verbatim("first\n second")]));
 
