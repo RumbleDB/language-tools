@@ -319,11 +319,21 @@ export function formatFunctionDeclaration(
     const annotations = visit(node.annotations());
     const functionKeyword = formatTerminal(node.KW_FUNCTION(), "function");
     const name = visit(node.functionName());
-    const parameters = concat([
-        formatTerminal(node.LPAREN(), "("),
-        visit(node.paramList()),
-        formatTerminal(node.RPAREN(), ")"),
-    ]);
+    const leftParenthesis = formatTerminal(node.LPAREN(), "(");
+    const rightParenthesis = formatTerminal(node.RPAREN(), ")");
+    const parameterList = node.paramList();
+    const parameters = parameterList
+        ? concat([
+              leftParenthesis,
+              group(
+                  concat([
+                      indent(concat([softline, visit(parameterList)])),
+                      softline,
+                      rightParenthesis,
+                  ]),
+              ),
+          ])
+        : concat([leftParenthesis, rightParenthesis]);
     const signature = spacedDocs(
         declaration,
         annotations,

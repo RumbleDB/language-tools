@@ -9,6 +9,12 @@ interface Command {
     readonly doc: Doc;
 }
 
+interface ContinuationBoundary {
+    readonly boundary: true;
+}
+
+type FitCommand = Command | ContinuationBoundary;
+
 /**
  * Renders a `Doc` tree into a formatted string using Wadler/Prettier-style layout algorithm.
  */
@@ -56,10 +62,7 @@ export function printDocToString(doc: Doc, options: FormatterOptions): string {
             case "group": {
                 const groupMode =
                     mode === "flat" ||
-                    fits(width - currentColumn, [
-                        ...cmds,
-                        { indent, mode: "flat", doc: current.doc },
-                    ])
+                    fits(width - currentColumn, { indent, mode: "flat", doc: current.doc }, cmds)
                         ? "flat"
                         : "break";
                 cmds.push({ indent, mode: groupMode, doc: current.doc });
@@ -95,13 +98,19 @@ export function printDocToString(doc: Doc, options: FormatterOptions): string {
  * The stack includes the continuation after a group. This is essential: a group may fit by
  * itself while flattening it leaves insufficient room for the document that follows it.
  */
-function fits(remainingWidth: number, pending: readonly Command[]): boolean {
+function fits(
+    remainingWidth: number,
+    groupCommand: Command,
+    continuation: readonly Command[],
+): boolean {
     if (remainingWidth < 0) {
         return false;
     }
 
     let restWidth = remainingWidth;
-    const cmds = [...pending];
+    const boundary: ContinuationBoundary = { boundary: true };
+    const cmds: FitCommand[] = [...continuation, boundary, groupCommand];
+    let isContinuation = false;
 
     while (cmds.length > 0) {
         if (restWidth < 0) {
@@ -109,6 +118,10 @@ function fits(remainingWidth: number, pending: readonly Command[]): boolean {
         }
 
         const cmd = cmds.pop()!;
+        if ("boundary" in cmd) {
+            isContinuation = true;
+            continue;
+        }
         const { indent, mode, doc: current } = cmd;
 
         switch (current.kind) {
@@ -120,7 +133,7 @@ function fits(remainingWidth: number, pending: readonly Command[]): boolean {
                 const newlineIndex = firstNewlineIndex(current.text);
                 if (newlineIndex !== -1) {
                     restWidth -= newlineIndex;
-                    return restWidth >= 0 && mode === "break";
+                    return restWidth >= 0 && (isContinuation || mode === "break");
                 }
                 restWidth -= current.text.length;
                 break;
@@ -136,7 +149,7 @@ function fits(remainingWidth: number, pending: readonly Command[]): boolean {
                 break;
             }
             case "group": {
-                cmds.push({ indent, mode: "flat", doc: current.doc });
+                cmds.push({ indent, mode: isContinuation ? mode : "flat", doc: current.doc });
                 break;
             }
             case "line": {
@@ -144,7 +157,7 @@ function fits(remainingWidth: number, pending: readonly Command[]): boolean {
                     return true;
                 }
                 if (current.hard) {
-                    return false;
+                    return isContinuation;
                 }
                 if (current.soft) {
                     // Prints nothing in flat mode

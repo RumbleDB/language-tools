@@ -92,6 +92,40 @@ describe("JSONiq & XQuery Formatter", () => {
         );
     });
 
+    describe("Function declarations", () => {
+        it.each(["jsoniq", "xquery"] as const)(
+            "keeps fitting %s parameters on the signature line",
+            (languageId) => {
+                const input = [
+                    "declare function local:compute-discount($total as double, $isVip as boolean) as double {",
+                    "    let $baseRate := if ($isVip) then 0.20 else 0.05",
+                    "    let $rawDiscount := $total * $baseRate",
+                    "    return math:clamp($rawDiscount, 0.0, 50.0)",
+                    "};",
+                ].join("\n");
+
+                expect(formatText(input, languageId)).toBe(`${input}\n`);
+            },
+        );
+
+        it.each(["jsoniq", "xquery"] as const)(
+            "wraps and indents %s parameters when the signature is too wide",
+            (languageId) => {
+                const input =
+                    "declare function local:add($first as double, $second as double) as double { $first + $second };";
+
+                expect(formatText(input, languageId, { maxLineWidth: 50 })).toBe(
+                    [
+                        "declare function local:add(",
+                        "    $first as double,",
+                        "    $second as double",
+                        ") as double { $first + $second };\n",
+                    ].join("\n"),
+                );
+            },
+        );
+    });
+
     describe("String literals", () => {
         it.each(["jsoniq", "xquery"] as const)(
             "preserves whitespace inside %s string literals",
