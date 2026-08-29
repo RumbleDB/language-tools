@@ -188,11 +188,7 @@ export class RumbleWrapperClient implements WrapperClient {
         this.rumbleCommitShort = null;
         this.rumbleRef = null;
 
-        for (const pendingRequest of this.pending.values()) {
-            clearTimeout(pendingRequest.timeout);
-            pendingRequest.reject(new Error("Wrapper client disposed."));
-        }
-        this.pending.clear();
+        this.rejectAllPending(new Error("Wrapper client disposed."));
 
         if (this.child !== undefined) {
             this.child.kill();
@@ -255,11 +251,9 @@ export class RumbleWrapperClient implements WrapperClient {
         }
 
         if (signal?.aborted === true) {
-            this.dispose();
-            this.unavailableError = null;
             throw signal.reason instanceof Error
                 ? signal.reason
-                : new Error("Run-query was cancelled.");
+                : new Error("Operation was cancelled.");
         }
 
         return new Promise<WrapperDaemonResponse<Spec["requestType"], Spec["response"]>>(
@@ -277,7 +271,7 @@ export class RumbleWrapperClient implements WrapperClient {
                     const reason =
                         signal?.reason instanceof Error
                             ? signal.reason
-                            : new Error("Run-query was cancelled.");
+                            : new Error("Operation was cancelled.");
                     this.rejectPending(id, reason);
                     // Kill the Java process so it's immediately free for the next request.
                     // Next sendRequest call will reconnect lazily via connect().
