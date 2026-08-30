@@ -1,5 +1,35 @@
 # jsoniq-language-server
 
+## 2.11.0
+
+### Minor Changes
+
+- [#63](https://github.com/RumbleDB/language-tools/pull/63) [`f1e1b9c`](https://github.com/RumbleDB/language-tools/commit/f1e1b9c801a8743740858d6a79351d780c92180e) - feat: make `run-query` request cancellable by supporting `CancellationToken` from language server protocol.
+  
+  > A cancellation token (CancellationToken) in the Language Server Protocol (LSP) is an object that lets a client tell a server to stop working on an ongoing request.
+  
+  This is very useful when user runs a big query and then decides to cancel it. With this implementation, the wrapper client will be closed and restarted on the next request. This is a simple workaround as all requests are processed sequentially in the Java wrapper.
+
+- [`a791fbc`](https://github.com/RumbleDB/language-tools/commit/a791fbc348d36d22493db25305babc85c7a038c6) - fix: built-in types were not resolved correctly.
+  
+  Added semantic resolution for built-in JSONiq types in the language server. Built-in functions and types now share a single kind-aware resolver, and built-in type definitions participate in the analysis model alongside source definitions.
+  
+  Unprefixed type names are resolved through ordered default, JSONiq, and XML Schema namespaces, consistent with built-in function resolution. This prevents valid types such as xs:string, string, item, and array from being reported as undefined.
+
+- [`cd3b59b`](https://github.com/RumbleDB/language-tools/commit/cd3b59b24d3c00c3416556dd4bc3dae23d6702a0) - feat: add restart method to RumbleWrapperClient for process management
+
+- [`3ce2d00`](https://github.com/RumbleDB/language-tools/commit/3ce2d00f2e53b2f83e7c6058fc358349e4e12ec4) - feat: refresh diagnostics when imported module changes
+
+- [#64](https://github.com/RumbleDB/language-tools/pull/64) [`9eb03c1`](https://github.com/RumbleDB/language-tools/commit/9eb03c108cd7a79c2a362b08fec05962440508de) - The rename feature was refactored to expand support from variables and parameters to user-defined functions and custom schema types (declare type). Renaming a function or type now automatically updates both its declaration and all call sites/references across every open and unopened module in the workspace.
+
+### Patch Changes
+
+- [`2d2bd28`](https://github.com/RumbleDB/language-tools/commit/2d2bd2848c2a541f9c7ce53d4fed2067d9ae1087) - fix(formatter): parameter list was not formatted correctly
+  
+  Unnecessary line breaks were introduced between parameters.
+
+- [`68ac0f9`](https://github.com/RumbleDB/language-tools/commit/68ac0f9bc59f0c5fb28c51dfcb7de028df3c7318) - fix: semantic-token modifiers was assigning `definition` modifier when it was a reference
+
 ## 2.10.0
 
 ### Minor Changes
