@@ -8,7 +8,7 @@ import {
     getVisibleDeclarationsAtPosition,
     type AnalysisResult,
 } from "server/analysis/index.js";
-import { builtinFunctions } from "server/resources/builtin-functions.js";
+import { resolveBuiltin } from "server/resources/builtins.js";
 import { describe, expect, it } from "vitest";
 import type { TextDocument } from "vscode-languageserver-textdocument";
 
@@ -17,7 +17,7 @@ import { positionAt, testDocument } from "./test-utils.js";
 
 const buildAnalysis = (document: TextDocument) =>
     analyzeDocument(document, parserService.parse(document).ast, {
-        resolveBuiltin: builtinFunctions.find,
+        resolveBuiltin,
     });
 const definitionsOf = (analysis: AnalysisResult) => [...getDefinitions(analysis.ast)];
 const referencesOf = (analysis: AnalysisResult) => [...getResolvedReferences(analysis.ast)];
@@ -263,6 +263,72 @@ describe("JSONiq variable scope analysis", () => {
                 (reference) => reference.declaration === secondReference.declaration,
             ),
         ).toHaveLength(2);
+    });
+
+    it("resolves prefixed and default-namespace builtin types", () => {
+        const analysis = buildAnalysis(
+            testDocument("scope-builtin-types", [
+                'declare variable $prefixed as xs:string := "value";',
+                'declare variable $defaultString as string := "value";',
+                "declare variable $defaultItem as item := $prefixed;",
+                "declare variable $defaultArray as array := [];",
+            ]),
+        );
+
+        expect(
+            analysis.diagnostics.filter((diagnostic) => diagnostic.code === "unresolved-type"),
+        ).toEqual([]);
+        expect(
+            referencesOf(analysis)
+                .filter((reference) => reference.kind === "type")
+                .map((reference) => reference.declaration),
+        ).toMatchObject([
+            {
+                kind: "type",
+                origin: "builtin",
+                name: {
+                    localName: "string",
+                    namespaceUri: "http://www.w3.org/2001/XMLSchema",
+                },
+            },
+            {
+                kind: "type",
+                origin: "builtin",
+                name: {
+                    localName: "string",
+                    namespaceUri: "http://www.w3.org/2001/XMLSchema",
+                },
+            },
+            {
+                kind: "type",
+                origin: "builtin",
+                name: {
+                    localName: "item",
+                    namespaceUri: "http://jsoniq.org/default-type-namespace",
+                },
+            },
+            {
+                kind: "type",
+                origin: "builtin",
+                name: {
+                    localName: "array",
+                    namespaceUri: "http://jsoniq.org/types",
+                },
+            },
+        ]);
+    });
+
+    it("reports unknown types after builtin lookup", () => {
+        const analysis = buildAnalysis(
+            testDocument("scope-unknown-builtin-type", "declare variable $value as missing := 1;"),
+        );
+
+        expect(analysis.diagnostics).toContainEqual(
+            expect.objectContaining({
+                code: "unresolved-type",
+                message: "Reference to undefined type 'missing'",
+            }),
+        );
     });
 
     it("resolves function references by full qname", async () => {

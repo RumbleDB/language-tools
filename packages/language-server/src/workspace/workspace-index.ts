@@ -1,5 +1,5 @@
 import { ParserService } from "server/parser/index.js";
-import { builtinFunctions } from "server/resources/builtin-functions.js";
+import { resolveBuiltin } from "server/resources/builtins.js";
 import { createLogger } from "server/utils/logger.js";
 import type { DocumentUri } from "vscode-languageserver";
 import { TextDocument } from "vscode-languageserver-textdocument";
@@ -94,7 +94,7 @@ export class WorkspaceIndex {
             {
                 provider,
                 prolog,
-                resolveBuiltin: (name) => builtinFunctions.find(name),
+                resolveBuiltin,
             },
         );
 

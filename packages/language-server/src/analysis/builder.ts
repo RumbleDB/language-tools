@@ -40,11 +40,7 @@ import type {
     SourceNamespaceDefinition,
     SourceVariableDefinition,
 } from "./model/definitions.js";
-import {
-    referenceNameToString,
-    type FunctionName,
-    type ReferenceNameByKind,
-} from "./model/names.js";
+import { referenceNameToString, type ReferenceNameByKind } from "./model/names.js";
 import type { ResolvedReference } from "./model/reference.js";
 import type { AnalysisEnvironment, AnalysisResult, ResolvedModuleImport } from "./model/result.js";
 import { ScopeBuilder } from "./model/scope.js";
@@ -83,7 +79,7 @@ class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
         this.namespaces = prolog.namespaces;
         this.declarations = prolog.declarations;
         this.diagnostics = [...prolog.diagnostics];
-        this.resolveBuiltin = environment.resolveBuiltin ?? (() => undefined);
+        this.resolveBuiltin = environment.resolveBuiltin ?? ((_kind, _name) => undefined);
 
         this.resolvedImportsByNamespace = new Map(
             (environment.resolvedImports ?? []).map((moduleImport) => [
@@ -328,11 +324,9 @@ class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
         name: ReferenceNameByKind[K],
         offset: number,
     ): DefinitionByReferenceKind[K] | undefined {
-        if (kind === "function") {
-            const builtinDefinition = this.resolveBuiltin(name as FunctionName);
-            if (builtinDefinition !== undefined) {
-                return builtinDefinition as DefinitionByReferenceKind[K];
-            }
+        const builtinDefinition = this.resolveBuiltin(kind, name);
+        if (builtinDefinition !== undefined) {
+            return builtinDefinition;
         }
 
         return this.currentScope.resolve(kind, name, offset, this.excludedDefinitions);

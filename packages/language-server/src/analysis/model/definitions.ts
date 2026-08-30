@@ -1,6 +1,6 @@
 import type { Range } from "vscode-languageserver";
 
-import type { FunctionName } from "./names.js";
+import type { FunctionName, QName } from "./names.js";
 import { functionNameToString, QNameToString, type DeclarationNameByKind } from "./names.js";
 import type { StaticFunctionSignature } from "./type-system.js";
 
@@ -25,6 +25,12 @@ export interface BuiltinFunctionDefinition extends BaseDefinition<"function"> {
     readonly name: FunctionName;
     readonly kind: "function";
     readonly signature: StaticFunctionSignature;
+    readonly origin: "builtin";
+}
+
+export interface BuiltinTypeDefinition extends BaseDefinition<"type"> {
+    readonly name: QName;
+    readonly kind: "type";
     readonly origin: "builtin";
 }
 
@@ -102,13 +108,23 @@ export interface ScopeDefinitionByReferenceKind {
     type: SourceTypeDefinition;
 }
 
+export interface BuiltinDefinitionByReferenceKind {
+    variable: never;
+    function: BuiltinFunctionDefinition;
+    type: BuiltinTypeDefinition;
+}
+
 export interface DefinitionByReferenceKind {
     variable: VariableDefinition;
     function: SourceFunctionDefinition | BuiltinFunctionDefinition;
-    type: SourceTypeDefinition;
+    type: SourceTypeDefinition | BuiltinTypeDefinition;
 }
 
-export type Definition = SourceDefinition | ImplicitVariableDefinition | BuiltinFunctionDefinition;
+export type Definition =
+    | SourceDefinition
+    | ImplicitVariableDefinition
+    | BuiltinFunctionDefinition
+    | BuiltinTypeDefinition;
 
 export function definitionNameToString(
     definition: BaseDefinition,

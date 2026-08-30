@@ -7,6 +7,7 @@ const XS_NAMESPACE = "http://www.w3.org/2001/XMLSchema";
 const XML_NAMESPACE = "http://www.w3.org/XML/1998/namespace";
 const JN_NAMESPACE = "http://jsoniq.org/functions";
 const JS_NAMESPACE = "http://jsoniq.org/types";
+const DEFAULT_TYPE_NAMESPACE = "http://jsoniq.org/default-type-namespace";
 const ERR_NAMESPACE = "http://www.w3.org/2005/xqt-errors";
 
 export {
@@ -19,6 +20,7 @@ export {
     XML_NAMESPACE,
     JN_NAMESPACE,
     JS_NAMESPACE,
+    DEFAULT_TYPE_NAMESPACE,
     ERR_NAMESPACE,
 };
 
