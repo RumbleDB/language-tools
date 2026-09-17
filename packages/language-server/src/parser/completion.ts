@@ -14,6 +14,11 @@ import { findCaretToken } from "./utils.js";
 
 const logger = createLogger("completion");
 
+export type RuleCandidateInfo = {
+    startTokenIndex: number;
+    ruleList: number[];
+};
+
 type CompletionOptions<T extends TokenContextAnalyzer> = {
     tokenContextAnalyzer: new (tokens: Token[], cursorOffset: number) => T;
     ignoredTokens: Set<number>;
@@ -22,7 +27,7 @@ type CompletionOptions<T extends TokenContextAnalyzer> = {
     isFunctionCallRule(ruleIndex: number): boolean;
     isObjectLookupRule(ruleIndex: number): boolean;
     isObjectLookupDotToken(tokenType: number): boolean;
-    isCatchErrorTargetRule(ruleIndex: number): boolean;
+    isCatchErrorTargetRule(ruleIndex: number, candidate?: RuleCandidateInfo): boolean;
     isVariableReferenceRule(ruleIndex: number): boolean;
     tokenName(tokenType: number): string | number;
     ruleName(ruleIndex: number): string | number;
@@ -30,6 +35,7 @@ type CompletionOptions<T extends TokenContextAnalyzer> = {
 
 type CompletionCandidates = {
     tokenTypes: Set<number>;
+    rules: Map<number, RuleCandidateInfo>;
     ruleIndices: Set<number>;
     tokenContext: CompletionTokenContext;
 };
@@ -91,9 +97,11 @@ export function getCompletionIntent<T extends TokenContextAnalyzer>(
 
 function hasCandidateRule(
     candidates: CompletionCandidates,
-    predicate: (ruleIndex: number) => boolean,
+    predicate: (ruleIndex: number, candidate?: RuleCandidateInfo) => boolean,
 ): boolean {
-    return [...candidates.ruleIndices].some(predicate);
+    return [...candidates.rules.entries()].some(([ruleIndex, candidate]) =>
+        predicate(ruleIndex, candidate),
+    );
 }
 
 function hasCandidateToken(candidates: CompletionCandidates, tokenType: number): boolean {
@@ -158,11 +166,19 @@ function collectCompletionCandidates<T extends TokenContextAnalyzer>(
     core.preferredRules = options.preferredRules;
 
     const candidates = core.collectCandidates(caret.tokenIndex);
+    const candidateRules = new Map<number, RuleCandidateInfo>();
+    for (const [ruleIndex, candidate] of candidates.rules.entries()) {
+        candidateRules.set(ruleIndex, {
+            startTokenIndex: candidate.startTokenIndex,
+            ruleList: candidate.ruleList,
+        });
+    }
 
     return {
         tokenTypes: new Set(
             [...candidates.tokens.keys()].filter((tokenType) => tokenType !== Token.EOF),
         ),
+        rules: candidateRules,
         ruleIndices: new Set(candidates.rules.keys()),
         tokenContext: getCompletionTokenContext(
             parsed.tokens,

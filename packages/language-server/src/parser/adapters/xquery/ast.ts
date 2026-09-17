@@ -12,7 +12,7 @@ import { TextDocument } from "vscode-languageserver-textdocument";
 import {
     CatchCaseStatementContext,
     CatchClauseContext,
-    CatchErrorTargetContext,
+    NameTestContext,
     CaseClauseContext,
     CaseStatementContext,
     CopyDeclContext,
@@ -482,7 +482,13 @@ class XQueryAstBuilder extends XQueryParserVisitor<AstVisitResult> {
     public override visitCatchClause = (node: CatchClauseContext): AstVisitResult =>
         this.catchClause(node);
 
-    public override visitCatchErrorTarget = (node: CatchErrorTargetContext): AstVisitResult => {
+    public override visitNameTest = (node: NameTestContext): AstVisitResult => {
+        if (
+            !(node.parent instanceof CatchClauseContext) &&
+            !(node.parent instanceof CatchCaseStatementContext)
+        ) {
+            return this.visitChildrenAsNodes(node);
+        }
         const name = node.eqName();
         return [
             {

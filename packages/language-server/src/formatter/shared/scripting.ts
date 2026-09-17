@@ -257,7 +257,7 @@ export function formatCatchCaseStatement(
     visit: Visit,
     formatTerminal: FormatTerminal,
 ): Doc {
-    const targets = node.catchErrorTarget().map(visit);
+    const targets = node.nameTest().map(visit);
     return concat([
         formatTerminal(node.KW_CATCH(), "catch"),
         space,

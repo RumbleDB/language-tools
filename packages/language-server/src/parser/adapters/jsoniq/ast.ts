@@ -12,7 +12,6 @@ import { TextDocument } from "vscode-languageserver-textdocument";
 import {
     CatchCaseStatementContext,
     CatchClauseContext,
-    CatchErrorTargetContext,
     CaseClauseContext,
     CaseStatementContext,
     CopyDeclContext,
@@ -51,6 +50,7 @@ import {
     type ModuleAndThisIsItContext,
     ArgumentListContext,
     SequenceTypeContext,
+    NameTestContext,
 } from "./grammar/JsoniqParser.js";
 import { JsoniqParserVisitor } from "./grammar/JsoniqParserVisitor.js";
 import { parseFunctionName, parseQname, parseVarName } from "./name.js";
@@ -483,7 +483,13 @@ class JsoniqAstBuilder extends JsoniqParserVisitor<AstVisitResult> {
     public override visitCatchClause = (node: CatchClauseContext): AstVisitResult =>
         this.catchClause(node);
 
-    public override visitCatchErrorTarget = (node: CatchErrorTargetContext): AstVisitResult => {
+    public override visitNameTest = (node: NameTestContext): AstVisitResult => {
+        if (
+            !(node.parent instanceof CatchClauseContext) &&
+            !(node.parent instanceof CatchCaseStatementContext)
+        ) {
+            return this.visitChildrenAsNodes(node);
+        }
         const name = node.eqName();
         return [
             {
