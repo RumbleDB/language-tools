@@ -1,9 +1,11 @@
 import type { Table as SolidTable } from "@tanstack/solid-table";
 
+import type { TFeatures } from "../App.js";
+
 interface FooterProps {
     durationMs: number;
     rowCount: number;
-    table: SolidTable<Record<string, unknown>>;
+    table: SolidTable<TFeatures, Record<string, unknown>>;
     pageSize: number;
     onPageSizeChange: (size: number) => void;
     copied: boolean;
@@ -35,7 +37,7 @@ export function Footer(props: FooterProps) {
                     </button>
 
                     <span class="px-1 text-xs text-secondary font-medium">
-                        Page {props.table.getState().pagination.pageIndex + 1} of{" "}
+                        Page {props.table.atoms.pagination.get().pageIndex + 1} of{" "}
                         {props.table.getPageCount()}
                     </span>
 

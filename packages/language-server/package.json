@@ -52,20 +52,20 @@
         "antlr4-c3": "^3.4.4",
         "antlr4ng": "^3.0.16",
         "pidusage": "^4.0.1",
-        "vscode-languageserver": "^10.1.0",
-        "vscode-languageserver-textdocument": "^1.0.12"
+        "vscode-languageserver": "^10.1.1",
+        "vscode-languageserver-textdocument": "^1.0.14"
     },
     "devDependencies": {
         "@types/node": "catalog:",
         "@types/pidusage": "^2.0.5",
-        "fast-xml-parser": "^5.11.0",
+        "fast-xml-parser": "^5.11.1",
         "gray-matter": "^4.0.3",
         "oxfmt": "catalog:",
         "oxlint": "catalog:",
-        "tsc-alias": "^1.9.2",
-        "tsdown": "^0.22.14",
-        "tsx": "^4.23.12",
+        "tsc-alias": "^1.9.5",
+        "tsdown": "^0.23.0",
+        "tsx": "^4.23.13",
         "typescript": "^7.0.2",
-        "vitest": "^4.1.11"
+        "vitest": "^5.0.1"
     }
 }

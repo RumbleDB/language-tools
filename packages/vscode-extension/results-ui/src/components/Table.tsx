@@ -1,8 +1,10 @@
-import { flexRender, type Table as SolidTable } from "@tanstack/solid-table";
+import { FlexRender, type Table as SolidTable } from "@tanstack/solid-table";
 import { For, Show } from "solid-js";
 
+import type { TFeatures } from "../App.js";
+
 interface TableProps {
-    table: SolidTable<Record<string, unknown>>;
+    table: SolidTable<TFeatures, Record<string, unknown>>;
     globalFilter: string;
     onGlobalFilterChange: (value: string) => void;
     totalRows: number;
@@ -43,7 +45,7 @@ export function TableView(props: TableProps) {
                 <div class="border border-outline-variant rounded bg-surface overflow-auto max-w-full max-h-full">
                     <table class="w-full min-w-full text-left border-separate border-spacing-0 table-fixed">
                         <colgroup>
-                            <For each={props.table.getVisibleFlatColumns()}>
+                            <For each={props.table.getAllFlatColumns()}>
                                 {(column) => <col style={{ width: `${column.getSize()}px` }} />}
                             </For>
                         </colgroup>
@@ -64,10 +66,7 @@ export function TableView(props: TableProps) {
                                                 >
                                                     <div class="flex items-center justify-between gap-1">
                                                         <span>
-                                                            {flexRender(
-                                                                header.column.columnDef.header,
-                                                                header.getContext(),
-                                                            )}
+                                                            <FlexRender header={header} />
                                                         </span>
                                                         <Show when={header.column.getCanSort()}>
                                                             <span class="text-secondary text-xs">
@@ -106,16 +105,13 @@ export function TableView(props: TableProps) {
                             <For each={props.table.getRowModel().rows}>
                                 {(row) => (
                                     <tr class="hover:bg-surface-variant transition-colors">
-                                        <For each={row.getVisibleCells()}>
+                                        <For each={row.getAllCells()}>
                                             {(cell) => (
                                                 <td
                                                     style={{ width: `${cell.column.getSize()}px` }}
                                                     class="border-b border-r border-outline-variant/30 px-4 py-2.5 text-on-surface max-w-[400px] break-words overflow-wrap-anywhere align-top last:border-r-0"
                                                 >
-                                                    {flexRender(
-                                                        cell.column.columnDef.cell,
-                                                        cell.getContext(),
-                                                    )}
+                                                    <FlexRender cell={cell} />
                                                 </td>
                                             )}
                                         </For>

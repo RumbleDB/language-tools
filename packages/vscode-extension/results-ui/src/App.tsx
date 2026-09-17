@@ -1,9 +1,15 @@
 import {
-    createSolidTable,
-    getCoreRowModel,
-    getSortedRowModel,
-    getFilteredRowModel,
-    getPaginationRowModel,
+    createTable,
+    tableFeatures,
+    columnFilteringFeature,
+    rowSortingFeature,
+    globalFilteringFeature,
+    rowPaginationFeature,
+    columnSizingFeature,
+    columnResizingFeature,
+    createSortedRowModel,
+    createFilteredRowModel,
+    createPaginatedRowModel,
     type ColumnDef,
     type SortingState,
     type PaginationState,
@@ -22,13 +28,28 @@ declare global {
     }
 }
 
-const INDEX_COLUMN: ColumnDef<Record<string, unknown>> = {
+const features = tableFeatures({
+    columnFilteringFeature,
+    rowSortingFeature,
+    globalFilteringFeature,
+    rowPaginationFeature,
+    columnSizingFeature,
+    columnResizingFeature,
+    sortedRowModel: createSortedRowModel(),
+    filteredRowModel: createFilteredRowModel(),
+    paginatedRowModel: createPaginatedRowModel(),
+});
+
+export type TFeatures = typeof features;
+export type TData = Record<string, unknown>;
+
+const INDEX_COLUMN: ColumnDef<TFeatures, TData> = {
     id: "__index",
     header: "#",
     size: 60,
     minSize: 50,
     maxSize: 80,
-    accessorFn: (_, index) => index + 1,
+    accessorFn: (_: TData, index: number) => index + 1,
     cell: (info) => (
         <span class="text-secondary font-mono text-xs select-none">{String(info.getValue())}</span>
     ),
@@ -163,7 +184,7 @@ export function App() {
         );
     });
 
-    const tableColumns = createMemo<ColumnDef<Record<string, unknown>>[]>(() => {
+    const tableColumns = createMemo<ColumnDef<TFeatures, TData>[]>(() => {
         const items = parsedItems();
         if (items.length === 0) return [];
 
@@ -175,16 +196,14 @@ export function App() {
                 }
             });
 
-            const dataCols: ColumnDef<Record<string, unknown>>[] = Array.from(keySet).map(
-                (key) => ({
-                    id: key,
-                    accessorKey: key,
-                    header: key.toUpperCase(),
-                    size: getDynamicColumnSize(items as Record<string, unknown>[], key),
-                    minSize: 80,
-                    cell: (info) => renderCellValue(info.getValue()),
-                }),
-            );
+            const dataCols: ColumnDef<TFeatures, TData>[] = Array.from(keySet).map((key) => ({
+                id: key,
+                accessorKey: key,
+                header: key.toUpperCase(),
+                size: getDynamicColumnSize(items as TData[], key),
+                minSize: 80,
+                cell: (info) => renderCellValue(info.getValue()),
+            }));
 
             return [INDEX_COLUMN, ...dataCols];
         }
@@ -202,16 +221,17 @@ export function App() {
         ];
     });
 
-    const tableData = createMemo<Record<string, unknown>[]>(() => {
+    const tableData = createMemo<TData[]>(() => {
         return parsedItems().map((item) => {
             if (typeof item === "object" && item !== null && !Array.isArray(item)) {
-                return item as Record<string, unknown>;
+                return item as TData;
             }
             return { value: item };
         });
     });
 
-    const table = createSolidTable({
+    const table = createTable({
+        features,
         get data() {
             return tableData();
         },
@@ -223,24 +243,16 @@ export function App() {
             size: 160,
             minSize: 60,
         },
-        state: {
-            get sorting() {
-                return sorting();
-            },
-            get globalFilter() {
-                return globalFilter();
-            },
-            get pagination() {
-                return pagination();
-            },
+        get state() {
+            return {
+                sorting: sorting(),
+                globalFilter: globalFilter(),
+                pagination: pagination(),
+            };
         },
         onSortingChange: setSorting,
         onGlobalFilterChange: setGlobalFilter,
         onPaginationChange: setPagination,
-        getCoreRowModel: getCoreRowModel(),
-        getSortedRowModel: getSortedRowModel(),
-        getFilteredRowModel: getFilteredRowModel(),
-        getPaginationRowModel: getPaginationRowModel(),
     });
 
     const fileName = () => {
