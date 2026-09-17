@@ -499,7 +499,7 @@ export function formatCatchClause(
     visit: Visit,
     formatTerminal: FormatTerminal,
 ): Doc {
-    const targets = node.catchErrorTarget().map(visit);
+    const targets = node.nameTest().map(visit);
     const target = concat([
         space,
         formatTokenSeparatedDocs(
