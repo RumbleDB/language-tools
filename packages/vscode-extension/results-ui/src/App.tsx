@@ -51,7 +51,9 @@ const INDEX_COLUMN: ColumnDef<TFeatures, TData> = {
     maxSize: 80,
     accessorFn: (_: TData, index: number) => index + 1,
     cell: (info) => (
-        <span class="text-secondary font-mono text-xs select-none">{String(info.getValue())}</span>
+        <span class="text-secondary/60 font-mono text-xs select-none tabular-nums">
+            {String(info.getValue())}
+        </span>
     ),
 };
 
