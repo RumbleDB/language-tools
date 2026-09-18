@@ -88,6 +88,17 @@ describe("JSONiq completion", () => {
         expect(labelsAtCursor).toEqual(["$"]);
     });
 
+    it("does not suggest functions after typing a colon in a variable binding like 'let $a :'", async () => {
+        const document = testDocument("completion-let-var-colon", ["let $a :"]);
+
+        const labelsAtCursor = await completionLabels(document, {
+            line: 0,
+            character: "let $a :".length,
+        });
+
+        expect(labelsAtCursor.some((label) => label.startsWith("fn:"))).toBe(false);
+    });
+
     it("does not suggest keywords when a function name is expected", async () => {
         const document = testDocument("completion-function-name", ["declare function "]);
 
@@ -396,6 +407,104 @@ describe("JSONiq completion", () => {
             newText: "name",
         });
     }, 45_000);
+
+    it("suggests builtin functions when typing 'fn:' in JSONiq", async () => {
+        const document = testDocument("completion-fn-prefix", "fn:");
+        const items = await findCompletions(
+            document,
+            document.positionAt(3),
+            parserService,
+            workspaceService,
+            wrapperClient,
+        );
+
+        expect(labels(items)).toContain("fn:string-join");
+        expect(labels(items)).toContain("fn:concat");
+        // No item from a different namespace should appear
+        expect(labels(items).every((label) => label.startsWith("fn:"))).toBe(true);
+    });
+
+    it("provides correct textEdit range when typing 'fn:'", async () => {
+        const document = testDocument("completion-fn-prefix-textedit", "fn:");
+        const items = await findCompletions(
+            document,
+            document.positionAt(3),
+            parserService,
+            workspaceService,
+            wrapperClient,
+        );
+
+        const stringJoin = items.find((item) => item.label === "fn:string-join");
+        expect(stringJoin).toBeDefined();
+        // textEdit must replace the typed prefix `fn:` (3 chars) ending at the cursor
+        expect(stringJoin?.textEdit).toMatchObject({
+            range: {
+                start: { line: 0, character: 0 },
+                end: { line: 0, character: 3 },
+            },
+        });
+    });
+
+    it("suggests builtin functions when typing 'fn:' after an operator", async () => {
+        const document = testDocument("completion-fn-prefix-expr", "1 + fn:");
+        const items = await findCompletions(
+            document,
+            document.positionAt("1 + fn:".length),
+            parserService,
+            workspaceService,
+            wrapperClient,
+        );
+
+        expect(labels(items)).toContain("fn:string-join");
+        expect(labels(items)).toContain("fn:concat");
+    });
+
+    it("suggests builtin functions when typing a keyword prefix like 'array:' in 'let $a := array:'", async () => {
+        const document = testDocument("completion-array-prefix-expr", "let $a := array:");
+        const items = await findCompletions(
+            document,
+            document.positionAt("let $a := array:".length),
+            parserService,
+            workspaceService,
+            wrapperClient,
+        );
+
+        expect(labels(items)).toContain("array:size");
+        expect(labels(items)).toContain("array:get");
+        expect(labels(items).every((label) => label.startsWith("array:"))).toBe(true);
+    });
+
+    it("suggests builtin types when typing 'xs:' in a type annotation context", async () => {
+        const document = testDocument("completion-xs-type-prefix", "declare variable $x as xs:");
+        const position = document.positionAt("declare variable $x as xs:".length);
+        const items = await findCompletions(
+            document,
+            position,
+            parserService,
+            workspaceService,
+            wrapperClient,
+        );
+
+        expect(labels(items)).toContain("xs:string");
+        expect(labels(items)).toContain("xs:integer");
+        // Should not suggest functions in a type context
+        expect(labels(items).some((label) => label.startsWith("fn:"))).toBe(false);
+    });
+
+    it("does not set textEdit for bare unqualified function names", async () => {
+        const document = testDocument("completion-bare-name", "concat");
+        const items = await findCompletions(
+            document,
+            document.positionAt("concat".length),
+            parserService,
+            workspaceService,
+            wrapperClient,
+        );
+
+        // Items can exist, but none should have a textEdit (editor handles bare names)
+        const withTextEdit = items.filter((item) => item.textEdit !== undefined);
+        expect(withTextEdit.length).toBe(0);
+    });
 });
 
 describe("XQuery completion", () => {
@@ -478,6 +587,24 @@ describe("XQuery completion", () => {
 
         expect(completions).toBeDefined();
         expect(elapsedMs).toBeLessThan(1_000);
+    });
+
+    it("suggests builtin functions when typing 'fn:' in XQuery", async () => {
+        const document = testDocumentFromUri("fn:", {
+            uri: "file:///completion-fn-xquery.xq",
+            languageId: "xquery",
+        });
+        const items = await findCompletions(
+            document,
+            document.positionAt(3),
+            parserService,
+            workspaceService,
+            wrapperClient,
+        );
+
+        expect(labels(items)).toContain("fn:string-join");
+        expect(labels(items)).toContain("fn:concat");
+        expect(labels(items).every((label) => label.startsWith("fn:"))).toBe(true);
     });
 });
 

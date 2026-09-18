@@ -20,8 +20,24 @@ export class XQueryTokenContextAnalyzer extends TokenContextAnalyzer {
         );
     }
 
-    public override isAtTypeName(): boolean {
-        return this.previous?.type === XQueryLexer.KW_AS;
+    protected override get ncNameTokenType(): number {
+        return XQueryLexer.NCName;
+    }
+
+    protected override get colonTokenType(): number {
+        return XQueryLexer.COLON;
+    }
+
+    protected override get dollarTokenType(): number {
+        return XQueryLexer.DOLLAR;
+    }
+
+    protected override get kwAsTokenType(): number {
+        return XQueryLexer.KW_AS;
+    }
+
+    protected override get lexerSymbolicNames(): ReadonlyArray<string | null> {
+        return XQueryLexer.symbolicNames;
     }
 
     public override isAtVariableDeclarationName(): boolean {

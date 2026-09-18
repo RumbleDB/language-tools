@@ -19,6 +19,7 @@ import {
     type CompletionItem,
 } from "vscode-languageserver";
 
+import { applyQNamePrefixFilter } from "../context.js";
 import type { CompletionProvider } from "../types.js";
 import { createFunctionCallSnippet } from "./snippets.js";
 
@@ -26,11 +27,30 @@ const GENERIC_BUILTIN_PARAMETER_PREFIX = "$arg";
 const BUILTIN_FUNCTION_COMPLETION_ITEMS = createBuiltinFunctionCompletionItems();
 const BUILTIN_TYPE_COMPLETION_ITEMS = createBuiltinTypeCompletionItems();
 
-export const provideBuiltinFunctionCompletions: CompletionProvider = (context) =>
-    context.intent.allowFunctions ? BUILTIN_FUNCTION_COMPLETION_ITEMS : null;
+export const provideBuiltinFunctionCompletions: CompletionProvider = (context) => {
+    if (!context.intent.allowFunctions) {
+        return null;
+    }
 
-export const provideBuiltinTypeCompletions: CompletionProvider = (context) =>
-    context.intent.allowTypes ? BUILTIN_TYPE_COMPLETION_ITEMS : null;
+    // When the user has typed a namespace prefix (e.g. `fn:`), filter items to that
+    // prefix and supply an explicit textEdit that replaces the whole typed prefix so
+    // the editor does not produce duplicate prefixes (e.g. `fn:fn:string-join`).
+    return (
+        applyQNamePrefixFilter(BUILTIN_FUNCTION_COMPLETION_ITEMS, context) ??
+        BUILTIN_FUNCTION_COMPLETION_ITEMS
+    );
+};
+
+export const provideBuiltinTypeCompletions: CompletionProvider = (context) => {
+    if (!context.intent.allowTypes) {
+        return null;
+    }
+
+    return (
+        applyQNamePrefixFilter(BUILTIN_TYPE_COMPLETION_ITEMS, context) ??
+        BUILTIN_TYPE_COMPLETION_ITEMS
+    );
+};
 
 function createBuiltinFunctionCompletionItems(): CompletionItem[] {
     const itemsByName = new Map<string, { item: CompletionItem; parameterCount: number }>();

@@ -20,8 +20,24 @@ export class JsoniqTokenContextAnalyzer extends TokenContextAnalyzer {
         );
     }
 
-    public override isAtTypeName(): boolean {
-        return this.previous?.type === JsoniqLexer.KW_AS;
+    protected override get ncNameTokenType(): number {
+        return JsoniqLexer.NCName;
+    }
+
+    protected override get colonTokenType(): number {
+        return JsoniqLexer.COLON;
+    }
+
+    protected override get dollarTokenType(): number {
+        return JsoniqLexer.DOLLAR;
+    }
+
+    protected override get kwAsTokenType(): number {
+        return JsoniqLexer.KW_AS;
+    }
+
+    protected override get lexerSymbolicNames(): ReadonlyArray<string | null> {
+        return JsoniqLexer.symbolicNames;
     }
 
     public override isAtVariableDeclarationName(): boolean {

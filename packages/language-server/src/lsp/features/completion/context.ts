@@ -3,7 +3,7 @@ import type { WrapperClient } from "server/integrations/rumble/client.js";
 import type { ParserService } from "server/parser/index.js";
 import { getDocumentText } from "server/parser/utils.js";
 import type { WorkspaceService } from "server/workspace/service.js";
-import { TextEdit, type Position } from "vscode-languageserver";
+import { TextEdit, type CompletionItem, type Position } from "vscode-languageserver";
 import type { TextDocument } from "vscode-languageserver-textdocument";
 
 import type { CompletionContext } from "./types.js";
@@ -58,4 +58,39 @@ export function replaceTypedPrefix(
         },
         newText,
     );
+}
+
+/**
+ * Matches a namespace prefix immediately before the cursor, e.g. `fn:`, `array:`, `xs:`.
+ * The prefix must start with a letter or underscore and end with a colon.
+ */
+export const QNAME_PREFIX_PATTERN = /[A-Za-z_][A-Za-z0-9_.-]*:$/;
+
+/**
+ * When the user has typed a namespace prefix (e.g. `fn:`), filters `items` to those
+ * whose label starts with the prefix and adds a `textEdit` that replaces the whole
+ * typed prefix so the editor does not produce duplicated prefixes (e.g. `fn:fn:concat`).
+ * Returns `null` when no namespace prefix is present, signalling that no filtering
+ * should be applied.
+ */
+export function applyQNamePrefixFilter(
+    items: CompletionItem[],
+    context: Pick<CompletionContext, "source" | "cursorOffset" | "document">,
+): CompletionItem[] | null {
+    const nsPrefix = typedPrefix(context.source, context.cursorOffset, QNAME_PREFIX_PATTERN);
+    if (nsPrefix === null) {
+        return null;
+    }
+
+    return items
+        .filter((item) => item.label.startsWith(nsPrefix))
+        .map((item) => ({
+            ...item,
+            textEdit: replaceTypedPrefix(
+                context.document,
+                context.cursorOffset,
+                nsPrefix,
+                item.insertText ?? item.label,
+            ),
+        }));
 }

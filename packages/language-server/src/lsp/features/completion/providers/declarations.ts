@@ -10,7 +10,7 @@ import {
     type CompletionItem,
 } from "vscode-languageserver";
 
-import { replaceTypedPrefix, typedPrefix } from "../context.js";
+import { replaceTypedPrefix, typedPrefix, applyQNamePrefixFilter } from "../context.js";
 import type { CompletionProvider } from "../types.js";
 import { createFunctionCallSnippet } from "./snippets.js";
 
@@ -53,10 +53,12 @@ export const provideSourceFunctionCompletions: CompletionProvider = (context) =>
         return null;
     }
 
-    return context
+    const items = context
         .getVisibleDeclarations()
         .filter((definition) => definition.kind === "function")
         .map(toCompletionItem);
+
+    return applyQNamePrefixFilter(items, context) ?? items;
 };
 
 export const provideSourceTypeCompletions: CompletionProvider = (context) => {
@@ -64,10 +66,12 @@ export const provideSourceTypeCompletions: CompletionProvider = (context) => {
         return null;
     }
 
-    return context
+    const items = context
         .getVisibleDeclarations()
         .filter((definition) => definition.kind === "type")
         .map(toCompletionItem);
+
+    return applyQNamePrefixFilter(items, context) ?? items;
 };
 
 function toCompletionItem(declaration: ScopeDefinition): CompletionItem {

@@ -48,11 +48,13 @@ export function getCompletionIntent<T extends TokenContextAnalyzer>(
     const candidates = collectCompletionCandidates(parsed, cursorOffset, options);
 
     const allowVariableDeclarations = candidates.tokenContext.allowVariableDeclarations;
+    const qnamePrefix = candidates.tokenContext.qnamePrefix;
     const allowFunctions =
         candidates.tokenContext.allowReferences &&
-        hasCandidateRule(candidates, options.isFunctionCallRule);
+        (qnamePrefix || hasCandidateRule(candidates, options.isFunctionCallRule));
     const allowVariables =
         candidates.tokenContext.allowReferences &&
+        !qnamePrefix &&
         hasCandidateRule(candidates, options.isVariableReferenceRule);
     const objectLookupDotOffset = findObjectLookupDotOffset(
         parsed.tokens,
@@ -61,11 +63,12 @@ export function getCompletionIntent<T extends TokenContextAnalyzer>(
     );
     const allowObjectLookup =
         candidates.tokenContext.allowReferences &&
+        !qnamePrefix &&
         hasCandidateRule(candidates, options.isObjectLookupRule) &&
         objectLookupDotOffset !== undefined;
     const allowTypes = candidates.tokenContext.allowTypeReferences;
     const allowErrorCodeTargets = hasCandidateRule(candidates, options.isCatchErrorTargetRule);
-    const keywords = keywordCompletions(candidates, options.languageKeywords);
+    const keywords = qnamePrefix ? [] : keywordCompletions(candidates, options.languageKeywords);
 
     const expectedTokens = [...candidates.tokenTypes].map(options.tokenName);
     const expectedRules = [...candidates.ruleIndices].map(options.ruleName);
