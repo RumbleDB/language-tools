@@ -1,5 +1,23 @@
 # jsoniq-vscode
 
+## 1.8.0
+
+### Minor Changes
+
+- [`4a32e30`](https://github.com/RumbleDB/language-tools/commit/4a32e30045b0b8d4116a7f83d0485d2989d744e0) - fix: improve styling for index column in table component, make it more visually distinct
+
+### Patch Changes
+
+- [#65](https://github.com/RumbleDB/language-tools/pull/65) [`077f543`](https://github.com/RumbleDB/language-tools/commit/077f543c3570326bfa4ce743abe257a1e294764c) - chore(deps): upgrade all dependencies and migrate results-ui to TanStack Table v9
+  
+  - Bump @tanstack/solid-table 8 → 9 (breaking) and migrate `results-ui` source code to the v9 API (createTable, tableFeatures, FlexRender)
+  - Bump vite 6 → 8, typescript 5 → 7, vitest 4 → 5 in results-ui / language-server
+  - Bump solid-js, unocss, rolldown, tsc-alias, tsdown, tsx, and LSP packages
+  - Bump catalog shared tools: @types/node, oxfmt, oxlint
+  - Bump root dev tools: @changesets/cli, @changesets/changelog-github, lint-staged
+- Updated dependencies [[`30c980f`](https://github.com/RumbleDB/language-tools/commit/30c980f8043b36c43a39603a62a3ecabf0cbc8c0), [`b7647ca`](https://github.com/RumbleDB/language-tools/commit/b7647ca8f48eb92d12f32adfbbaf2f96555abbc0), [`995a5aa`](https://github.com/RumbleDB/language-tools/commit/995a5aa1ee22a35d0a4322e3a2a70922b2cef5f8), [`077f543`](https://github.com/RumbleDB/language-tools/commit/077f543c3570326bfa4ce743abe257a1e294764c)]:
+  - jsoniq-language-server@2.12.0
+
 ## 1.7.0
 
 ### Minor Changes
