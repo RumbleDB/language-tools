@@ -1,5 +1,11 @@
 # jsoniq-vscode
 
+## 1.8.1
+
+### Patch Changes
+
+- [`e5e3fb8`](https://github.com/RumbleDB/language-tools/commit/e5e3fb83150e5518aa9988421a7b06db67fb056b) - fix: downgrade @types/vscode dependency from ^1.137.0 to ^1.120.0
+
 ## 1.8.0
 
 ### Minor Changes
