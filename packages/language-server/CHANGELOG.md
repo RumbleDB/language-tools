@@ -1,5 +1,31 @@
 # jsoniq-language-server
 
+## 2.12.0
+
+### Minor Changes
+
+- [#68](https://github.com/RumbleDB/language-tools/pull/68) [`30c980f`](https://github.com/RumbleDB/language-tools/commit/30c980f8043b36c43a39603a62a3ecabf0cbc8c0) - Sync grammar change from RumbleDB
+  
+  See https://github.com/RumbleDB/rumble/pull/1802 and https://github.com/RumbleDB/rumble/pull/1801
+  
+  Some parser code had to be updated, like `catchErrorTarget` being renamed to `nameTest`. The formatter code was also updated to reflect this change.
+
+- [`b7647ca`](https://github.com/RumbleDB/language-tools/commit/b7647ca8f48eb92d12f32adfbbaf2f96555abbc0) - feat: implement QName prefix filtering for completion items in JSONiq and XQuery
+
+- [#67](https://github.com/RumbleDB/language-tools/pull/67) [`995a5aa`](https://github.com/RumbleDB/language-tools/commit/995a5aa1ee22a35d0a4322e3a2a70922b2cef5f8) - chore(deps): upgrade RumbleDB to commit [02f5c8b](https://github.com/RumbleDB/rumble/commit/02f5c8bbc9591da9935d6a0687cbb20b61b70827)
+  
+  Now it supports XML schema, and adds a new `jn:tanh` function in the JSONiq standard library.
+
+### Patch Changes
+
+- [#65](https://github.com/RumbleDB/language-tools/pull/65) [`077f543`](https://github.com/RumbleDB/language-tools/commit/077f543c3570326bfa4ce743abe257a1e294764c) - chore(deps): upgrade all dependencies and migrate results-ui to TanStack Table v9
+  
+  - Bump @tanstack/solid-table 8 → 9 (breaking) and migrate `results-ui` source code to the v9 API (createTable, tableFeatures, FlexRender)
+  - Bump vite 6 → 8, typescript 5 → 7, vitest 4 → 5 in results-ui / language-server
+  - Bump solid-js, unocss, rolldown, tsc-alias, tsdown, tsx, and LSP packages
+  - Bump catalog shared tools: @types/node, oxfmt, oxlint
+  - Bump root dev tools: @changesets/cli, @changesets/changelog-github, lint-staged
+
 ## 2.11.0
 
 ### Minor Changes

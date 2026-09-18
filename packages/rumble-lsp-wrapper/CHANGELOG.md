@@ -1,5 +1,13 @@
 # rumble-lsp-wrapper
 
+## 0.8.0
+
+### Minor Changes
+
+- [#67](https://github.com/RumbleDB/language-tools/pull/67) [`995a5aa`](https://github.com/RumbleDB/language-tools/commit/995a5aa1ee22a35d0a4322e3a2a70922b2cef5f8) - chore(deps): upgrade RumbleDB to commit [02f5c8b](https://github.com/RumbleDB/rumble/commit/02f5c8bbc9591da9935d6a0687cbb20b61b70827)
+  
+  Now it supports XML schema, and adds a new `jn:tanh` function in the JSONiq standard library.
+
 ## 0.7.1
 
 ### Patch Changes
