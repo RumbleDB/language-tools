@@ -18,7 +18,7 @@ const definitionsOf = (document: TextDocument) => [
 ];
 
 describe("workspace indexing", () => {
-    it("isolates and remembers a document loading failure", () => {
+    it("isolates and remembers a document loading failure", async () => {
         const validUri = "file:///workspace-valid.jq";
         const failingUri = "file:///workspace-failing.jq";
         const validDocument = TextDocument.create(
@@ -38,7 +38,7 @@ describe("workspace indexing", () => {
             }
         }
         const coordinator = new WorkspaceIndex(parserService, new FailingDocumentStore());
-        const analysis = coordinator.getAnalysis(validDocument);
+        const analysis = await coordinator.getAnalysis(validDocument);
 
         expect(() => coordinator.replaceWorkspaceDocuments([failingUri, validUri])).not.toThrow();
         expect(failedLoads).toBe(0); /// The failing document is not loaded until a definition is requested.
@@ -47,12 +47,12 @@ describe("workspace indexing", () => {
         );
         expect(definition).toBeDefined();
         if (definition === undefined) return;
-        coordinator.getReferencesToDefinition(definition);
+        await coordinator.getReferencesToDefinition(definition);
 
         coordinator.updateOpenDocument(
             TextDocument.create(validUri, "jsoniq", 1, validDocument.getText()),
         );
-        coordinator.getReferencesToDefinition(definition);
+        await coordinator.getReferencesToDefinition(definition);
 
         expect(failedLoads).toBe(1);
     });
@@ -93,7 +93,7 @@ describe("workspace indexing", () => {
             );
             expect(definition).toBeDefined();
             if (definition === undefined) return;
-            expect(workspaceIndex.getReferencesToDefinition(definition)).toContainEqual(
+            expect(await workspaceIndex.getReferencesToDefinition(definition)).toContainEqual(
                 expect.objectContaining({ uri: importerUri }),
             );
         } finally {
@@ -132,7 +132,7 @@ describe("workspace indexing", () => {
             expect(definition).toBeDefined();
             if (definition === undefined) return;
 
-            expect(coordinator.getReferencesToDefinition(definition)).toContainEqual(
+            expect(await coordinator.getReferencesToDefinition(definition)).toContainEqual(
                 expect.objectContaining({ uri: importerUri }),
             );
 
@@ -145,25 +145,25 @@ describe("workspace indexing", () => {
             coordinator.updateWorkspaceDocuments([
                 { uri: importerUri, type: FileChangeType.Changed },
             ]);
-            expect(coordinator.getReferencesToDefinition(definition)).toEqual([]);
+            expect(await coordinator.getReferencesToDefinition(definition)).toEqual([]);
 
             await writeFile(importerPath, importSource);
             coordinator.updateWorkspaceDocuments([
                 { uri: importerUri, type: FileChangeType.Changed },
             ]);
-            expect(coordinator.getReferencesToDefinition(definition)).toContainEqual(
+            expect(await coordinator.getReferencesToDefinition(definition)).toContainEqual(
                 expect.objectContaining({ uri: importerUri }),
             );
 
             coordinator.replaceWorkspaceDocuments([moduleUri]);
-            expect(coordinator.getReferencesToDefinition(definition)).toEqual([]);
+            expect(await coordinator.getReferencesToDefinition(definition)).toEqual([]);
 
             coordinator.replaceWorkspaceDocuments([importerUri, moduleUri]);
             await unlink(modulePath);
             coordinator.updateWorkspaceDocuments([
                 { uri: moduleUri, type: FileChangeType.Deleted },
             ]);
-            expect(coordinator.getReferencesToDefinition(definition)).toEqual([]);
+            expect(await coordinator.getReferencesToDefinition(definition)).toEqual([]);
         } finally {
             await rm(directory, { recursive: true, force: true });
         }

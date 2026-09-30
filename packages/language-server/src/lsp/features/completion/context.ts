@@ -23,7 +23,7 @@ export function createCompletionContext(
         return null;
     }
 
-    let visibleDeclarations: ScopeDefinition[] | undefined;
+    let visibleDeclarations: Promise<ScopeDefinition[]> | undefined;
 
     return {
         document,
@@ -32,10 +32,9 @@ export function createCompletionContext(
         intent,
         wrapper,
         getVisibleDeclarations() {
-            visibleDeclarations ??= getVisibleDeclarationsAtPosition(
-                workspace.getAnalysis(document),
-                cursorOffset,
-            );
+            visibleDeclarations ??= workspace
+                .getAnalysis(document)
+                .then((analysis) => getVisibleDeclarationsAtPosition(analysis, cursorOffset));
             return visibleDeclarations;
         },
     };

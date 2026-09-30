@@ -22,12 +22,12 @@ export function registerInlayHints({
     });
 }
 
-export function collectInlayHints(
+export async function collectInlayHints(
     document: TextDocument,
     range: Range,
     workspace: WorkspaceService,
-): InlayHint[] {
-    const analysis = workspace.getAnalysis(document);
+): Promise<InlayHint[]> {
+    const analysis = await workspace.getAnalysis(document);
     return collectFunctionCallInlayHints(analysis.ast, range);
 }
 

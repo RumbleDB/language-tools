@@ -16,7 +16,7 @@ import { createFunctionCallSnippet } from "./snippets.js";
 
 const VARIABLE_PREFIX_PATTERN = /\$[A-Za-z0-9_.:-]*$/;
 
-export const provideVariableCompletions: CompletionProvider = (context) => {
+export const provideVariableCompletions: CompletionProvider = async (context) => {
     if (!context.intent.allowVariableReferences) {
         return null;
     }
@@ -27,8 +27,7 @@ export const provideVariableCompletions: CompletionProvider = (context) => {
         VARIABLE_PREFIX_PATTERN,
     );
 
-    return context
-        .getVisibleDeclarations()
+    return (await context.getVisibleDeclarations())
         .filter((definition) => definition.kind === "variable" || definition.kind === "parameter")
         .map((definition) => {
             const name = definitionNameToString(definition);
@@ -48,26 +47,24 @@ export const provideVariableCompletions: CompletionProvider = (context) => {
         });
 };
 
-export const provideSourceFunctionCompletions: CompletionProvider = (context) => {
+export const provideSourceFunctionCompletions: CompletionProvider = async (context) => {
     if (!context.intent.allowFunctions) {
         return null;
     }
 
-    const items = context
-        .getVisibleDeclarations()
+    const items = (await context.getVisibleDeclarations())
         .filter((definition) => definition.kind === "function")
         .map(toCompletionItem);
 
     return applyQNamePrefixFilter(items, context) ?? items;
 };
 
-export const provideSourceTypeCompletions: CompletionProvider = (context) => {
+export const provideSourceTypeCompletions: CompletionProvider = async (context) => {
     if (!context.intent.allowTypes) {
         return null;
     }
 
-    const items = context
-        .getVisibleDeclarations()
+    const items = (await context.getVisibleDeclarations())
         .filter((definition) => definition.kind === "type")
         .map(toCompletionItem);
 

@@ -12,7 +12,7 @@ export interface CompletionContext {
     wrapper: WrapperClient;
 
     // This is a lazy getter, because computing visible declarations can be expensive and is not always needed.
-    getVisibleDeclarations(): readonly ScopeDefinition[];
+    getVisibleDeclarations(): Promise<readonly ScopeDefinition[]>;
 }
 
 /** `null` means the provider does not apply. An empty array means it applies but has no items. */

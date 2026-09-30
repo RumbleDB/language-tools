@@ -75,12 +75,12 @@ describe("error code hover", () => {
         });
     });
 
-    it("keeps wildcard catch targets as syntax-aware AST nodes", () => {
+    it("keeps wildcard catch targets as syntax-aware AST nodes", async () => {
         const document = testDocument(
             "hover-error-code-wildcard",
             "try { 1 div 0 } catch err:* { 0 }",
         );
-        const analysis = workspaceService.getAnalysis(document);
+        const analysis = await workspaceService.getAnalysis(document);
 
         const node = findNodeThatContainsPosition(analysis, positionAt(document, "err:*"));
 

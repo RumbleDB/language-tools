@@ -43,8 +43,8 @@ export class DocumentSymbolsBuilder extends AstVisitor<DocumentSymbol[]> {
         this.document = document;
     }
 
-    public build(): DocumentSymbol[] {
-        const analysis = this.workspace.getAnalysis(this.document);
+    public async build(): Promise<DocumentSymbol[]> {
+        const analysis = await this.workspace.getAnalysis(this.document);
         return this.visit(analysis.ast);
     }
 

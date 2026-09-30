@@ -1,4 +1,4 @@
-import type { Diagnostic, DocumentUri } from "vscode-languageserver";
+import type { DocumentUri } from "vscode-languageserver";
 import type { TextDocument } from "vscode-languageserver-textdocument";
 import type { Connection, TextDocuments } from "vscode-languageserver/node";
 
@@ -36,24 +36,20 @@ export class DiagnosticsManager {
         this.refreshVersions.set(uri, refreshVersion);
 
         const syntaxDiagnostics = this.parser.parse(document).diagnostics;
-        const semanticDiagnostics =
-            syntaxDiagnostics.length === 0 ? this.workspace.getAnalysis(document).diagnostics : [];
-        const fastDiagnostics: Diagnostic[] = [...syntaxDiagnostics, ...semanticDiagnostics];
+        this.connection.sendDiagnostics({ uri, diagnostics: syntaxDiagnostics });
+        if (syntaxDiagnostics.length > 0) return;
 
-        // Phase 1: send syntax + semantic diagnostics immediately.
-        this.connection.sendDiagnostics({ uri, diagnostics: fastDiagnostics });
+        const semanticDiagnostics = (await this.workspace.getAnalysis(document)).diagnostics;
+        if (this.refreshVersions.get(uri) !== refreshVersion) return;
+        this.connection.sendDiagnostics({ uri, diagnostics: [...semanticDiagnostics] });
 
-        // Phase 2: collect static type-check diagnostics asynchronously and
-        // send a combined update — unless a newer refresh has superseded us.
-        if (syntaxDiagnostics.length === 0) {
-            const typeDiagnostics = await collectStaticTypecheckDiagnostics(document, this.wrapper);
-            if (this.refreshVersions.get(uri) !== refreshVersion) return;
-            if (typeDiagnostics.length > 0) {
-                this.connection.sendDiagnostics({
-                    uri,
-                    diagnostics: [...fastDiagnostics, ...typeDiagnostics],
-                });
-            }
+        const typeDiagnostics = await collectStaticTypecheckDiagnostics(document, this.wrapper);
+        if (this.refreshVersions.get(uri) !== refreshVersion) return;
+        if (typeDiagnostics.length > 0) {
+            this.connection.sendDiagnostics({
+                uri,
+                diagnostics: [...semanticDiagnostics, ...typeDiagnostics],
+            });
         }
     }
 

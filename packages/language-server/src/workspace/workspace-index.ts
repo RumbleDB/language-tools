@@ -7,10 +7,14 @@ import { TextDocument } from "vscode-languageserver-textdocument";
 import { FileChangeType, type FileEvent } from "vscode-languageserver/node";
 
 import type { Definition } from "../analysis/model/definitions.js";
+import type { ModuleImport } from "../analysis/model/module-info.js";
 import type { AnyResolvedReference } from "../analysis/model/reference.js";
 import type { AnalysisResult } from "../analysis/model/result.js";
 import { analyzeModule } from "../analysis/pipeline.js";
-import type { ModuleProvider } from "../analysis/resolution/import-resolution.js";
+import type {
+    ModuleProvider,
+    ResolvedImportTarget,
+} from "../analysis/resolution/import-resolution.js";
 import { collectModuleProlog, type ModuleProlog } from "../analysis/resolution/module-prolog.js";
 import { WorkspaceDocumentStore } from "./document-store.js";
 import { ModuleGraph } from "./module-graph.js";
@@ -18,7 +22,7 @@ import { WorkspaceSymbolIndex } from "./symbol-index.js";
 
 interface CachedAnalysis {
     version: number;
-    analysis: AnalysisResult;
+    analysis: Promise<AnalysisResult>;
 }
 
 interface CachedProlog {
@@ -41,7 +45,13 @@ export class WorkspaceIndex {
     ) {}
 
     public updateOpenDocument(document: TextDocument): void {
-        if (!this.documents.updateOpenDocument(document)) return;
+        const snapshot = TextDocument.create(
+            document.uri,
+            document.languageId,
+            document.version,
+            document.getText(),
+        );
+        if (!this.documents.updateOpenDocument(snapshot)) return;
         this.invalidateAffected([document.uri]);
     }
 
@@ -50,9 +60,9 @@ export class WorkspaceIndex {
         this.invalidateAffected([uri]);
     }
 
-    public getAnalysis(document: TextDocument): AnalysisResult {
+    public getAnalysis(document: TextDocument): Promise<AnalysisResult> {
         this.updateOpenDocument(document);
-        return this.analyse(document, new Set());
+        return this.analyse(this.documents.load(document.uri)!);
     }
 
     public replaceWorkspaceDocuments(uris: readonly DocumentUri[]): void {
@@ -81,53 +91,68 @@ export class WorkspaceIndex {
         return affected;
     }
 
-    private analyse(document: TextDocument, visiting: Set<DocumentUri>): AnalysisResult {
+    private async analyse(document: TextDocument): Promise<AnalysisResult> {
         const cached = this.analyses.get(document.uri);
         if (cached?.version === document.version) return cached.analysis;
 
-        const nextVisiting = new Set(visiting).add(document.uri);
+        // Capture syntax and imports before yielding to document changes.
+        const ast = this.parser.parse(document).ast;
         const prolog = this.getProlog(document);
-        const provider = this.createModuleProvider(document, nextVisiting);
-
-        const language = getActiveParserId(document);
-        const { analysis, dependencies } = analyzeModule(
-            document,
-            this.parser.parse(document).ast,
-            {
-                provider,
-                prolog,
-                resolveBuiltin: (kind, name) => resolveBuiltin(kind, name, language),
-            },
-        );
-
+        const { provider, dependencies } = this.prepareImports(document, prolog);
+        // File changes must invalidate pending analysis as well as completed analysis.
         this.moduleGraph.replaceDependencies(document.uri, dependencies);
-        this.analyses.set(document.uri, { version: document.version, analysis });
-        this.failedAnalyses.delete(document.uri);
-        this.symbols.update(document.uri, analysis);
-        return analysis;
+        const entry: CachedAnalysis = {
+            version: document.version,
+            analysis: Promise.resolve().then(() => {
+                const language = getActiveParserId(document);
+                const { analysis } = analyzeModule(document, ast, {
+                    provider,
+                    prolog,
+                    resolveBuiltin: (kind, name) => resolveBuiltin(kind, name, language),
+                });
+                if (this.analyses.get(document.uri) === entry) {
+                    this.failedAnalyses.delete(document.uri);
+                    this.symbols.update(document.uri, analysis);
+                }
+                return analysis;
+            }),
+        };
+        this.analyses.set(document.uri, entry);
+        try {
+            return await entry.analysis;
+        } catch (error) {
+            if (this.analyses.get(document.uri) === entry) this.analyses.delete(document.uri);
+            throw error;
+        }
     }
 
-    private createModuleProvider(
+    private prepareImports(
         document: TextDocument,
-        visiting: Set<DocumentUri>,
-    ): ModuleProvider {
-        return {
-            loadImport: (_importerUri, imported) => {
-                return this.documents.loadImport(document, imported).map((loaded) => {
-                    if (loaded.document !== undefined && !visiting.has(loaded.document.uri)) {
-                        this.analyse(loaded.document, visiting);
-                    }
+        prolog: ModuleProlog,
+    ): { provider: ModuleProvider; dependencies: ReadonlySet<DocumentUri> } {
+        const resolvedTargets = new Map<ModuleImport, readonly ResolvedImportTarget[]>();
+        const dependencies = new Set<DocumentUri>();
+        for (const imported of prolog.imports) {
+            const targets = this.documents.loadImport(document, imported);
+            resolvedTargets.set(
+                imported,
+                targets.map((loaded) => {
+                    if (loaded.targetUri !== undefined) dependencies.add(loaded.targetUri);
                     return {
                         locationUri: loaded.locationUri,
                         range: loaded.range,
                         targetUri: loaded.targetUri,
                         prolog:
-                            loaded.document !== undefined
-                                ? this.getProlog(loaded.document)
-                                : undefined,
+                            loaded.document === undefined
+                                ? undefined
+                                : this.getProlog(loaded.document),
                     };
-                });
-            },
+                }),
+            );
+        }
+        return {
+            provider: { loadImport: (_uri, imported) => resolvedTargets.get(imported) ?? [] },
+            dependencies,
         };
     }
 
@@ -140,24 +165,33 @@ export class WorkspaceIndex {
         return prolog;
     }
 
-    public getReferencesToDefinition(definition: Definition): readonly AnyResolvedReference[] {
+    public async getReferencesToDefinition(
+        definition: Definition,
+    ): Promise<readonly AnyResolvedReference[]> {
         if (definition.origin !== "source") return [];
 
-        this.ensureDocumentsAnalysed(this.documents.getTrackedDocumentUris());
+        await this.ensureDocumentsAnalysed(this.documents.getTrackedDocumentUris());
 
         return this.symbols.referencesTo(definition);
     }
 
-    private ensureDocumentsAnalysed(uris: readonly DocumentUri[]): void {
-        for (const uri of new Set(uris)) {
-            if (this.analyses.has(uri) || this.failedAnalyses.has(uri)) continue;
+    private async ensureDocumentsAnalysed(uris: readonly DocumentUri[]): Promise<void> {
+        const pending = new Set(uris);
+        for (const uri of pending) {
+            if (this.failedAnalyses.has(uri)) continue;
             try {
                 const document = this.documents.load(uri);
                 if (document === undefined) {
                     this.failedAnalyses.add(uri);
                     continue;
                 }
-                this.analyse(document, new Set());
+                await this.analyse(document);
+                // Imported modules may be outside the scanned workspace folders.
+                for (const imported of this.getProlog(document).imports) {
+                    for (const target of this.documents.loadImport(document, imported)) {
+                        if (target.document !== undefined) pending.add(target.document.uri);
+                    }
+                }
             } catch (error) {
                 this.failedAnalyses.add(uri);
                 logger.warn(`Could not index workspace document '${uri}'.`, error);

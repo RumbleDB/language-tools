@@ -47,7 +47,7 @@ export class WorkspaceService {
         return affected;
     }
 
-    public getAnalysis(document: TextDocument): AnalysisResult {
+    public getAnalysis(document: TextDocument): Promise<AnalysisResult> {
         return this.index.getAnalysis(document);
     }
 
