@@ -6,7 +6,7 @@ import type { DocumentUri } from "vscode-languageserver";
 import { TextDocument } from "vscode-languageserver-textdocument";
 import { FileChangeType, type FileEvent } from "vscode-languageserver/node";
 
-import type { Definition } from "../analysis/model/definitions.js";
+import type { Definition, SchemaConstructorDefinition } from "../analysis/model/definitions.js";
 import type { ModuleImport } from "../analysis/model/module-info.js";
 import type { AnyResolvedReference } from "../analysis/model/reference.js";
 import type { AnalysisResult } from "../analysis/model/result.js";
@@ -42,6 +42,9 @@ export class WorkspaceIndex {
     public constructor(
         private readonly parser: ParserService,
         private readonly documents: WorkspaceDocumentStore = new WorkspaceDocumentStore(),
+        private readonly loadSchemaConstructors: (
+            document: TextDocument,
+        ) => Promise<readonly SchemaConstructorDefinition[]> = async () => [],
     ) {}
 
     public updateOpenDocument(document: TextDocument): void {
@@ -103,11 +106,16 @@ export class WorkspaceIndex {
         this.moduleGraph.replaceDependencies(document.uri, dependencies);
         const entry: CachedAnalysis = {
             version: document.version,
-            analysis: Promise.resolve().then(() => {
+            analysis: Promise.resolve().then(async () => {
+                const schemaConstructors =
+                    prolog.schemaImports.length === 0
+                        ? []
+                        : await this.loadSchemaConstructors(document);
                 const language = getActiveParserId(document);
                 const { analysis } = analyzeModule(document, ast, {
                     provider,
                     prolog,
+                    schemaConstructors,
                     resolveBuiltin: (kind, name) => resolveBuiltin(kind, name, language),
                 });
                 if (this.analyses.get(document.uri) === entry) {

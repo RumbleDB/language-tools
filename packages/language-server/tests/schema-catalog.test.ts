@@ -3,13 +3,16 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 
+import { findSymbolAtPosition } from "server/analysis/index.js";
+import { createServerContext } from "server/app/context.js";
 import { RumbleWrapperClient } from "server/integrations/rumble/client.js";
 import type { SchemaCatalogWireResult } from "server/integrations/rumble/operations/schema-catalog/protocol.js";
 import { getSchemaCatalog } from "server/integrations/rumble/operations/schema-catalog/service.js";
 import { describe, expect, it, vi } from "vitest";
 import { TextDocument } from "vscode-languageserver-textdocument";
+import type { Connection } from "vscode-languageserver/node";
 
-import { createMockWrapperClient, testDocument } from "./test-utils.js";
+import { createMockWrapperClient, positionAt, testDocument } from "./test-utils.js";
 
 describe("schema catalog", () => {
     it("sends the current source and document URI and returns compilation errors", async () => {
@@ -133,6 +136,17 @@ describe("schema catalog", () => {
                     },
                 },
             ]);
+            // Exercise the production wiring with an actual XSD and Java response, beyond mocked catalogs.
+            const { workspace } = createServerContext({} as Connection, client);
+            const analysis = await workspace.getAnalysis(document);
+            expect(analysis.diagnostics).toEqual([]);
+            expect(
+                findSymbolAtPosition(analysis, positionAt(document, 't:Code("a")'))?.declaration,
+            ).toEqual({
+                ...result.constructors[0],
+                kind: "function",
+                origin: "implicit",
+            });
         } finally {
             client.dispose();
             await rm(directory, { recursive: true, force: true });

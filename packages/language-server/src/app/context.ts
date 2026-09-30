@@ -2,6 +2,7 @@ import { TextDocument } from "vscode-languageserver-textdocument";
 import { TextDocuments, type Connection } from "vscode-languageserver/node";
 
 import { type WrapperClient, RumbleWrapperClient } from "../integrations/rumble/client.js";
+import { getSchemaCatalog } from "../integrations/rumble/operations/schema-catalog/service.js";
 import { ParserService } from "../parser/index.js";
 import { WorkspaceDocumentStore } from "../workspace/document-store.js";
 import { WorkspaceService } from "../workspace/service.js";
@@ -23,7 +24,14 @@ export function createServerContext(
     const documents = new TextDocuments(TextDocument);
     const parser = new ParserService();
     const workspace = new WorkspaceService(
-        new WorkspaceIndex(parser, new WorkspaceDocumentStore()),
+        new WorkspaceIndex(parser, new WorkspaceDocumentStore(), async (document) => {
+            const catalog = await getSchemaCatalog(document, wrapper);
+            return catalog.constructors.map((constructor) => ({
+                ...constructor,
+                kind: "function",
+                origin: "implicit",
+            }));
+        }),
     );
 
     return {
