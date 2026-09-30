@@ -11,6 +11,7 @@ import type {
     NamespaceDeclarationAstNode,
     ModuleDeclarationAstNode,
     ModuleImportAstNode,
+    SchemaImportAstNode,
     NamedFunctionReferenceAstNode,
     TypeDeclarationAstNode,
     VariableDeclarationAstNode,
@@ -115,6 +116,11 @@ class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
 
     protected override visitNamespaceDeclaration(node: NamespaceDeclarationAstNode): AstNode[] {
         return [this.createDeclarationNode(this.declarations.namespaces.get(node)!)];
+    }
+
+    protected override visitSchemaImport(node: SchemaImportAstNode): AstNode[] {
+        const binding = this.declarations.namespaces.get(node);
+        return binding === undefined ? [] : [this.createDeclarationNode(binding)];
     }
 
     protected override visitModuleDeclaration(node: ModuleDeclarationAstNode): AstNode[] {

@@ -5,6 +5,7 @@ import type {
     FunctionDeclarationAstNode,
     ModuleDeclarationAstNode,
     ModuleImportAstNode,
+    SchemaImportAstNode,
     NamespaceDeclarationAstNode,
     TypeDeclarationAstNode,
     VariableDeclarationAstNode,
@@ -27,7 +28,10 @@ import { NamespaceResolver } from "./name-resolution.js";
 
 export interface ModulePrologDeclarations {
     readonly namespaces: ReadonlyMap<
-        ModuleDeclarationAstNode | ModuleImportAstNode | NamespaceDeclarationAstNode,
+        | ModuleDeclarationAstNode
+        | ModuleImportAstNode
+        | SchemaImportAstNode
+        | NamespaceDeclarationAstNode,
         SourceNamespaceDefinition
     >;
     readonly functions: ReadonlyMap<FunctionDeclarationAstNode, SourceFunctionDefinition>;
@@ -39,6 +43,7 @@ export interface ModuleProlog {
     readonly uri: DocumentUri;
     readonly targetNamespace: string | undefined;
     readonly imports: readonly ModuleImport[];
+    readonly schemaImports: readonly SchemaImportAstNode[];
     readonly namespaces: ReadonlyMap<Prefix, SourceNamespaceDefinition>;
     readonly declarations: ModulePrologDeclarations;
     readonly exports: ReadonlyMap<string, SourceModuleExportDefinition>;
@@ -48,11 +53,15 @@ export interface ModuleProlog {
 
 class ModulePrologCollector extends ParserAstVisitor<void> {
     private readonly imports: ModuleImport[] = [];
+    private readonly schemaImports: SchemaImportAstNode[] = [];
     private readonly exports = new Map<string, SourceModuleExportDefinition>();
     private readonly namespaces = new Map<Prefix, SourceNamespaceDefinition>();
     private readonly declarations = {
         namespaces: new Map<
-            ModuleDeclarationAstNode | ModuleImportAstNode | NamespaceDeclarationAstNode,
+            | ModuleDeclarationAstNode
+            | ModuleImportAstNode
+            | SchemaImportAstNode
+            | NamespaceDeclarationAstNode,
             SourceNamespaceDefinition
         >(),
         functions: new Map<FunctionDeclarationAstNode, SourceFunctionDefinition>(),
@@ -86,6 +95,7 @@ class ModulePrologCollector extends ParserAstVisitor<void> {
             uri: this.uri,
             targetNamespace: this.targetNamespace,
             imports: this.imports,
+            schemaImports: this.schemaImports,
             namespaces: this.namespaces,
             declarations: this.declarations,
             exports: this.exports,
@@ -134,6 +144,11 @@ class ModulePrologCollector extends ParserAstVisitor<void> {
         this.bindNamespace(node);
     }
 
+    protected override visitSchemaImport(node: SchemaImportAstNode): void {
+        this.schemaImports.push(node);
+        this.bindNamespace(node);
+    }
+
     protected override visitFunctionDeclaration(node: FunctionDeclarationAstNode): void {
         const definition = this.definitions.function(
             this.nameResolver.resolveFunctionName(node.name, node.selectionRange),
@@ -177,11 +192,17 @@ class ModulePrologCollector extends ParserAstVisitor<void> {
     protected override visitCatchClause(_node: CatchClauseAstNode): void {}
 
     private bindNamespace(
-        node: ModuleDeclarationAstNode | ModuleImportAstNode | NamespaceDeclarationAstNode,
+        node:
+            | ModuleDeclarationAstNode
+            | ModuleImportAstNode
+            | SchemaImportAstNode
+            | NamespaceDeclarationAstNode,
     ): void {
         if (node.prefix === undefined) return;
         const selectionRange =
-            node.kind === "module-import" ? node.prefixRange : node.selectionRange;
+            node.kind === "module-import" || node.kind === "schema-import"
+                ? node.prefixRange
+                : node.selectionRange;
         if (selectionRange === undefined) return;
 
         const definition = this.definitions.namespace(
