@@ -29,6 +29,7 @@ import {
     LetVarContext,
     NamedFunctionRefContext,
     NamespaceDeclContext,
+    SchemaImportContext,
     LibraryModuleContext,
     ModuleImportContext,
     PositionalVarContext,
@@ -129,6 +130,32 @@ class XQueryAstBuilder extends XQueryParserVisitor<AstVisitResult> {
                     : { prefixRange: rangeFromNode(node._prefix, this.document) }),
                 namespaceUri: unquoteStringLiteral(target.getText()),
                 namespaceUriRange: rangeFromNode(target, this.document),
+                locations: node._locations.map((location) => ({
+                    uri: unquoteStringLiteral(location.getText()),
+                    range: rangeFromNode(location, this.document),
+                })),
+                range: rangeFromNode(node, this.document),
+                children: [],
+            },
+        ];
+    };
+
+    public override visitSchemaImport = (node: SchemaImportContext): AstVisitResult => {
+        const namespaceUri = node._nsURI;
+        if (namespaceUri === undefined) return [];
+        const prefix = node.schemaPrefix()?.ncName();
+        return [
+            {
+                kind: "schema-import",
+                ...(prefix == null
+                    ? {}
+                    : {
+                          prefix: prefix.getText().trim(),
+                          prefixRange: rangeFromNode(prefix, this.document),
+                      }),
+                defaultElementNamespace: node.schemaPrefix()?.KW_DEFAULT() != null,
+                namespaceUri: unquoteStringLiteral(namespaceUri.getText()),
+                namespaceUriRange: rangeFromNode(namespaceUri, this.document),
                 locations: node._locations.map((location) => ({
                     uri: unquoteStringLiteral(location.getText()),
                     range: rangeFromNode(location, this.document),

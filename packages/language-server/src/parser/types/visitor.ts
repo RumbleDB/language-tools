@@ -11,6 +11,7 @@ import type {
     ModuleAstNode,
     ModuleDeclarationAstNode,
     ModuleImportAstNode,
+    SchemaImportAstNode,
     NamedFunctionReferenceAstNode,
     NamespaceDeclarationAstNode,
     TypeDeclarationAstNode,
@@ -28,6 +29,8 @@ export abstract class ParserAstVisitor<R = void> {
                 return this.visitModuleDeclaration(node);
             case "module-import":
                 return this.visitModuleImport(node);
+            case "schema-import":
+                return this.visitSchemaImport(node);
             case "namespace-declaration":
                 return this.visitNamespaceDeclaration(node);
             case "context-item-declaration":
@@ -83,6 +86,10 @@ export abstract class ParserAstVisitor<R = void> {
     }
 
     protected visitNamespaceDeclaration(node: NamespaceDeclarationAstNode): R {
+        return this.defaultVisit(node);
+    }
+
+    protected visitSchemaImport(node: SchemaImportAstNode): R {
         return this.defaultVisit(node);
     }
 
