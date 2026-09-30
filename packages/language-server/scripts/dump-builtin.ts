@@ -11,16 +11,18 @@ const __dirname = path.dirname(__filename);
 const PACKAGE_ROOT = path.resolve(__dirname, "..");
 
 type BuiltinDumpConfig = {
-    cliFlag: "--dump-builtin-functions" | "--dump-builtin-types";
+    cliFlag: "--dump-builtin-functions" | "--dump-builtin-types" | "--dump-builtin-constructors";
     label: string;
-    targetFileName: "builtin-functions.json" | "builtin-types.json";
+    targetFileName: "builtin-functions.json" | "builtin-types.json" | "builtin-constructors.json";
 };
 
 async function main() {
     const targetDir = path.join(PACKAGE_ROOT, "assets");
-    const catalogFiles = ["builtin-functions.json", "builtin-types.json"].map((fileName) =>
-        path.join(targetDir, fileName),
-    );
+    const catalogFiles = [
+        "builtin-functions.json",
+        "builtin-types.json",
+        "builtin-constructors.json",
+    ].map((fileName) => path.join(targetDir, fileName));
     if (!process.argv.includes("--force") && catalogFiles.every((file) => fs.existsSync(file))) {
         console.log("Pregenerated builtin catalogs already exist; reusing them.");
         return;
@@ -51,14 +53,24 @@ async function main() {
             label: "builtin types",
             targetFileName: "builtin-types.json",
         },
+        {
+            cliFlag: "--dump-builtin-constructors",
+            label: "builtin constructors",
+            targetFileName: "builtin-constructors.json",
+        },
     ];
 
     for (const dump of dumps) {
         const targetFile = path.join(targetDir, dump.targetFileName);
         await runBuiltinDump(launchConfig.args, dump, targetFile);
-        const builtins = JSON.parse(fs.readFileSync(targetFile, "utf8")) as unknown[];
+        const builtins = JSON.parse(fs.readFileSync(targetFile, "utf8")) as
+            | unknown[]
+            | Record<string, unknown[]>;
+        const count = Array.isArray(builtins)
+            ? builtins.length
+            : Object.values(builtins).reduce((sum, entries) => sum + entries.length, 0);
         console.log(
-            `Successfully generated ${dump.label} file at ${targetFile} (${builtins.length} entries)`,
+            `Successfully generated ${dump.label} file at ${targetFile} (${count} entries)`,
         );
     }
 }
