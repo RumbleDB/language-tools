@@ -55,14 +55,11 @@ function findBuiltinFunctionDefinition(
     return undefined;
 }
 
+type CatalogEntry = { name: FunctionName; signature: StaticFunctionSignature };
+type Language = "jsoniq" | "xquery";
+
 const map = new Map<string, BuiltinFunctionDefinition>();
-const catalog =
-    loadJsonAsset<
-        Array<{
-            name: FunctionName;
-            signature: StaticFunctionSignature;
-        }>
-    >("builtin-functions.json") || [];
+const catalog = loadJsonAsset<CatalogEntry[]>("builtin-functions.json") || [];
 
 for (const func of catalog) {
     const name = func.name;
@@ -74,7 +71,44 @@ for (const func of catalog) {
     });
 }
 
+const constructors = loadJsonAsset<Record<Language, CatalogEntry[]>>("builtin-constructors.json");
+
+function createConstructorMap(language: Language): Map<string, BuiltinFunctionDefinition> {
+    const result = new Map<string, BuiltinFunctionDefinition>();
+    for (const entry of constructors?.[language] ?? []) {
+        const definition: BuiltinFunctionDefinition = {
+            ...entry,
+            kind: "function",
+            origin: "builtin",
+        };
+        result.set(functionNameToString(entry.name, true), definition);
+        // Unprefixed JSONiq aliases retain their namespace in the exported definition.
+        if (entry.name.qname.prefix === undefined) {
+            result.set(
+                functionNameToString(
+                    { ...entry.name, qname: { localName: entry.name.qname.localName } },
+                    true,
+                ),
+                definition,
+            );
+        }
+    }
+    return result;
+}
+
+const constructorMaps = {
+    jsoniq: createConstructorMap("jsoniq"),
+    xquery: createConstructorMap("xquery"),
+};
+const functionsByLanguage = {
+    jsoniq: [...map.values(), ...new Set(constructorMaps.jsoniq.values())],
+    xquery: [...map.values(), ...new Set(constructorMaps.xquery.values())],
+};
+
 export const builtinFunctions = {
     all: [...map.values()],
-    find: (name: FunctionName) => findBuiltinFunctionDefinition(map, name),
+    forLanguage: (language: Language) => functionsByLanguage[language],
+    find: (name: FunctionName, language: Language = "jsoniq") =>
+        findBuiltinFunctionDefinition(map, name) ??
+        constructorMaps[language].get(functionNameToString(name, true)),
 };

@@ -1,4 +1,5 @@
 import { ParserService } from "server/parser/index.js";
+import { getActiveParserId } from "server/parser/utils.js";
 import { resolveBuiltin } from "server/resources/builtins.js";
 import { createLogger } from "server/utils/logger.js";
 import type { DocumentUri } from "vscode-languageserver";
@@ -88,13 +89,14 @@ export class WorkspaceIndex {
         const prolog = this.getProlog(document);
         const provider = this.createModuleProvider(document, nextVisiting);
 
+        const language = getActiveParserId(document);
         const { analysis, dependencies } = analyzeModule(
             document,
             this.parser.parse(document).ast,
             {
                 provider,
                 prolog,
-                resolveBuiltin,
+                resolveBuiltin: (kind, name) => resolveBuiltin(kind, name, language),
             },
         );
 

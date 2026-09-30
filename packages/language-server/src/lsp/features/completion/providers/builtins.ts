@@ -4,6 +4,7 @@ import {
     QNameToString,
     BuiltinFunctionDefinition,
 } from "server/analysis/index.js";
+import { getActiveParserId } from "server/parser/utils.js";
 import { builtinFunctions } from "server/resources/builtin-functions.js";
 import { builtinTypes } from "server/resources/builtin-types.js";
 import {
@@ -24,7 +25,10 @@ import type { CompletionProvider } from "../types.js";
 import { createFunctionCallSnippet } from "./snippets.js";
 
 const GENERIC_BUILTIN_PARAMETER_PREFIX = "$arg";
-const BUILTIN_FUNCTION_COMPLETION_ITEMS = createBuiltinFunctionCompletionItems();
+const BUILTIN_FUNCTION_COMPLETION_ITEMS = {
+    jsoniq: createBuiltinFunctionCompletionItems("jsoniq"),
+    xquery: createBuiltinFunctionCompletionItems("xquery"),
+};
 const BUILTIN_TYPE_COMPLETION_ITEMS = createBuiltinTypeCompletionItems();
 
 export const provideBuiltinFunctionCompletions: CompletionProvider = (context) => {
@@ -32,13 +36,13 @@ export const provideBuiltinFunctionCompletions: CompletionProvider = (context) =
         return null;
     }
 
+    const items =
+        BUILTIN_FUNCTION_COMPLETION_ITEMS[getActiveParserId(context.document) ?? "jsoniq"];
+
     // When the user has typed a namespace prefix (e.g. `fn:`), filter items to that
     // prefix and supply an explicit textEdit that replaces the whole typed prefix so
     // the editor does not produce duplicate prefixes (e.g. `fn:fn:string-join`).
-    return (
-        applyQNamePrefixFilter(BUILTIN_FUNCTION_COMPLETION_ITEMS, context) ??
-        BUILTIN_FUNCTION_COMPLETION_ITEMS
-    );
+    return applyQNamePrefixFilter(items, context) ?? items;
 };
 
 export const provideBuiltinTypeCompletions: CompletionProvider = (context) => {
@@ -52,10 +56,10 @@ export const provideBuiltinTypeCompletions: CompletionProvider = (context) => {
     );
 };
 
-function createBuiltinFunctionCompletionItems(): CompletionItem[] {
+function createBuiltinFunctionCompletionItems(language: "jsoniq" | "xquery"): CompletionItem[] {
     const itemsByName = new Map<string, { item: CompletionItem; parameterCount: number }>();
 
-    for (const definition of builtinFunctions.all) {
+    for (const definition of builtinFunctions.forLanguage(language)) {
         const { qname, arity } = definition.name;
         const functionName = QNameToString(qname, false);
         const ns = qname.namespaceUri ?? DEFAULT_NAMESPACES.get(qname.prefix || "fn");
