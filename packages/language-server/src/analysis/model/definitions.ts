@@ -90,11 +90,18 @@ export interface ImplicitVariableDefinition extends AbstractDefinition<"variable
     readonly origin: "implicit";
 }
 
+/** A constructor function supplied by a schema imported into this module. */
+export interface SchemaConstructorDefinition extends BaseDefinition<"function"> {
+    readonly origin: "implicit";
+    readonly signature: StaticFunctionSignature;
+}
+
 export type ScopeDefinition =
     | SourceVariableDefinition
     | SourceParameterDefinition
     | SourceFunctionDefinition
     | SourceTypeDefinition
+    | SchemaConstructorDefinition
     | ImplicitVariableDefinition;
 
 export type VariableDefinition =
@@ -104,7 +111,7 @@ export type VariableDefinition =
 
 export interface ScopeDefinitionByReferenceKind {
     variable: VariableDefinition;
-    function: SourceFunctionDefinition;
+    function: SourceFunctionDefinition | SchemaConstructorDefinition;
     type: SourceTypeDefinition;
 }
 
@@ -116,13 +123,14 @@ export interface BuiltinDefinitionByReferenceKind {
 
 export interface DefinitionByReferenceKind {
     variable: VariableDefinition;
-    function: SourceFunctionDefinition | BuiltinFunctionDefinition;
+    function: SourceFunctionDefinition | BuiltinFunctionDefinition | SchemaConstructorDefinition;
     type: SourceTypeDefinition | BuiltinTypeDefinition;
 }
 
 export type Definition =
     | SourceDefinition
     | ImplicitVariableDefinition
+    | SchemaConstructorDefinition
     | BuiltinFunctionDefinition
     | BuiltinTypeDefinition;
 

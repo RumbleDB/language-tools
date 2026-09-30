@@ -4,6 +4,7 @@ import type { ModuleProlog } from "../resolution/module-prolog.js";
 import type { ModuleNode } from "./ast.js";
 import type {
     BuiltinDefinitionByReferenceKind,
+    SchemaConstructorDefinition,
     SourceModuleExportDefinition,
 } from "./definitions.js";
 import type { ReferenceNameByKind } from "./names.js";
@@ -38,6 +39,8 @@ export interface ResolvedModuleImport {
 }
 
 export interface AnalysisEnvironment {
+    /** Schema constructors visible in this module only; these are not library-module exports. */
+    readonly schemaConstructors?: readonly SchemaConstructorDefinition[];
     readonly resolvedImports?: readonly ResolvedModuleImport[];
     readonly prolog?: ModuleProlog;
     /** Resolves a name to its builtin definition, if one exists. */
