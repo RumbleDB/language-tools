@@ -35,6 +35,9 @@ public final class BuiltinConstructors implements CLICommand {
         List<FunctionDefinition> result = new ArrayList<>();
         for (String localName : names) {
             addConstructor(result, new Name(Name.XS_NS, "xs", localName), language);
+            // JSONiq also supports unprefixed aliases, such as integer(...) for xs:integer(...).
+            // A null prefix keeps the alias unprefixed; its namespace is still JSONiq's default
+            // function namespace. Rumble's resolver filters unsupported aliases (e.g. string).
             if (language.startsWith("jsoniq")) {
                 addConstructor(result, new Name(Name.JSONIQ_DEFAULT_FUNCTION_NS, null, localName), language);
             }
