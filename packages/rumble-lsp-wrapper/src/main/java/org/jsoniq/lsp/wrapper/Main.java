@@ -14,6 +14,7 @@ import java.util.Objects;
 import org.jsoniq.lsp.wrapper.cli.CLICommand;
 import org.jsoniq.lsp.wrapper.cli.BuiltInTypes;
 import org.jsoniq.lsp.wrapper.cli.BuiltinFunctions;
+import org.jsoniq.lsp.wrapper.cli.BuiltinConstructors;
 import org.jsoniq.lsp.wrapper.handlers.Handshake;
 import org.jsoniq.lsp.wrapper.handlers.RequestHandler;
 import org.jsoniq.lsp.wrapper.handlers.RunQuery;
@@ -29,12 +30,14 @@ public class Main {
     private static final StaticTypeChecker INFERENCER = new StaticTypeChecker();
     private static final TypeAtPosition TYPE_AT_POSITION = new TypeAtPosition();
     private static final BuiltinFunctions BUILTIN_FUNCTIONS = new BuiltinFunctions();
+    private static final BuiltinConstructors BUILTIN_CONSTRUCTORS = new BuiltinConstructors();
     private static final BuiltInTypes BUILTIN_TYPES = new BuiltInTypes();
     private static final Handshake HANDSHAKE = new Handshake();
     private static final RunQuery RUN_QUERY = new RunQuery();
     private static final Map<String, CLICommand> CLI_COMMANDS = Map.of(
             BUILTIN_FUNCTIONS.flag(), BUILTIN_FUNCTIONS,
-            BUILTIN_TYPES.flag(), BUILTIN_TYPES);
+            BUILTIN_TYPES.flag(), BUILTIN_TYPES,
+            BUILTIN_CONSTRUCTORS.flag(), BUILTIN_CONSTRUCTORS);
 
     private static final Map<String, RequestHandler> DAEMON_HANDLERS = Map.of(
             INFERENCER.getRequestType(), INFERENCER,
