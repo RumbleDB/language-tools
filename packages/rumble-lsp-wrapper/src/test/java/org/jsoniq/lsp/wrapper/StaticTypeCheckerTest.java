@@ -1,12 +1,12 @@
 package org.jsoniq.lsp.wrapper;
 
+import org.jsoniq.lsp.wrapper.handlers.StaticTypeChecker;
+import org.junit.jupiter.api.Test;
+
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
-import org.jsoniq.lsp.wrapper.handlers.StaticTypeChecker;
-import org.junit.jupiter.api.Test;
 
 class StaticTypeCheckerTest {
     private final StaticTypeChecker typeChecker = new StaticTypeChecker();
@@ -22,7 +22,8 @@ class StaticTypeCheckerTest {
 
     @Test
     void functionReturnTypeMismatchReturnsRawMetadataRange() {
-        String query = """
+        String query =
+                """
                 declare function local:f() as integer {
                     "$g + $c"
                 };
@@ -40,7 +41,8 @@ class StaticTypeCheckerTest {
 
     @Test
     void additiveArityErrorReturnsRawMetadataRange() {
-        String query = """
+        String query =
+                """
                 declare function local:f($a, $b as integer) {
                     $a + $b
                 };
@@ -59,7 +61,8 @@ class StaticTypeCheckerTest {
 
     @Test
     void libraryModuleIsStaticTypecheckedAsALibraryModule() {
-        StaticTypeChecker.Result result = checkWithoutThrow("""
+        StaticTypeChecker.Result result = checkWithoutThrow(
+                """
                 module namespace lib = "urn:lib";
                 declare function lib:f() as integer { "not an integer" };
                 """);

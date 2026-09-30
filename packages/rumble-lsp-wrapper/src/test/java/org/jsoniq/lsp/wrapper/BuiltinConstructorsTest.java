@@ -1,15 +1,17 @@
 package org.jsoniq.lsp.wrapper;
 
-import static org.junit.jupiter.api.Assertions.*;
-
 import java.util.HashSet;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.jsoniq.lsp.wrapper.cli.BuiltinConstructors;
 import org.jsoniq.lsp.wrapper.types.FunctionDefinition;
 import org.junit.jupiter.api.Test;
+
+import static org.junit.jupiter.api.Assertions.*;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 import org.rumbledb.context.Name;
 
 class BuiltinConstructorsTest {
@@ -27,16 +29,21 @@ class BuiltinConstructorsTest {
     void exportsAnAtomicConstructorSignature() throws Exception {
         var integer = find(exporter.run().xquery(), Name.XS_NS, "integer");
         assertEquals(1, integer.name().arity());
-        assertEquals("xs:anyAtomicType?", integer.signature().parameterTypes().get(0).type().toString());
+        assertEquals(
+                "xs:anyAtomicType?",
+                integer.signature().parameterTypes().get(0).type().toString());
         assertEquals("xs:integer?", integer.signature().returnType().toString());
     }
 
     @Test
     void exportsListConstructorsWithSequenceResults() throws Exception {
         var functions = exporter.run().xquery();
-        for (var names : List.of(List.of("IDREFS", "IDREF"), List.of("NMTOKENS", "NMTOKEN"), List.of("ENTITIES", "ENTITY"))) {
+        for (var names :
+                List.of(List.of("IDREFS", "IDREF"), List.of("NMTOKENS", "NMTOKEN"), List.of("ENTITIES", "ENTITY"))) {
             var function = find(functions, Name.XS_NS, names.get(0));
-            assertEquals("xs:" + names.get(1) + "*", function.signature().returnType().toString());
+            assertEquals(
+                    "xs:" + names.get(1) + "*",
+                    function.signature().returnType().toString());
         }
     }
 
@@ -46,10 +53,13 @@ class BuiltinConstructorsTest {
         var alias = find(catalog.jsoniq(), Name.JSONIQ_DEFAULT_FUNCTION_NS, "integer");
         assertEquals(Name.JSONIQ_DEFAULT_FUNCTION_NS, alias.name().qname().namespaceUri());
         assertEquals("xs:integer?", alias.signature().returnType().toString());
-        assertTrue(catalog.xquery().stream().allMatch(function -> Name.XS_NS.equals(function.name().qname().namespaceUri())));
-        assertFalse(catalog.jsoniq().stream().anyMatch(function ->
-                Name.JSONIQ_DEFAULT_FUNCTION_NS.equals(function.name().qname().namespaceUri()) &&
-                        List.of("boolean", "string", "QName", "error").contains(function.name().qname().localName())));
+        assertTrue(catalog.xquery().stream()
+                .allMatch(function -> Name.XS_NS.equals(function.name().qname().namespaceUri())));
+        assertFalse(catalog.jsoniq().stream()
+                .anyMatch(function -> Name.JSONIQ_DEFAULT_FUNCTION_NS.equals(
+                                function.name().qname().namespaceUri())
+                        && List.of("boolean", "string", "QName", "error")
+                                .contains(function.name().qname().localName())));
         assertNotNull(find(catalog.jsoniq(), Name.XS_NS, "string"));
     }
 

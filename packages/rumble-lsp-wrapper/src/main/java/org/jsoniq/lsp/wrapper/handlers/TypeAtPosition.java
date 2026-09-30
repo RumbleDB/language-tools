@@ -11,6 +11,7 @@ import org.jsoniq.lsp.wrapper.Range;
 import org.jsoniq.lsp.wrapper.messages.Request;
 import org.jsoniq.lsp.wrapper.messages.ResponseBody;
 import org.jsoniq.lsp.wrapper.types.SequenceType;
+
 import org.rumbledb.bindings.ExternalBindings;
 import org.rumbledb.compiler.VisitorHelpers;
 import org.rumbledb.config.RumbleConfiguration;
@@ -28,10 +29,7 @@ public final class TypeAtPosition implements RequestHandler {
     public static final String REQUEST_TYPE = "type-at-position";
     public static final Result EMPTY_RESULT = new Result(null, null);
 
-    public record Result(
-            SequenceType sequenceType,
-            Range range) implements ResponseBody {
-    }
+    public record Result(SequenceType sequenceType, Range range) implements ResponseBody {}
 
     private final RumbleConfiguration configuration;
 
@@ -78,9 +76,7 @@ public final class TypeAtPosition implements RequestHandler {
             if (candidate == null || candidate.sequenceType() == null) {
                 return EMPTY_RESULT;
             }
-            return new Result(
-                    SequenceType.fromSequenceType(candidate.sequenceType()),
-                    candidate.resultRange());
+            return new Result(SequenceType.fromSequenceType(candidate.sequenceType()), candidate.resultRange());
         } catch (Throwable throwable) {
             return EMPTY_RESULT;
         }
@@ -171,67 +167,54 @@ public final class TypeAtPosition implements RequestHandler {
         protected List<Candidate> defaultAction(Node node, List<Candidate> candidates) {
             if (node instanceof Expression expression) {
                 addCandidate(
-                    candidates,
-                    Candidate.create(
-                        CandidateKind.EXPRESSION,
-                        expression.getMetadata(),
-                        expression.getMetadata(),
-                        expression.getStaticSequenceType()
-                    )
-                );
+                        candidates,
+                        Candidate.create(
+                                CandidateKind.EXPRESSION,
+                                expression.getMetadata(),
+                                expression.getMetadata(),
+                                expression.getStaticSequenceType()));
             }
             return visitDescendants(node, candidates);
         }
 
         @Override
         public List<Candidate> visitObjectLookupExpression(
-                ObjectLookupExpression expression,
-                List<Candidate> candidates) {
+                ObjectLookupExpression expression, List<Candidate> candidates) {
             Expression key = expression.getLookupExpression();
             if (key != null) {
                 addCandidate(
-                    candidates,
-                    Candidate.create(
-                        CandidateKind.EXPLICIT,
-                        key.getMetadata(),
-                        expression.getMetadata(),
-                        expression.getStaticSequenceType()
-                    )
-                );
+                        candidates,
+                        Candidate.create(
+                                CandidateKind.EXPLICIT,
+                                key.getMetadata(),
+                                expression.getMetadata(),
+                                expression.getStaticSequenceType()));
             }
             return defaultAction(expression, candidates);
         }
 
         @Override
-        public List<Candidate> visitVariableDeclaration(
-                VariableDeclaration declaration,
-                List<Candidate> candidates) {
+        public List<Candidate> visitVariableDeclaration(VariableDeclaration declaration, List<Candidate> candidates) {
             addCandidate(
-                candidates,
-                Candidate.create(
-                    CandidateKind.EXPLICIT,
-                    declaration.getVariableMetadata(),
-                    declaration.getVariableMetadata(),
-                    declaration.getSequenceType()
-                )
-            );
+                    candidates,
+                    Candidate.create(
+                            CandidateKind.EXPLICIT,
+                            declaration.getVariableMetadata(),
+                            declaration.getVariableMetadata(),
+                            declaration.getSequenceType()));
             return defaultAction(declaration, candidates);
         }
 
         @Override
-        public List<Candidate> visitFunctionDeclaration(
-                FunctionDeclaration declaration,
-                List<Candidate> candidates) {
+        public List<Candidate> visitFunctionDeclaration(FunctionDeclaration declaration, List<Candidate> candidates) {
             if (declaration.getExpression() instanceof InlineFunctionExpression function) {
                 addCandidate(
-                    candidates,
-                    Candidate.create(
-                        CandidateKind.EXPLICIT,
-                        declaration.getNameMetadata(),
-                        declaration.getNameMetadata(),
-                        function.getReturnType()
-                    )
-                );
+                        candidates,
+                        Candidate.create(
+                                CandidateKind.EXPLICIT,
+                                declaration.getNameMetadata(),
+                                declaration.getNameMetadata(),
+                                function.getReturnType()));
             }
             return defaultAction(declaration, candidates);
         }

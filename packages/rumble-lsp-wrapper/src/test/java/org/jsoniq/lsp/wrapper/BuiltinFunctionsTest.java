@@ -1,13 +1,13 @@
 package org.jsoniq.lsp.wrapper;
 
+import java.util.Optional;
+
 import org.jsoniq.lsp.wrapper.cli.BuiltinFunctions;
 import org.jsoniq.lsp.wrapper.types.FunctionDefinition;
 import org.junit.jupiter.api.Test;
 
-import java.util.Optional;
-
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -22,11 +22,10 @@ class BuiltinFunctionsTest {
 
     @Test
     void listBuiltinFunctionsContainsCountArityOneSignature() {
-        Optional<FunctionDefinition> count = this.builtinFunctions
-                .listBuiltinFunctions()
-                .stream()
+        Optional<FunctionDefinition> count = this.builtinFunctions.listBuiltinFunctions().stream()
                 .filter(definition -> "count".equals(definition.name().qname().localName()))
-                .filter(definition -> Integer.valueOf(1).equals(definition.name().arity()))
+                .filter(definition ->
+                        Integer.valueOf(1).equals(definition.name().arity()))
                 .findFirst();
 
         assertTrue(count.isPresent());

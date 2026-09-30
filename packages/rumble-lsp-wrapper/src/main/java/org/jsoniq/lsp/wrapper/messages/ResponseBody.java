@@ -1,5 +1,3 @@
 package org.jsoniq.lsp.wrapper.messages;
 
-public interface ResponseBody {
-
-}
+public interface ResponseBody {}

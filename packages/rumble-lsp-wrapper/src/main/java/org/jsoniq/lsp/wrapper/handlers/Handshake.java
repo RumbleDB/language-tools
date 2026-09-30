@@ -12,19 +12,10 @@ public class Handshake implements RequestHandler {
     private static final String UNKNOWN_VALUE = "unknown";
     private static final Metadata METADATA = loadMetadata();
 
-    private record Metadata(
-            String rumbleVersion,
-            String rumbleCommit,
-            String rumbleCommitShort,
-            String rumbleRef) {
-    }
+    private record Metadata(String rumbleVersion, String rumbleCommit, String rumbleCommitShort, String rumbleRef) {}
 
-    private record Response(
-            String rumbleVersion,
-            String rumbleCommit,
-            String rumbleCommitShort,
-            String rumbleRef) implements ResponseBody {
-    }
+    private record Response(String rumbleVersion, String rumbleCommit, String rumbleCommitShort, String rumbleRef)
+            implements ResponseBody {}
 
     static String getRumbleVersion() {
         return METADATA.rumbleVersion();
@@ -44,8 +35,7 @@ public class Handshake implements RequestHandler {
 
     private static Metadata loadMetadata() {
         Properties properties = new Properties();
-        try (InputStream inputStream = Handshake.class.getClassLoader()
-                .getResourceAsStream(BUILD_METADATA_RESOURCE)) {
+        try (InputStream inputStream = Handshake.class.getClassLoader().getResourceAsStream(BUILD_METADATA_RESOURCE)) {
             if (inputStream == null) {
                 return new Metadata(UNKNOWN_VALUE, UNKNOWN_VALUE, UNKNOWN_VALUE, UNKNOWN_VALUE);
             }
@@ -68,19 +58,11 @@ public class Handshake implements RequestHandler {
 
     @Override
     public ResponseBody handle(Request request) {
-        return new Response(
-                getRumbleVersion(),
-                getRumbleCommit(),
-                getRumbleCommitShort(),
-                getRumbleRef());
+        return new Response(getRumbleVersion(), getRumbleCommit(), getRumbleCommitShort(), getRumbleRef());
     }
 
     @Override
     public ResponseBody createEmptyResponse() {
-        return new Response(
-                getRumbleVersion(),
-                getRumbleCommit(),
-                getRumbleCommitShort(),
-                getRumbleRef());
+        return new Response(getRumbleVersion(), getRumbleCommit(), getRumbleCommitShort(), getRumbleRef());
     }
 }

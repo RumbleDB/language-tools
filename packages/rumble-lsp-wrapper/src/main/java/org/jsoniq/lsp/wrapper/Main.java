@@ -1,8 +1,5 @@
 package org.jsoniq.lsp.wrapper;
 
-import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.databind.ObjectMapper;
-
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
@@ -11,10 +8,10 @@ import java.util.Arrays;
 import java.util.Map;
 import java.util.Objects;
 
-import org.jsoniq.lsp.wrapper.cli.CLICommand;
 import org.jsoniq.lsp.wrapper.cli.BuiltInTypes;
-import org.jsoniq.lsp.wrapper.cli.BuiltinFunctions;
 import org.jsoniq.lsp.wrapper.cli.BuiltinConstructors;
+import org.jsoniq.lsp.wrapper.cli.BuiltinFunctions;
+import org.jsoniq.lsp.wrapper.cli.CLICommand;
 import org.jsoniq.lsp.wrapper.handlers.Handshake;
 import org.jsoniq.lsp.wrapper.handlers.RequestHandler;
 import org.jsoniq.lsp.wrapper.handlers.RunQuery;
@@ -24,9 +21,12 @@ import org.jsoniq.lsp.wrapper.messages.Request;
 import org.jsoniq.lsp.wrapper.messages.Response;
 import org.jsoniq.lsp.wrapper.messages.ResponseBody;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 public class Main {
-    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper()
-            .setSerializationInclusion(JsonInclude.Include.NON_NULL);
+    private static final ObjectMapper OBJECT_MAPPER =
+            new ObjectMapper().setSerializationInclusion(JsonInclude.Include.NON_NULL);
     private static final StaticTypeChecker INFERENCER = new StaticTypeChecker();
     private static final TypeAtPosition TYPE_AT_POSITION = new TypeAtPosition();
     private static final BuiltinFunctions BUILTIN_FUNCTIONS = new BuiltinFunctions();
@@ -86,8 +86,7 @@ public class Main {
     }
 
     private static void runDaemon() {
-        try (
-                BufferedReader reader = new BufferedReader(new InputStreamReader(System.in, StandardCharsets.UTF_8));
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(System.in, StandardCharsets.UTF_8));
                 PrintWriter writer = new PrintWriter(System.out, true, StandardCharsets.UTF_8)) {
             String line;
             while ((line = reader.readLine()) != null) {
@@ -116,28 +115,28 @@ public class Main {
             requestType = request.requestType();
             RequestHandler handler = DAEMON_HANDLERS.get(requestType);
             if (handler == null) {
-                return new Response(requestId, requestType, null,
+                return new Response(
+                        requestId,
+                        requestType,
+                        null,
                         new Error("UNSUPPORTED_REQUEST_TYPE", "Unsupported requestType '" + requestType + "'."));
             }
 
-            return new Response(requestId, requestType,
-                    handler.handle(
-                        new Request(
-                                requestId,
-                                requestType,
-                                request.body(),
-                                request.documentUri(),
-                                request.position()
-                        )
-                    ), null);
+            return new Response(
+                    requestId,
+                    requestType,
+                    handler.handle(new Request(
+                            requestId, requestType, request.body(), request.documentUri(), request.position())),
+                    null);
         } catch (Throwable throwable) {
             throwable.printStackTrace(System.err);
             System.err.flush();
-            String errorMessage = Objects.toString(throwable.getMessage(), throwable.getClass().getName());
+            String errorMessage = Objects.toString(
+                    throwable.getMessage(), throwable.getClass().getName());
             RequestHandler handler = DAEMON_HANDLERS.get(requestType);
             ResponseBody emptyResponse = handler == null ? null : handler.createEmptyResponse();
-            return new Response(requestId, requestType, emptyResponse,
-                    new Error("Internal error occurred.", errorMessage));
+            return new Response(
+                    requestId, requestType, emptyResponse, new Error("Internal error occurred.", errorMessage));
         }
     }
 }

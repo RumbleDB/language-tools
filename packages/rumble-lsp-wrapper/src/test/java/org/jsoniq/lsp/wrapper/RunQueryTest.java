@@ -1,16 +1,16 @@
 package org.jsoniq.lsp.wrapper;
 
-import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 
 import org.jsoniq.lsp.wrapper.handlers.RunQuery;
 import org.jsoniq.lsp.wrapper.messages.Request;
 import org.junit.jupiter.api.Test;
+
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class RunQueryTest {
     private final RunQuery runQuery = new RunQuery();

@@ -5,11 +5,11 @@ import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.Objects;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ArrayNode;
-
 import org.jsoniq.lsp.wrapper.messages.Request;
 import org.jsoniq.lsp.wrapper.messages.ResponseBody;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
 
 import org.rumbledb.api.Item;
 import org.rumbledb.api.Rumble;
@@ -21,10 +21,7 @@ public final class RunQuery implements RequestHandler {
     public static final String REQUEST_TYPE = "run-query";
     public static final Result EMPTY_RESULT = new Result(null, null);
 
-    public record Result(
-            String output,
-            String error) implements ResponseBody {
-    }
+    public record Result(String output, String error) implements ResponseBody {}
 
     private static Rumble RUMBLE_INSTANCE = null;
 
@@ -86,7 +83,8 @@ public final class RunQuery implements RequestHandler {
             String errorMessage = Objects.toString(exception.getJSONiqErrorMessage(), exception.getMessage());
             return new Result(null, errorMessage);
         } catch (Throwable throwable) {
-            String errorMessage = Objects.toString(throwable.getMessage(), throwable.getClass().getName());
+            String errorMessage = Objects.toString(
+                    throwable.getMessage(), throwable.getClass().getName());
             return new Result(null, errorMessage);
         }
     }

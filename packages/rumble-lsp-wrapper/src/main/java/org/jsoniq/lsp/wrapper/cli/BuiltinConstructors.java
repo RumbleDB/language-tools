@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.stream.Stream;
 
 import org.jsoniq.lsp.wrapper.types.FunctionDefinition;
+
 import org.rumbledb.context.ConstructorFunctionResolver;
 import org.rumbledb.context.FunctionIdentifier;
 import org.rumbledb.context.Name;
@@ -20,9 +21,11 @@ public final class BuiltinConstructors implements CLICommand {
 
     @Override
     public Catalog run() throws ReflectiveOperationException {
-        Stream<String> itemTypeNames = new BuiltInTypes().listBuiltinTypes().stream()
-                .filter(type -> type.name() != null && Name.XS_NS.equals(type.name().namespaceUri()))
-                .map(type -> type.name().localName());
+        Stream<String> itemTypeNames = new BuiltInTypes()
+                .listBuiltinTypes().stream()
+                        .filter(type -> type.name() != null
+                                && Name.XS_NS.equals(type.name().namespaceUri()))
+                        .map(type -> type.name().localName());
         // These list types have constructors, but are not named XDM item types.
         List<String> names = Stream.concat(itemTypeNames, Stream.of("IDREFS", "NMTOKENS", "ENTITIES"))
                 .distinct()

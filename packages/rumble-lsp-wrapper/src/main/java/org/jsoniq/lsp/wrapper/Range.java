@@ -1,8 +1,6 @@
 package org.jsoniq.lsp.wrapper;
 
-public record Range(
-        Position start,
-        Position end) {
+public record Range(Position start, Position end) {
 
     public static Range fromExceptionMetadata(org.rumbledb.exceptions.ExceptionMetadata metadata) {
         Position start = Position.fromSourcePosition(metadata.getStart());

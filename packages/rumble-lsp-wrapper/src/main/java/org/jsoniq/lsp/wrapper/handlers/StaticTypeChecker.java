@@ -10,6 +10,7 @@ import java.util.Objects;
 import org.jsoniq.lsp.wrapper.Range;
 import org.jsoniq.lsp.wrapper.messages.Request;
 import org.jsoniq.lsp.wrapper.messages.ResponseBody;
+
 import org.rumbledb.bindings.ExternalBindings;
 import org.rumbledb.compiler.VisitorHelpers;
 import org.rumbledb.config.RumbleConfiguration;
@@ -18,22 +19,18 @@ import org.rumbledb.exceptions.RumbleException;
 
 public final class StaticTypeChecker implements RequestHandler {
 
-    public record StaticTypeError(
-            String code,
-            String message,
-            String location,
-            Range range) {
-    }
+    public record StaticTypeError(String code, String message, String location, Range range) {}
 
-    public record Result(List<StaticTypeError> errors) implements ResponseBody {
-    }
+    public record Result(List<StaticTypeError> errors) implements ResponseBody {}
 
     public static final Result EMPTY_RESULT = new Result(List.of());
 
     private final RumbleConfiguration strictConfiguration;
 
     public StaticTypeChecker() {
-        this.strictConfiguration = RumbleConfiguration.builder().configureAnalysis(a -> a.enableStaticTyping(true)).build();
+        this.strictConfiguration = RumbleConfiguration.builder()
+                .configureAnalysis(a -> a.enableStaticTyping(true))
+                .build();
     }
 
     public Result infer(String query) {
@@ -55,16 +52,10 @@ public final class StaticTypeChecker implements RequestHandler {
         return new Result(typeErrors);
     }
 
-    private static void parseModule(
-            String query,
-            URI documentUri,
-            RumbleConfiguration configuration) {
+    private static void parseModule(String query, URI documentUri, RumbleConfiguration configuration) {
         if (isLibraryModule(query)) {
             VisitorHelpers.parseLibraryModuleFromQueryWithStaticContextAndInference(
-                query,
-                documentUri == null ? URI.create(".") : documentUri,
-                configuration
-            );
+                    query, documentUri == null ? URI.create(".") : documentUri, configuration);
             return;
         }
 
@@ -77,20 +68,16 @@ public final class StaticTypeChecker implements RequestHandler {
     }
 
     private static boolean isLibraryModule(String query) {
-        return query.matches("(?s)^\\s*(?:\\(:.*?:\\)\\s*)*(?:jsoniq|xquery)?(?:\\s+version\\s+[^;]+;\\s*)?module\\s+namespace\\b.*");
+        return query.matches(
+                "(?s)^\\s*(?:\\(:.*?:\\)\\s*)*(?:jsoniq|xquery)?(?:\\s+version\\s+[^;]+;\\s*)?module\\s+namespace\\b.*");
     }
 
     private static StaticTypeError toTypeError(RumbleException exception) {
-        ExceptionMetadata metadata = exception.getMetadata() == null
-                ? ExceptionMetadata.EMPTY_METADATA
-                : exception.getMetadata();
+        ExceptionMetadata metadata =
+                exception.getMetadata() == null ? ExceptionMetadata.EMPTY_METADATA : exception.getMetadata();
         String code = exception.getErrorCode().toString();
         String message = Objects.toString(exception.getJSONiqErrorMessage(), exception.getMessage());
-        return new StaticTypeError(
-                code,
-                message,
-                metadata.getLocation(),
-                Range.fromExceptionMetadata(metadata));
+        return new StaticTypeError(code, message, metadata.getLocation(), Range.fromExceptionMetadata(metadata));
     }
 
     @Override

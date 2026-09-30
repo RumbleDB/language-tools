@@ -1,9 +1,5 @@
 package org.jsoniq.lsp.wrapper;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNull;
-
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
@@ -11,6 +7,10 @@ import java.util.Base64;
 import org.jsoniq.lsp.wrapper.handlers.TypeAtPosition;
 import org.jsoniq.lsp.wrapper.messages.Request;
 import org.junit.jupiter.api.Test;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
 class TypeAtPositionTest {
     private final TypeAtPosition typeAtPosition = new TypeAtPosition();
@@ -35,50 +35,42 @@ class TypeAtPositionTest {
                 """;
         int declarationOffset = query.indexOf("$a") + 1;
 
-        TypeAtPosition.Result result = this.typeAtPosition.findType(
-            query,
-            positionAtOffset(query, declarationOffset)
-        );
+        TypeAtPosition.Result result = this.typeAtPosition.findType(query, positionAtOffset(query, declarationOffset));
 
         assertNotNull(result.sequenceType());
         assertEquals("xs:integer", result.sequenceType().toString());
         assertEquals(
-            new Range(
-                    positionAtOffset(query, query.indexOf("$a")),
-                    positionAtOffset(query, query.indexOf("$a") + "$a".length())
-            ),
-            result.range()
-        );
+                new Range(
+                        positionAtOffset(query, query.indexOf("$a")),
+                        positionAtOffset(query, query.indexOf("$a") + "$a".length())),
+                result.range());
     }
 
     @Test
     void returnsReturnTypeAtFunctionDeclarationName() {
-        String query = """
+        String query =
+                """
                 declare function local:f() {
                     1
                 };
                 """;
         int declarationOffset = query.indexOf("local:f") + 1;
 
-        TypeAtPosition.Result result = this.typeAtPosition.findType(
-            query,
-            positionAtOffset(query, declarationOffset)
-        );
+        TypeAtPosition.Result result = this.typeAtPosition.findType(query, positionAtOffset(query, declarationOffset));
 
         assertNotNull(result.sequenceType());
         assertEquals("item*", result.sequenceType().toString());
         assertEquals(
-            new Range(
-                    positionAtOffset(query, query.indexOf("local:f")),
-                    positionAtOffset(query, query.indexOf("local:f") + "local:f".length())
-            ),
-            result.range()
-        );
+                new Range(
+                        positionAtOffset(query, query.indexOf("local:f")),
+                        positionAtOffset(query, query.indexOf("local:f") + "local:f".length())),
+                result.range());
     }
 
     @Test
     void returnsNestedObjectLookupType() {
-        String query = """
+        String query =
+                """
                 declare variable $a := {
                     "nested": {
                         "value": 1
@@ -88,19 +80,19 @@ class TypeAtPositionTest {
                 """;
         int expressionEnd = query.indexOf("$a.nested") + "$a.nested".length();
 
-        TypeAtPosition.Result result = this.typeAtPosition.findType(
-            query,
-            positionAtOffset(query, expressionEnd)
-        );
+        TypeAtPosition.Result result = this.typeAtPosition.findType(query, positionAtOffset(query, expressionEnd));
 
         assertNotNull(result.sequenceType());
         assertEquals("object", result.sequenceType().itemType().kind());
-        assertEquals("xs:integer", result.sequenceType().itemType().fields().get("value").toString());
+        assertEquals(
+                "xs:integer",
+                result.sequenceType().itemType().fields().get("value").toString());
     }
 
     @Test
     void returnsObjectLookupExpressionTypeWhenPositionIsInsideLookupKey() {
-        String query = """
+        String query =
+                """
                 declare variable $a := {
                     "name": "ada",
                     "details": {
@@ -111,26 +103,24 @@ class TypeAtPositionTest {
                 """;
         int detailsOffset = query.indexOf("details.tlf") + "det".length();
 
-        TypeAtPosition.Result result = this.typeAtPosition.findType(
-            query,
-            positionAtOffset(query, detailsOffset)
-        );
+        TypeAtPosition.Result result = this.typeAtPosition.findType(query, positionAtOffset(query, detailsOffset));
 
         assertNotNull(result.sequenceType());
         assertEquals("object", result.sequenceType().itemType().kind());
-        assertEquals("xs:decimal", result.sequenceType().itemType().fields().get("tlf").toString());
         assertEquals(
-            new Range(
-                    positionAtOffset(query, query.indexOf("$a.details")),
-                    positionAtOffset(query, query.indexOf("$a.details") + "$a.details".length())
-            ),
-            result.range()
-        );
+                "xs:decimal",
+                result.sequenceType().itemType().fields().get("tlf").toString());
+        assertEquals(
+                new Range(
+                        positionAtOffset(query, query.indexOf("$a.details")),
+                        positionAtOffset(query, query.indexOf("$a.details") + "$a.details".length())),
+                result.range());
     }
 
     @Test
     void returnsNestedObjectLookupExpressionTypeWhenPositionIsInsideNestedLookupKey() {
-        String query = """
+        String query =
+                """
                 declare variable $a := {
                     "name": "ada",
                     "details": {
@@ -141,20 +131,15 @@ class TypeAtPositionTest {
                 """;
         int tlfOffset = query.indexOf("tlf)") + "t".length();
 
-        TypeAtPosition.Result result = this.typeAtPosition.findType(
-            query,
-            positionAtOffset(query, tlfOffset)
-        );
+        TypeAtPosition.Result result = this.typeAtPosition.findType(query, positionAtOffset(query, tlfOffset));
 
         assertNotNull(result.sequenceType());
         assertEquals("xs:decimal", result.sequenceType().toString());
         assertEquals(
-            new Range(
-                    positionAtOffset(query, query.indexOf("$a.details.tlf")),
-                    positionAtOffset(query, query.indexOf("$a.details.tlf") + "$a.details.tlf".length())
-            ),
-            result.range()
-        );
+                new Range(
+                        positionAtOffset(query, query.indexOf("$a.details.tlf")),
+                        positionAtOffset(query, query.indexOf("$a.details.tlf") + "$a.details.tlf".length())),
+                result.range());
     }
 
     @Test
@@ -173,10 +158,7 @@ class TypeAtPositionTest {
         String query = "((1 + 2) * 3)";
 
         TypeAtPosition.Result result = this.typeAtPosition.findType(
-            query,
-            URI.create("file:///type-at-position.xq"),
-            new Position(0, query.length())
-        );
+                query, URI.create("file:///type-at-position.xq"), new Position(0, query.length()));
 
         assertNotNull(result.sequenceType());
         assertEquals("xs:integer", result.sequenceType().toString());
@@ -191,8 +173,7 @@ class TypeAtPositionTest {
                 TypeAtPosition.REQUEST_TYPE,
                 Base64.getEncoder().encodeToString(query.getBytes(StandardCharsets.UTF_8)),
                 "file:///type-at-position.jq",
-                new Position(0, query.length())
-        );
+                new Position(0, query.length()));
 
         TypeAtPosition.Result result = (TypeAtPosition.Result) this.typeAtPosition.handle(request);
 

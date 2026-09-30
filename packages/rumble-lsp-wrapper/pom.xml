@@ -1,7 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0"
-    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-    xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>org.jsoniq.lsp</groupId>
@@ -23,9 +21,7 @@
         <maven.compiler.source>17</maven.compiler.source>
         <maven.compiler.target>17</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <rumble.local.jar>
-            ${project.basedir}/generated-resources/rumbledb-current-jar-with-dependencies.jar
-        </rumble.local.jar>
+        <rumble.local.jar>${project.basedir}/generated-resources/rumbledb-current-jar-with-dependencies.jar</rumble.local.jar>
     </properties>
 
     <dependencies>
@@ -115,10 +111,10 @@
                 <executions>
                     <execution>
                         <id>write-runtime-classpath</id>
-                        <phase>package</phase>
                         <goals>
                             <goal>build-classpath</goal>
                         </goals>
+                        <phase>package</phase>
                         <configuration>
                             <includeScope>runtime</includeScope>
                             <outputFile>${project.build.directory}/runtime-classpath.txt</outputFile>
@@ -131,8 +127,7 @@
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>3.5.3</version>
                 <configuration>
-                    <argLine>
-                        --add-opens=java.base/java.lang=ALL-UNNAMED
+                    <argLine>--add-opens=java.base/java.lang=ALL-UNNAMED
                         --add-opens=java.base/java.lang.invoke=ALL-UNNAMED
                         --add-opens=java.base/java.lang.reflect=ALL-UNNAMED
                         --add-opens=java.base/java.io=ALL-UNNAMED
@@ -145,8 +140,42 @@
                         --add-opens=java.base/sun.nio.cs=ALL-UNNAMED
                         --add-opens=java.base/sun.security.action=ALL-UNNAMED
                         --add-opens=java.base/sun.util.calendar=ALL-UNNAMED
-                        --add-opens=java.security.jgss/sun.security.krb5=ALL-UNNAMED
-                    </argLine>
+                        --add-opens=java.security.jgss/sun.security.krb5=ALL-UNNAMED</argLine>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>com.diffplug.spotless</groupId>
+                <artifactId>spotless-maven-plugin</artifactId>
+                <version>3.7.0</version>
+                <configuration>
+                    <pom>
+                        <sortPom>
+                            <nrOfIndentSpace>4</nrOfIndentSpace>
+                        </sortPom>
+                    </pom>
+
+                    <java>
+                        <includes>
+                            <!-- include all java files in "java" folders under "src" -->
+                            <include>src/**/java/**/*.java</include>
+                        </includes>
+
+                        <palantirJavaFormat>
+                            <version>2.39.0</version>
+                            <style>PALANTIR</style>
+                        </palantirJavaFormat>
+
+                        <importOrder>
+                            <order>java|javax,org,,\#,com,org.rumbledb,,\#org.rumbledb</order>
+                            <semanticSort>true</semanticSort>
+                        </importOrder>
+
+                        <trimTrailingWhitespace/>
+                        <endWithNewline/>
+
+                        <removeUnusedImports/>
+                        <formatAnnotations/>
+                    </java>
                 </configuration>
             </plugin>
         </plugins>
@@ -164,20 +193,18 @@
                         <executions>
                             <execution>
                                 <id>unpack-rumble-classes</id>
-                                <phase>process-classes</phase>
                                 <goals>
                                     <goal>run</goal>
                                 </goals>
+                                <phase>process-classes</phase>
                                 <configuration>
                                     <target>
-                                        <unzip
-                                            src="${rumble.local.jar}"
-                                            dest="${project.build.outputDirectory}">
+                                        <unzip dest="${project.build.outputDirectory}" src="${rumble.local.jar}">
                                             <patternset>
-                                                <exclude name="**/module-info.class" />
-                                                <exclude name="META-INF/*.SF" />
-                                                <exclude name="META-INF/*.DSA" />
-                                                <exclude name="META-INF/*.RSA" />
+                                                <exclude name="**/module-info.class"/>
+                                                <exclude name="META-INF/*.SF"/>
+                                                <exclude name="META-INF/*.DSA"/>
+                                                <exclude name="META-INF/*.RSA"/>
                                             </patternset>
                                         </unzip>
                                     </target>
@@ -191,10 +218,10 @@
                         <version>3.6.1</version>
                         <executions>
                             <execution>
-                                <phase>package</phase>
                                 <goals>
                                     <goal>shade</goal>
                                 </goals>
+                                <phase>package</phase>
                                 <configuration>
                                     <createDependencyReducedPom>false</createDependencyReducedPom>
                                     <shadedArtifactAttached>true</shadedArtifactAttached>
