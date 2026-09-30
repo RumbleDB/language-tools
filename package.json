@@ -29,7 +29,7 @@
         "clean": "pnpm --filter jsoniq-language-server run clean && pnpm --filter rumble-lsp-wrapper run clean && pnpm --filter jsoniq-vscode run clean",
         "lint": "oxlint",
         "lint:fix": "oxlint --fix",
-        "fmt": "oxfmt",
+        "fmt": "oxfmt && pnpm --filter rumble-lsp-wrapper run fmt",
         "fmt:check": "oxfmt --check",
         "prepare": "husky || true"
     },

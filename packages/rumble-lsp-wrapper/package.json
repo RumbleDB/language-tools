@@ -12,6 +12,7 @@
         "build:force": "node ./scripts/build.mjs --force",
         "build:prod": "node ./scripts/build.mjs --prod",
         "clean": "mvn -f pom.xml -q clean",
-        "test": "mvn -f pom.xml -q test"
+        "test": "mvn -f pom.xml -q test",
+        "fmt": "mvn spotless:apply"
     }
 }
