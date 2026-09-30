@@ -53,7 +53,7 @@ export const provideSourceFunctionCompletions: CompletionProvider = async (conte
     }
 
     const items = (await context.getVisibleDeclarations())
-        .filter((definition) => definition.kind === "function")
+        .filter((definition) => definition.kind === "function" && definition.origin === "source")
         .map(toCompletionItem);
 
     return applyQNamePrefixFilter(items, context) ?? items;
