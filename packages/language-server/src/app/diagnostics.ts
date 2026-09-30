@@ -37,21 +37,21 @@ export class DiagnosticsManager {
         this.refreshVersions.set(uri, refreshVersion);
 
         const syntaxDiagnostics = this.parser.parse(document).diagnostics;
-        this.connection.sendDiagnostics({ uri, diagnostics: syntaxDiagnostics });
-        if (syntaxDiagnostics.length > 0) return;
+        if (syntaxDiagnostics.length > 0) {
+            this.connection.sendDiagnostics({ uri, diagnostics: syntaxDiagnostics });
+            return;
+        }
 
         const semanticDiagnostics = (await this.workspace.getAnalysis(document)).diagnostics;
         if (this.refreshVersions.get(uri) !== refreshVersion) return;
-        this.connection.sendDiagnostics({ uri, diagnostics: [...semanticDiagnostics] });
 
         const typeDiagnostics = await collectStaticTypecheckDiagnostics(document, this.wrapper);
         if (this.refreshVersions.get(uri) !== refreshVersion) return;
-        if (typeDiagnostics.length > 0) {
-            this.connection.sendDiagnostics({
-                uri,
-                diagnostics: [...semanticDiagnostics, ...typeDiagnostics],
-            });
-        }
+        // Publish one complete replacement, preserving existing diagnostics while checks run.
+        this.connection.sendDiagnostics({
+            uri,
+            diagnostics: [...semanticDiagnostics, ...typeDiagnostics],
+        });
     }
 
     public async refreshOpenDocuments(uris: ReadonlySet<DocumentUri>): Promise<void> {
