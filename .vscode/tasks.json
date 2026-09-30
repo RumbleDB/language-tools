@@ -1,0 +1,17 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "launch:extension-host",
+            "type": "process",
+            "command": "${execPath}",
+            "args": [
+                "--new-window",
+                "--inspect-brk-extensions=9333",
+                "--extensionDevelopmentPath=${workspaceFolder}/packages/vscode-extension"
+            ],
+            "dependsOn": "npm: build",
+            "problemMatcher": []
+        }
+    ]
+}

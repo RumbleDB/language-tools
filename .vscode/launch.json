@@ -2,13 +2,17 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Launch VSCode Exension",
-            "type": "extensionHost",
-            "request": "launch",
-            "runtimeExecutable": "${execPath}",
-            "args": ["--extensionDevelopmentPath=${workspaceFolder}/packages/vscode-extension"],
+            "name": "Launch VSCode Extension",
+            "type": "node",
+            "request": "attach",
+            "address": "127.0.0.1",
+            "port": 9333,
+            "continueOnAttach": true,
             "outFiles": ["${workspaceFolder}/packages/vscode-extension/dist/**/*.js"],
-            "preLaunchTask": "npm: build"
+            "preLaunchTask": "launch:extension-host",
+            "trace": {
+                "logFile": "${workspaceFolder}/.vscode/extension-host-debug.log"
+            }
         },
         {
             "name": "Attach to Language Server",
