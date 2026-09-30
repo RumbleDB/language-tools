@@ -14,9 +14,10 @@ import type { WorkspaceService } from "../workspace/service.js";
 
 export class DiagnosticsManager {
     /**
-     * Monotonically increasing version per document URI, used to discard
-     * stale type-check results when a newer refresh has been triggered.
+     * Refresh IDs are unique across document closes and reopens, so an old
+     * asynchronous result cannot belong to a new session for the same URI.
      */
+    private nextRefreshVersion = 0;
     private readonly refreshVersions = new Map<DocumentUri, number>();
 
     public constructor(
@@ -32,7 +33,7 @@ export class DiagnosticsManager {
         this.notifyActiveParser(document);
 
         const uri = document.uri;
-        const refreshVersion = (this.refreshVersions.get(uri) ?? 0) + 1;
+        const refreshVersion = ++this.nextRefreshVersion;
         this.refreshVersions.set(uri, refreshVersion);
 
         const syntaxDiagnostics = this.parser.parse(document).diagnostics;
