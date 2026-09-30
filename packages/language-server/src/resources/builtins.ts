@@ -7,9 +7,13 @@ import { builtinTypes } from "./builtin-types.js";
 export function resolveBuiltin<K extends keyof ReferenceNameByKind>(
     kind: K,
     name: ReferenceNameByKind[K],
+    language: "jsoniq" | "xquery" = "jsoniq",
 ): BuiltinDefinitionByReferenceKind[K] | undefined {
     if (kind === "function") {
-        return builtinFunctions.find(name as FunctionName) as BuiltinDefinitionByReferenceKind[K];
+        return builtinFunctions.find(
+            name as FunctionName,
+            language,
+        ) as BuiltinDefinitionByReferenceKind[K];
     }
     if (kind === "type") {
         return builtinTypes.find(name as QName) as BuiltinDefinitionByReferenceKind[K];

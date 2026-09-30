@@ -1,5 +1,6 @@
 import {
     definitionNameToString,
+    formatSequenceType,
     findNodesThatContainPosition,
     QNameToString,
     type ArgumentNode,
@@ -135,6 +136,22 @@ function resolveSignatures(
                 builtinSignatures.map((signature) => signature.parameters?.length ?? 0),
                 activeParameter + 1,
             ),
+        };
+    }
+
+    if (resolvedDeclaration?.origin === "builtin") {
+        return {
+            signatures: [
+                createSignatureInformation(
+                    QNameToString(call.name.qname, false),
+                    resolvedDeclaration.signature.parameterTypes.map((parameter, index) => ({
+                        label: `$arg${index + 1} as ${formatSequenceType(parameter.type)}`,
+                    })),
+                    [],
+                    formatSequenceType(resolvedDeclaration.signature.returnType),
+                ),
+            ],
+            activeSignature: 0,
         };
     }
 

@@ -2,6 +2,7 @@ import {
     definitionNameToString,
     findSymbolAtPosition,
     formatSequenceType,
+    QNameToString,
     type Definition,
     type SequenceType,
 } from "server/analysis/index.js";
@@ -50,6 +51,11 @@ function createHoverContent(options: HoverContentOptions): string {
         if (doc !== undefined) {
             return formatFunctionDocEntry(doc, declaration.name.arity);
         }
+        const parameters = declaration.signature.parameterTypes
+            .map((parameter) => formatSequenceType(parameter.type))
+            .join(", ");
+        const signature = `${QNameToString(declaration.name.qname, false)}(${parameters}) as ${formatSequenceType(declaration.signature.returnType)}`;
+        return ["```jsoniq", signature, "```"].join("\n");
     }
 
     const code = declaration ? definitionNameToString(declaration) : codeSnippet;
