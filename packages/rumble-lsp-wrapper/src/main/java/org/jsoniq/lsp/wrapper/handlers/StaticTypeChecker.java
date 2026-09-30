@@ -16,6 +16,7 @@ import org.rumbledb.compiler.VisitorHelpers;
 import org.rumbledb.config.RumbleConfiguration;
 import org.rumbledb.exceptions.ExceptionMetadata;
 import org.rumbledb.exceptions.RumbleException;
+import org.rumbledb.expressions.module.Module;
 
 public final class StaticTypeChecker implements RequestHandler {
 
@@ -52,19 +53,17 @@ public final class StaticTypeChecker implements RequestHandler {
         return new Result(typeErrors);
     }
 
-    private static void parseModule(String query, URI documentUri, RumbleConfiguration configuration) {
+    static Module parseModule(String query, URI documentUri, RumbleConfiguration configuration) {
         if (isLibraryModule(query)) {
-            VisitorHelpers.parseLibraryModuleFromQueryWithStaticContextAndInference(
+            return VisitorHelpers.parseLibraryModuleFromQueryWithStaticContextAndInference(
                     query, documentUri == null ? URI.create(".") : documentUri, configuration);
-            return;
         }
 
         if (documentUri == null) {
-            VisitorHelpers.parseMainModuleFromQuery(query, configuration, ExternalBindings.empty());
-            return;
+            return VisitorHelpers.parseMainModuleFromQuery(query, configuration, ExternalBindings.empty());
         }
 
-        VisitorHelpers.parseMainModule(query, documentUri, configuration, ExternalBindings.empty());
+        return VisitorHelpers.parseMainModule(query, documentUri, configuration, ExternalBindings.empty());
     }
 
     private static boolean isLibraryModule(String query) {
@@ -72,7 +71,7 @@ public final class StaticTypeChecker implements RequestHandler {
                 "(?s)^\\s*(?:\\(:.*?:\\)\\s*)*(?:jsoniq|xquery)?(?:\\s+version\\s+[^;]+;\\s*)?module\\s+namespace\\b.*");
     }
 
-    private static StaticTypeError toTypeError(RumbleException exception) {
+    static StaticTypeError toTypeError(RumbleException exception) {
         ExceptionMetadata metadata =
                 exception.getMetadata() == null ? ExceptionMetadata.EMPTY_METADATA : exception.getMetadata();
         String code = exception.getErrorCode().toString();
