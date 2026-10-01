@@ -125,8 +125,9 @@ export class WorkspaceIndex {
         // Register pending catalogs before yielding, so close/reopen also invalidates them.
         const pendingCatalog = this.getSchemaCatalog(document.uri, prolog);
 
+        // Keep known schema dependencies while loading their replacement catalog.
         // File changes must invalidate pending analysis as well as completed analysis.
-        this.moduleGraph.replaceDependencies(document.uri, dependencies);
+        this.moduleGraph.addDependencies(document.uri, dependencies);
         const entry: CachedAnalysis = {
             version: document.version,
             analysis: Promise.resolve().then(async () => {
@@ -146,6 +147,19 @@ export class WorkspaceIndex {
                     resolveBuiltin: (kind, name) => resolveBuiltin(kind, name, language),
                 });
                 if (this.analyses.get(document.uri) === entry) {
+                    // Rumble knows the nested imports/includes, including files it failed to read.
+                    const allDependencies = new Set(dependencies);
+
+                    // Add nested schema dependencies from the catalog
+                    for (const uri of catalog?.dependencies ?? []) {
+                        const dependency = new URL(uri);
+                        if (dependency.protocol === "file:") {
+                            // Java's file:/path and VSCode's file:///path must share a graph key.
+                            allDependencies.add(dependency.href);
+                        }
+                    }
+
+                    this.moduleGraph.replaceDependencies(document.uri, allDependencies);
                     // Let a subsequent request retry even when the document version is unchanged.
                     if (prolog.schemaImports.length > 0 && catalog === undefined) {
                         this.analyses.delete(document.uri);

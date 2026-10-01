@@ -99,6 +99,12 @@ describe("schema catalog", () => {
                 await mkdir(path.join(directory, "schemas"));
                 await writeFile(
                     path.join(directory, "schemas", "types.xsd"),
+                    `<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" targetNamespace="urn:test">
+                      <xs:include schemaLocation="common.xsd"/>
+                    </xs:schema>`,
+                );
+                await writeFile(
+                    path.join(directory, "schemas", "common.xsd"),
                     `
                 <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" targetNamespace="urn:test">
                   <xs:simpleType name="Code"><xs:restriction base="xs:string"/></xs:simpleType>
@@ -127,6 +133,7 @@ describe("schema catalog", () => {
                 expect(result.errors).toEqual([]);
                 expect(result.dependencies?.map((uri) => new URL(uri).href)).toEqual([
                     pathToFileURL(path.join(directory, "schemas", "types.xsd")).href,
+                    pathToFileURL(path.join(directory, "schemas", "common.xsd")).href,
                 ]);
                 expect(result.types).toEqual([{ localName: "Code", namespaceUri: "urn:test" }]);
                 expect(result.constructors).toEqual([
@@ -194,8 +201,8 @@ describe("schema catalog", () => {
                     kind: "function",
                     origin: "implicit",
                 });
-                // A saved XSD must replace the cached constructors without any query edit.
-                const schemaPath = path.join(directory, "schemas", "types.xsd");
+                // Saving a nested XSD must replace the constructors without editing the query or root XSD.
+                const schemaPath = path.join(directory, "schemas", "common.xsd");
                 await writeFile(
                     schemaPath,
                     `<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" targetNamespace="urn:test">

@@ -62,6 +62,91 @@ function update(document: TextDocument, text: string) {
 }
 
 describe("workspace schema catalog cache", () => {
+    it("tracks nested schema files across body edits and removes obsolete dependencies after reload", async () => {
+        const { workspace, sendRequest } = setup();
+        // Rumble uses file:/; VSCode sends file:///. Both must identify the same dependency.
+        sendRequest.mockResolvedValueOnce(
+            response({ ...catalog, dependencies: ["file:/nested.xsd"] }),
+        );
+        const document = testDocument("schema-cache-nested", source);
+        await workspace.getAnalysis(document);
+        update(document, source + " (: body edit :) ");
+        await workspace.getAnalysis(document);
+        expect(sendRequest).toHaveBeenCalledTimes(1);
+        const affected = await workspace.updateWatchedFiles([
+            { uri: "file:///nested.xsd", type: FileChangeType.Changed },
+        ]);
+        expect(affected.has(document.uri)).toBe(true);
+        const current = await workspace.getAnalysis(document);
+        // The replacement catalog no longer loads nested.xsd, so its old edge must disappear.
+        await workspace.updateWatchedFiles([
+            { uri: "file:///nested.xsd", type: FileChangeType.Deleted },
+        ]);
+        expect(await workspace.getAnalysis(document)).toBe(current);
+        expect(sendRequest).toHaveBeenCalledTimes(2);
+    });
+
+    it("retries a failed catalog when a missing nested schema is created", async () => {
+        const { workspace, sendRequest } = setup();
+        sendRequest.mockResolvedValueOnce(
+            response({
+                types: [],
+                constructors: [],
+                dependencies: ["file:/missing.xsd"],
+                errors: [
+                    {
+                        code: "XQST0059",
+                        message: "Missing included schema",
+                        location: "file:///missing.xsd",
+                        range: { start: { line: 0, character: 0 }, end: { line: 0, character: 0 } },
+                    },
+                ],
+            }),
+        );
+        const document = testDocument("schema-cache-missing-include", source);
+        const failed = await workspace.getAnalysis(document);
+        expect(failed.diagnostics.map((diagnostic) => diagnostic.code)).toContain(
+            "unresolved-function",
+        );
+        // Error responses still carry dependencies, so creation can recover without a query edit.
+        const affected = await workspace.updateWatchedFiles([
+            { uri: "file:///missing.xsd", type: FileChangeType.Created },
+        ]);
+        expect(affected.has(document.uri)).toBe(true);
+        expect((await workspace.getAnalysis(document)).diagnostics).toEqual([]);
+        expect(sendRequest).toHaveBeenCalledTimes(2);
+    });
+
+    it("keeps known nested dependencies while a reload is pending and ignores obsolete responses", async () => {
+        const { workspace, sendRequest } = setup();
+        sendRequest.mockResolvedValueOnce(
+            response({ ...catalog, dependencies: ["file:/nested.xsd"] }),
+        );
+        const document = testDocument("schema-cache-nested-pending", source);
+        await workspace.getAnalysis(document);
+        await workspace.updateWatchedFiles([
+            { uri: "file:///types.xsd", type: FileChangeType.Changed },
+        ]);
+        const pending = Promise.withResolvers<ReturnType<typeof response>>();
+        sendRequest.mockReturnValueOnce(pending.promise);
+        const old = workspace.getAnalysis(document);
+        // The known nested file remains a dependency even before the replacement catalog arrives.
+        const affected = await workspace.updateWatchedFiles([
+            { uri: "file:///nested.xsd", type: FileChangeType.Changed },
+        ]);
+        expect(affected.has(document.uri)).toBe(true);
+        const current = await workspace.getAnalysis(document);
+        pending.resolve(response({ ...catalog, dependencies: ["file:/obsolete.xsd"] }));
+        await old;
+        // Finishing the old request must not publish its obsolete dependency edges.
+        const obsolete = await workspace.updateWatchedFiles([
+            { uri: "file:///obsolete.xsd", type: FileChangeType.Changed },
+        ]);
+        expect(obsolete.has(document.uri)).toBe(false);
+        expect(await workspace.getAnalysis(document)).toBe(current);
+        expect(sendRequest).toHaveBeenCalledTimes(3);
+    });
+
     it.each([
         FileChangeType.Created,
         FileChangeType.Changed,
