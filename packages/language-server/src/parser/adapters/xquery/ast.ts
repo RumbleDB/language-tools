@@ -26,9 +26,13 @@ import {
     FunctionDeclContext,
     GroupByVarContext,
     InlineFunctionExprContext,
+    ItemTypeContext,
     LetVarContext,
     NamedFunctionRefContext,
     NamespaceDeclContext,
+    DefaultNamespaceDeclContext,
+    SchemaImportContext,
+    BaseURIDeclContext,
     LibraryModuleContext,
     ModuleImportContext,
     PositionalVarContext,
@@ -138,6 +142,54 @@ class XQueryAstBuilder extends XQueryParserVisitor<AstVisitResult> {
             },
         ];
     };
+
+    public override visitBaseURIDecl = (node: BaseURIDeclContext): AstVisitResult => [
+        {
+            kind: "base-uri-declaration",
+            uri: unquoteStringLiteral(node.uriLiteral().getText()),
+            range: rangeFromNode(node, this.document),
+            children: [],
+        },
+    ];
+
+    public override visitSchemaImport = (node: SchemaImportContext): AstVisitResult => {
+        const namespaceUri = node._nsURI;
+        if (namespaceUri === undefined) return [];
+        const prefix = node.schemaPrefix()?.ncName();
+        return [
+            {
+                kind: "schema-import",
+                ...(prefix == null
+                    ? {}
+                    : {
+                          prefix: prefix.getText().trim(),
+                          prefixRange: rangeFromNode(prefix, this.document),
+                      }),
+                defaultElementNamespace: node.schemaPrefix()?.KW_DEFAULT() != null,
+                namespaceUri: unquoteStringLiteral(namespaceUri.getText()),
+                namespaceUriRange: rangeFromNode(namespaceUri, this.document),
+                locations: node._locations.map((location) => ({
+                    uri: unquoteStringLiteral(location.getText()),
+                    range: rangeFromNode(location, this.document),
+                })),
+                range: rangeFromNode(node, this.document),
+                children: [],
+            },
+        ];
+    };
+
+    public override visitDefaultNamespaceDecl = (
+        node: DefaultNamespaceDeclContext,
+    ): AstVisitResult => [
+        {
+            kind: "default-namespace-declaration",
+            namespaceKind: node.KW_ELEMENT() === null ? "function" : "element",
+            namespaceUri: unquoteStringLiteral(node.stringLiteral().getText()),
+            namespaceUriRange: rangeFromNode(node.stringLiteral(), this.document),
+            range: rangeFromNode(node, this.document),
+            children: [],
+        },
+    ];
 
     public override visitNamespaceDecl = (node: NamespaceDeclContext): AstVisitResult => {
         const nameNode = node.ncName();
@@ -514,6 +566,19 @@ class XQueryAstBuilder extends XQueryParserVisitor<AstVisitResult> {
                     : -1,
         },
     ];
+
+    public override visitItemType = (node: ItemTypeContext): AstVisitResult => {
+        const name = node.eqName();
+        if (name === null) return this.visitChildrenAsNodes(node);
+        return [
+            {
+                kind: "type-reference",
+                name: parseQNameText(name.getText()),
+                range: rangeFromNode(name, this.document),
+                children: [],
+            },
+        ];
+    };
 
     private visitChildrenAsNodes(node: ParseTree): AstNode[] {
         return this.visitChildren(node) ?? [];
