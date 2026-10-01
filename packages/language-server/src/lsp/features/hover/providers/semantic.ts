@@ -32,6 +32,13 @@ export const provideSemanticHover: HoverProvider = async (context) => {
                 declaration: occurrence?.declaration,
                 codeSnippet: context.document.getText(range),
                 inferredType: type.sequenceType,
+                functionName:
+                    occurrence?.reference?.kind === "function"
+                        ? QNameToString(
+                              occurrence.reference.name.qname,
+                              occurrence.reference.name.qname.prefix === undefined,
+                          )
+                        : undefined,
             }),
         },
     };
@@ -41,20 +48,26 @@ interface HoverContentOptions {
     declaration?: Definition | undefined;
     codeSnippet?: string | undefined;
     inferredType?: SequenceType | undefined;
+    functionName?: string | undefined;
 }
 
 function createHoverContent(options: HoverContentOptions): string {
-    const { declaration, codeSnippet, inferredType } = options;
+    const { declaration, codeSnippet, inferredType, functionName } = options;
 
-    if (declaration?.origin === "builtin" && declaration.kind === "function") {
-        const doc = getBuiltinFunctionDocumentation(declaration.name.qname);
+    if (declaration?.kind === "function" && declaration.origin !== "source") {
+        const doc =
+            declaration.origin === "builtin"
+                ? getBuiltinFunctionDocumentation(declaration.name.qname)
+                : undefined;
         if (doc !== undefined) {
             return formatFunctionDocEntry(doc, declaration.name.arity);
         }
         const parameters = declaration.signature.parameterTypes
             .map((parameter) => formatSequenceType(parameter.type))
             .join(", ");
-        const signature = `${QNameToString(declaration.name.qname, false)}(${parameters}) as ${formatSequenceType(declaration.signature.returnType)}`;
+        // Catalog names are canonical; the reference retains the alias used in this query.
+        const name = functionName ?? QNameToString(declaration.name.qname, false);
+        const signature = `${name}(${parameters}) as ${formatSequenceType(declaration.signature.returnType)}`;
         return ["```jsoniq", signature, "```"].join("\n");
     }
 

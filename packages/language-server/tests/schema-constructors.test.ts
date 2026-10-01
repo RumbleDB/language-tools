@@ -5,10 +5,18 @@ import {
     getVisibleDeclarationsAtPosition,
     type SchemaConstructorDefinition,
 } from "server/analysis/index.js";
+import { createServerContext } from "server/app/context.js";
+import { findHover } from "server/lsp/features/hover.js";
 import { ParserService } from "server/parser/index.js";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+import type { Connection } from "vscode-languageserver/node";
 
-import { positionAt, testDocument } from "./test-utils.js";
+import {
+    createMockWrapperClient,
+    positionAt,
+    testDocument,
+    testDocumentFromUri,
+} from "./test-utils.js";
 
 const constructor: SchemaConstructorDefinition = {
     kind: "function",
@@ -141,4 +149,57 @@ describe("module-local schema constructors", () => {
             "unresolved-function",
         ]);
     });
+});
+
+describe("schema constructor hover", () => {
+    it.each([
+        ["jsoniq", 's:Code("a")', "s:Code"],
+        ["xquery", 's:Code("a")', "s:Code"],
+        ["jsoniq", "alias:Code#1", "alias:Code"],
+        ["xquery", "alias:Code#1", "alias:Code"],
+        ["jsoniq", 'Q{urn:schema}Code("a")', "Q{urn:schema}Code"],
+        ["xquery", 'Q{urn:schema}Code("a")', "Q{urn:schema}Code"],
+    ])(
+        "shows the catalog signature for %s %s even without type inference",
+        async (language, call, name) => {
+            const sendRequest = vi.fn((request: { requestType: string }) => {
+                if (request.requestType !== "schema-catalog")
+                    throw new Error("Type inference unavailable");
+                return Promise.resolve({
+                    id: 1,
+                    responseType: "schema-catalog",
+                    body: {
+                        types: [constructor.name.qname],
+                        constructors: [
+                            { name: constructor.name, signature: constructor.signature },
+                        ],
+                        errors: [],
+                    },
+                    error: null,
+                });
+            });
+            const wrapper = createMockWrapperClient({ sendRequest });
+            const { workspace } = createServerContext({} as Connection, wrapper);
+            const document = testDocumentFromUri(
+                [
+                    'import schema namespace s = "urn:schema" at "types.xsd";',
+                    'declare namespace alias = "urn:schema";',
+                    call,
+                ],
+                {
+                    uri: `file:///schema-hover.${language === "xquery" ? "xq" : "jq"}`,
+                    languageId: language,
+                },
+            );
+            // The catalog supplies the signature; a failed type-at-position request must not hide it.
+            const hover = await findHover(document, positionAt(document, call), workspace, wrapper);
+            expect(hover?.contents).toEqual({
+                kind: "markdown",
+                value: `\`\`\`jsoniq\n${name}(anyAtomicType?) as Code?\n\`\`\``,
+            });
+            expect(hover?.range?.start).toEqual(positionAt(document, call));
+            // Preserve the call site's prefix (or expanded QName) without changing the canonical definition.
+            expect(constructor.name.qname.prefix).toBeUndefined();
+        },
+    );
 });

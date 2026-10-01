@@ -9,6 +9,7 @@ import { RumbleWrapperClient } from "server/integrations/rumble/client.js";
 import type { SchemaCatalogWireResult } from "server/integrations/rumble/operations/schema-catalog/protocol.js";
 import { getSchemaCatalog } from "server/integrations/rumble/operations/schema-catalog/service.js";
 import { findCompletions } from "server/lsp/features/completion.js";
+import { findHover } from "server/lsp/features/hover.js";
 import { describe, expect, it, vi } from "vitest";
 import { TextDocument } from "vscode-languageserver-textdocument";
 import { FileChangeType, type Connection } from "vscode-languageserver/node";
@@ -170,6 +171,16 @@ describe("schema catalog", () => {
                 const { parser, workspace } = createServerContext({} as Connection, client);
                 const analysis = await workspace.getAnalysis(document);
                 expect(analysis.diagnostics).toEqual([]);
+                // Verify hover renders the signature supplied by the real schema catalog.
+                const hover = await findHover(
+                    document,
+                    positionAt(document, 't:Code("a")'),
+                    workspace,
+                    client,
+                );
+                expect(hover?.contents).toMatchObject({
+                    value: expect.stringContaining("t:Code(xs:anyAtomicType?) as Code?"),
+                });
                 expect(
                     findSymbolAtPosition(analysis, positionAt(document, 't:Code("a")'))
                         ?.declaration,
