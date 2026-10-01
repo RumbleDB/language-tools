@@ -1,9 +1,8 @@
-import { type ParseTree } from "antlr4ng";
 import { CommonAstBuilder, type AstVisitResult } from "server/parser/shared/ast.js";
 import type { ModuleAstNode } from "server/parser/types/ast.js";
 import { parseQNameText } from "server/parser/types/name.js";
 import { rangeFromNode } from "server/utils/range.js";
-import { TextDocument } from "vscode-languageserver-textdocument";
+import type { TextDocument } from "vscode-languageserver-textdocument";
 
 import type * as ctx from "./grammar/XQueryParser.js";
 import { XQueryParserVisitor } from "./grammar/XQueryParserVisitor.js";
@@ -13,7 +12,10 @@ class XQueryAstBuilder extends XQueryParserVisitor<AstVisitResult> {
 
     public constructor(private readonly document: TextDocument) {
         super();
-        this.common = new CommonAstBuilder(document, (node) => this.visit(node) ?? []);
+        this.common = new CommonAstBuilder(document, {
+            visit: (node) => (node == null ? [] : (this.visit(node) ?? [])),
+            visitChildren: (node) => this.visitChildren(node) ?? [],
+        });
     }
 
     protected override defaultResult(): AstVisitResult {
@@ -25,10 +27,6 @@ class XQueryAstBuilder extends XQueryParserVisitor<AstVisitResult> {
         nextResult: AstVisitResult,
     ): AstVisitResult {
         return aggregate.concat(nextResult);
-    }
-
-    private visitChildrenAsNodes(node: ParseTree): AstVisitResult {
-        return this.visitChildren(node) ?? [];
     }
 
     public override visitModuleAndThisIsIt = (node: ctx.ModuleAndThisIsItContext): AstVisitResult =>
@@ -90,8 +88,8 @@ class XQueryAstBuilder extends XQueryParserVisitor<AstVisitResult> {
     public override visitCountClause = (node: ctx.CountClauseContext): AstVisitResult =>
         this.common.visitCountClause(node);
 
-    public override visitGroupByVar = (node: ctx.GroupByVarContext): AstVisitResult =>
-        this.common.visitGroupByVar(node);
+    public override visitGroupByClause = (node: ctx.GroupByClauseContext): AstVisitResult =>
+        this.common.visitGroupByClause(node);
 
     public override visitQuantifiedExprVar = (node: ctx.QuantifiedExprVarContext): AstVisitResult =>
         this.common.visitQuantifiedExprVar(node);
@@ -146,7 +144,7 @@ class XQueryAstBuilder extends XQueryParserVisitor<AstVisitResult> {
 
     public override visitItemType = (node: ctx.ItemTypeContext): AstVisitResult => {
         const name = node.eqName();
-        if (name === null) return this.visitChildrenAsNodes(node);
+        if (name === null) return this.visitChildren(node) ?? [];
         return [
             {
                 kind: "type-reference",

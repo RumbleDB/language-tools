@@ -6,7 +6,7 @@ import {
 } from "server/parser/types/ast.js";
 import { parseQNameText } from "server/parser/types/name.js";
 import { rangeFromNode } from "server/utils/range.js";
-import { TextDocument } from "vscode-languageserver-textdocument";
+import type { TextDocument } from "vscode-languageserver-textdocument";
 
 import type * as jsoniq from "../adapters/jsoniq/grammar/JsoniqParser.js";
 import type * as xquery from "../adapters/xquery/grammar/XQueryParser.js";
@@ -26,7 +26,7 @@ type FlworStatementContext = jsoniq.FlworStatementContext | xquery.FlworStatemen
 type ForVarContext = jsoniq.ForVarContext | xquery.ForVarContext;
 type FunctionCallContext = jsoniq.FunctionCallContext | xquery.FunctionCallContext;
 type FunctionDeclContext = jsoniq.FunctionDeclContext | xquery.FunctionDeclContext;
-type GroupByVarContext = jsoniq.GroupByVarContext | xquery.GroupByVarContext;
+type GroupByClauseContext = jsoniq.GroupByClauseContext | xquery.GroupByClauseContext;
 type InlineFunctionExprContext =
     | jsoniq.InlineFunctionExprContext
     | xquery.InlineFunctionExprContext;
@@ -40,7 +40,6 @@ type SchemaImportContext = jsoniq.SchemaImportContext | xquery.SchemaImportConte
 type BaseURIDeclContext = jsoniq.BaseURIDeclContext | xquery.BaseURIDeclContext;
 type LibraryModuleContext = jsoniq.LibraryModuleContext | xquery.LibraryModuleContext;
 type ModuleImportContext = jsoniq.ModuleImportContext | xquery.ModuleImportContext;
-type PositionalVarContext = jsoniq.PositionalVarContext | xquery.PositionalVarContext;
 type QuantifiedExprVarContext = jsoniq.QuantifiedExprVarContext | xquery.QuantifiedExprVarContext;
 type SlidingWindowClauseContext =
     | jsoniq.SlidingWindowClauseContext
@@ -68,7 +67,18 @@ type WindowEndConditionContext =
 type VarDeclStatementContext = jsoniq.VarDeclStatementContext | xquery.VarDeclStatementContext;
 type TransformExprContext = jsoniq.TransformExprContext | xquery.TransformExprContext;
 type ArgumentListContext = jsoniq.ArgumentListContext | xquery.ArgumentListContext;
+type GroupByVarContext = jsoniq.GroupByVarContext | xquery.GroupByVarContext;
+type VarDeclForStatementContext =
+    | jsoniq.VarDeclForStatementContext
+    | xquery.VarDeclForStatementContext;
+type CopyDeclContext = jsoniq.CopyDeclContext | xquery.CopyDeclContext;
+type ArgumentContext = jsoniq.ArgumentContext | xquery.ArgumentContext;
 export type AstVisitResult = AstNode[];
+
+interface AstTraversal {
+    visit(node: ParseTree | null | undefined): AstVisitResult;
+    visitChildren(node: ParseTree): AstVisitResult;
+}
 
 function unquoteStringLiteral(text: string): string {
     return text.length >= 2 &&
@@ -94,14 +104,14 @@ function hasPrivateAnnotation(node: FunctionDeclContext | VarDeclContext): boole
 export class CommonAstBuilder {
     public constructor(
         private readonly document: TextDocument,
-        private readonly visit: (node: ParseTree) => AstVisitResult,
+        private readonly traversal: AstTraversal,
     ) {}
 
     public visitModuleAndThisIsIt = (node: ModuleAndThisIsItContext): AstVisitResult => [
         {
             kind: "module",
             range: rangeFromNode(node, this.document),
-            children: this.visitChildrenAsNodes(node),
+            children: this.traversal.visitChildren(node),
         },
     ];
 
@@ -118,7 +128,7 @@ export class CommonAstBuilder {
                     end: rangeFromNode(node.SEMICOLON(), this.document).end,
                 },
                 selectionRange: rangeFromNode(prefix, this.document),
-                children: this.visitChildrenAsNodes(node),
+                children: this.traversal.visitChildren(node),
             },
         ];
     };
@@ -250,13 +260,13 @@ export class CommonAstBuilder {
             range: rangeFromNode(node, this.document),
             name: parseFunctionName(node, node.paramList()?.param().length ?? 0),
             selectionRange: rangeFromNode(node.functionName(), this.document),
-            parameters: this.parameters(node),
+            parameters: this.buildParameters(node),
             isPrivate: hasPrivateAnnotation(node),
-            children: this.visitChildrenAsNodes(node),
+            children: this.traversal.visitChildren(node),
         },
     ];
 
-    private variableDeclaration(
+    private buildVariableDeclaration(
         node: VarBindingContext | null | undefined,
         visibleFrom: VariableDeclarationAstNode["visibleFrom"] | null,
     ): VariableDeclarationAstNode | null {
@@ -282,13 +292,12 @@ export class CommonAstBuilder {
     private declarationsBeforeChildren(
         node: ParseTree,
         declarations: Array<VariableDeclarationAstNode | null>,
-        translateChild?: (child: ParseTree) => AstVisitResult | undefined,
     ): AstVisitResult {
         return [
             ...declarations.filter(
                 (declaration): declaration is VariableDeclarationAstNode => declaration !== null,
             ),
-            ...this.visitChildrenAsNodes(node, translateChild),
+            ...this.traversal.visitChildren(node),
         ];
     }
 
@@ -297,12 +306,12 @@ export class CommonAstBuilder {
         declaration: VariableDeclarationAstNode | null,
     ): AstVisitResult {
         return declaration === null
-            ? this.visitChildrenAsNodes(node)
+            ? this.traversal.visitChildren(node)
             : [
                   {
                       ...declaration,
                       range: rangeFromNode(node, this.document),
-                      children: this.visitChildrenAsNodes(node),
+                      children: this.traversal.visitChildren(node),
                   },
               ];
     }
@@ -313,7 +322,7 @@ export class CommonAstBuilder {
             terminator === null || terminator.symbol.tokenIndex < 0
                 ? null
                 : rangeFromNode(terminator, this.document).end;
-        const declaration = this.variableDeclaration(node.varBinding(), visibleFrom);
+        const declaration = this.buildVariableDeclaration(node.varBinding(), visibleFrom);
         return this.declarationWithChildren(
             node,
             declaration === null ? null : { ...declaration, isPrivate: hasPrivateAnnotation(node) },
@@ -325,19 +334,10 @@ export class CommonAstBuilder {
         const visibleFrom =
             expression === undefined ? null : rangeFromNode(expression, this.document).end;
         return this.declarationsBeforeChildren(node, [
-            this.variableDeclaration(node._var_ref, visibleFrom),
-            this.variableDeclaration(node._at, visibleFrom),
+            this.buildVariableDeclaration(node._var_ref, visibleFrom),
+            this.buildVariableDeclaration(node._at, visibleFrom),
         ]);
     };
-
-    private positionalVar(
-        node: PositionalVarContext,
-        visibleFrom: VariableDeclarationAstNode["visibleFrom"] | null,
-    ): AstVisitResult {
-        return this.declarationsBeforeChildren(node, [
-            this.variableDeclaration(node._pvar, visibleFrom),
-        ]);
-    }
 
     public visitLetVar = (node: LetVarContext): AstVisitResult => {
         const expression = node._ex;
@@ -345,80 +345,87 @@ export class CommonAstBuilder {
             expression === undefined ? null : rangeFromNode(expression, this.document).end;
         return this.declarationWithChildren(
             node,
-            this.variableDeclaration(node._var_ref, visibleFrom),
+            this.buildVariableDeclaration(node._var_ref, visibleFrom),
         );
     };
 
     public visitTumblingWindowClause = (node: TumblingWindowClauseContext): AstVisitResult =>
         this.declarationsBeforeChildren(node, [
-            this.variableDeclaration(node._name, rangeFromNode(node, this.document).end),
+            this.buildVariableDeclaration(node._name, rangeFromNode(node, this.document).end),
         ]);
 
     public visitSlidingWindowClause = (node: SlidingWindowClauseContext): AstVisitResult =>
         this.declarationsBeforeChildren(node, [
-            this.variableDeclaration(node._name, rangeFromNode(node, this.document).end),
+            this.buildVariableDeclaration(node._name, rangeFromNode(node, this.document).end),
         ]);
 
     public visitWindowStartCondition = (node: WindowStartConditionContext): AstVisitResult =>
-        this.windowCondition(node);
+        this.visitWindowCondition(node);
 
     public visitWindowEndCondition = (node: WindowEndConditionContext): AstVisitResult =>
-        this.windowCondition(node);
+        this.visitWindowCondition(node);
 
-    private windowCondition(
+    private visitWindowCondition(
         node: WindowStartConditionContext | WindowEndConditionContext,
     ): AstVisitResult {
         const variables = node.windowVars();
         const expression = node.exprSingle();
         const visibleFrom =
             expression == null ? null : rangeFromNode(expression, this.document).start;
-        return this.visitChildrenAsNodes(node, (child) =>
-            child === variables ? this.windowVars(variables, visibleFrom) : undefined,
-        );
+        return [
+            ...this.visitWindowVars(variables, visibleFrom),
+            ...this.traversal.visit(expression),
+        ];
     }
 
-    private windowVars(
-        node: WindowVarsContext,
+    private visitWindowVars(
+        node: WindowVarsContext | null | undefined,
         visibleFrom: VariableDeclarationAstNode["visibleFrom"] | null,
     ): AstVisitResult {
-        const positional = node.positionalVar();
-        return this.declarationsBeforeChildren(
-            node,
-            [
-                this.variableDeclaration(node._currentItem, visibleFrom),
-                this.variableDeclaration(node._previousItem, visibleFrom),
-                this.variableDeclaration(node._nextItem, visibleFrom),
-            ],
-            (child) =>
-                positional !== null && child === positional
-                    ? this.positionalVar(positional, visibleFrom)
-                    : undefined,
-        );
+        if (node == null) return [];
+        return [
+            this.buildVariableDeclaration(node._currentItem, visibleFrom),
+            this.buildVariableDeclaration(node._previousItem, visibleFrom),
+            this.buildVariableDeclaration(node._nextItem, visibleFrom),
+            this.buildVariableDeclaration(node.positionalVar()?._pvar, visibleFrom),
+        ].filter((declaration): declaration is VariableDeclarationAstNode => declaration !== null);
     }
 
     public visitCountClause = (node: CountClauseContext): AstVisitResult =>
         this.declarationsBeforeChildren(node, [
-            this.variableDeclaration(node.varBinding(), rangeFromNode(node, this.document).end),
+            this.buildVariableDeclaration(
+                node.varBinding(),
+                rangeFromNode(node, this.document).end,
+            ),
         ]);
 
-    public visitGroupByVar = (node: GroupByVarContext): AstVisitResult => {
-        const clause = node.parent;
-        const visibleFrom = clause === null ? null : rangeFromNode(clause, this.document).end;
-        return this.declarationsBeforeChildren(node, [
-            this.variableDeclaration(node._var_ref, visibleFrom),
-        ]);
+    public visitGroupByClause = (node: GroupByClauseContext): AstVisitResult => {
+        const visibleFrom = rangeFromNode(node, this.document).end;
+        return node.groupByVar().flatMap((binding) => this.visitGroupByVar(binding, visibleFrom));
     };
+
+    private visitGroupByVar(
+        node: GroupByVarContext,
+        visibleFrom: VariableDeclarationAstNode["visibleFrom"],
+    ): AstVisitResult {
+        return this.declarationsBeforeChildren(node, [
+            this.buildVariableDeclaration(node._var_ref, visibleFrom),
+        ]);
+    }
 
     public visitQuantifiedExprVar = (node: QuantifiedExprVarContext): AstVisitResult => {
         const expression = node.exprSingle();
         return this.declarationsBeforeChildren(node, [
-            this.variableDeclaration(node._var_ref, rangeFromNode(expression, this.document).end),
+            this.buildVariableDeclaration(
+                node._var_ref,
+                rangeFromNode(expression, this.document).end,
+            ),
         ]);
     };
 
     public visitTypeswitchExpr = (node: TypeswitchExprContext): AstVisitResult =>
         this.declarationsBeforeChildren(node, [
-            this.variableDeclaration(
+            this.buildVariableDeclaration(
                 node._var_ref,
                 node._def === undefined ? null : rangeFromNode(node._def, this.document).start,
             ),
@@ -426,7 +433,7 @@ export class CommonAstBuilder {
 
     public visitCaseClause = (node: CaseClauseContext): AstVisitResult =>
         this.declarationsBeforeChildren(node, [
-            this.variableDeclaration(
+            this.buildVariableDeclaration(
                 node._var_ref,
                 node._ret === undefined ? null : rangeFromNode(node._ret, this.document).start,
             ),
@@ -439,14 +446,14 @@ export class CommonAstBuilder {
             node
                 .paramList()
                 ?.param()
-                .map((param) => this.variableDeclaration(param._name, visibleFrom)) ?? [];
+                .map((param) => this.buildVariableDeclaration(param._name, visibleFrom)) ?? [];
 
         return this.declarationsBeforeChildren(node, declarations);
     };
 
     public visitTypeSwitchStatement = (node: TypeSwitchStatementContext): AstVisitResult =>
         this.declarationsBeforeChildren(node, [
-            this.variableDeclaration(
+            this.buildVariableDeclaration(
                 node._var_ref,
                 node._def === undefined ? null : rangeFromNode(node._def, this.document).start,
             ),
@@ -454,7 +461,7 @@ export class CommonAstBuilder {
 
     public visitCaseStatement = (node: CaseStatementContext): AstVisitResult =>
         this.declarationsBeforeChildren(node, [
-            this.variableDeclaration(
+            this.buildVariableDeclaration(
                 node._var_ref,
                 node._ret === undefined ? null : rangeFromNode(node._ret, this.document).start,
             ),
@@ -466,37 +473,48 @@ export class CommonAstBuilder {
             terminator === null || terminator.symbol.tokenIndex < 0
                 ? null
                 : rangeFromNode(terminator, this.document).end;
-        const bindings = node.varDeclForStatement();
-        return this.visitChildrenAsNodes(node, (child) => {
-            const binding = bindings.find((binding) => binding === child);
-            return binding === undefined
-                ? undefined
-                : this.declarationsBeforeChildren(binding, [
-                      this.variableDeclaration(binding._var_ref, visibleFrom),
-                  ]);
-        });
+        return [
+            ...this.traversal.visit(node.annotations()),
+            ...node
+                .varDeclForStatement()
+                .flatMap((binding) => this.visitVarDeclForStatement(binding, visibleFrom)),
+        ];
     };
+
+    private visitVarDeclForStatement(
+        node: VarDeclForStatementContext,
+        visibleFrom: VariableDeclarationAstNode["visibleFrom"] | null,
+    ): AstVisitResult {
+        return this.declarationsBeforeChildren(node, [
+            this.buildVariableDeclaration(node._var_ref, visibleFrom),
+        ]);
+    }
 
     public visitTransformExpr = (node: TransformExprContext): AstVisitResult => {
         const expression = node._mod_expr;
         const visibleFrom =
             expression === undefined ? null : rangeFromNode(expression, this.document).start;
-        const copies = node.copyDecl();
-        return this.visitChildrenAsNodes(node, (child) => {
-            const copy = copies.find((copy) => copy === child);
-            return copy === undefined
-                ? undefined
-                : this.declarationsBeforeChildren(copy, [
-                      this.variableDeclaration(copy._var_ref, visibleFrom),
-                  ]);
-        });
+        return [
+            ...node.copyDecl().flatMap((copy) => this.visitCopyDecl(copy, visibleFrom)),
+            ...this.traversal.visit(expression),
+            ...this.traversal.visit(node._ret_expr),
+        ];
     };
+
+    private visitCopyDecl(
+        node: CopyDeclContext,
+        visibleFrom: VariableDeclarationAstNode["visibleFrom"] | null,
+    ): AstVisitResult {
+        return this.declarationsBeforeChildren(node, [
+            this.buildVariableDeclaration(node._var_ref, visibleFrom),
+        ]);
+    }
 
     public visitFlworExpr = (node: FlworExprContext): AstVisitResult => [
         {
             kind: "flowr-expression",
             range: rangeFromNode(node, this.document),
-            children: this.visitChildrenAsNodes(node),
+            children: this.traversal.visitChildren(node),
         },
     ];
 
@@ -504,7 +522,7 @@ export class CommonAstBuilder {
         {
             kind: "flowr-expression",
             range: rangeFromNode(node, this.document),
-            children: this.visitChildrenAsNodes(node),
+            children: this.traversal.visitChildren(node),
         },
     ];
 
@@ -522,19 +540,13 @@ export class CommonAstBuilder {
               ];
     };
 
-    public visitFunctionCall = (node: FunctionCallContext): AstVisitResult =>
-        this.functionCall(node);
-
-    public visitNamedFunctionRef = (node: NamedFunctionRefContext): AstVisitResult =>
-        this.namedFunctionReference(node);
-
     public visitCatchCaseStatement = (node: CatchCaseStatementContext): AstVisitResult =>
-        this.catchClause(node, node._catch_block?.LBRACE());
+        this.buildCatchClause(node, node._catch_block?.LBRACE(), node._catch_block);
 
     public visitCatchClause = (node: CatchClauseContext): AstVisitResult =>
-        this.catchClause(node, node.LBRACE());
+        this.buildCatchClause(node, node.LBRACE(), node._catch_expression);
 
-    private catchErrorTarget(node: NameTestContext): AstVisitResult {
+    private buildCatchErrorTarget(node: NameTestContext): AstVisitResult {
         const name = node.eqName();
         return [
             {
@@ -549,42 +561,21 @@ export class CommonAstBuilder {
         ];
     }
 
-    public visitArgumentList = (node: ArgumentListContext): AstVisitResult => {
-        const args = node.argument();
-        return this.visitChildrenAsNodes(node, (child) => {
-            const index = args.findIndex((argument) => argument === child);
-            const argument = args[index];
-            return argument === undefined
-                ? undefined
-                : [
-                      {
-                          kind: "argument",
-                          range: rangeFromNode(argument, this.document),
-                          children: this.visitChildrenAsNodes(argument),
-                          index,
-                      },
-                  ];
-        });
-    };
+    public visitArgumentList = (node: ArgumentListContext): AstVisitResult =>
+        node.argument().flatMap((argument, index) => this.visitArgument(argument, index));
 
-    /** Translate selected children in their parent's context; dispatch the rest normally. */
-    private visitChildrenAsNodes(
-        node: ParseTree,
-        translateChild?: (child: ParseTree) => AstVisitResult | undefined,
-    ): AstVisitResult {
-        const result: AstVisitResult = [];
-        for (let index = 0; index < node.getChildCount(); index++) {
-            const child = node.getChild(index);
-            if (child !== null) {
-                for (const astNode of translateChild?.(child) ?? this.visit(child)) {
-                    result.push(astNode);
-                }
-            }
-        }
-        return result;
+    private visitArgument(node: ArgumentContext, index: number): AstVisitResult {
+        return [
+            {
+                kind: "argument",
+                range: rangeFromNode(node, this.document),
+                children: this.traversal.visitChildren(node),
+                index,
+            },
+        ];
     }
 
-    private parameters(node: FunctionDeclContext): AstParameter[] {
+    private buildParameters(node: FunctionDeclContext): AstParameter[] {
         const parameters: AstParameter[] = [];
 
         for (const [index, param] of node.paramList()?.param().entries() ?? []) {
@@ -610,14 +601,14 @@ export class CommonAstBuilder {
         return parameters;
     }
 
-    private functionCall(node: FunctionCallContext): AstVisitResult {
+    public visitFunctionCall = (node: FunctionCallContext): AstVisitResult => {
         const nameNode = node._fn_name;
         const name = parseFunctionName(node, node.argumentList()?.argument().length);
         if (nameNode === undefined) {
             return [];
         }
 
-        const children = this.visitChildrenAsNodes(node);
+        const children = this.traversal.visitChildren(node);
 
         return [
             {
@@ -628,9 +619,9 @@ export class CommonAstBuilder {
                 children,
             },
         ];
-    }
+    };
 
-    private namedFunctionReference(node: NamedFunctionRefContext): AstVisitResult {
+    public visitNamedFunctionRef = (node: NamedFunctionRefContext): AstVisitResult => {
         const nameNode = node._fn_name;
         const arity = Number.parseInt(
             node._arity?.text ?? node.IntegerLiteral()?.getText() ?? "",
@@ -648,13 +639,13 @@ export class CommonAstBuilder {
                   },
               ]
             : [];
-    }
+    };
 
-    private catchClause(
+    private buildCatchClause(
         node: CatchCaseStatementContext | CatchClauseContext,
         bodyStart: TerminalNode | null | undefined,
+        body: ParseTree | null | undefined,
     ): AstVisitResult {
-        const targets = node.nameTest();
         return [
             {
                 kind: "catch-clause",
@@ -663,10 +654,10 @@ export class CommonAstBuilder {
                     bodyStart == null
                         ? rangeFromNode(node, this.document).start
                         : rangeFromNode(bodyStart, this.document).end,
-                children: this.visitChildrenAsNodes(node, (child) => {
-                    const target = targets.find((target) => target === child);
-                    return target === undefined ? undefined : this.catchErrorTarget(target);
-                }),
+                children: [
+                    ...node.nameTest().flatMap((target) => this.buildCatchErrorTarget(target)),
+                    ...this.traversal.visit(body),
+                ],
             },
         ];
     }
