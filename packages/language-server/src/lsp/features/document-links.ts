@@ -1,6 +1,9 @@
 import { collectModuleProlog } from "server/analysis/index.js";
 import type { ParserService } from "server/parser/index.js";
-import { resolveModuleLocations } from "server/workspace/module-resolver.js";
+import {
+    resolveModuleLocations,
+    resolveSchemaLocations,
+} from "server/workspace/module-resolver.js";
 import type { DocumentLink } from "vscode-languageserver";
 import type { TextDocument } from "vscode-languageserver-textdocument";
 
@@ -22,9 +25,13 @@ export function collectDocumentLinks(
     parser: ParserService,
 ): DocumentLink[] {
     const prolog = collectModuleProlog(document.uri, parser.parse(document).ast);
-    return prolog.imports.flatMap((imported) =>
-        resolveModuleLocations(document.uri, imported).flatMap(({ range, targetUri }) =>
-            targetUri?.startsWith("file:") === true ? [{ range, target: targetUri }] : [],
+    const locations = [
+        ...prolog.imports.flatMap((imported) => resolveModuleLocations(document.uri, imported)),
+        ...prolog.schemaImports.flatMap((imported) =>
+            resolveSchemaLocations(document.uri, imported, prolog.baseUri),
         ),
+    ];
+    return locations.flatMap(({ range, targetUri }) =>
+        targetUri?.startsWith("file:") === true ? [{ range, target: targetUri }] : [],
     );
 }

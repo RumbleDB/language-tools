@@ -1,5 +1,6 @@
 import type {
     ArgumentAstNode,
+    BaseUriDeclarationAstNode,
     AstNode,
     CatchErrorTargetAstNode,
     CatchClauseAstNode,
@@ -11,8 +12,10 @@ import type {
     ModuleAstNode,
     ModuleDeclarationAstNode,
     ModuleImportAstNode,
+    SchemaImportAstNode,
     NamedFunctionReferenceAstNode,
     NamespaceDeclarationAstNode,
+    DefaultNamespaceDeclarationAstNode,
     TypeDeclarationAstNode,
     TypeReferenceAstNode,
     VariableDeclarationAstNode,
@@ -28,8 +31,14 @@ export abstract class ParserAstVisitor<R = void> {
                 return this.visitModuleDeclaration(node);
             case "module-import":
                 return this.visitModuleImport(node);
+            case "base-uri-declaration":
+                return this.visitBaseUriDeclaration(node);
+            case "schema-import":
+                return this.visitSchemaImport(node);
             case "namespace-declaration":
                 return this.visitNamespaceDeclaration(node);
+            case "default-namespace-declaration":
+                return this.visitDefaultNamespaceDeclaration(node);
             case "context-item-declaration":
                 return this.visitContextItemDeclaration(node);
             case "type-declaration":
@@ -61,6 +70,10 @@ export abstract class ParserAstVisitor<R = void> {
         }
     }
 
+    protected visitBaseUriDeclaration(node: BaseUriDeclarationAstNode): R {
+        return this.defaultVisit(node);
+    }
+
     protected visitChildren(node: AstNode): R[] {
         return node.children.map((child) => this.visit(child));
     }
@@ -83,6 +96,14 @@ export abstract class ParserAstVisitor<R = void> {
     }
 
     protected visitNamespaceDeclaration(node: NamespaceDeclarationAstNode): R {
+        return this.defaultVisit(node);
+    }
+
+    protected visitDefaultNamespaceDeclaration(node: DefaultNamespaceDeclarationAstNode): R {
+        return this.defaultVisit(node);
+    }
+
+    protected visitSchemaImport(node: SchemaImportAstNode): R {
         return this.defaultVisit(node);
     }
 
