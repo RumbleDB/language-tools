@@ -11,7 +11,7 @@ import { positionAt, testDocumentFromUri } from "./test-utils.js";
 
 const schemaTypes: SchemaTypeDefinition[] = ["Code", "Record"].map((localName) => ({
     kind: "type",
-    origin: "implicit",
+    origin: "schema",
     name: { namespaceUri: "urn:schema", localName },
 }));
 const parser = new ParserService();

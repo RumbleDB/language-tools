@@ -217,7 +217,7 @@ describe("workspace schema catalog cache", () => {
         const edited = await workspace.getAnalysis(document);
         expect(
             findSymbolAtPosition(edited, positionAt(document, 's:Code("b")'))?.declaration?.origin,
-        ).toBe("implicit");
+        ).toBe("schema");
 
         // Prefixes affect presentation and name resolution, but not the schema catalog.
         update(document, 'import schema namespace alias = "urn:test" at "types.xsd"; alias:');
@@ -227,7 +227,7 @@ describe("workspace schema catalog cache", () => {
         ).toContainEqual({
             ...catalog.constructors[0],
             kind: "function",
-            origin: "implicit",
+            origin: "schema",
         });
         expect(sendRequest).toHaveBeenCalledTimes(1);
     });

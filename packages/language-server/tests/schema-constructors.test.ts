@@ -21,7 +21,7 @@ import {
 
 const constructor: SchemaConstructorDefinition = {
     kind: "function",
-    origin: "implicit",
+    origin: "schema",
     name: { qname: { namespaceUri: "urn:schema", localName: "Code" }, arity: 1 },
     signature: {
         parameterTypes: [

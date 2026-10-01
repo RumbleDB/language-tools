@@ -6,7 +6,7 @@ import type { StaticFunctionSignature } from "./type-system.js";
 
 export type DefinitionKind = "variable" | "namespace" | "type" | "parameter" | "function";
 
-export type DefinitionOrigin = "source" | "implicit" | "builtin";
+export type DefinitionOrigin = "source" | "schema" | "implicit" | "builtin";
 
 declare const symbolIdBrand: unique symbol;
 export type SymbolId = string & { readonly [symbolIdBrand]: true };
@@ -92,13 +92,13 @@ export interface ImplicitVariableDefinition extends AbstractDefinition<"variable
 
 /** A constructor function supplied by a schema imported into this module. */
 export interface SchemaConstructorDefinition extends BaseDefinition<"function"> {
-    readonly origin: "implicit";
+    readonly origin: "schema";
     readonly signature: StaticFunctionSignature;
 }
 
 /** A named XML Schema type supplied by a schema imported into this module. */
 export interface SchemaTypeDefinition extends BaseDefinition<"type"> {
-    readonly origin: "implicit";
+    readonly origin: "schema";
 }
 
 export type ScopeDefinition =

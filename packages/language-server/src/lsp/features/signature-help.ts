@@ -148,7 +148,7 @@ function resolveSignatures(
                 createSignatureInformation(
                     QNameToString(
                         call.name.qname,
-                        resolvedDeclaration.origin === "implicit" &&
+                        resolvedDeclaration.origin === "schema" &&
                             call.name.qname.prefix === undefined,
                     ),
                     resolvedDeclaration.signature.parameterTypes.map((parameter, index) => ({
@@ -210,7 +210,7 @@ export async function findSignatureHelp(
         getVisibleDeclarationsAtPosition(analysis, document.offsetAt(position)).find(
             (definition): definition is SchemaConstructorDefinition =>
                 definition.kind === "function" &&
-                definition.origin === "implicit" &&
+                definition.origin === "schema" &&
                 sameQName(definition.name.qname, activeCall.name.qname),
         );
 

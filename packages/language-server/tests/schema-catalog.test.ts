@@ -177,7 +177,7 @@ describe("schema catalog", () => {
                     findSymbolAtPosition(analysis, positionAt(document, "t:Code :="))?.declaration,
                 ).toMatchObject({
                     kind: "type",
-                    origin: "implicit",
+                    origin: "schema",
                     name: { namespaceUri: "urn:test", localName: "Code" },
                 });
                 // Parameter help uses the signature exported by the actual Java schema loader.
@@ -205,7 +205,7 @@ describe("schema catalog", () => {
                 ).toEqual({
                     ...result.constructors[0],
                     kind: "function",
-                    origin: "implicit",
+                    origin: "schema",
                 });
                 // An unfinished body must not prevent the workspace from loading the same schema.
                 TextDocument.update(
@@ -238,7 +238,7 @@ describe("schema catalog", () => {
                 ).toContainEqual({
                     ...result.constructors[0],
                     kind: "function",
-                    origin: "implicit",
+                    origin: "schema",
                 });
                 // Saving a nested XSD must replace the constructors without editing the query or root XSD.
                 const schemaPath = path.join(directory, "schemas", "common.xsd");
@@ -257,7 +257,7 @@ describe("schema catalog", () => {
                     document.getText().length,
                 ).filter(
                     (definition) =>
-                        definition.kind === "function" && definition.origin === "implicit",
+                        definition.kind === "function" && definition.origin === "schema",
                 );
                 expect(constructors.map((definition) => definition.name)).toEqual([
                     { qname: { localName: "NewCode", namespaceUri: "urn:test" }, arity: 1 },

@@ -141,13 +141,13 @@ export class WorkspaceIndex {
                 ).map((constructor) => ({
                     ...constructor,
                     kind: "function",
-                    origin: "implicit",
+                    origin: "schema",
                 }));
                 const language = getActiveParserId(document);
                 const schemaTypes: SchemaTypeDefinition[] = (catalog?.types ?? []).map((name) => ({
                     name,
                     kind: "type",
-                    origin: "implicit",
+                    origin: "schema",
                 }));
                 const { analysis } = analyzeModule(document, ast, {
                     provider,

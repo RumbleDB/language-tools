@@ -23,7 +23,7 @@ export const provideSchemaConstructorCompletions: CompletionProvider = async (co
 
     const items: CompletionItem[] = [];
     for (const definition of await context.getVisibleDeclarations()) {
-        if (definition.kind !== "function" || definition.origin !== "implicit") continue;
+        if (definition.kind !== "function" || definition.origin !== "schema") continue;
         const qname = definition.name.qname;
         // Catalog names have no query prefix. Offer each alias bound to their namespace.
         const prefixes = [...namespaces].filter(([, uri]) => uri === qname.namespaceUri);
