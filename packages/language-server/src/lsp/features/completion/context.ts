@@ -1,4 +1,8 @@
-import { getVisibleDeclarationsAtPosition, type ScopeDefinition } from "server/analysis/index.js";
+import {
+    getVisibleDeclarationsAtPosition,
+    type AnalysisResult,
+    type ScopeDefinition,
+} from "server/analysis/index.js";
 import type { WrapperClient } from "server/integrations/rumble/client.js";
 import type { ParserService } from "server/parser/index.js";
 import { getDocumentText } from "server/parser/utils.js";
@@ -23,7 +27,8 @@ export function createCompletionContext(
         return null;
     }
 
-    let visibleDeclarations: ScopeDefinition[] | undefined;
+    let visibleDeclarations: Promise<ScopeDefinition[]> | undefined;
+    let analysis: Promise<AnalysisResult> | undefined;
 
     return {
         document,
@@ -31,10 +36,12 @@ export function createCompletionContext(
         cursorOffset,
         intent,
         wrapper,
+        getAnalysis() {
+            return (analysis ??= workspace.getAnalysis(document));
+        },
         getVisibleDeclarations() {
-            visibleDeclarations ??= getVisibleDeclarationsAtPosition(
-                workspace.getAnalysis(document),
-                cursorOffset,
+            visibleDeclarations ??= this.getAnalysis().then((analysis) =>
+                getVisibleDeclarationsAtPosition(analysis, cursorOffset),
             );
             return visibleDeclarations;
         },

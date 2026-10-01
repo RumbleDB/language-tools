@@ -16,7 +16,7 @@ import { MarkupKind } from "vscode-languageserver";
 import type { HoverProvider } from "../types.js";
 
 export const provideSemanticHover: HoverProvider = async (context) => {
-    const occurrence = findSymbolAtPosition(context.getAnalysis(), context.position);
+    const occurrence = findSymbolAtPosition(await context.getAnalysis(), context.position);
     const type = await getTypeAtPosition(context.document, context.position, context.wrapper);
 
     const range = occurrence?.range ?? type?.range;

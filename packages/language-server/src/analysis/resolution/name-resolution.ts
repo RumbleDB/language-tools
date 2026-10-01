@@ -15,19 +15,37 @@ export class NamespaceResolver {
     public constructor(
         private readonly namespaces: ReadonlyMap<Prefix, SourceNamespaceDefinition>,
         private readonly reportDiagnostic: (diagnostic: Diagnostic) => void,
+        private readonly defaultElementTypeNamespace?: string,
     ) {}
 
-    public resolveFunctionName(name: LexicalFunctionName, range: Range): FunctionName {
-        return { ...name, qname: this.resolveQName(name.qname, range) };
+    public getNamespaces(): ReadonlyMap<Prefix, string> {
+        const namespaces = new Map<Prefix, string>();
+        for (const prefix of [...DEFAULT_NAMESPACES.keys(), ...this.namespaces.keys()]) {
+            const namespaceUri = this.resolveNamespaceUri(prefix);
+            if (namespaceUri !== undefined) namespaces.set(prefix, namespaceUri);
+        }
+        return namespaces;
     }
 
-    public resolveQName(qname: LexicalQName, range: Range): QName {
+    public resolveFunctionName(
+        name: LexicalFunctionName,
+        range: Range,
+        defaultFunctionNamespace?: string,
+    ): FunctionName {
+        return { ...name, qname: this.resolveQName(name.qname, range, defaultFunctionNamespace) };
+    }
+
+    public resolveTypeName(name: LexicalQName, range: Range): QName {
+        // The default element/type namespace applies only to unprefixed type names.
+        return this.resolveQName(name, range, this.defaultElementTypeNamespace);
+    }
+
+    public resolveQName(qname: LexicalQName, range: Range, defaultNamespace?: string): QName {
         const namespaceUri = isUriQualifiedQName(qname)
             ? qname.namespaceUri
             : isPrefixedQName(qname)
-              ? (this.namespaces.get(qname.prefix)?.namespaceUri ??
-                DEFAULT_NAMESPACES.get(qname.prefix))
-              : undefined;
+              ? this.resolveNamespaceUri(qname.prefix)
+              : defaultNamespace;
 
         if (namespaceUri === undefined && isPrefixedQName(qname)) {
             this.reportDiagnostic({
@@ -43,5 +61,9 @@ export class NamespaceResolver {
             ...(namespaceUri === undefined ? {} : { namespaceUri }),
             ...(isPrefixedQName(qname) ? { prefix: qname.prefix } : {}),
         };
+    }
+
+    private resolveNamespaceUri(prefix: Prefix): string | undefined {
+        return this.namespaces.get(prefix)?.namespaceUri ?? DEFAULT_NAMESPACES.get(prefix);
     }
 }

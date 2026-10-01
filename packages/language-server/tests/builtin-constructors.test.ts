@@ -22,10 +22,10 @@ for (const language of ["jsoniq", "xquery"] as const) {
             });
         }
 
-        it("resolves XML Schema constructors and keeps list result types", () => {
+        it("resolves XML Schema constructors and keeps list result types", async () => {
             const source = document('xs:IDREFS("a b")');
             const declaration = findSymbolAtPosition(
-                workspaceService.getAnalysis(source),
+                await workspaceService.getAnalysis(source),
                 positionAt(source, "IDREFS"),
             )?.declaration;
             expect(declaration).toMatchObject({
@@ -64,9 +64,13 @@ for (const language of ["jsoniq", "xquery"] as const) {
             });
         });
 
-        it("shows constructor parameters in signature help", () => {
+        it("shows constructor parameters in signature help", async () => {
             const source = document('xs:integer("12")');
-            const help = findSignatureHelp(source, positionAt(source, '"12"'), workspaceService);
+            const help = await findSignatureHelp(
+                source,
+                positionAt(source, '"12"'),
+                workspaceService,
+            );
             expect(help?.signatures[0]?.label).toBe(
                 "xs:integer($arg1 as xs:anyAtomicType?) as xs:integer?",
             );
@@ -87,7 +91,7 @@ describe("constructor language differences", () => {
         expect(hover?.contents).toMatchObject({
             value: expect.stringContaining("integer(xs:anyAtomicType?) as xs:integer?"),
         });
-        const help = findSignatureHelp(source, positionAt(source, '"12"'), workspaceService);
+        const help = await findSignatureHelp(source, positionAt(source, '"12"'), workspaceService);
         expect(help?.signatures[0]?.label).toBe(
             "integer($arg1 as xs:anyAtomicType?) as xs:integer?",
         );

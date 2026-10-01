@@ -5,6 +5,13 @@ export class ModuleGraph {
     private readonly dependencies = new Map<DocumentUri, ReadonlySet<DocumentUri>>();
     private readonly dependents = new Map<DocumentUri, Set<DocumentUri>>();
 
+    public addDependencies(importer: DocumentUri, dependencies: ReadonlySet<DocumentUri>): void {
+        this.replaceDependencies(
+            importer,
+            new Set([...(this.dependencies.get(importer) ?? []), ...dependencies]),
+        );
+    }
+
     public replaceDependencies(
         importer: DocumentUri,
         dependencies: ReadonlySet<DocumentUri>,

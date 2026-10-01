@@ -181,12 +181,12 @@ function getActiveParameter(call: FunctionCallNode, containingNodes: AstNode[]):
     return trailingArgument?.children.length === 0 ? Math.max(0, call.arguments.length - 1) : 0;
 }
 
-export function findSignatureHelp(
+export async function findSignatureHelp(
     document: TextDocument,
     position: Position,
     workspace: WorkspaceService,
-): SignatureHelp | null {
-    const analysis = workspace.getAnalysis(document);
+): Promise<SignatureHelp | null> {
+    const analysis = await workspace.getAnalysis(document);
     const containingNodes = findNodesThatContainPosition(analysis, position);
 
     const activeCall = containingNodes.findLast((node) => node.kind == "function-call");

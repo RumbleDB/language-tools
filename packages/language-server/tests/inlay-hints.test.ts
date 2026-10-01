@@ -5,9 +5,13 @@ import { workspaceService } from "./services.js";
 import { testDocument } from "./test-utils.js";
 
 describe("JSONiq inlay hints", () => {
-    it("returns parameter name hints for builtin function calls", () => {
+    it("returns parameter name hints for builtin function calls", async () => {
         const document = testDocument("inlay-builtin", ['fn:substring("hello", 1, 2)']);
-        const hints = collectInlayHints(document, fullDocumentRange(document), workspaceService);
+        const hints = await collectInlayHints(
+            document,
+            fullDocumentRange(document),
+            workspaceService,
+        );
 
         expect(hints.map((hint) => hint.label)).toEqual([
             "$sourceString: ",
@@ -16,14 +20,18 @@ describe("JSONiq inlay hints", () => {
         ]);
     });
 
-    it("returns parameter name hints for source function calls", () => {
+    it("returns parameter name hints for source function calls", async () => {
         const document = testDocument("inlay-source", [
             "declare function local:my-add($left, $right) {",
             "  $left + $right",
             "};",
             "local:my-add(1, 2)",
         ]);
-        const hints = collectInlayHints(document, fullDocumentRange(document), workspaceService);
+        const hints = await collectInlayHints(
+            document,
+            fullDocumentRange(document),
+            workspaceService,
+        );
 
         expect(hints.map((hint) => hint.label)).toEqual(["$left: ", "$right: "]);
     });

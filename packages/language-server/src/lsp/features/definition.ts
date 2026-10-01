@@ -25,12 +25,12 @@ export function registerDefinition({
  * @param position The Position in the document for which to find the definition location (e.g. the position of the cursor in the editor)
  * @returns A Location object representing the definition location of the variable at the given position, or null if no definition is found
  */
-export function findDefinitionLocation(
+export async function findDefinitionLocation(
     document: TextDocument,
     position: Position,
     workspace: WorkspaceService,
-): Location | null {
-    const analysis = workspace.getAnalysis(document);
+): Promise<Location | null> {
+    const analysis = await workspace.getAnalysis(document);
     const occurrence = findSymbolAtPosition(analysis, position);
     const declaration = occurrence?.declaration;
 

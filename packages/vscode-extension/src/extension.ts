@@ -17,10 +17,10 @@ let client: LanguageClient | undefined;
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
     const serverModule = require.resolve("jsoniq-language-server/bundled");
     const globalStoragePath = context.globalStorageUri.fsPath;
-    const moduleFileWatcher = vscode.workspace.createFileSystemWatcher(
-        "**/*.{jq,jsoniq,jqm,xq,xqy,xquery,xqm}",
+    const workspaceFileWatcher = vscode.workspace.createFileSystemWatcher(
+        "**/*.{jq,jsoniq,jqm,xq,xqy,xquery,xqm,xsd}",
     );
-    context.subscriptions.push(moduleFileWatcher);
+    context.subscriptions.push(workspaceFileWatcher);
 
     await vscode.workspace.fs.createDirectory(context.globalStorageUri);
 
@@ -57,7 +57,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
         ],
         initializationOptions: config,
         synchronize: {
-            fileEvents: moduleFileWatcher,
+            fileEvents: workspaceFileWatcher,
         },
     };
 

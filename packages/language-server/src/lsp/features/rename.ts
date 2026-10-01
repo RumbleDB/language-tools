@@ -55,12 +55,12 @@ interface RenameTarget {
  * This is used for the "prepare rename" feature in the language server, returning the range to
  * highlight and the placeholder text to pre-fill the editor's rename input box.
  */
-export function prepareRename(
+export async function prepareRename(
     document: TextDocument,
     position: Position,
     workspace: WorkspaceService,
-): { range: Range; placeholder: string } | null {
-    const analysis = workspace.getAnalysis(document);
+): Promise<{ range: Range; placeholder: string } | null> {
+    const analysis = await workspace.getAnalysis(document);
     const target = findRenameTarget(analysis, position);
 
     if (target === null) {
@@ -83,7 +83,7 @@ export async function buildRenameWorkspaceEdit(
     newName: string,
     workspace: WorkspaceService,
 ): Promise<WorkspaceEdit | null> {
-    const analysis = workspace.getAnalysis(document);
+    const analysis = await workspace.getAnalysis(document);
     const target = findRenameTarget(analysis, position);
 
     if (target === null) {

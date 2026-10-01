@@ -11,6 +11,7 @@ import type {
     NamespaceDeclarationAstNode,
     ModuleDeclarationAstNode,
     ModuleImportAstNode,
+    SchemaImportAstNode,
     NamedFunctionReferenceAstNode,
     TypeDeclarationAstNode,
     VariableDeclarationAstNode,
@@ -57,6 +58,8 @@ class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
     private currentScope: ScopeBuilder;
     private readonly definitions: SourceDefinitionFactory;
     private readonly namespaces: ReadonlyMap<Prefix, SourceNamespaceDefinition>;
+    private readonly defaultElementTypeNamespace: string | undefined;
+    private readonly defaultFunctionNamespace: string | undefined;
     private readonly declarations: ModulePrologDeclarations;
     private readonly resolvedImportsByNamespace: ReadonlyMap<string, ResolvedModuleImport>;
     private readonly diagnostics: Diagnostic[];
@@ -77,6 +80,8 @@ class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
 
         this.definitions = prolog.definitions;
         this.namespaces = prolog.namespaces;
+        this.defaultElementTypeNamespace = prolog.defaultElementTypeNamespace;
+        this.defaultFunctionNamespace = prolog.defaultFunctionNamespace;
         this.declarations = prolog.declarations;
         this.diagnostics = [...prolog.diagnostics];
         this.resolveBuiltin = environment.resolveBuiltin ?? ((_kind, _name) => undefined);
@@ -88,9 +93,17 @@ class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
             ]),
         );
         this.moduleScope = ScopeBuilder.module(document.getText().length);
+        for (const definition of environment.schemaConstructors ?? []) {
+            this.moduleScope.declare(definition, 0);
+        }
+        for (const definition of environment.schemaTypes ?? []) {
+            this.moduleScope.declare(definition, 0);
+        }
         this.currentScope = this.moduleScope;
-        this.nameResolver = new NamespaceResolver(this.namespaces, (diagnostic) =>
-            this.diagnostics.push(diagnostic),
+        this.nameResolver = new NamespaceResolver(
+            this.namespaces,
+            (diagnostic) => this.diagnostics.push(diagnostic),
+            this.defaultElementTypeNamespace,
         );
     }
 
@@ -105,6 +118,9 @@ class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
         return {
             ast,
             scope: this.moduleScope,
+            namespaces: this.nameResolver.getNamespaces(),
+            defaultElementTypeNamespace: this.defaultElementTypeNamespace,
+            defaultFunctionNamespace: this.defaultFunctionNamespace,
             diagnostics: this.diagnostics,
         };
     }
@@ -115,6 +131,11 @@ class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
 
     protected override visitNamespaceDeclaration(node: NamespaceDeclarationAstNode): AstNode[] {
         return [this.createDeclarationNode(this.declarations.namespaces.get(node)!)];
+    }
+
+    protected override visitSchemaImport(node: SchemaImportAstNode): AstNode[] {
+        const binding = this.declarations.namespaces.get(node);
+        return binding === undefined ? [] : [this.createDeclarationNode(binding)];
     }
 
     protected override visitModuleDeclaration(node: ModuleDeclarationAstNode): AstNode[] {
@@ -249,7 +270,7 @@ class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
         return [
             this.createReference(
                 "type",
-                this.nameResolver.resolveQName(node.name, node.range),
+                this.nameResolver.resolveTypeName(node.name, node.range),
                 node.range,
             ),
         ];
@@ -272,7 +293,11 @@ class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
     private createFunctionCallNode(
         node: FunctionCallAstNode | NamedFunctionReferenceAstNode,
     ): FunctionCallNode {
-        const name = this.nameResolver.resolveFunctionName(node.name, node.selectionRange);
+        const name = this.nameResolver.resolveFunctionName(
+            node.name,
+            node.selectionRange,
+            this.defaultFunctionNamespace,
+        );
         const reference = this.createReference("function", name, node.selectionRange);
         const children = [reference, ...this.visitChildrenAsNodes(node)];
         return {
