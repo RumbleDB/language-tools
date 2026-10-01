@@ -1,4 +1,4 @@
-import { type ParseTree } from "antlr4ng";
+import { type ParseTree, type TerminalNode } from "antlr4ng";
 import {
     type AstNode,
     type AstParameter,
@@ -8,8 +8,8 @@ import { parseQNameText } from "server/parser/types/name.js";
 import { rangeFromNode } from "server/utils/range.js";
 import { TextDocument } from "vscode-languageserver-textdocument";
 
-import * as jsoniq from "../adapters/jsoniq/grammar/JsoniqParser.js";
-import * as xquery from "../adapters/xquery/grammar/XQueryParser.js";
+import type * as jsoniq from "../adapters/jsoniq/grammar/JsoniqParser.js";
+import type * as xquery from "../adapters/xquery/grammar/XQueryParser.js";
 import { parseFunctionName, parseVarName } from "./name.js";
 
 type CatchCaseStatementContext =
@@ -18,7 +18,6 @@ type CatchCaseStatementContext =
 type CatchClauseContext = jsoniq.CatchClauseContext | xquery.CatchClauseContext;
 type CaseClauseContext = jsoniq.CaseClauseContext | xquery.CaseClauseContext;
 type CaseStatementContext = jsoniq.CaseStatementContext | xquery.CaseStatementContext;
-type CopyDeclContext = jsoniq.CopyDeclContext | xquery.CopyDeclContext;
 type CountClauseContext = jsoniq.CountClauseContext | xquery.CountClauseContext;
 type ContextItemDeclContext = jsoniq.ContextItemDeclContext | xquery.ContextItemDeclContext;
 type ContextItemExprContext = jsoniq.ContextItemExprContext | xquery.ContextItemExprContext;
@@ -54,16 +53,21 @@ type TypeSwitchStatementContext =
     | xquery.TypeSwitchStatementContext;
 type TypeswitchExprContext = jsoniq.TypeswitchExprContext | xquery.TypeswitchExprContext;
 type VarDeclContext = jsoniq.VarDeclContext | xquery.VarDeclContext;
-type VarDeclForStatementContext =
-    | jsoniq.VarDeclForStatementContext
-    | xquery.VarDeclForStatementContext;
 type VarBindingContext = jsoniq.VarBindingContext | xquery.VarBindingContext;
 type VarRefContext = jsoniq.VarRefContext | xquery.VarRefContext;
 type WindowVarsContext = jsoniq.WindowVarsContext | xquery.WindowVarsContext;
-type ArgumentContext = jsoniq.ArgumentContext | xquery.ArgumentContext;
 type ModuleAndThisIsItContext = jsoniq.ModuleAndThisIsItContext | xquery.ModuleAndThisIsItContext;
 type NameTestContext = jsoniq.NameTestContext | xquery.NameTestContext;
 
+type WindowStartConditionContext =
+    | jsoniq.WindowStartConditionContext
+    | xquery.WindowStartConditionContext;
+type WindowEndConditionContext =
+    | jsoniq.WindowEndConditionContext
+    | xquery.WindowEndConditionContext;
+type VarDeclStatementContext = jsoniq.VarDeclStatementContext | xquery.VarDeclStatementContext;
+type TransformExprContext = jsoniq.TransformExprContext | xquery.TransformExprContext;
+type ArgumentListContext = jsoniq.ArgumentListContext | xquery.ArgumentListContext;
 export type AstVisitResult = AstNode[];
 
 function unquoteStringLiteral(text: string): string {
@@ -90,7 +94,7 @@ function hasPrivateAnnotation(node: FunctionDeclContext | VarDeclContext): boole
 export class CommonAstBuilder {
     public constructor(
         private readonly document: TextDocument,
-        private readonly visitChildren: (node: ParseTree) => AstVisitResult,
+        private readonly visit: (node: ParseTree) => AstVisitResult,
     ) {}
 
     public visitModuleAndThisIsIt = (node: ModuleAndThisIsItContext): AstVisitResult => [
@@ -244,7 +248,7 @@ export class CommonAstBuilder {
         {
             kind: "function-declaration",
             range: rangeFromNode(node, this.document),
-            name: parseFunctionName(node),
+            name: parseFunctionName(node, node.paramList()?.param().length ?? 0),
             selectionRange: rangeFromNode(node.functionName(), this.document),
             parameters: this.parameters(node),
             isPrivate: hasPrivateAnnotation(node),
@@ -278,12 +282,13 @@ export class CommonAstBuilder {
     private declarationsBeforeChildren(
         node: ParseTree,
         declarations: Array<VariableDeclarationAstNode | null>,
+        translateChild?: (child: ParseTree) => AstVisitResult | undefined,
     ): AstVisitResult {
         return [
             ...declarations.filter(
                 (declaration): declaration is VariableDeclarationAstNode => declaration !== null,
             ),
-            ...this.visitChildrenAsNodes(node),
+            ...this.visitChildrenAsNodes(node, translateChild),
         ];
     }
 
@@ -325,21 +330,14 @@ export class CommonAstBuilder {
         ]);
     };
 
-    public visitPositionalVar = (node: PositionalVarContext): AstVisitResult => {
-        const condition = node.parent?.parent;
-        const expression =
-            condition instanceof jsoniq.WindowStartConditionContext ||
-            condition instanceof xquery.WindowStartConditionContext ||
-            condition instanceof jsoniq.WindowEndConditionContext ||
-            condition instanceof xquery.WindowEndConditionContext
-                ? condition.exprSingle()
-                : null;
-        const visibleFrom =
-            expression === null ? null : rangeFromNode(expression, this.document).start;
+    private positionalVar(
+        node: PositionalVarContext,
+        visibleFrom: VariableDeclarationAstNode["visibleFrom"] | null,
+    ): AstVisitResult {
         return this.declarationsBeforeChildren(node, [
             this.variableDeclaration(node._pvar, visibleFrom),
         ]);
-    };
+    }
 
     public visitLetVar = (node: LetVarContext): AstVisitResult => {
         const expression = node._ex;
@@ -361,23 +359,42 @@ export class CommonAstBuilder {
             this.variableDeclaration(node._name, rangeFromNode(node, this.document).end),
         ]);
 
-    public visitWindowVars = (node: WindowVarsContext): AstVisitResult => {
-        const condition = node.parent;
-        const expression =
-            condition instanceof jsoniq.WindowStartConditionContext ||
-            condition instanceof xquery.WindowStartConditionContext ||
-            condition instanceof jsoniq.WindowEndConditionContext ||
-            condition instanceof xquery.WindowEndConditionContext
-                ? condition.exprSingle()
-                : null;
+    public visitWindowStartCondition = (node: WindowStartConditionContext): AstVisitResult =>
+        this.windowCondition(node);
+
+    public visitWindowEndCondition = (node: WindowEndConditionContext): AstVisitResult =>
+        this.windowCondition(node);
+
+    private windowCondition(
+        node: WindowStartConditionContext | WindowEndConditionContext,
+    ): AstVisitResult {
+        const variables = node.windowVars();
+        const expression = node.exprSingle();
         const visibleFrom =
-            expression === null ? null : rangeFromNode(expression, this.document).start;
-        return this.declarationsBeforeChildren(node, [
-            this.variableDeclaration(node._currentItem, visibleFrom),
-            this.variableDeclaration(node._previousItem, visibleFrom),
-            this.variableDeclaration(node._nextItem, visibleFrom),
-        ]);
-    };
+            expression == null ? null : rangeFromNode(expression, this.document).start;
+        return this.visitChildrenAsNodes(node, (child) =>
+            child === variables ? this.windowVars(variables, visibleFrom) : undefined,
+        );
+    }
+
+    private windowVars(
+        node: WindowVarsContext,
+        visibleFrom: VariableDeclarationAstNode["visibleFrom"] | null,
+    ): AstVisitResult {
+        const positional = node.positionalVar();
+        return this.declarationsBeforeChildren(
+            node,
+            [
+                this.variableDeclaration(node._currentItem, visibleFrom),
+                this.variableDeclaration(node._previousItem, visibleFrom),
+                this.variableDeclaration(node._nextItem, visibleFrom),
+            ],
+            (child) =>
+                positional !== null && child === positional
+                    ? this.positionalVar(positional, visibleFrom)
+                    : undefined,
+        );
+    }
 
     public visitCountClause = (node: CountClauseContext): AstVisitResult =>
         this.declarationsBeforeChildren(node, [
@@ -443,37 +460,36 @@ export class CommonAstBuilder {
             ),
         ]);
 
-    public visitVarDeclForStatement = (node: VarDeclForStatementContext): AstVisitResult => {
-        const statement = node.parent;
-        const terminator =
-            statement instanceof jsoniq.VarDeclStatementContext ||
-            statement instanceof xquery.VarDeclStatementContext
-                ? statement.SEMICOLON()
-                : null;
+    public visitVarDeclStatement = (node: VarDeclStatementContext): AstVisitResult => {
+        const terminator = node.SEMICOLON();
         const visibleFrom =
             terminator === null || terminator.symbol.tokenIndex < 0
                 ? null
                 : rangeFromNode(terminator, this.document).end;
-        return this.declarationsBeforeChildren(node, [
-            this.variableDeclaration(node._var_ref, visibleFrom),
-        ]);
+        const bindings = node.varDeclForStatement();
+        return this.visitChildrenAsNodes(node, (child) => {
+            const binding = bindings.find((binding) => binding === child);
+            return binding === undefined
+                ? undefined
+                : this.declarationsBeforeChildren(binding, [
+                      this.variableDeclaration(binding._var_ref, visibleFrom),
+                  ]);
+        });
     };
 
-    public visitCopyDecl = (node: CopyDeclContext): AstVisitResult => {
-        const transform = node.parent;
-        const modifyExpression =
-            transform instanceof jsoniq.TransformExprContext ||
-            transform instanceof xquery.TransformExprContext
-                ? transform._mod_expr
-                : undefined;
-        return this.declarationsBeforeChildren(node, [
-            this.variableDeclaration(
-                node._var_ref,
-                modifyExpression === undefined
-                    ? null
-                    : rangeFromNode(modifyExpression, this.document).start,
-            ),
-        ]);
+    public visitTransformExpr = (node: TransformExprContext): AstVisitResult => {
+        const expression = node._mod_expr;
+        const visibleFrom =
+            expression === undefined ? null : rangeFromNode(expression, this.document).start;
+        const copies = node.copyDecl();
+        return this.visitChildrenAsNodes(node, (child) => {
+            const copy = copies.find((copy) => copy === child);
+            return copy === undefined
+                ? undefined
+                : this.declarationsBeforeChildren(copy, [
+                      this.variableDeclaration(copy._var_ref, visibleFrom),
+                  ]);
+        });
     };
 
     public visitFlworExpr = (node: FlworExprContext): AstVisitResult => [
@@ -513,23 +529,12 @@ export class CommonAstBuilder {
         this.namedFunctionReference(node);
 
     public visitCatchCaseStatement = (node: CatchCaseStatementContext): AstVisitResult =>
-        this.catchClause(node);
+        this.catchClause(node, node._catch_block?.LBRACE());
 
-    public visitCatchClause = (node: CatchClauseContext): AstVisitResult => this.catchClause(node);
+    public visitCatchClause = (node: CatchClauseContext): AstVisitResult =>
+        this.catchClause(node, node.LBRACE());
 
-    public visitNameTest = (node: NameTestContext): AstVisitResult => {
-        if (
-            !(
-                node.parent instanceof jsoniq.CatchClauseContext ||
-                node.parent instanceof xquery.CatchClauseContext
-            ) &&
-            !(
-                node.parent instanceof jsoniq.CatchCaseStatementContext ||
-                node.parent instanceof xquery.CatchCaseStatementContext
-            )
-        ) {
-            return this.visitChildrenAsNodes(node);
-        }
+    private catchErrorTarget(node: NameTestContext): AstVisitResult {
         const name = node.eqName();
         return [
             {
@@ -542,23 +547,41 @@ export class CommonAstBuilder {
                 children: [],
             },
         ];
+    }
+
+    public visitArgumentList = (node: ArgumentListContext): AstVisitResult => {
+        const args = node.argument();
+        return this.visitChildrenAsNodes(node, (child) => {
+            const index = args.findIndex((argument) => argument === child);
+            const argument = args[index];
+            return argument === undefined
+                ? undefined
+                : [
+                      {
+                          kind: "argument",
+                          range: rangeFromNode(argument, this.document),
+                          children: this.visitChildrenAsNodes(argument),
+                          index,
+                      },
+                  ];
+        });
     };
 
-    public visitArgument = (node: ArgumentContext): AstVisitResult => [
-        {
-            kind: "argument",
-            range: rangeFromNode(node, this.document),
-            children: this.visitChildrenAsNodes(node),
-            index:
-                node.parent instanceof jsoniq.ArgumentListContext ||
-                node.parent instanceof xquery.ArgumentListContext
-                    ? node.parent.argument().findIndex((argument) => argument === node)
-                    : -1,
-        },
-    ];
-
-    private visitChildrenAsNodes(node: ParseTree): AstNode[] {
-        return this.visitChildren(node) ?? [];
+    /** Translate selected children in their parent's context; dispatch the rest normally. */
+    private visitChildrenAsNodes(
+        node: ParseTree,
+        translateChild?: (child: ParseTree) => AstVisitResult | undefined,
+    ): AstVisitResult {
+        const result: AstVisitResult = [];
+        for (let index = 0; index < node.getChildCount(); index++) {
+            const child = node.getChild(index);
+            if (child !== null) {
+                for (const astNode of translateChild?.(child) ?? this.visit(child)) {
+                    result.push(astNode);
+                }
+            }
+        }
+        return result;
     }
 
     private parameters(node: FunctionDeclContext): AstParameter[] {
@@ -589,7 +612,7 @@ export class CommonAstBuilder {
 
     private functionCall(node: FunctionCallContext): AstVisitResult {
         const nameNode = node._fn_name;
-        const name = parseFunctionName(node);
+        const name = parseFunctionName(node, node.argumentList()?.argument().length);
         if (nameNode === undefined) {
             return [];
         }
@@ -609,7 +632,11 @@ export class CommonAstBuilder {
 
     private namedFunctionReference(node: NamedFunctionRefContext): AstVisitResult {
         const nameNode = node._fn_name;
-        const name = parseFunctionName(node);
+        const arity = Number.parseInt(
+            node._arity?.text ?? node.IntegerLiteral()?.getText() ?? "",
+            10,
+        );
+        const name = parseFunctionName(node, Number.isNaN(arity) ? undefined : arity);
         return nameNode !== undefined
             ? [
                   {
@@ -623,11 +650,11 @@ export class CommonAstBuilder {
             : [];
     }
 
-    private catchClause(node: CatchCaseStatementContext | CatchClauseContext): AstVisitResult {
-        const bodyStart =
-            node instanceof jsoniq.CatchClauseContext || node instanceof xquery.CatchClauseContext
-                ? node.LBRACE()
-                : node._catch_block?.LBRACE();
+    private catchClause(
+        node: CatchCaseStatementContext | CatchClauseContext,
+        bodyStart: TerminalNode | null | undefined,
+    ): AstVisitResult {
+        const targets = node.nameTest();
         return [
             {
                 kind: "catch-clause",
@@ -636,7 +663,10 @@ export class CommonAstBuilder {
                     bodyStart == null
                         ? rangeFromNode(node, this.document).start
                         : rangeFromNode(bodyStart, this.document).end,
-                children: [...this.visitChildrenAsNodes(node)],
+                children: this.visitChildrenAsNodes(node, (child) => {
+                    const target = targets.find((target) => target === child);
+                    return target === undefined ? undefined : this.catchErrorTarget(target);
+                }),
             },
         ];
     }

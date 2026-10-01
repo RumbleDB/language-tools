@@ -1,7 +1,7 @@
 import { LexicalFunctionName, LexicalQName, parseQNameText } from "server/parser/types/name.js";
 
-import * as jsoniq from "../adapters/jsoniq/grammar/JsoniqParser.js";
-import * as xquery from "../adapters/xquery/grammar/XQueryParser.js";
+import type * as jsoniq from "../adapters/jsoniq/grammar/JsoniqParser.js";
+import type * as xquery from "../adapters/xquery/grammar/XQueryParser.js";
 
 type QnameContext = jsoniq.QnameContext | xquery.QnameContext;
 type FunctionDeclContext = jsoniq.FunctionDeclContext | xquery.FunctionDeclContext;
@@ -16,19 +16,10 @@ export function parseQname(qnameNode: QnameContext): LexicalQName {
 
 export function parseFunctionName(
     node: FunctionDeclContext | FunctionCallContext | NamedFunctionRefContext,
+    arity: number | undefined,
 ): LexicalFunctionName {
     const qname = parseQNameText(node._fn_name?.getText() ?? "");
-
-    if (node instanceof jsoniq.FunctionDeclContext || node instanceof xquery.FunctionDeclContext) {
-        return { qname, arity: node.paramList()?.param().length ?? 0 };
-    }
-    if (node instanceof jsoniq.FunctionCallContext || node instanceof xquery.FunctionCallContext) {
-        const arity = node.argumentList()?.argument().length;
-        return arity === undefined ? { qname } : { qname, arity };
-    }
-
-    const arity = Number.parseInt(node._arity?.text ?? node.IntegerLiteral()?.getText() ?? "", 10);
-    return Number.isNaN(arity) ? { qname } : { qname, arity };
+    return arity === undefined ? { qname } : { qname, arity };
 }
 
 export function parseVarName(node: VarRefContext | VarBindingContext): LexicalQName | null {

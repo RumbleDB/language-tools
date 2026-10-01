@@ -13,7 +13,7 @@ class XQueryAstBuilder extends XQueryParserVisitor<AstVisitResult> {
 
     public constructor(private readonly document: TextDocument) {
         super();
-        this.common = new CommonAstBuilder(document, (node) => this.visitChildrenAsNodes(node));
+        this.common = new CommonAstBuilder(document, (node) => this.visit(node) ?? []);
     }
 
     protected override defaultResult(): AstVisitResult {
@@ -68,9 +68,6 @@ class XQueryAstBuilder extends XQueryParserVisitor<AstVisitResult> {
     public override visitForVar = (node: ctx.ForVarContext): AstVisitResult =>
         this.common.visitForVar(node);
 
-    public override visitPositionalVar = (node: ctx.PositionalVarContext): AstVisitResult =>
-        this.common.visitPositionalVar(node);
-
     public override visitLetVar = (node: ctx.LetVarContext): AstVisitResult =>
         this.common.visitLetVar(node);
 
@@ -82,8 +79,13 @@ class XQueryAstBuilder extends XQueryParserVisitor<AstVisitResult> {
         node: ctx.SlidingWindowClauseContext,
     ): AstVisitResult => this.common.visitSlidingWindowClause(node);
 
-    public override visitWindowVars = (node: ctx.WindowVarsContext): AstVisitResult =>
-        this.common.visitWindowVars(node);
+    public override visitWindowEndCondition = (
+        node: ctx.WindowEndConditionContext,
+    ): AstVisitResult => this.common.visitWindowEndCondition(node);
+
+    public override visitWindowStartCondition = (
+        node: ctx.WindowStartConditionContext,
+    ): AstVisitResult => this.common.visitWindowStartCondition(node);
 
     public override visitCountClause = (node: ctx.CountClauseContext): AstVisitResult =>
         this.common.visitCountClause(node);
@@ -111,12 +113,11 @@ class XQueryAstBuilder extends XQueryParserVisitor<AstVisitResult> {
     public override visitCaseStatement = (node: ctx.CaseStatementContext): AstVisitResult =>
         this.common.visitCaseStatement(node);
 
-    public override visitVarDeclForStatement = (
-        node: ctx.VarDeclForStatementContext,
-    ): AstVisitResult => this.common.visitVarDeclForStatement(node);
+    public override visitVarDeclStatement = (node: ctx.VarDeclStatementContext): AstVisitResult =>
+        this.common.visitVarDeclStatement(node);
 
-    public override visitCopyDecl = (node: ctx.CopyDeclContext): AstVisitResult =>
-        this.common.visitCopyDecl(node);
+    public override visitTransformExpr = (node: ctx.TransformExprContext): AstVisitResult =>
+        this.common.visitTransformExpr(node);
 
     public override visitFlworExpr = (node: ctx.FlworExprContext): AstVisitResult =>
         this.common.visitFlworExpr(node);
@@ -140,11 +141,8 @@ class XQueryAstBuilder extends XQueryParserVisitor<AstVisitResult> {
     public override visitCatchClause = (node: ctx.CatchClauseContext): AstVisitResult =>
         this.common.visitCatchClause(node);
 
-    public override visitNameTest = (node: ctx.NameTestContext): AstVisitResult =>
-        this.common.visitNameTest(node);
-
-    public override visitArgument = (node: ctx.ArgumentContext): AstVisitResult =>
-        this.common.visitArgument(node);
+    public override visitArgumentList = (node: ctx.ArgumentListContext): AstVisitResult =>
+        this.common.visitArgumentList(node);
 
     public override visitItemType = (node: ctx.ItemTypeContext): AstVisitResult => {
         const name = node.eqName();
