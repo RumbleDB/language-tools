@@ -1,3 +1,4 @@
+import { analyzeDocument, findSymbolAtPosition } from "server/analysis/index.js";
 import { collectModuleProlog } from "server/analysis/resolution/module-prolog.js";
 import { ParserService } from "server/parser/index.js";
 import { describe, expect, it } from "vitest";
@@ -129,7 +130,6 @@ describe.each(["jsoniq", "xquery"])("%s schema imports", (language) => {
         });
     });
 });
-import { analyzeDocument, findSymbolAtPosition } from "server/analysis/index.js";
 
 it("rejects a duplicate function default even when the first value is empty", () => {
     const document = TextDocument.create(
