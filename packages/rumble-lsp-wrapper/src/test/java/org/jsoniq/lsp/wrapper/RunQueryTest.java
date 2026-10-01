@@ -1,13 +1,17 @@
 package org.jsoniq.lsp.wrapper;
 
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Base64;
 
 import org.jsoniq.lsp.wrapper.handlers.RunQuery;
 import org.jsoniq.lsp.wrapper.messages.Request;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -62,13 +66,35 @@ class RunQueryTest {
         java.nio.file.Path tempFile = java.nio.file.Files.createTempFile("query", ".jq");
         java.nio.file.Files.writeString(tempFile, "10 * 10");
         try {
-            RunQuery.Result result = this.runQuery.run(null, tempFile.toUri());
+            // An omitted body must reach the URI-only execution path.
+            Request request =
+                    new Request(1L, "run-query", null, tempFile.toUri().toString(), null);
+            RunQuery.Result result = (RunQuery.Result) this.runQuery.handle(request);
             assertNull(result.error());
             assertNotNull(result.output());
             assertTrue(result.output().contains("100"));
         } finally {
             java.nio.file.Files.deleteIfExists(tempFile);
         }
+    }
+
+    @Test
+    void resolvesSchemaImportsRelativeToTheDocumentUri(@TempDir Path directory) throws Exception {
+        Files.writeString(
+                directory.resolve("types.xsd"),
+                "<xs:schema xmlns:xs=\"http://www.w3.org/2001/XMLSchema\" targetNamespace=\"urn:test\">"
+                        + "<xs:simpleType name=\"Code\"><xs:restriction base=\"xs:string\"/></xs:simpleType>"
+                        + "</xs:schema>");
+        String query = "import schema namespace t = \"urn:test\" at \"types.xsd\"; t:Code(\"editor value\")";
+        String body = Base64.getEncoder().encodeToString(query.getBytes(StandardCharsets.UTF_8));
+        // No query file exists: execution must use the editor text and retain its URI as context.
+        Request request = new Request(
+                1L, "run-query", body, directory.resolve("query.jq").toUri().toString(), null);
+
+        RunQuery.Result result = (RunQuery.Result) this.runQuery.handle(request);
+
+        assertNull(result.error());
+        assertEquals("[\"editor value\"]", result.output());
     }
 
     @Test
