@@ -18,9 +18,10 @@ export class NamespaceResolver {
     ) {}
 
     public getNamespaces(): ReadonlyMap<Prefix, string> {
-        const namespaces = new Map(DEFAULT_NAMESPACES);
-        for (const [prefix, definition] of this.namespaces) {
-            namespaces.set(prefix, definition.namespaceUri);
+        const namespaces = new Map<Prefix, string>();
+        for (const prefix of [...DEFAULT_NAMESPACES.keys(), ...this.namespaces.keys()]) {
+            const namespaceUri = this.resolveNamespaceUri(prefix);
+            if (namespaceUri !== undefined) namespaces.set(prefix, namespaceUri);
         }
         return namespaces;
     }
@@ -33,8 +34,7 @@ export class NamespaceResolver {
         const namespaceUri = isUriQualifiedQName(qname)
             ? qname.namespaceUri
             : isPrefixedQName(qname)
-              ? (this.namespaces.get(qname.prefix)?.namespaceUri ??
-                DEFAULT_NAMESPACES.get(qname.prefix))
+              ? this.resolveNamespaceUri(qname.prefix)
               : undefined;
 
         if (namespaceUri === undefined && isPrefixedQName(qname)) {
@@ -51,5 +51,9 @@ export class NamespaceResolver {
             ...(namespaceUri === undefined ? {} : { namespaceUri }),
             ...(isPrefixedQName(qname) ? { prefix: qname.prefix } : {}),
         };
+    }
+
+    private resolveNamespaceUri(prefix: Prefix): string | undefined {
+        return this.namespaces.get(prefix)?.namespaceUri ?? DEFAULT_NAMESPACES.get(prefix);
     }
 }
