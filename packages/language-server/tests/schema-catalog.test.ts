@@ -8,6 +8,7 @@ import { createServerContext } from "server/app/context.js";
 import { RumbleWrapperClient } from "server/integrations/rumble/client.js";
 import type { SchemaCatalogWireResult } from "server/integrations/rumble/operations/schema-catalog/protocol.js";
 import { getSchemaCatalog } from "server/integrations/rumble/operations/schema-catalog/service.js";
+import { findCompletions } from "server/lsp/features/completion.js";
 import { describe, expect, it, vi } from "vitest";
 import { TextDocument } from "vscode-languageserver-textdocument";
 import { FileChangeType, type Connection } from "vscode-languageserver/node";
@@ -166,7 +167,7 @@ describe("schema catalog", () => {
                     },
                 ]);
                 // Exercise the production wiring with an actual XSD and Java response, beyond mocked catalogs.
-                const { workspace } = createServerContext({} as Connection, client);
+                const { parser, workspace } = createServerContext({} as Connection, client);
                 const analysis = await workspace.getAnalysis(document);
                 expect(analysis.diagnostics).toEqual([]);
                 expect(
@@ -188,6 +189,15 @@ describe("schema catalog", () => {
                     2,
                 );
                 const incomplete = await workspace.getAnalysis(document);
+                // The editor completion path must use the actual constructors returned by Java.
+                const completions = await findCompletions(
+                    document,
+                    document.positionAt(document.getText().length),
+                    parser,
+                    workspace,
+                    client,
+                );
+                expect(completions.map((item) => item.label)).toContain("t:Code");
                 // One direct endpoint request plus one workspace request; the body edit reuses the latter.
                 expect(
                     requests.mock.calls.filter(
