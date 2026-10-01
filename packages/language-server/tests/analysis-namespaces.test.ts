@@ -4,6 +4,7 @@ import {
     findSymbolAtPosition,
 } from "server/analysis/index.js";
 import { ParserService } from "server/parser/index.js";
+import { resolveBuiltin } from "server/resources/builtins.js";
 import { describe, expect, it } from "vitest";
 import { TextDocument } from "vscode-languageserver-textdocument";
 
@@ -11,6 +12,42 @@ import { positionAtNth, testDocumentFromUri } from "./test-utils.js";
 
 describe("analysis namespace bindings", () => {
     const parser = new ParserService();
+
+    it("uses the function default for declarations and references without built-in fallback", () => {
+        const document = testDocumentFromUri(
+            [
+                'declare default function namespace "urn:functions";',
+                'declare default element namespace "urn:types";',
+                "declare variable $value := ();",
+                "declare function echo($value) { $value };",
+                "(echo($value), echo#1, count(()), fn:count(()))",
+            ],
+            { uri: "file:///function-default.xq", languageId: "xquery" },
+        );
+        const analysis = analyzeDocument(document, parser.parse(document).ast, {
+            resolveBuiltin: (kind, name) => resolveBuiltin(kind, name, "xquery"),
+        });
+        // Unprefixed count must not fall back to fn:count under a different function default.
+        expect(analysis.diagnostics.map((diagnostic) => diagnostic.code)).toEqual([
+            "unresolved-function",
+        ]);
+        const declaration = findSymbolAtPosition(
+            analysis,
+            positionAtNth(document, "echo($value)", 0),
+        )?.declaration;
+        expect(declaration).toMatchObject({
+            origin: "source",
+            name: { qname: { namespaceUri: "urn:functions", localName: "echo" } },
+        });
+        for (const reference of ["echo($value)", "echo#1"]) {
+            const position = document.positionAt(document.getText().lastIndexOf(reference));
+            expect(findSymbolAtPosition(analysis, position)?.declaration).toBe(declaration);
+        }
+        // Neither namespace default applies to unprefixed variables.
+        expect(
+            findSymbolAtPosition(analysis, positionAtNth(document, "$value", 0))?.declaration?.name,
+        ).toEqual({ localName: "value" });
+    });
 
     it.each(["jsoniq", "xquery"])(
         "exposes defaults and module bindings consistently with name resolution in %s",

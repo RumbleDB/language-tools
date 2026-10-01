@@ -130,6 +130,7 @@ function resolveSignatures(
     call: FunctionCallNode,
     activeParameter: number,
     resolvedDeclaration: DefinitionByReferenceKind["function"] | undefined,
+    functionName: string,
 ): { signatures: SignatureInformation[]; activeSignature: number } {
     const builtinSignatures = getBuiltinSignatures(call.name);
     if (builtinSignatures) {
@@ -146,11 +147,7 @@ function resolveSignatures(
         return {
             signatures: [
                 createSignatureInformation(
-                    QNameToString(
-                        call.name.qname,
-                        resolvedDeclaration.origin === "schema" &&
-                            call.name.qname.prefix === undefined,
-                    ),
+                    functionName,
                     resolvedDeclaration.signature.parameterTypes.map((parameter, index) => ({
                         label: `$arg${index + 1} as ${formatSequenceType(parameter.type)}`,
                     })),
@@ -218,6 +215,7 @@ export async function findSignatureHelp(
         activeCall,
         activeParameter,
         resolvedDeclaration,
+        document.getText(activeCall.selectionRange),
     );
 
     return {

@@ -34,6 +34,9 @@ export interface AnalysisResult {
     /** Explicit default for unprefixed element/type names; an empty string means no namespace. */
     readonly defaultElementTypeNamespace: string | undefined;
 
+    /** Explicit default for unprefixed function names; an empty string means no namespace. */
+    readonly defaultFunctionNamespace: string | undefined;
+
     /**
      * List of all diagnostics reported during analysis of the module
      */

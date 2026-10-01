@@ -27,24 +27,25 @@ export class NamespaceResolver {
         return namespaces;
     }
 
-    public resolveFunctionName(name: LexicalFunctionName, range: Range): FunctionName {
-        return { ...name, qname: this.resolveQName(name.qname, range) };
+    public resolveFunctionName(
+        name: LexicalFunctionName,
+        range: Range,
+        defaultFunctionNamespace?: string,
+    ): FunctionName {
+        return { ...name, qname: this.resolveQName(name.qname, range, defaultFunctionNamespace) };
     }
 
     public resolveTypeName(name: LexicalQName, range: Range): QName {
-        const resolved = this.resolveQName(name, range);
         // The default element/type namespace applies only to unprefixed type names.
-        return name.kind === "unprefixed-qname" && this.defaultElementTypeNamespace !== undefined
-            ? { ...resolved, namespaceUri: this.defaultElementTypeNamespace }
-            : resolved;
+        return this.resolveQName(name, range, this.defaultElementTypeNamespace);
     }
 
-    public resolveQName(qname: LexicalQName, range: Range): QName {
+    public resolveQName(qname: LexicalQName, range: Range, defaultNamespace?: string): QName {
         const namespaceUri = isUriQualifiedQName(qname)
             ? qname.namespaceUri
             : isPrefixedQName(qname)
               ? this.resolveNamespaceUri(qname.prefix)
-              : undefined;
+              : defaultNamespace;
 
         if (namespaceUri === undefined && isPrefixedQName(qname)) {
             this.reportDiagnostic({

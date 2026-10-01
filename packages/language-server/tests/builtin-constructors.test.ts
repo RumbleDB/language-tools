@@ -80,6 +80,40 @@ for (const language of ["jsoniq", "xquery"] as const) {
 }
 
 describe("constructor language differences", () => {
+    it("uses an explicit function default instead of the JSONiq constructor alias", async () => {
+        const header = 'declare default function namespace "http://www.w3.org/2001/XMLSchema"; ';
+        const source = testDocumentFromUri(header + 'integer("12")', {
+            uri: "file:///function-default-constructor.jq",
+        });
+        // The XS default must select xs:integer rather than JSONiq's unprefixed alias.
+        expect(
+            findSymbolAtPosition(
+                await workspaceService.getAnalysis(source),
+                positionAt(source, 'integer("12")'),
+            )?.declaration,
+        ).toMatchObject({
+            origin: "builtin",
+            name: {
+                qname: { namespaceUri: "http://www.w3.org/2001/XMLSchema", localName: "integer" },
+            },
+        });
+        const incomplete = testDocumentFromUri(header + "let $value := ", {
+            uri: "file:///function-default-completion.jq",
+        });
+        const items = await findCompletions(
+            incomplete,
+            incomplete.positionAt(incomplete.getText().length),
+            parserService,
+            workspaceService,
+            wrapperClient,
+        );
+        // Both spellings must remain callable after selecting the default namespace.
+        expect(items.find((item) => item.label === "integer")).toMatchObject({
+            insertText: "integer(${1:\\$arg1})$0",
+        });
+        expect(items.find((item) => item.label === "xs:integer")).toBeDefined();
+    });
+
     it("uses the JSONiq alias signature in hover and signature help", async () => {
         const source = testDocumentFromUri('integer("12")', { uri: "file:///alias-signature.jq" });
         const hover = await findHover(

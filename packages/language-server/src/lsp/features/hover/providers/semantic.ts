@@ -34,10 +34,7 @@ export const provideSemanticHover: HoverProvider = async (context) => {
                 inferredType: type.sequenceType,
                 functionName:
                     occurrence?.reference?.kind === "function"
-                        ? QNameToString(
-                              occurrence.reference.name.qname,
-                              occurrence.reference.name.qname.prefix === undefined,
-                          )
+                        ? context.document.getText(occurrence.reference.range)
                         : undefined,
             }),
         },

@@ -36,10 +36,10 @@ const catalog: SchemaCatalogWireResult = {
     errors: [],
 };
 
-async function complete(source: string, language: string) {
+async function complete(source: string, language: string, result = catalog) {
     const sendRequest = vi
         .fn()
-        .mockResolvedValue({ id: 1, responseType: "schema-catalog", body: catalog, error: null });
+        .mockResolvedValue({ id: 1, responseType: "schema-catalog", body: result, error: null });
     const wrapper = createMockWrapperClient({ sendRequest });
     const { parser, workspace } = createServerContext({} as Connection, wrapper);
     const document = testDocumentFromUri(source, {
@@ -60,6 +60,23 @@ async function complete(source: string, language: string) {
 }
 
 describe("schema constructor completion", () => {
+    it("offers local constructor names and aliases for the function default", async () => {
+        const header =
+            'declare default function namespace "urn:test"; import schema namespace s = "urn:test" at "types.xsd"; ';
+        const { items } = await complete(header + "let $value := ", "xquery");
+        // Both spellings call the constructor in the default function namespace.
+        for (const label of ["Code", "s:Code"]) {
+            expect(items.find((item) => item.label === label)).toMatchObject({
+                kind: CompletionItemKind.Function,
+                insertText: label + "(${1:\\$value})$0",
+            });
+        }
+        const types = await complete(header + "declare variable $value as ", "xquery");
+        // A function default must not change type completion.
+        expect(types.items.some((item) => item.label === "Code")).toBe(false);
+        expect(types.items.find((item) => item.label === "s:Code")).toBeDefined();
+    });
+
     it.each(["jsoniq", "xquery"])(
         "uses the typed namespace alias and replaces its prefix in %s",
         async (language) => {
@@ -117,6 +134,48 @@ describe("schema constructor completion", () => {
 });
 
 describe("schema type completion", () => {
+    it("offers unprefixed types for the element/type default without changing constructors", async () => {
+        const header = 'import schema default element namespace "urn:test" at "types.xsd"; ';
+        const types = await complete(header + "declare variable $value as ", "jsoniq");
+        // A matching type default permits the local name instead of an expanded QName.
+        expect(types.items.find((item) => item.label === "Code")).toMatchObject({
+            kind: CompletionItemKind.Class,
+            insertText: "Code",
+        });
+        expect(types.items.some((item) => item.label === "Q{urn:test}Code")).toBe(false);
+        const functions = await complete(header + "let $value := ", "jsoniq");
+        // Constructor calls follow the separate default function namespace.
+        expect(functions.items.find((item) => item.label === "Q{urn:test}Code")).toMatchObject({
+            kind: CompletionItemKind.Function,
+        });
+        expect(functions.items.some((item) => item.label === "Code")).toBe(false);
+    });
+
+    it("keeps types qualified when their namespace differs from the default", async () => {
+        const { items } = await complete(
+            'declare default element namespace "urn:other"; import schema "urn:test" at "types.xsd"; declare variable $value as ',
+            "jsoniq",
+        );
+        // A bare Code would resolve to urn:other rather than the schema's urn:test.
+        expect(items.find((item) => item.label === "Q{urn:test}Code")).toBeDefined();
+        expect(items.some((item) => item.label === "Code")).toBe(false);
+    });
+
+    it("treats an explicitly empty default as no namespace", async () => {
+        const { items } = await complete(
+            'import schema default element namespace "" at "types.xsd"; declare variable $value as ',
+            "xquery",
+            {
+                ...catalog,
+                types: [{ name: { namespaceUri: "", localName: "Code" } }],
+                constructors: [],
+            },
+        );
+        // Empty is a meaningful default value, not a missing setting.
+        expect(items.find((item) => item.label === "Code")).toMatchObject({ insertText: "Code" });
+        expect(items.some((item) => item.label === "Q{}Code")).toBe(false);
+    });
+
     it.each([
         ["jsoniq", "declare variable $value as alias:"],
         ["xquery", "declare variable $value as alias:"],

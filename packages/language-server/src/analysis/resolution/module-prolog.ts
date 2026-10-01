@@ -53,6 +53,8 @@ export interface ModuleProlog {
     readonly baseUri: string | undefined;
     /** Explicit default for unprefixed element/type names; an empty string means no namespace. */
     readonly defaultElementTypeNamespace: string | undefined;
+    /** Explicit default for unprefixed function names; an empty string means no namespace. */
+    readonly defaultFunctionNamespace: string | undefined;
     readonly schemaImports: readonly SchemaImportAstNode[];
     readonly namespaces: ReadonlyMap<Prefix, SourceNamespaceDefinition>;
     readonly declarations: ModulePrologDeclarations;
@@ -87,6 +89,7 @@ class ModulePrologCollector extends ParserAstVisitor<void> {
     private readonly nameResolver: NamespaceResolver;
     private baseUri: string | undefined;
     private defaultElementTypeNamespace: string | undefined;
+    private defaultFunctionNamespace: string | undefined;
     private targetNamespace: string | undefined;
 
     public constructor(
@@ -110,6 +113,7 @@ class ModulePrologCollector extends ParserAstVisitor<void> {
             schemaImports: this.schemaImports,
             baseUri: this.baseUri,
             defaultElementTypeNamespace: this.defaultElementTypeNamespace,
+            defaultFunctionNamespace: this.defaultFunctionNamespace,
             namespaces: this.namespaces,
             declarations: this.declarations,
             exports: this.exports,
@@ -175,6 +179,15 @@ class ModulePrologCollector extends ParserAstVisitor<void> {
     ): void {
         if (node.namespaceKind === "element") {
             this.setDefaultElementTypeNamespace(node.namespaceUri, node.namespaceUriRange);
+        } else if (this.defaultFunctionNamespace !== undefined) {
+            this.diagnostics.push({
+                severity: DiagnosticSeverity.Error,
+                code: "XQST0066",
+                message: "The default function namespace is declared more than once.",
+                range: node.namespaceUriRange,
+            });
+        } else {
+            this.defaultFunctionNamespace = node.namespaceUri;
         }
     }
 
@@ -193,7 +206,11 @@ class ModulePrologCollector extends ParserAstVisitor<void> {
 
     protected override visitFunctionDeclaration(node: FunctionDeclarationAstNode): void {
         const definition = this.definitions.function(
-            this.nameResolver.resolveFunctionName(node.name, node.selectionRange),
+            this.nameResolver.resolveFunctionName(
+                node.name,
+                node.selectionRange,
+                this.defaultFunctionNamespace,
+            ),
             node.range,
             node.selectionRange,
         );

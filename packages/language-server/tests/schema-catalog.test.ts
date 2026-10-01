@@ -120,7 +120,7 @@ describe("schema catalog", () => {
                     ).href,
                     language,
                     1,
-                    'declare base-uri "schemas/"; import schema namespace t = "urn:test" at "types.xsd"; declare variable $value as t:Code := t:Code("a"); $value',
+                    'declare base-uri "schemas/"; declare default function namespace "urn:test"; import schema namespace t = "urn:test" at "types.xsd"; declare variable $value as t:Code := Code("a"); $value',
                 );
 
                 const result = await getSchemaCatalog(
@@ -203,21 +203,20 @@ describe("schema catalog", () => {
                     workspace,
                 );
                 expect(signature?.signatures[0]?.label).toBe(
-                    "t:Code($arg1 as xs:anyAtomicType?) as Code?",
+                    "Code($arg1 as xs:anyAtomicType?) as Code?",
                 );
                 // Verify hover renders the signature supplied by the real schema catalog.
                 const hover = await findHover(
                     document,
-                    positionAt(document, 't:Code("a")'),
+                    positionAt(document, 'Code("a")'),
                     workspace,
                     client,
                 );
                 expect(hover?.contents).toMatchObject({
-                    value: expect.stringContaining("t:Code(xs:anyAtomicType?) as Code?"),
+                    value: expect.stringContaining("Code(xs:anyAtomicType?) as Code?"),
                 });
                 expect(
-                    findSymbolAtPosition(analysis, positionAt(document, 't:Code("a")'))
-                        ?.declaration,
+                    findSymbolAtPosition(analysis, positionAt(document, 'Code("a")'))?.declaration,
                 ).toEqual({
                     ...result.constructors[0],
                     sourceUri: pathToFileURL(path.join(directory, "schemas", "common.xsd")).href,
@@ -229,7 +228,7 @@ describe("schema catalog", () => {
                     uri: pathToFileURL(path.join(directory, "schemas", "common.xsd")).href,
                     range: { start: { line: 0, character: 0 }, end: { line: 0, character: 0 } },
                 };
-                for (const reference of ["t:Code :=", 't:Code("a")']) {
+                for (const reference of ["t:Code :=", 'Code("a")']) {
                     expect(
                         await findDefinitionLocation(
                             document,

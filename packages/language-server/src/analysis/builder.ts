@@ -59,6 +59,7 @@ class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
     private readonly definitions: SourceDefinitionFactory;
     private readonly namespaces: ReadonlyMap<Prefix, SourceNamespaceDefinition>;
     private readonly defaultElementTypeNamespace: string | undefined;
+    private readonly defaultFunctionNamespace: string | undefined;
     private readonly declarations: ModulePrologDeclarations;
     private readonly resolvedImportsByNamespace: ReadonlyMap<string, ResolvedModuleImport>;
     private readonly diagnostics: Diagnostic[];
@@ -80,6 +81,7 @@ class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
         this.definitions = prolog.definitions;
         this.namespaces = prolog.namespaces;
         this.defaultElementTypeNamespace = prolog.defaultElementTypeNamespace;
+        this.defaultFunctionNamespace = prolog.defaultFunctionNamespace;
         this.declarations = prolog.declarations;
         this.diagnostics = [...prolog.diagnostics];
         this.resolveBuiltin = environment.resolveBuiltin ?? ((_kind, _name) => undefined);
@@ -118,6 +120,7 @@ class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
             scope: this.moduleScope,
             namespaces: this.nameResolver.getNamespaces(),
             defaultElementTypeNamespace: this.defaultElementTypeNamespace,
+            defaultFunctionNamespace: this.defaultFunctionNamespace,
             diagnostics: this.diagnostics,
         };
     }
@@ -290,7 +293,11 @@ class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
     private createFunctionCallNode(
         node: FunctionCallAstNode | NamedFunctionReferenceAstNode,
     ): FunctionCallNode {
-        const name = this.nameResolver.resolveFunctionName(node.name, node.selectionRange);
+        const name = this.nameResolver.resolveFunctionName(
+            node.name,
+            node.selectionRange,
+            this.defaultFunctionNamespace,
+        );
         const reference = this.createReference("function", name, node.selectionRange);
         const children = [reference, ...this.visitChildrenAsNodes(node)];
         return {

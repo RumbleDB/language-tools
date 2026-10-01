@@ -87,6 +87,7 @@ describe.each(["jsoniq", "xquery"])("%s schema imports", (language) => {
     it("keeps the default function namespace separate from the element/type default", () => {
         const { prolog } = parse('declare default function namespace "urn:functions"; 1');
         expect(prolog.defaultElementTypeNamespace).toBeUndefined();
+        expect(prolog.defaultFunctionNamespace).toBe("urn:functions");
     });
 
     it.each([
@@ -129,3 +130,16 @@ describe.each(["jsoniq", "xquery"])("%s schema imports", (language) => {
     });
 });
 import { analyzeDocument, findSymbolAtPosition } from "server/analysis/index.js";
+
+it("rejects a duplicate function default even when the first value is empty", () => {
+    const document = TextDocument.create(
+        "file:///duplicate-function-default.xq",
+        "xquery",
+        1,
+        'declare default function namespace ""; declare default function namespace "urn:second"; 1',
+    );
+    const prolog = collectModuleProlog(document.uri, new ParserService().parse(document).ast);
+    // An empty namespace still counts as a declaration and must not be overwritten.
+    expect(prolog.defaultFunctionNamespace).toBe("");
+    expect(prolog.diagnostics.map((diagnostic) => diagnostic.code)).toEqual(["XQST0066"]);
+});

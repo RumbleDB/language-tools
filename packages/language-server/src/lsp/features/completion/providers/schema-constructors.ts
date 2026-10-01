@@ -9,12 +9,16 @@ export const provideSchemaConstructorCompletions: CompletionProvider = async (co
     if (!context.intent.allowFunctions) return null;
 
     const analysis = await context.getAnalysis();
-    const namespaces = analysis.namespaces;
+    const { namespaces, defaultFunctionNamespace } = analysis;
 
     const items: CompletionItem[] = [];
     for (const definition of await context.getVisibleDeclarations()) {
         if (definition.kind !== "function" || definition.origin !== "schema") continue;
-        for (const label of getQNameCompletionLabels(definition.name.qname, namespaces)) {
+        for (const label of getQNameCompletionLabels(
+            definition.name.qname,
+            namespaces,
+            defaultFunctionNamespace,
+        )) {
             items.push({
                 label,
                 kind: CompletionItemKind.Function,
