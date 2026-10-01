@@ -7,7 +7,6 @@ import { TextDocument } from "vscode-languageserver-textdocument";
 
 import type * as ctx from "./grammar/JsoniqParser.js";
 import { JsoniqParserVisitor } from "./grammar/JsoniqParserVisitor.js";
-import { parseQname } from "./name.js";
 
 class JsoniqAstBuilder extends JsoniqParserVisitor<AstVisitResult> {
     private readonly common: CommonAstBuilder;
@@ -69,7 +68,7 @@ class JsoniqAstBuilder extends JsoniqParserVisitor<AstVisitResult> {
         return [
             {
                 kind: "type-declaration",
-                name: { qname: parseQname(nameNode) },
+                name: { qname: parseQNameText(nameNode.getText()) },
                 range: rangeFromNode(node, this.document),
                 selectionRange: rangeFromNode(nameNode, this.document),
                 children: [],
