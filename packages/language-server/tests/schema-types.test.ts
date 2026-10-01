@@ -18,6 +18,67 @@ const parser = new ParserService();
 const provider = { loadImport: () => [] };
 
 describe("module-local XML Schema types", () => {
+    it.each([
+        ["jsoniq", 'import schema default element namespace "urn:schema" at "types.xsd";'],
+        ["xquery", 'import schema default element namespace "urn:schema" at "types.xsd";'],
+        [
+            "jsoniq",
+            'declare default element namespace "urn:schema"; import schema "urn:schema" at "types.xsd";',
+        ],
+        [
+            "xquery",
+            'declare default element namespace "urn:schema"; import schema "urn:schema" at "types.xsd";',
+        ],
+    ])(
+        "applies the default element/type namespace only to unprefixed types in %s: %s",
+        (language, header) => {
+            const document = testDocumentFromUri(
+                [
+                    header,
+                    'declare namespace other = "urn:other";',
+                    "declare variable $Code := ();",
+                    "declare function Code() { $Code };",
+                    "($Code, Code(), 1 instance of Code, 1 instance of other:Code, 1 instance of Q{urn:other}Code)",
+                ],
+                {
+                    uri: `file:///schema-default-types.${language === "xquery" ? "xq" : "jq"}`,
+                    languageId: language,
+                },
+            );
+            const parsed = parser.parse(document);
+            expect(parsed.diagnostics).toEqual([]);
+            const otherType: SchemaTypeDefinition = {
+                kind: "type",
+                origin: "schema",
+                name: { namespaceUri: "urn:other", localName: "Code" },
+            };
+            const { analysis } = analyzeModule(document, parsed.ast, {
+                provider,
+                schemaTypes: [...schemaTypes, otherType],
+            });
+            expect(analysis.diagnostics).toEqual([]);
+            // Only an unprefixed type uses the import's default; explicit namespaces take precedence.
+            expect(
+                findSymbolAtPosition(analysis, positionAt(document, "Code, 1 instance"))
+                    ?.declaration,
+            ).toBe(schemaTypes[0]);
+            for (const reference of ["other:Code", "Q{urn:other}Code"]) {
+                expect(
+                    findSymbolAtPosition(analysis, positionAt(document, reference))?.declaration,
+                ).toBe(otherType);
+            }
+            // Sharing the local name must not move variables or functions into the schema namespace.
+            expect(
+                findSymbolAtPosition(analysis, positionAt(document, "$Code, Code"))?.declaration
+                    ?.name,
+            ).toEqual({ localName: "Code" });
+            expect(
+                findSymbolAtPosition(analysis, positionAt(document, "Code(), 1"))?.declaration
+                    ?.name,
+            ).toEqual({ qname: { localName: "Code" }, arity: 0 });
+        },
+    );
+
     it.each(["jsoniq", "xquery"])(
         "resolves aliases in annotations and type expressions in %s",
         (language) => {

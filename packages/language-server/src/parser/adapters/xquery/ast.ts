@@ -30,6 +30,7 @@ import {
     LetVarContext,
     NamedFunctionRefContext,
     NamespaceDeclContext,
+    DefaultNamespaceDeclContext,
     SchemaImportContext,
     BaseURIDeclContext,
     LibraryModuleContext,
@@ -176,6 +177,19 @@ class XQueryAstBuilder extends XQueryParserVisitor<AstVisitResult> {
             },
         ];
     };
+
+    public override visitDefaultNamespaceDecl = (
+        node: DefaultNamespaceDeclContext,
+    ): AstVisitResult => [
+        {
+            kind: "default-namespace-declaration",
+            namespaceKind: node.KW_ELEMENT() === null ? "function" : "element",
+            namespaceUri: unquoteStringLiteral(node.stringLiteral().getText()),
+            namespaceUriRange: rangeFromNode(node.stringLiteral(), this.document),
+            range: rangeFromNode(node, this.document),
+            children: [],
+        },
+    ];
 
     public override visitNamespaceDecl = (node: NamespaceDeclContext): AstVisitResult => {
         const nameNode = node.ncName();

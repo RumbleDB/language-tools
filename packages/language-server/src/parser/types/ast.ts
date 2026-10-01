@@ -14,6 +14,7 @@ export type AstNodeKind =
     | "base-uri-declaration"
     | "schema-import"
     | "namespace-declaration"
+    | "default-namespace-declaration"
     | "context-item-declaration"
     | "type-declaration"
     | "function-declaration"
@@ -69,6 +70,12 @@ export interface NamespaceDeclarationAstNode extends AstNodeBase<"namespace-decl
     readonly prefix: Prefix;
     readonly namespaceUri: string;
     readonly selectionRange: Range;
+}
+
+export interface DefaultNamespaceDeclarationAstNode extends AstNodeBase<"default-namespace-declaration"> {
+    readonly namespaceKind: "element" | "function";
+    readonly namespaceUri: string;
+    readonly namespaceUriRange: Range;
 }
 
 export interface ContextItemDeclarationAstNode extends AstNodeBase<"context-item-declaration"> {
@@ -150,6 +157,7 @@ export type AstNode =
     | BaseUriDeclarationAstNode
     | SchemaImportAstNode
     | NamespaceDeclarationAstNode
+    | DefaultNamespaceDeclarationAstNode
     | ContextItemDeclarationAstNode
     | TypeDeclarationAstNode
     | FunctionDeclarationAstNode

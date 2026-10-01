@@ -15,6 +15,7 @@ export class NamespaceResolver {
     public constructor(
         private readonly namespaces: ReadonlyMap<Prefix, SourceNamespaceDefinition>,
         private readonly reportDiagnostic: (diagnostic: Diagnostic) => void,
+        private readonly defaultElementTypeNamespace?: string,
     ) {}
 
     public getNamespaces(): ReadonlyMap<Prefix, string> {
@@ -28,6 +29,14 @@ export class NamespaceResolver {
 
     public resolveFunctionName(name: LexicalFunctionName, range: Range): FunctionName {
         return { ...name, qname: this.resolveQName(name.qname, range) };
+    }
+
+    public resolveTypeName(name: LexicalQName, range: Range): QName {
+        const resolved = this.resolveQName(name, range);
+        // The default element/type namespace applies only to unprefixed type names.
+        return name.kind === "unprefixed-qname" && this.defaultElementTypeNamespace !== undefined
+            ? { ...resolved, namespaceUri: this.defaultElementTypeNamespace }
+            : resolved;
     }
 
     public resolveQName(qname: LexicalQName, range: Range): QName {

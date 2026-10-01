@@ -96,8 +96,10 @@ class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
             this.moduleScope.declare(definition, 0);
         }
         this.currentScope = this.moduleScope;
-        this.nameResolver = new NamespaceResolver(this.namespaces, (diagnostic) =>
-            this.diagnostics.push(diagnostic),
+        this.nameResolver = new NamespaceResolver(
+            this.namespaces,
+            (diagnostic) => this.diagnostics.push(diagnostic),
+            prolog.defaultElementTypeNamespace,
         );
     }
 
@@ -262,7 +264,7 @@ class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
         return [
             this.createReference(
                 "type",
-                this.nameResolver.resolveQName(node.name, node.range),
+                this.nameResolver.resolveTypeName(node.name, node.range),
                 node.range,
             ),
         ];

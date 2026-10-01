@@ -66,8 +66,47 @@ describe.each(["jsoniq", "xquery"])("%s schema imports", (language) => {
             expect(prolog.schemaImports[0]?.prefix).toBeUndefined();
             expect(prolog.schemaImports[0]?.prefixRange).toBeUndefined();
             expect(prolog.namespaces.has("")).toBe(false);
+            // The default is a separate static-context value, not an empty-prefix binding.
+            expect(prolog.defaultElementTypeNamespace).toBe(
+                defaultElementNamespace ? namespaceUri : undefined,
+            );
         },
     );
+
+    it.each(["urn:test", ""])(
+        "retains a standalone default element/type namespace %s",
+        (namespaceUri) => {
+            const { prolog } = parse(`declare default element namespace "${namespaceUri}"; 1`);
+            // Empty means an explicitly absent namespace, so it must survive collection.
+            expect(prolog.defaultElementTypeNamespace).toBe(namespaceUri);
+            expect(prolog.schemaImports).toEqual([]);
+            expect(prolog.namespaces.has("")).toBe(false);
+        },
+    );
+
+    it("keeps the default function namespace separate from the element/type default", () => {
+        const { prolog } = parse('declare default function namespace "urn:functions"; 1');
+        expect(prolog.defaultElementTypeNamespace).toBeUndefined();
+    });
+
+    it.each([
+        'declare default element namespace ""; declare default element namespace "urn:second";',
+        'declare default element namespace "urn:first"; import schema default element namespace "urn:second";',
+        'import schema default element namespace "urn:first"; declare default element namespace "urn:second";',
+    ])("rejects duplicate element/type defaults: %s", (header) => {
+        const extension = language === "jsoniq" ? "jq" : "xq";
+        const document = TextDocument.create(
+            `file:///duplicate-default.${extension}`,
+            language,
+            1,
+            `${header} 1`,
+        );
+        const parsed = new ParserService().parse(document);
+        expect(parsed.diagnostics).toEqual([]);
+        const prolog = collectModuleProlog(document.uri, parsed.ast);
+        // Both declaration forms set the same component; even an empty first value counts.
+        expect(prolog.diagnostics.map((diagnostic) => diagnostic.code)).toEqual(["XQST0066"]);
+    });
 
     it("keeps ordinary namespace declarations separate", () => {
         const { prolog } = parse('declare namespace s = "urn:test"; 1');

@@ -8,12 +8,18 @@ import type {
     SchemaImportAstNode,
     BaseUriDeclarationAstNode,
     NamespaceDeclarationAstNode,
+    DefaultNamespaceDeclarationAstNode,
     TypeDeclarationAstNode,
     VariableDeclarationAstNode,
 } from "server/parser/types/ast.js";
 import type { Prefix } from "server/parser/types/name.js";
 import { ParserAstVisitor } from "server/parser/types/visitor.js";
-import { DiagnosticSeverity, type Diagnostic, type DocumentUri } from "vscode-languageserver";
+import {
+    DiagnosticSeverity,
+    type Diagnostic,
+    type DocumentUri,
+    type Range,
+} from "vscode-languageserver";
 
 import { definitionNameToString, duplicateSymbolErrorCode } from "../model/definitions.js";
 import type {
@@ -45,6 +51,8 @@ export interface ModuleProlog {
     readonly targetNamespace: string | undefined;
     readonly imports: readonly ModuleImport[];
     readonly baseUri: string | undefined;
+    /** Explicit default for unprefixed element/type names; an empty string means no namespace. */
+    readonly defaultElementTypeNamespace: string | undefined;
     readonly schemaImports: readonly SchemaImportAstNode[];
     readonly namespaces: ReadonlyMap<Prefix, SourceNamespaceDefinition>;
     readonly declarations: ModulePrologDeclarations;
@@ -78,6 +86,7 @@ class ModulePrologCollector extends ParserAstVisitor<void> {
     private readonly definitions: SourceDefinitionFactory;
     private readonly nameResolver: NamespaceResolver;
     private baseUri: string | undefined;
+    private defaultElementTypeNamespace: string | undefined;
     private targetNamespace: string | undefined;
 
     public constructor(
@@ -100,6 +109,7 @@ class ModulePrologCollector extends ParserAstVisitor<void> {
             imports: this.imports,
             schemaImports: this.schemaImports,
             baseUri: this.baseUri,
+            defaultElementTypeNamespace: this.defaultElementTypeNamespace,
             namespaces: this.namespaces,
             declarations: this.declarations,
             exports: this.exports,
@@ -154,7 +164,31 @@ class ModulePrologCollector extends ParserAstVisitor<void> {
 
     protected override visitSchemaImport(node: SchemaImportAstNode): void {
         this.schemaImports.push(node);
+        if (node.defaultElementNamespace) {
+            this.setDefaultElementTypeNamespace(node.namespaceUri, node.namespaceUriRange);
+        }
         this.bindNamespace(node);
+    }
+
+    protected override visitDefaultNamespaceDeclaration(
+        node: DefaultNamespaceDeclarationAstNode,
+    ): void {
+        if (node.namespaceKind === "element") {
+            this.setDefaultElementTypeNamespace(node.namespaceUri, node.namespaceUriRange);
+        }
+    }
+
+    private setDefaultElementTypeNamespace(namespaceUri: string, range: Range): void {
+        if (this.defaultElementTypeNamespace !== undefined) {
+            this.diagnostics.push({
+                severity: DiagnosticSeverity.Error,
+                code: "XQST0066",
+                message: "The default element/type namespace is declared more than once.",
+                range,
+            });
+            return;
+        }
+        this.defaultElementTypeNamespace = namespaceUri;
     }
 
     protected override visitFunctionDeclaration(node: FunctionDeclarationAstNode): void {
