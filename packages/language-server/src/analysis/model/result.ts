@@ -1,3 +1,4 @@
+import type { Prefix } from "server/parser/types/name.js";
 import type { Diagnostic } from "vscode-languageserver";
 
 import type { ModuleProlog } from "../resolution/module-prolog.js";
@@ -26,6 +27,9 @@ export interface AnalysisResult {
      * Root scope of the module
      */
     readonly scope: Scope;
+
+    /** Effective prefix bindings, including defaults overridden by module declarations. */
+    readonly namespaces: ReadonlyMap<Prefix, string>;
 
     /**
      * List of all diagnostics reported during analysis of the module

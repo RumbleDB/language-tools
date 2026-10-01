@@ -17,6 +17,14 @@ export class NamespaceResolver {
         private readonly reportDiagnostic: (diagnostic: Diagnostic) => void,
     ) {}
 
+    public getNamespaces(): ReadonlyMap<Prefix, string> {
+        const namespaces = new Map(DEFAULT_NAMESPACES);
+        for (const [prefix, definition] of this.namespaces) {
+            namespaces.set(prefix, definition.namespaceUri);
+        }
+        return namespaces;
+    }
+
     public resolveFunctionName(name: LexicalFunctionName, range: Range): FunctionName {
         return { ...name, qname: this.resolveQName(name.qname, range) };
     }

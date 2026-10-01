@@ -227,6 +227,24 @@ describe("schema catalog", () => {
                     client,
                 );
                 expect(completions.map((item) => item.label)).toContain("t:Code");
+                // Type annotations must use the named types from the same cached Java response.
+                TextDocument.update(
+                    document,
+                    [
+                        {
+                            text: 'declare base-uri "schemas/"; import schema namespace t = "urn:test" at "types.xsd"; declare variable $value as t:',
+                        },
+                    ],
+                    document.version + 1,
+                );
+                const typeCompletions = await findCompletions(
+                    document,
+                    document.positionAt(document.getText().length),
+                    parser,
+                    workspace,
+                    client,
+                );
+                expect(typeCompletions.map((item) => item.label)).toEqual(["t:Code"]);
                 // One direct endpoint request plus one workspace request; the body edit reuses the latter.
                 expect(
                     requests.mock.calls.filter(
@@ -262,6 +280,14 @@ describe("schema catalog", () => {
                 expect(constructors.map((definition) => definition.name)).toEqual([
                     { qname: { localName: "NewCode", namespaceUri: "urn:test" }, arity: 1 },
                 ]);
+                const updatedTypeCompletions = await findCompletions(
+                    document,
+                    document.positionAt(document.getText().length),
+                    parser,
+                    workspace,
+                    client,
+                );
+                expect(updatedTypeCompletions.map((item) => item.label)).toEqual(["t:NewCode"]);
             } finally {
                 client.dispose();
                 await rm(directory, { recursive: true, force: true });

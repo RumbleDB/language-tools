@@ -112,6 +112,7 @@ class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
         return {
             ast,
             scope: this.moduleScope,
+            namespaces: this.nameResolver.getNamespaces(),
             diagnostics: this.diagnostics,
         };
     }

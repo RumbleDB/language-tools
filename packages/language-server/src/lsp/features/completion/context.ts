@@ -1,7 +1,9 @@
 import {
     getVisibleDeclarationsAtPosition,
+    QNameToString,
     type AnalysisResult,
     type ScopeDefinition,
+    type QName,
 } from "server/analysis/index.js";
 import type { WrapperClient } from "server/integrations/rumble/client.js";
 import type { ParserService } from "server/parser/index.js";
@@ -50,6 +52,17 @@ export function createCompletionContext(
 
 export function typedPrefix(source: string, cursorOffset: number, pattern: RegExp): string | null {
     return source.slice(0, cursorOffset).match(pattern)?.[0] ?? null;
+}
+
+/** Catalog names have no query prefix. Offer each bound alias, or an expanded QName. */
+export function getQNameCompletionLabels(
+    qname: QName,
+    namespaces: ReadonlyMap<string, string>,
+): string[] {
+    const prefixes = [...namespaces].filter(([, uri]) => uri === qname.namespaceUri);
+    return prefixes.length === 0
+        ? [QNameToString(qname, true)]
+        : prefixes.map(([prefix]) => QNameToString({ ...qname, prefix }, false));
 }
 
 export function replaceTypedPrefix(

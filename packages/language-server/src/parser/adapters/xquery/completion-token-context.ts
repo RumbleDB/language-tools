@@ -32,8 +32,8 @@ export class XQueryTokenContextAnalyzer extends TokenContextAnalyzer {
         return XQueryLexer.DOLLAR;
     }
 
-    protected override get kwAsTokenType(): number {
-        return XQueryLexer.KW_AS;
+    protected override get typeNameIntroducerTokenTypes(): readonly number[] {
+        return [XQueryLexer.KW_AS, XQueryLexer.KW_OF];
     }
 
     protected override get lexerSymbolicNames(): ReadonlyArray<string | null> {

@@ -98,20 +98,22 @@ export abstract class TokenContextAnalyzer {
     /**
      * Returns true when the cursor is at a position where a type name is expected.
      * Handles three cases:
-     * - `as |`      → previous = KW_AS
-     * - `as foo|`   → previous = NCName/keyword, beforePrevious = KW_AS
-     * - `as xs:|`   → previous = COLON, at(-2) = NCName/keyword, at(-3) = KW_AS
+     * - `as |` or `of |`      → previous is a type-name introducer
+     * - `as foo|` or `of foo|` → beforePrevious is a type-name introducer
+     * - `as xs:|` or `of xs:|` → at(-3) is a type-name introducer
      */
     public isAtTypeName(): boolean {
-        if (this.previous?.type === this.kwAsTokenType) {
+        const isIntroducer = (token: Token | undefined): boolean =>
+            token !== undefined && this.typeNameIntroducerTokenTypes.includes(token.type);
+        if (isIntroducer(this.previous)) {
             return true;
         }
-        if (this.beforePreviousIs(this.kwAsTokenType)) {
+        if (isIntroducer(this.beforePrevious)) {
             return true;
         }
         if (
             this.previous?.type === this.colonTokenType &&
-            this.tokensBeforeCursor.at(-3)?.type === this.kwAsTokenType &&
+            isIntroducer(this.tokensBeforeCursor.at(-3)) &&
             this.isNCNameOrKeyword(this.beforePrevious)
         ) {
             return true;
@@ -150,8 +152,8 @@ export abstract class TokenContextAnalyzer {
     /** Token type for `$` in this grammar (e.g. `JsoniqLexer.DOLLAR`). */
     protected abstract get dollarTokenType(): number;
 
-    /** Token type for the `as` keyword in this grammar (e.g. `JsoniqLexer.KW_AS`). */
-    protected abstract get kwAsTokenType(): number;
+    /** Token types introducing a type name: `as` and `instance of`. */
+    protected abstract get typeNameIntroducerTokenTypes(): readonly number[];
 
     /**
      * The symbolic name table for this grammar's lexer (e.g. `JsoniqLexer.symbolicNames`).
