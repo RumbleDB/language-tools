@@ -72,7 +72,7 @@ public final class StaticTypeChecker implements RequestHandler {
                 "(?s)^\\s*(?:\\(:.*?:\\)\\s*)*(?:jsoniq|xquery)?(?:\\s+version\\s+[^;]+;\\s*)?module\\s+namespace\\b.*");
     }
 
-    private static StaticTypeError toTypeError(RumbleException exception) {
+    static StaticTypeError toTypeError(RumbleException exception) {
         ExceptionMetadata metadata =
                 exception.getMetadata() == null ? ExceptionMetadata.EMPTY_METADATA : exception.getMetadata();
         String code = exception.getErrorCode().toString();
