@@ -555,7 +555,7 @@ class JsoniqAstBuilder extends JsoniqParserVisitor<AstVisitResult> {
 
     public override visitSequenceType = (node: SequenceTypeContext): AstVisitResult => {
         const item = node.itemType();
-        const name = item?.eqName()?.qname();
+        const name = item?.eqName();
 
         if (name === null || name === undefined) {
             return this.visitChildren(node) ?? [];
@@ -564,7 +564,7 @@ class JsoniqAstBuilder extends JsoniqParserVisitor<AstVisitResult> {
         return [
             {
                 kind: "type-reference",
-                name: parseQname(name),
+                name: parseQNameText(name.getText()),
                 children: this.visitChildrenAsNodes(node),
                 range: rangeFromNode(node, this.document),
             },
