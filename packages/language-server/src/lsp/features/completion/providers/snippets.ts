@@ -2,7 +2,7 @@ export function createFunctionCallSnippet(functionName: string, parameterNames: 
     const placeholders = parameterNames.map(
         (parameterName, index) => `\${${index + 1}:${escapeSnippetText(parameterName)}}`,
     );
-    return `${functionName}(${placeholders.join(", ")})$0`;
+    return `${escapeSnippetText(functionName)}(${placeholders.join(", ")})$0`;
 }
 
 function escapeSnippetText(text: string): string {

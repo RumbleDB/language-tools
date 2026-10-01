@@ -1,8 +1,22 @@
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import path from "node:path";
+import { pathToFileURL } from "node:url";
+
+import { findSymbolAtPosition, getVisibleDeclarationsAtPosition } from "server/analysis/index.js";
+import { createServerContext } from "server/app/context.js";
+import { RumbleWrapperClient } from "server/integrations/rumble/client.js";
 import type { SchemaCatalogWireResult } from "server/integrations/rumble/operations/schema-catalog/protocol.js";
 import { getSchemaCatalog } from "server/integrations/rumble/operations/schema-catalog/service.js";
+import { findCompletions } from "server/lsp/features/completion.js";
+import { findDefinitionLocation } from "server/lsp/features/definition.js";
+import { findHover } from "server/lsp/features/hover.js";
+import { findSignatureHelp } from "server/lsp/features/signature-help.js";
 import { describe, expect, it, vi } from "vitest";
+import { TextDocument } from "vscode-languageserver-textdocument";
+import { FileChangeType, type Connection } from "vscode-languageserver/node";
 
-import { createMockWrapperClient, testDocument } from "./test-utils.js";
+import { createMockWrapperClient, positionAt, testDocument } from "./test-utils.js";
 
 describe("schema catalog", () => {
     it("sends schema imports and base URI and returns schema-loading errors", async () => {
@@ -78,4 +92,238 @@ describe("schema catalog", () => {
             await getSchemaCatalog("file:///schema-catalog.jq", { imports: [] }, client),
         ).toBeUndefined();
     });
+
+    it.each(["jsoniq", "xquery"])(
+        "loads schemas through the real wrapper with an incomplete %s body",
+        async (language) => {
+            const directory = await mkdtemp(path.join(tmpdir(), "lsp-schema-catalog-"));
+            const client = new RumbleWrapperClient();
+            const requests = vi.spyOn(client, "sendRequest");
+            try {
+                await mkdir(path.join(directory, "schemas"));
+                await writeFile(
+                    path.join(directory, "schemas", "types.xsd"),
+                    `<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" targetNamespace="urn:test">
+                      <xs:include schemaLocation="common.xsd"/>
+                    </xs:schema>`,
+                );
+                await writeFile(
+                    path.join(directory, "schemas", "common.xsd"),
+                    `
+                <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" targetNamespace="urn:test">
+                  <xs:simpleType name="Code"><xs:restriction base="xs:string"/></xs:simpleType>
+                </xs:schema>`,
+                );
+                const document = TextDocument.create(
+                    pathToFileURL(
+                        path.join(directory, language === "xquery" ? "query.xq" : "query.jq"),
+                    ).href,
+                    language,
+                    1,
+                    'declare base-uri "schemas/"; declare default function namespace "urn:test"; import schema namespace t = "urn:test" at "types.xsd"; declare variable $value as t:Code := Code("a"); $value',
+                );
+
+                const result = await getSchemaCatalog(
+                    document.uri,
+                    {
+                        imports: [{ namespaceUri: "urn:test", locations: ["types.xsd"] }],
+                        baseUri: "schemas/",
+                    },
+                    client,
+                );
+
+                expect(result).toBeDefined();
+                if (result === undefined) return;
+                expect(result.errors).toEqual([]);
+                expect(result.dependencies?.map((uri) => new URL(uri).href)).toEqual([
+                    pathToFileURL(path.join(directory, "schemas", "types.xsd")).href,
+                    pathToFileURL(path.join(directory, "schemas", "common.xsd")).href,
+                ]);
+                // Code belongs to the included schema, so navigation must not point at types.xsd.
+                expect(
+                    result.types.map((source) => ({
+                        ...source,
+                        sourceUri:
+                            source.sourceUri === undefined
+                                ? undefined
+                                : new URL(source.sourceUri).href,
+                    })),
+                ).toEqual([
+                    {
+                        name: { localName: "Code", namespaceUri: "urn:test" },
+                        sourceUri: pathToFileURL(path.join(directory, "schemas", "common.xsd"))
+                            .href,
+                    },
+                ]);
+                expect(result.constructors).toEqual([
+                    {
+                        name: { qname: { localName: "Code", namespaceUri: "urn:test" }, arity: 1 },
+                        signature: {
+                            parameterTypes: [
+                                {
+                                    type: {
+                                        itemType: {
+                                            kind: "named",
+                                            name: {
+                                                localName: "anyAtomicType",
+                                                namespaceUri: "http://www.w3.org/2001/XMLSchema",
+                                                prefix: "xs",
+                                            },
+                                        },
+                                        arity: "?",
+                                    },
+                                },
+                            ],
+                            returnType: {
+                                itemType: {
+                                    kind: "named",
+                                    name: { localName: "Code", namespaceUri: "urn:test" },
+                                },
+                                arity: "?",
+                            },
+                        },
+                    },
+                ]);
+                // Exercise the production wiring with an actual XSD and Java response, beyond mocked catalogs.
+                const { parser, workspace } = createServerContext({} as Connection, client);
+                const analysis = await workspace.getAnalysis(document);
+                expect(analysis.diagnostics).toEqual([]);
+                // The catalog's named types must resolve in annotations independently from constructor calls.
+                expect(
+                    findSymbolAtPosition(analysis, positionAt(document, "t:Code :="))?.declaration,
+                ).toMatchObject({
+                    kind: "type",
+                    origin: "schema",
+                    name: { namespaceUri: "urn:test", localName: "Code" },
+                });
+                // Parameter help uses the signature exported by the actual Java schema loader.
+                const signature = await findSignatureHelp(
+                    document,
+                    positionAt(document, '"a"'),
+                    workspace,
+                );
+                expect(signature?.signatures[0]?.label).toBe(
+                    "Code($arg1 as xs:anyAtomicType?) as Code?",
+                );
+                // Verify hover renders the signature supplied by the real schema catalog.
+                const hover = await findHover(
+                    document,
+                    positionAt(document, 'Code("a")'),
+                    workspace,
+                    client,
+                );
+                expect(hover?.contents).toMatchObject({
+                    value: expect.stringContaining("Code(xs:anyAtomicType?) as Code?"),
+                });
+                expect(
+                    findSymbolAtPosition(analysis, positionAt(document, 'Code("a")'))?.declaration,
+                ).toEqual({
+                    ...result.constructors[0],
+                    sourceUri: pathToFileURL(path.join(directory, "schemas", "common.xsd")).href,
+                    kind: "function",
+                    origin: "schema",
+                });
+                // Both annotations and constructor calls navigate to the included XSD.
+                const schemaLocation = {
+                    uri: pathToFileURL(path.join(directory, "schemas", "common.xsd")).href,
+                    range: { start: { line: 0, character: 0 }, end: { line: 0, character: 0 } },
+                };
+                for (const reference of ["t:Code :=", 'Code("a")']) {
+                    expect(
+                        await findDefinitionLocation(
+                            document,
+                            positionAt(document, reference),
+                            workspace,
+                        ),
+                    ).toEqual(schemaLocation);
+                }
+                // An unfinished body must not prevent the workspace from loading the same schema.
+                TextDocument.update(
+                    document,
+                    [
+                        {
+                            text: 'declare base-uri "schemas/"; import schema namespace t = "urn:test" at "types.xsd"; t:',
+                        },
+                    ],
+                    2,
+                );
+                const incomplete = await workspace.getAnalysis(document);
+                // The editor completion path must use the actual constructors returned by Java.
+                const completions = await findCompletions(
+                    document,
+                    document.positionAt(document.getText().length),
+                    parser,
+                    workspace,
+                    client,
+                );
+                expect(completions.map((item) => item.label)).toContain("t:Code");
+                // Type annotations must use the named types from the same cached Java response.
+                TextDocument.update(
+                    document,
+                    [
+                        {
+                            text: 'declare base-uri "schemas/"; import schema namespace t = "urn:test" at "types.xsd"; declare variable $value as t:',
+                        },
+                    ],
+                    document.version + 1,
+                );
+                const typeCompletions = await findCompletions(
+                    document,
+                    document.positionAt(document.getText().length),
+                    parser,
+                    workspace,
+                    client,
+                );
+                expect(typeCompletions.map((item) => item.label)).toEqual(["t:Code"]);
+                // One direct endpoint request plus one workspace request; the body edit reuses the latter.
+                expect(
+                    requests.mock.calls.filter(
+                        ([request]) => request.requestType === "schema-catalog",
+                    ),
+                ).toHaveLength(2);
+                expect(
+                    getVisibleDeclarationsAtPosition(incomplete, document.getText().length),
+                ).toContainEqual({
+                    ...result.constructors[0],
+                    sourceUri: pathToFileURL(path.join(directory, "schemas", "common.xsd")).href,
+                    kind: "function",
+                    origin: "schema",
+                });
+                // Saving a nested XSD must replace the constructors without editing the query or root XSD.
+                const schemaPath = path.join(directory, "schemas", "common.xsd");
+                await writeFile(
+                    schemaPath,
+                    `<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" targetNamespace="urn:test">
+                      <xs:simpleType name="NewCode"><xs:restriction base="xs:string"/></xs:simpleType>
+                    </xs:schema>`,
+                );
+                await workspace.updateWatchedFiles([
+                    { uri: pathToFileURL(schemaPath).href, type: FileChangeType.Changed },
+                ]);
+                const refreshed = await workspace.getAnalysis(document);
+                const constructors = getVisibleDeclarationsAtPosition(
+                    refreshed,
+                    document.getText().length,
+                ).filter(
+                    (definition) =>
+                        definition.kind === "function" && definition.origin === "schema",
+                );
+                expect(constructors.map((definition) => definition.name)).toEqual([
+                    { qname: { localName: "NewCode", namespaceUri: "urn:test" }, arity: 1 },
+                ]);
+                const updatedTypeCompletions = await findCompletions(
+                    document,
+                    document.positionAt(document.getText().length),
+                    parser,
+                    workspace,
+                    client,
+                );
+                expect(updatedTypeCompletions.map((item) => item.label)).toEqual(["t:NewCode"]);
+            } finally {
+                client.dispose();
+                await rm(directory, { recursive: true, force: true });
+            }
+        },
+        30_000,
+    );
 });

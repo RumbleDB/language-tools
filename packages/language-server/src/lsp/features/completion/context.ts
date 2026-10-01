@@ -1,7 +1,9 @@
 import {
     getVisibleDeclarationsAtPosition,
+    QNameToString,
     type AnalysisResult,
     type ScopeDefinition,
+    type QName,
 } from "server/analysis/index.js";
 import type { WrapperClient } from "server/integrations/rumble/client.js";
 import type { ParserService } from "server/parser/index.js";
@@ -50,6 +52,20 @@ export function createCompletionContext(
 
 export function typedPrefix(source: string, cursorOffset: number, pattern: RegExp): string | null {
     return source.slice(0, cursorOffset).match(pattern)?.[0] ?? null;
+}
+
+/** Offer bound aliases and a local name when the caller supplies a matching default namespace. */
+export function getQNameCompletionLabels(
+    qname: QName,
+    namespaces: ReadonlyMap<string, string>,
+    defaultNamespace?: string,
+): string[] {
+    const prefixes = [...namespaces].filter(([, uri]) => uri === qname.namespaceUri);
+    const labels = prefixes.map(([prefix]) => QNameToString({ ...qname, prefix }, false));
+    if (defaultNamespace !== undefined && qname.namespaceUri === defaultNamespace) {
+        labels.unshift(qname.localName);
+    }
+    return labels.length === 0 ? [QNameToString(qname, true)] : labels;
 }
 
 export function replaceTypedPrefix(

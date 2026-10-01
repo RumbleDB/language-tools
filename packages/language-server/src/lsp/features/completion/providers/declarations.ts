@@ -10,7 +10,12 @@ import {
     type CompletionItem,
 } from "vscode-languageserver";
 
-import { replaceTypedPrefix, typedPrefix, applyQNamePrefixFilter } from "../context.js";
+import {
+    replaceTypedPrefix,
+    typedPrefix,
+    applyQNamePrefixFilter,
+    getQNameCompletionLabels,
+} from "../context.js";
 import type { CompletionProvider } from "../types.js";
 import { createFunctionCallSnippet } from "./snippets.js";
 
@@ -52,9 +57,16 @@ export const provideSourceFunctionCompletions: CompletionProvider = async (conte
         return null;
     }
 
+    const { namespaces, defaultFunctionNamespace } = await context.getAnalysis();
     const items = (await context.getVisibleDeclarations())
         .filter((definition) => definition.kind === "function" && definition.origin === "source")
-        .map(toCompletionItem);
+        .flatMap((definition) =>
+            getQNameCompletionLabels(
+                definition.name.qname,
+                namespaces,
+                defaultFunctionNamespace,
+            ).map((label) => toCompletionItem(definition, label)),
+        );
 
     return applyQNamePrefixFilter(items, context) ?? items;
 };
@@ -66,15 +78,15 @@ export const provideSourceTypeCompletions: CompletionProvider = async (context) 
 
     const items = (await context.getVisibleDeclarations())
         .filter((definition) => definition.kind === "type" && definition.origin === "source")
-        .map(toCompletionItem);
+        .map((definition) => toCompletionItem(definition));
 
     return applyQNamePrefixFilter(items, context) ?? items;
 };
 
-function toCompletionItem(declaration: ScopeDefinition): CompletionItem {
+function toCompletionItem(declaration: ScopeDefinition, functionLabel?: string): CompletionItem {
     const name = definitionNameToString(declaration);
     if (declaration.origin === "source" && declaration.kind === "function") {
-        const label = QNameToString(declaration.name.qname, false);
+        const label = functionLabel ?? QNameToString(declaration.name.qname, false);
         const parameterNames = declaration.parameters.map((parameter) =>
             definitionNameToString(parameter),
         );

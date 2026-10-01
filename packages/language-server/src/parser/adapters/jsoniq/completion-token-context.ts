@@ -32,8 +32,8 @@ export class JsoniqTokenContextAnalyzer extends TokenContextAnalyzer {
         return JsoniqLexer.DOLLAR;
     }
 
-    protected override get kwAsTokenType(): number {
-        return JsoniqLexer.KW_AS;
+    protected override get typeNameIntroducerTokenTypes(): readonly number[] {
+        return [JsoniqLexer.KW_AS, JsoniqLexer.KW_OF];
     }
 
     protected override get lexerSymbolicNames(): ReadonlyArray<string | null> {
