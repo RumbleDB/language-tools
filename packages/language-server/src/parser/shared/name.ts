@@ -13,17 +13,11 @@ export function parseFunctionName(
     node: FunctionDeclContext | FunctionCallContext | NamedFunctionRefContext,
     arity: number | undefined,
 ): LexicalFunctionName {
-    const qname = parseQNameText(node._fn_name?.getText() ?? "");
+    const qname = parseQNameText(node.functionName()?.getText() ?? "");
     return arity === undefined ? { qname } : { qname, arity };
 }
 
 export function parseVarName(node: VarRefContext | VarBindingContext): LexicalQName | null {
-    const text = node._var_name?.getText() ?? "";
+    const text = node.eqName()?.getText() ?? "";
     return text === "" ? null : parseQNameText(text);
-}
-
-export function functionName(
-    node: FunctionDeclContext | FunctionCallContext | NamedFunctionRefContext,
-): string {
-    return (node._fn_name?.getText() ?? "").trim();
 }
