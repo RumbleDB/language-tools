@@ -2,12 +2,15 @@ import {
     definitionNameToString,
     formatSequenceType,
     findNodesThatContainPosition,
+    getVisibleDeclarationsAtPosition,
+    sameQName,
     QNameToString,
     type ArgumentNode,
     type AstNode,
     type DefinitionByReferenceKind,
     type FunctionCallNode,
     type FunctionName,
+    type SchemaConstructorDefinition,
 } from "server/analysis/index.js";
 import {
     FunctionDocEntry,
@@ -126,8 +129,9 @@ function getSourceSignatures(
 function resolveSignatures(
     call: FunctionCallNode,
     activeParameter: number,
+    resolvedDeclaration: DefinitionByReferenceKind["function"] | undefined,
+    functionName: string,
 ): { signatures: SignatureInformation[]; activeSignature: number } {
-    const resolvedDeclaration = call.reference.resolution?.declaration;
     const builtinSignatures = getBuiltinSignatures(call.name);
     if (builtinSignatures) {
         return {
@@ -139,11 +143,11 @@ function resolveSignatures(
         };
     }
 
-    if (resolvedDeclaration?.origin === "builtin") {
+    if (resolvedDeclaration !== undefined && resolvedDeclaration.origin !== "source") {
         return {
             signatures: [
                 createSignatureInformation(
-                    QNameToString(call.name.qname, false),
+                    functionName,
                     resolvedDeclaration.signature.parameterTypes.map((parameter, index) => ({
                         label: `$arg${index + 1} as ${formatSequenceType(parameter.type)}`,
                     })),
@@ -196,7 +200,23 @@ export async function findSignatureHelp(
 
     const activeParameter = getActiveParameter(activeCall, containingNodes);
 
-    const { signatures, activeSignature } = resolveSignatures(activeCall, activeParameter);
+    // An unfinished constructor call has no argument yet. Signature help can match
+    // its expanded name while semantic resolution continues to require the correct arity.
+    const resolvedDeclaration =
+        activeCall.reference.resolution?.declaration ??
+        getVisibleDeclarationsAtPosition(analysis, document.offsetAt(position)).find(
+            (definition): definition is SchemaConstructorDefinition =>
+                definition.kind === "function" &&
+                definition.origin === "schema" &&
+                sameQName(definition.name.qname, activeCall.name.qname),
+        );
+
+    const { signatures, activeSignature } = resolveSignatures(
+        activeCall,
+        activeParameter,
+        resolvedDeclaration,
+        document.getText(activeCall.selectionRange),
+    );
 
     return {
         signatures,

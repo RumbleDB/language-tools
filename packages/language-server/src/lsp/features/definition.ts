@@ -18,13 +18,7 @@ export function registerDefinition({
     });
 }
 
-/**
- * Finds the definition location for the variable at the given position in the document, by analyzing variable scopes and occurrences.
- *
- * @param document The TextDocument representing the JSONiq source code to analyze
- * @param position The Position in the document for which to find the definition location (e.g. the position of the cursor in the editor)
- * @returns A Location object representing the definition location of the variable at the given position, or null if no definition is found
- */
+/** Resolves a symbol to its source declaration or the XSD containing its schema type. */
 export async function findDefinitionLocation(
     document: TextDocument,
     position: Position,
@@ -33,6 +27,14 @@ export async function findDefinitionLocation(
     const analysis = await workspace.getAnalysis(document);
     const occurrence = findSymbolAtPosition(analysis, position);
     const declaration = occurrence?.declaration;
+
+    if (declaration?.origin === "schema" && declaration.sourceUri !== undefined) {
+        // Xerces provides the source file but no declaration range.
+        return {
+            uri: declaration.sourceUri,
+            range: { start: { line: 0, character: 0 }, end: { line: 0, character: 0 } },
+        };
+    }
 
     if (declaration?.origin !== "source") {
         return null;
