@@ -18,7 +18,8 @@ export interface SchemaCatalogRequest {
 }
 
 export interface SchemaCatalogWireResult {
-    types: QName[];
+    /** Each named type carries its XSD source when available; declaration ranges are not available yet. */
+    types: { name: QName; sourceUri?: string }[];
     constructors: { name: FunctionName; signature: StaticFunctionSignature }[];
     /** Absolute schema URIs attempted by Rumble, including imports, includes, and failed reads. */
     dependencies?: string[];

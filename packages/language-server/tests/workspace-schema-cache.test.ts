@@ -14,7 +14,7 @@ import { createMockWrapperClient, positionAt, testDocument } from "./test-utils.
 const schemaImport = 'import schema namespace s = "urn:test" at "types.xsd";';
 const source = `${schemaImport} s:Code("a")`;
 const catalog: SchemaCatalogWireResult = {
-    types: [{ namespaceUri: "urn:test", localName: "Code" }],
+    types: [{ name: { namespaceUri: "urn:test", localName: "Code" } }],
     constructors: [
         {
             name: { qname: { namespaceUri: "urn:test", localName: "Code" }, arity: 1 },

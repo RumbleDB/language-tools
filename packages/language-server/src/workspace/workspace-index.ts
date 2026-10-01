@@ -144,8 +144,8 @@ export class WorkspaceIndex {
                     origin: "schema",
                 }));
                 const language = getActiveParserId(document);
-                const schemaTypes: SchemaTypeDefinition[] = (catalog?.types ?? []).map((name) => ({
-                    name,
+                const schemaTypes: SchemaTypeDefinition[] = (catalog?.types ?? []).map((type) => ({
+                    name: type.name,
                     kind: "type",
                     origin: "schema",
                 }));

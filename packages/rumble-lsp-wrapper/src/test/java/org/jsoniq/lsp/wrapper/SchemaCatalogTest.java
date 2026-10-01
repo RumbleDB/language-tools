@@ -67,9 +67,15 @@ class SchemaCatalogTest {
                 result.dependencies().stream().map(URI::create).toList());
         assertEquals(
                 List.of("Code", "CodeOrInteger", "Codes", "Record"),
-                result.types().stream().map(ResolvedQName::localName).toList());
+                result.types().stream().map(type -> type.name().localName()).toList());
         assertTrue(result.types().stream()
-                .allMatch(name -> "urn:test".equals(name.namespaceUri()) && name.prefix() == null));
+                .allMatch(type -> "urn:test".equals(type.name().namespaceUri())
+                        && type.name().prefix() == null));
+        // A constructor declared by an include must navigate to the include, not the root schema.
+        for (var source : result.types()) {
+            String file = "Code".equals(source.name().localName()) ? "common.xsd" : "types.xsd";
+            assertEquals(directory.resolve(file).toUri(), URI.create(source.sourceUri()));
+        }
         assertEquals(
                 List.of("Code", "CodeOrInteger", "Codes"),
                 result.constructors().stream()
@@ -122,6 +128,15 @@ class SchemaCatalogTest {
                         .filter(name -> "Code".equals(name.localName()))
                         .map(ResolvedQName::namespaceUri)
                         .toList());
+        // Identical local names in different namespaces must retain their different source files.
+        assertEquals(
+                List.of(
+                        directory.resolve("other.xsd").toUri(),
+                        directory.resolve("common.xsd").toUri()),
+                result.types().stream()
+                        .filter(source -> "Code".equals(source.name().localName()))
+                        .map(source -> URI.create(source.sourceUri()))
+                        .toList());
     }
 
     @Test
@@ -142,6 +157,7 @@ class SchemaCatalogTest {
         SchemaCatalog.Result result = this.catalog.resolve(input("urn:wrong", "types.xsd"), writeSchema(directory));
         assertFalse(result.errors().isEmpty());
         assertTrue(result.constructors().isEmpty());
+        assertTrue(result.types().isEmpty());
     }
 
     @Test
@@ -235,6 +251,10 @@ class SchemaCatalogTest {
         assertEquals("?", json.at("/constructors/0/signature/returnType/arity").asText());
         assertTrue(json.get("errors").isEmpty());
         assertEquals(2, json.get("dependencies").size());
+        assertEquals("Code", json.at("/types/0/name/localName").asText());
+        assertEquals(
+                directory.resolve("common.xsd").toUri(),
+                URI.create(json.at("/types/0/sourceUri").asText()));
     }
 
     @Test

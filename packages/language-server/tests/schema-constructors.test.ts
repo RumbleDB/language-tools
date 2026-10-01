@@ -166,7 +166,7 @@ describe("schema constructor signature help", () => {
                 id: 1,
                 responseType: "schema-catalog",
                 body: {
-                    types: [constructor.name.qname],
+                    types: [{ name: constructor.name.qname }],
                     constructors: [{ name: constructor.name, signature: constructor.signature }],
                     errors: [],
                 },
@@ -233,7 +233,7 @@ describe("schema constructor hover", () => {
                     id: 1,
                     responseType: "schema-catalog",
                     body: {
-                        types: [constructor.name.qname],
+                        types: [{ name: constructor.name.qname }],
                         constructors: [
                             { name: constructor.name, signature: constructor.signature },
                         ],

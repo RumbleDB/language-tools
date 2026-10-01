@@ -5,12 +5,16 @@ import java.net.URI;
 import java.util.Base64;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Optional;
 
+import org.apache.xerces.impl.xs.SchemaGrammar;
+import org.apache.xerces.xs.XSConstants;
 import org.jsoniq.lsp.wrapper.messages.Request;
 import org.jsoniq.lsp.wrapper.messages.ResponseBody;
 import org.jsoniq.lsp.wrapper.types.FunctionDefinition;
 import org.jsoniq.lsp.wrapper.types.ResolvedQName;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import org.rumbledb.compiler.utils.URILiteralUtils;
@@ -22,6 +26,7 @@ import org.rumbledb.context.Name;
 import org.rumbledb.exceptions.ExceptionMetadata;
 import org.rumbledb.exceptions.RumbleException;
 import org.rumbledb.expressions.module.SchemaImport;
+import org.rumbledb.xml.schema.XmlSchemaCatalog;
 import org.rumbledb.xml.schema.XmlSchemaCatalogLoader;
 
 /** Exports schema names and constructors without compiling a query. */
@@ -45,8 +50,12 @@ public final class SchemaCatalog implements RequestHandler {
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
+    /** A global named type and its XSD source, when Xerces retains the source location. */
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    public record TypeDefinition(ResolvedQName name, String sourceUri) {}
+
     public record Result(
-            List<ResolvedQName> types,
+            List<TypeDefinition> types,
             List<FunctionDefinition> constructors,
             List<String> dependencies,
             List<StaticTypeChecker.StaticTypeError> errors)
@@ -94,7 +103,11 @@ public final class SchemaCatalog implements RequestHandler {
                             FunctionDefinition.Signature.fromFunctionSignature(constructor.signature())))
                     .toList();
             return new Result(
-                    names.stream().map(ResolvedQName::fromName).toList(),
+                    names.stream()
+                            .map(name -> new TypeDefinition(
+                                    ResolvedQName.fromName(name),
+                                    findTypeSource(catalog, name).orElse(null)))
+                            .toList(),
                     constructors,
                     List.copyOf(dependencies),
                     List.of());
@@ -102,6 +115,24 @@ public final class SchemaCatalog implements RequestHandler {
             return new Result(
                     List.of(), List.of(), List.copyOf(dependencies), List.of(StaticTypeChecker.toTypeError(exception)));
         }
+    }
+
+    private static Optional<String> findTypeSource(XmlSchemaCatalog catalog, Name name) {
+        var type = catalog.getTypeDefinition(name).orElse(null);
+        if (type == null || !(type.getNamespaceItem() instanceof SchemaGrammar grammar)) return Optional.empty();
+        var components = grammar.getComponentsExt(XSConstants.TYPE_DEFINITION);
+        // Xerces stores alternating (systemId + ',' + localName, component) entries.
+        // Match the actual selected type object, rather than choosing any file for its namespace.
+        for (int index = 0; index < components.getLength(); index += 2) {
+            if (components.item(index + 1) != type) continue;
+            String key = (String) components.item(index);
+            String systemId =
+                    key.substring(0, key.length() - name.getLocalName().length() - 1);
+            if (!systemId.isEmpty()) {
+                return Optional.of(systemId);
+            }
+        }
+        return Optional.empty();
     }
 
     @Override

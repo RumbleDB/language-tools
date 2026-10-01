@@ -9,7 +9,7 @@ import { createMockWrapperClient, testDocumentFromUri } from "./test-utils.js";
 const qname = { namespaceUri: "urn:test", localName: "Code" };
 const catalog: SchemaCatalogWireResult = {
     // Record is a named complex type: it belongs in type completion, but has no constructor.
-    types: [qname, { namespaceUri: "urn:test", localName: "Record" }],
+    types: [{ name: qname }, { name: { namespaceUri: "urn:test", localName: "Record" } }],
     constructors: [
         {
             name: { qname, arity: 1 },

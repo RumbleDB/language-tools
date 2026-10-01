@@ -138,7 +138,22 @@ describe("schema catalog", () => {
                     pathToFileURL(path.join(directory, "schemas", "types.xsd")).href,
                     pathToFileURL(path.join(directory, "schemas", "common.xsd")).href,
                 ]);
-                expect(result.types).toEqual([{ localName: "Code", namespaceUri: "urn:test" }]);
+                // Code belongs to the included schema, so navigation must not point at types.xsd.
+                expect(
+                    result.types.map((source) => ({
+                        ...source,
+                        sourceUri:
+                            source.sourceUri === undefined
+                                ? undefined
+                                : new URL(source.sourceUri).href,
+                    })),
+                ).toEqual([
+                    {
+                        name: { localName: "Code", namespaceUri: "urn:test" },
+                        sourceUri: pathToFileURL(path.join(directory, "schemas", "common.xsd"))
+                            .href,
+                    },
+                ]);
                 expect(result.constructors).toEqual([
                     {
                         name: { qname: { localName: "Code", namespaceUri: "urn:test" }, arity: 1 },
