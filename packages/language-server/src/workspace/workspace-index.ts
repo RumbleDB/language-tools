@@ -44,6 +44,7 @@ export class WorkspaceIndex {
         private readonly documents: WorkspaceDocumentStore = new WorkspaceDocumentStore(),
         private readonly loadSchemaConstructors: (
             document: TextDocument,
+            prolog: ModuleProlog,
         ) => Promise<readonly SchemaConstructorDefinition[]> = async () => [],
     ) {}
 
@@ -110,7 +111,7 @@ export class WorkspaceIndex {
                 const schemaConstructors =
                     prolog.schemaImports.length === 0
                         ? []
-                        : await this.loadSchemaConstructors(document);
+                        : await this.loadSchemaConstructors(document, prolog);
                 const language = getActiveParserId(document);
                 const { analysis } = analyzeModule(document, ast, {
                     provider,

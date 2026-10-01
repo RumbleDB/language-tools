@@ -61,5 +61,5 @@ constructors are excluded. Schema-loading errors retain the existing error forma
 without source ranges in the input, their query location is the start of the document.
 Invalid request payloads are rejected as request errors.
 
-This replaces the previous base64-query body contract. The language-server caller
-must be migrated to this input before using a wrapper built with this change.
+The language server builds this input from the module prolog, including when the
+query body is incomplete. Query text is no longer sent to this endpoint.

@@ -6,6 +6,11 @@ import type { StaticTypecheckError } from "../static-typecheck/types.js";
 
 export const REQUEST_TYPE_SCHEMA_CATALOG = "schema-catalog" as const;
 
+export interface SchemaCatalogInput {
+    imports: { namespaceUri: string; locations: string[] }[];
+    baseUri?: string;
+}
+
 export interface SchemaCatalogRequest {
     requestType: typeof REQUEST_TYPE_SCHEMA_CATALOG;
     body: string;

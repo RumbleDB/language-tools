@@ -1,9 +1,9 @@
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 
-import { findSymbolAtPosition } from "server/analysis/index.js";
+import { findSymbolAtPosition, getVisibleDeclarationsAtPosition } from "server/analysis/index.js";
 import { createServerContext } from "server/app/context.js";
 import { RumbleWrapperClient } from "server/integrations/rumble/client.js";
 import type { SchemaCatalogWireResult } from "server/integrations/rumble/operations/schema-catalog/protocol.js";
@@ -15,7 +15,7 @@ import type { Connection } from "vscode-languageserver/node";
 import { createMockWrapperClient, positionAt, testDocument } from "./test-utils.js";
 
 describe("schema catalog", () => {
-    it("sends the current source and document URI and returns compilation errors", async () => {
+    it("sends schema imports and base URI and returns schema-loading errors", async () => {
         const body: SchemaCatalogWireResult = {
             types: [],
             constructors: [],
@@ -39,11 +39,19 @@ describe("schema catalog", () => {
             'import schema namespace t = "urn:café"; 1',
         );
 
-        const result = await getSchemaCatalog(document, createMockWrapperClient({ sendRequest }));
+        const input = {
+            imports: [{ namespaceUri: "urn:café", locations: ["types.xsd"] }],
+            baseUri: "schemas/",
+        };
+        const result = await getSchemaCatalog(
+            document.uri,
+            input,
+            createMockWrapperClient({ sendRequest }),
+        );
 
         expect(sendRequest).toHaveBeenCalledExactlyOnceWith({
             requestType: "schema-catalog",
-            body: Buffer.from(document.getText(), "utf8").toString("base64"),
+            body: Buffer.from(JSON.stringify(input), "utf8").toString("base64"),
             documentUri: document.uri,
         });
         expect(result).toEqual(body);
@@ -53,7 +61,9 @@ describe("schema catalog", () => {
         const sendRequest = vi.fn();
         const client = createMockWrapperClient({ isUsable: () => false, sendRequest });
 
-        expect(await getSchemaCatalog(testDocument("schema-catalog", "1"), client)).toEqual({
+        expect(
+            await getSchemaCatalog("file:///schema-catalog.jq", { imports: [] }, client),
+        ).toEqual({
             types: [],
             constructors: [],
             errors: [],
@@ -78,78 +88,113 @@ describe("schema catalog", () => {
             sendRequest: vi.fn().mockImplementation(response),
         });
 
-        expect(await getSchemaCatalog(testDocument("schema-catalog", "1"), client)).toEqual({
+        expect(
+            await getSchemaCatalog("file:///schema-catalog.jq", { imports: [] }, client),
+        ).toEqual({
             types: [],
             constructors: [],
             errors: [],
         });
     });
 
-    it("decodes schema names and signatures from the real wrapper", async () => {
-        const directory = await mkdtemp(path.join(tmpdir(), "lsp-schema-catalog-"));
-        const client = new RumbleWrapperClient();
-        try {
-            await writeFile(
-                path.join(directory, "types.xsd"),
-                `
+    it.each(["jsoniq", "xquery"])(
+        "loads schemas through the real wrapper with an incomplete %s body",
+        async (language) => {
+            const directory = await mkdtemp(path.join(tmpdir(), "lsp-schema-catalog-"));
+            const client = new RumbleWrapperClient();
+            try {
+                await mkdir(path.join(directory, "schemas"));
+                await writeFile(
+                    path.join(directory, "schemas", "types.xsd"),
+                    `
                 <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" targetNamespace="urn:test">
                   <xs:simpleType name="Code"><xs:restriction base="xs:string"/></xs:simpleType>
                 </xs:schema>`,
-            );
-            const document = TextDocument.create(
-                pathToFileURL(path.join(directory, "query.xq")).href,
-                "xquery",
-                1,
-                'import schema namespace t = "urn:test" at "types.xsd"; t:Code("a")',
-            );
+                );
+                const document = TextDocument.create(
+                    pathToFileURL(
+                        path.join(directory, language === "xquery" ? "query.xq" : "query.jq"),
+                    ).href,
+                    language,
+                    1,
+                    'declare base-uri "schemas/"; import schema namespace t = "urn:test" at "types.xsd"; t:Code("a")',
+                );
 
-            const result = await getSchemaCatalog(document, client);
+                const result = await getSchemaCatalog(
+                    document.uri,
+                    {
+                        imports: [{ namespaceUri: "urn:test", locations: ["types.xsd"] }],
+                        baseUri: "schemas/",
+                    },
+                    client,
+                );
 
-            expect(result.errors).toEqual([]);
-            expect(result.types).toEqual([{ localName: "Code", namespaceUri: "urn:test" }]);
-            expect(result.constructors).toEqual([
-                {
-                    name: { qname: { localName: "Code", namespaceUri: "urn:test" }, arity: 1 },
-                    signature: {
-                        parameterTypes: [
-                            {
-                                type: {
-                                    itemType: {
-                                        kind: "named",
-                                        name: {
-                                            localName: "anyAtomicType",
-                                            namespaceUri: "http://www.w3.org/2001/XMLSchema",
-                                            prefix: "xs",
+                expect(result.errors).toEqual([]);
+                expect(result.types).toEqual([{ localName: "Code", namespaceUri: "urn:test" }]);
+                expect(result.constructors).toEqual([
+                    {
+                        name: { qname: { localName: "Code", namespaceUri: "urn:test" }, arity: 1 },
+                        signature: {
+                            parameterTypes: [
+                                {
+                                    type: {
+                                        itemType: {
+                                            kind: "named",
+                                            name: {
+                                                localName: "anyAtomicType",
+                                                namespaceUri: "http://www.w3.org/2001/XMLSchema",
+                                                prefix: "xs",
+                                            },
                                         },
+                                        arity: "?",
                                     },
-                                    arity: "?",
                                 },
+                            ],
+                            returnType: {
+                                itemType: {
+                                    kind: "named",
+                                    name: { localName: "Code", namespaceUri: "urn:test" },
+                                },
+                                arity: "?",
                             },
-                        ],
-                        returnType: {
-                            itemType: {
-                                kind: "named",
-                                name: { localName: "Code", namespaceUri: "urn:test" },
-                            },
-                            arity: "?",
                         },
                     },
-                },
-            ]);
-            // Exercise the production wiring with an actual XSD and Java response, beyond mocked catalogs.
-            const { workspace } = createServerContext({} as Connection, client);
-            const analysis = await workspace.getAnalysis(document);
-            expect(analysis.diagnostics).toEqual([]);
-            expect(
-                findSymbolAtPosition(analysis, positionAt(document, 't:Code("a")'))?.declaration,
-            ).toEqual({
-                ...result.constructors[0],
-                kind: "function",
-                origin: "implicit",
-            });
-        } finally {
-            client.dispose();
-            await rm(directory, { recursive: true, force: true });
-        }
-    }, 30_000);
+                ]);
+                // Exercise the production wiring with an actual XSD and Java response, beyond mocked catalogs.
+                const { workspace } = createServerContext({} as Connection, client);
+                const analysis = await workspace.getAnalysis(document);
+                expect(analysis.diagnostics).toEqual([]);
+                expect(
+                    findSymbolAtPosition(analysis, positionAt(document, 't:Code("a")'))
+                        ?.declaration,
+                ).toEqual({
+                    ...result.constructors[0],
+                    kind: "function",
+                    origin: "implicit",
+                });
+                // An unfinished body must not prevent the workspace from loading the same schema.
+                TextDocument.update(
+                    document,
+                    [
+                        {
+                            text: 'declare base-uri "schemas/"; import schema namespace t = "urn:test" at "types.xsd"; t:',
+                        },
+                    ],
+                    2,
+                );
+                const incomplete = await workspace.getAnalysis(document);
+                expect(
+                    getVisibleDeclarationsAtPosition(incomplete, document.getText().length),
+                ).toContainEqual({
+                    ...result.constructors[0],
+                    kind: "function",
+                    origin: "implicit",
+                });
+            } finally {
+                client.dispose();
+                await rm(directory, { recursive: true, force: true });
+            }
+        },
+        30_000,
+    );
 });

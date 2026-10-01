@@ -24,8 +24,18 @@ export function createServerContext(
     const documents = new TextDocuments(TextDocument);
     const parser = new ParserService();
     const workspace = new WorkspaceService(
-        new WorkspaceIndex(parser, new WorkspaceDocumentStore(), async (document) => {
-            const catalog = await getSchemaCatalog(document, wrapper);
+        new WorkspaceIndex(parser, new WorkspaceDocumentStore(), async (document, prolog) => {
+            const catalog = await getSchemaCatalog(
+                document.uri,
+                {
+                    imports: prolog.schemaImports.map((imported) => ({
+                        namespaceUri: imported.namespaceUri,
+                        locations: imported.locations.map((location) => location.uri),
+                    })),
+                    ...(prolog.baseUri === undefined ? {} : { baseUri: prolog.baseUri }),
+                },
+                wrapper,
+            );
             return catalog.constructors.map((constructor) => ({
                 ...constructor,
                 kind: "function",
