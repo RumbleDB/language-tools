@@ -9,15 +9,14 @@ import {
 } from "./protocol.js";
 
 const logger = createLogger("schema-catalog");
-const EMPTY_RESULT: SchemaCatalogWireResult = { types: [], constructors: [], errors: [] };
-
+/** Undefined means the request was unavailable or failed, rather than a valid empty catalog. */
 export async function getSchemaCatalog(
     documentUri: string,
     input: SchemaCatalogInput,
     client: WrapperClient,
-): Promise<SchemaCatalogWireResult> {
+): Promise<SchemaCatalogWireResult | undefined> {
     if (!client.isUsable()) {
-        return EMPTY_RESULT;
+        return undefined;
     }
 
     try {
@@ -34,6 +33,6 @@ export async function getSchemaCatalog(
         logger.warn(
             `Schema catalog unavailable for ${documentUri}: ${error instanceof Error ? error.message : String(error)}`,
         );
-        return EMPTY_RESULT;
+        return undefined;
     }
 }

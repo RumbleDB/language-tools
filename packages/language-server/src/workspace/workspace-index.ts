@@ -1,3 +1,7 @@
+import type {
+    SchemaCatalogInput,
+    SchemaCatalogWireResult,
+} from "server/integrations/rumble/operations/schema-catalog/protocol.js";
 import { ParserService } from "server/parser/index.js";
 import { getActiveParserId } from "server/parser/utils.js";
 import { resolveBuiltin } from "server/resources/builtins.js";
@@ -30,6 +34,11 @@ interface CachedProlog {
     prolog: ModuleProlog;
 }
 
+interface CachedSchemaCatalog {
+    key: string;
+    catalog: Promise<SchemaCatalogWireResult | undefined>;
+}
+
 const logger = createLogger("workspace-analysis");
 
 export class WorkspaceIndex {
@@ -37,15 +46,16 @@ export class WorkspaceIndex {
     private readonly symbols = new WorkspaceSymbolIndex();
     private readonly analyses = new Map<DocumentUri, CachedAnalysis>();
     private readonly prologs = new Map<DocumentUri, CachedProlog>();
+    private readonly schemaCatalogs = new Map<DocumentUri, CachedSchemaCatalog>();
     private readonly failedAnalyses = new Set<DocumentUri>();
 
     public constructor(
         private readonly parser: ParserService,
         private readonly documents: WorkspaceDocumentStore = new WorkspaceDocumentStore(),
-        private readonly loadSchemaConstructors: (
-            document: TextDocument,
-            prolog: ModuleProlog,
-        ) => Promise<readonly SchemaConstructorDefinition[]> = async () => [],
+        private readonly loadSchemaCatalog: (
+            uri: DocumentUri,
+            input: SchemaCatalogInput,
+        ) => Promise<SchemaCatalogWireResult | undefined> = async () => undefined,
     ) {}
 
     public updateOpenDocument(document: TextDocument): void {
@@ -60,6 +70,7 @@ export class WorkspaceIndex {
     }
 
     public removeOpenDocument(uri: DocumentUri): void {
+        this.schemaCatalogs.delete(uri);
         if (!this.documents.removeOpenDocument(uri)) return;
         this.invalidateAffected([uri]);
     }
@@ -73,7 +84,10 @@ export class WorkspaceIndex {
         this.failedAnalyses.clear();
         const removedDocuments = this.documents.replaceWorkspaceDocuments(uris);
         logger.debug("Tracked documents:", this.documents.getTrackedDocumentUris());
-        for (const uri of removedDocuments) this.parser.clear(uri);
+        for (const uri of removedDocuments) {
+            this.parser.clear(uri);
+            this.schemaCatalogs.delete(uri);
+        }
         this.invalidateAffected(removedDocuments);
         for (const uri of removedDocuments) {
             this.moduleGraph.removeOutgoingDependencies(uri);
@@ -103,15 +117,23 @@ export class WorkspaceIndex {
         const ast = this.parser.parse(document).ast;
         const prolog = this.getProlog(document);
         const { provider, dependencies } = this.prepareImports(document, prolog);
+
+        // Register pending catalogs before yielding, so close/reopen also invalidates them.
+        const pendingCatalog = this.getSchemaCatalog(document.uri, prolog);
+
         // File changes must invalidate pending analysis as well as completed analysis.
         this.moduleGraph.replaceDependencies(document.uri, dependencies);
         const entry: CachedAnalysis = {
             version: document.version,
             analysis: Promise.resolve().then(async () => {
-                const schemaConstructors =
-                    prolog.schemaImports.length === 0
-                        ? []
-                        : await this.loadSchemaConstructors(document, prolog);
+                const catalog = await pendingCatalog;
+                const schemaConstructors: SchemaConstructorDefinition[] = (
+                    catalog?.constructors ?? []
+                ).map((constructor) => ({
+                    ...constructor,
+                    kind: "function",
+                    origin: "implicit",
+                }));
                 const language = getActiveParserId(document);
                 const { analysis } = analyzeModule(document, ast, {
                     provider,
@@ -120,6 +142,10 @@ export class WorkspaceIndex {
                     resolveBuiltin: (kind, name) => resolveBuiltin(kind, name, language),
                 });
                 if (this.analyses.get(document.uri) === entry) {
+                    // Let a subsequent request retry even when the document version is unchanged.
+                    if (prolog.schemaImports.length > 0 && catalog === undefined) {
+                        this.analyses.delete(document.uri);
+                    }
                     this.failedAnalyses.delete(document.uri);
                     this.symbols.update(document.uri, analysis);
                 }
@@ -133,6 +159,48 @@ export class WorkspaceIndex {
             if (this.analyses.get(document.uri) === entry) this.analyses.delete(document.uri);
             throw error;
         }
+    }
+
+    private getSchemaCatalog(
+        uri: DocumentUri,
+        prolog: ModuleProlog,
+    ): Promise<SchemaCatalogWireResult | undefined> {
+        if (prolog.schemaImports.length === 0) {
+            this.schemaCatalogs.delete(uri);
+            return Promise.resolve(undefined);
+        }
+
+        const input: SchemaCatalogInput = {
+            imports: prolog.schemaImports.map((imported) => ({
+                namespaceUri: imported.namespaceUri,
+                locations: imported.locations.map((location) => location.uri),
+            })),
+            ...(prolog.baseUri === undefined ? {} : { baseUri: prolog.baseUri }),
+        };
+
+        // The URI is the map key; query text and prefix aliases do not affect this key.
+        const key = JSON.stringify(input);
+        const cached = this.schemaCatalogs.get(uri);
+        if (cached?.key === key) return cached.catalog;
+
+        const entry: CachedSchemaCatalog = {
+            key,
+            catalog: Promise.resolve()
+                .then(() => this.loadSchemaCatalog(uri, input))
+                .catch((error: unknown) => {
+                    logger.warn(`Could not load schema catalog for '${uri}'.`, error);
+                    return undefined;
+                })
+                .then((catalog) => {
+                    if (catalog === undefined && this.schemaCatalogs.get(uri) === entry) {
+                        this.schemaCatalogs.delete(uri);
+                    }
+                    return catalog;
+                }),
+        };
+
+        this.schemaCatalogs.set(uri, entry);
+        return entry.catalog;
     }
 
     private prepareImports(

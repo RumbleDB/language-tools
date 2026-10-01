@@ -63,11 +63,7 @@ describe("schema catalog", () => {
 
         expect(
             await getSchemaCatalog("file:///schema-catalog.jq", { imports: [] }, client),
-        ).toEqual({
-            types: [],
-            constructors: [],
-            errors: [],
-        });
+        ).toBeUndefined();
         expect(sendRequest).not.toHaveBeenCalled();
     });
 
@@ -83,18 +79,14 @@ describe("schema catalog", () => {
                     error: { code: "UNSUPPORTED_REQUEST_TYPE", message: "Unsupported request" },
                 }),
         ],
-    ])("returns an empty result for %s", async (_name, response) => {
+    ])("returns unavailable for %s", async (_name, response) => {
         const client = createMockWrapperClient({
             sendRequest: vi.fn().mockImplementation(response),
         });
 
         expect(
             await getSchemaCatalog("file:///schema-catalog.jq", { imports: [] }, client),
-        ).toEqual({
-            types: [],
-            constructors: [],
-            errors: [],
-        });
+        ).toBeUndefined();
     });
 
     it.each(["jsoniq", "xquery"])(
@@ -102,6 +94,7 @@ describe("schema catalog", () => {
         async (language) => {
             const directory = await mkdtemp(path.join(tmpdir(), "lsp-schema-catalog-"));
             const client = new RumbleWrapperClient();
+            const requests = vi.spyOn(client, "sendRequest");
             try {
                 await mkdir(path.join(directory, "schemas"));
                 await writeFile(
@@ -129,6 +122,8 @@ describe("schema catalog", () => {
                     client,
                 );
 
+                expect(result).toBeDefined();
+                if (result === undefined) return;
                 expect(result.errors).toEqual([]);
                 expect(result.types).toEqual([{ localName: "Code", namespaceUri: "urn:test" }]);
                 expect(result.constructors).toEqual([
@@ -183,6 +178,12 @@ describe("schema catalog", () => {
                     2,
                 );
                 const incomplete = await workspace.getAnalysis(document);
+                // One direct endpoint request plus one workspace request; the body edit reuses the latter.
+                expect(
+                    requests.mock.calls.filter(
+                        ([request]) => request.requestType === "schema-catalog",
+                    ),
+                ).toHaveLength(2);
                 expect(
                     getVisibleDeclarationsAtPosition(incomplete, document.getText().length),
                 ).toContainEqual({
