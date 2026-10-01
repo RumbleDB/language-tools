@@ -26,7 +26,7 @@ import type {
 import { collectModuleProlog, type ModuleProlog } from "../analysis/resolution/module-prolog.js";
 import { WorkspaceDocumentStore } from "./document-store.js";
 import { ModuleGraph } from "./module-graph.js";
-import { resolveModuleLocations } from "./module-resolver.js";
+import { resolveSchemaLocations } from "./module-resolver.js";
 import { WorkspaceSymbolIndex } from "./symbol-index.js";
 
 interface CachedAnalysis {
@@ -256,17 +256,12 @@ export class WorkspaceIndex {
             );
         }
         // Track direct local schema locations without parsing XSD files as query modules.
-        try {
-            const baseUri = new URL(prolog.baseUri ?? document.uri, document.uri).toString();
-            for (const imported of prolog.schemaImports) {
-                for (const location of resolveModuleLocations(baseUri, imported)) {
-                    if (location.targetUri?.startsWith("file:")) {
-                        dependencies.add(location.targetUri);
-                    }
+        for (const imported of prolog.schemaImports) {
+            for (const location of resolveSchemaLocations(document.uri, imported, prolog.baseUri)) {
+                if (location.targetUri?.startsWith("file:")) {
+                    dependencies.add(location.targetUri);
                 }
             }
-        } catch {
-            // Rumble reports invalid base URIs when loading the schema catalog.
         }
         return {
             provider: { loadImport: (_uri, imported) => resolvedTargets.get(imported) ?? [] },

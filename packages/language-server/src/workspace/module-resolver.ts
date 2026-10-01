@@ -1,3 +1,4 @@
+import type { SchemaImportAstNode } from "server/parser/types/ast.js";
 import type { DocumentUri, Range } from "vscode-languageserver";
 
 import type { ModuleImport } from "../analysis/model/module-info.js";
@@ -28,4 +29,19 @@ export function resolveModuleLocations(
             return { locationUri: location.uri, range: location.range };
         }
     });
+}
+
+/** Schema location hints are relative to the query's effective static base URI. */
+export function resolveSchemaLocations(
+    documentUri: DocumentUri,
+    imported: SchemaImportAstNode,
+    declaredBaseUri?: string,
+): readonly ResolvedModuleLocation[] {
+    try {
+        const baseUri = new URL(declaredBaseUri ?? documentUri, documentUri).href;
+        return resolveModuleLocations(baseUri, imported);
+    } catch {
+        // Rumble reports invalid base URIs when loading the schema catalog.
+        return [];
+    }
 }
