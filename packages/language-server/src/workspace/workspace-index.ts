@@ -1,3 +1,7 @@
+import type {
+    SchemaCatalogInput,
+    SchemaCatalogWireResult,
+} from "server/integrations/rumble/operations/schema-catalog/protocol.js";
 import { ParserService } from "server/parser/index.js";
 import { getActiveParserId } from "server/parser/utils.js";
 import { resolveBuiltin } from "server/resources/builtins.js";
@@ -6,24 +10,39 @@ import type { DocumentUri } from "vscode-languageserver";
 import { TextDocument } from "vscode-languageserver-textdocument";
 import { FileChangeType, type FileEvent } from "vscode-languageserver/node";
 
-import type { Definition } from "../analysis/model/definitions.js";
+import type {
+    Definition,
+    SchemaConstructorDefinition,
+    SchemaTypeDefinition,
+} from "../analysis/model/definitions.js";
+import type { ModuleImport } from "../analysis/model/module-info.js";
+import { QNameToString } from "../analysis/model/names.js";
 import type { AnyResolvedReference } from "../analysis/model/reference.js";
 import type { AnalysisResult } from "../analysis/model/result.js";
 import { analyzeModule } from "../analysis/pipeline.js";
-import type { ModuleProvider } from "../analysis/resolution/import-resolution.js";
+import type {
+    ModuleProvider,
+    ResolvedImportTarget,
+} from "../analysis/resolution/import-resolution.js";
 import { collectModuleProlog, type ModuleProlog } from "../analysis/resolution/module-prolog.js";
 import { WorkspaceDocumentStore } from "./document-store.js";
 import { ModuleGraph } from "./module-graph.js";
+import { resolveSchemaLocations } from "./module-resolver.js";
 import { WorkspaceSymbolIndex } from "./symbol-index.js";
 
 interface CachedAnalysis {
     version: number;
-    analysis: AnalysisResult;
+    analysis: Promise<AnalysisResult>;
 }
 
 interface CachedProlog {
     version: number;
     prolog: ModuleProlog;
+}
+
+interface CachedSchemaCatalog {
+    key: string;
+    catalog: Promise<SchemaCatalogWireResult | undefined>;
 }
 
 const logger = createLogger("workspace-analysis");
@@ -33,33 +52,48 @@ export class WorkspaceIndex {
     private readonly symbols = new WorkspaceSymbolIndex();
     private readonly analyses = new Map<DocumentUri, CachedAnalysis>();
     private readonly prologs = new Map<DocumentUri, CachedProlog>();
+    private readonly schemaCatalogs = new Map<DocumentUri, CachedSchemaCatalog>();
     private readonly failedAnalyses = new Set<DocumentUri>();
 
     public constructor(
         private readonly parser: ParserService,
         private readonly documents: WorkspaceDocumentStore = new WorkspaceDocumentStore(),
+        private readonly loadSchemaCatalog: (
+            uri: DocumentUri,
+            input: SchemaCatalogInput,
+        ) => Promise<SchemaCatalogWireResult | undefined> = async () => undefined,
     ) {}
 
     public updateOpenDocument(document: TextDocument): void {
-        if (!this.documents.updateOpenDocument(document)) return;
+        const snapshot = TextDocument.create(
+            document.uri,
+            document.languageId,
+            document.version,
+            document.getText(),
+        );
+        if (!this.documents.updateOpenDocument(snapshot)) return;
         this.invalidateAffected([document.uri]);
     }
 
     public removeOpenDocument(uri: DocumentUri): void {
+        this.schemaCatalogs.delete(uri);
         if (!this.documents.removeOpenDocument(uri)) return;
         this.invalidateAffected([uri]);
     }
 
-    public getAnalysis(document: TextDocument): AnalysisResult {
+    public getAnalysis(document: TextDocument): Promise<AnalysisResult> {
         this.updateOpenDocument(document);
-        return this.analyse(document, new Set());
+        return this.analyse(this.documents.load(document.uri)!);
     }
 
     public replaceWorkspaceDocuments(uris: readonly DocumentUri[]): void {
         this.failedAnalyses.clear();
         const removedDocuments = this.documents.replaceWorkspaceDocuments(uris);
         logger.debug("Tracked documents:", this.documents.getTrackedDocumentUris());
-        for (const uri of removedDocuments) this.parser.clear(uri);
+        for (const uri of removedDocuments) {
+            this.parser.clear(uri);
+            this.schemaCatalogs.delete(uri);
+        }
         this.invalidateAffected(removedDocuments);
         for (const uri of removedDocuments) {
             this.moduleGraph.removeOutgoingDependencies(uri);
@@ -71,6 +105,9 @@ export class WorkspaceIndex {
         for (const uri of changedUris) this.parser.clear(uri);
         const affected = this.invalidateAffected(changedUris);
 
+        // Disk changes can alter schema contents without changing the catalog request key.
+        for (const uri of affected) this.schemaCatalogs.delete(uri);
+
         this.documents.updateWorkspaceDocuments(changes);
         logger.debug("Tracked documents:", this.documents.getTrackedDocumentUris());
         for (const change of changes) {
@@ -81,53 +118,166 @@ export class WorkspaceIndex {
         return affected;
     }
 
-    private analyse(document: TextDocument, visiting: Set<DocumentUri>): AnalysisResult {
+    private async analyse(document: TextDocument): Promise<AnalysisResult> {
         const cached = this.analyses.get(document.uri);
         if (cached?.version === document.version) return cached.analysis;
 
-        const nextVisiting = new Set(visiting).add(document.uri);
+        // Capture syntax and imports before yielding to document changes.
+        const ast = this.parser.parse(document).ast;
         const prolog = this.getProlog(document);
-        const provider = this.createModuleProvider(document, nextVisiting);
+        const { provider, dependencies } = this.prepareImports(document, prolog);
 
-        const language = getActiveParserId(document);
-        const { analysis, dependencies } = analyzeModule(
-            document,
-            this.parser.parse(document).ast,
-            {
-                provider,
-                prolog,
-                resolveBuiltin: (kind, name) => resolveBuiltin(kind, name, language),
-            },
-        );
+        // Register pending catalogs before yielding, so close/reopen also invalidates them.
+        const pendingCatalog = this.getSchemaCatalog(document.uri, prolog);
 
-        this.moduleGraph.replaceDependencies(document.uri, dependencies);
-        this.analyses.set(document.uri, { version: document.version, analysis });
-        this.failedAnalyses.delete(document.uri);
-        this.symbols.update(document.uri, analysis);
-        return analysis;
+        // Keep known schema dependencies while loading their replacement catalog.
+        // File changes must invalidate pending analysis as well as completed analysis.
+        this.moduleGraph.addDependencies(document.uri, dependencies);
+        const entry: CachedAnalysis = {
+            version: document.version,
+            analysis: Promise.resolve().then(async () => {
+                const catalog = await pendingCatalog;
+                const schemaTypes: SchemaTypeDefinition[] = (catalog?.types ?? []).map((type) => ({
+                    ...type,
+                    ...(type.sourceUri === undefined
+                        ? {}
+                        : { sourceUri: new URL(type.sourceUri).href }),
+                    kind: "type",
+                    origin: "schema",
+                }));
+                // Constructors navigate to the schema declaration of their corresponding type.
+                const typeSources = new Map(
+                    schemaTypes.map((type) => [QNameToString(type.name, true), type.sourceUri]),
+                );
+                const schemaConstructors: SchemaConstructorDefinition[] = (
+                    catalog?.constructors ?? []
+                ).map((constructor) => {
+                    const sourceUri = typeSources.get(QNameToString(constructor.name.qname, true));
+                    return {
+                        ...constructor,
+                        ...(sourceUri === undefined ? {} : { sourceUri }),
+                        kind: "function",
+                        origin: "schema",
+                    };
+                });
+                const language = getActiveParserId(document);
+                const { analysis } = analyzeModule(document, ast, {
+                    provider,
+                    prolog,
+                    schemaConstructors,
+                    schemaTypes,
+                    resolveBuiltin: (kind, name) => resolveBuiltin(kind, name, language),
+                });
+                if (this.analyses.get(document.uri) === entry) {
+                    // Rumble knows the nested imports/includes, including files it failed to read.
+                    const allDependencies = new Set(dependencies);
+
+                    // Add nested schema dependencies from the catalog
+                    for (const uri of catalog?.dependencies ?? []) {
+                        const dependency = new URL(uri);
+                        if (dependency.protocol === "file:") {
+                            // Java's file:/path and VSCode's file:///path must share a graph key.
+                            allDependencies.add(dependency.href);
+                        }
+                    }
+
+                    this.moduleGraph.replaceDependencies(document.uri, allDependencies);
+                    // Let a subsequent request retry even when the document version is unchanged.
+                    if (prolog.schemaImports.length > 0 && catalog === undefined) {
+                        this.analyses.delete(document.uri);
+                    }
+                    this.failedAnalyses.delete(document.uri);
+                    this.symbols.update(document.uri, analysis);
+                }
+                return analysis;
+            }),
+        };
+        this.analyses.set(document.uri, entry);
+        try {
+            return await entry.analysis;
+        } catch (error) {
+            if (this.analyses.get(document.uri) === entry) this.analyses.delete(document.uri);
+            throw error;
+        }
     }
 
-    private createModuleProvider(
-        document: TextDocument,
-        visiting: Set<DocumentUri>,
-    ): ModuleProvider {
-        return {
-            loadImport: (_importerUri, imported) => {
-                return this.documents.loadImport(document, imported).map((loaded) => {
-                    if (loaded.document !== undefined && !visiting.has(loaded.document.uri)) {
-                        this.analyse(loaded.document, visiting);
+    private getSchemaCatalog(
+        uri: DocumentUri,
+        prolog: ModuleProlog,
+    ): Promise<SchemaCatalogWireResult | undefined> {
+        if (prolog.schemaImports.length === 0) {
+            this.schemaCatalogs.delete(uri);
+            return Promise.resolve(undefined);
+        }
+
+        const input: SchemaCatalogInput = {
+            imports: prolog.schemaImports.map((imported) => ({
+                namespaceUri: imported.namespaceUri,
+                locations: imported.locations.map((location) => location.uri),
+            })),
+            ...(prolog.baseUri === undefined ? {} : { baseUri: prolog.baseUri }),
+        };
+
+        // The URI is the map key; query text and prefix aliases do not affect this key.
+        const key = JSON.stringify(input);
+        const cached = this.schemaCatalogs.get(uri);
+        if (cached?.key === key) return cached.catalog;
+
+        const entry: CachedSchemaCatalog = {
+            key,
+            catalog: Promise.resolve()
+                .then(() => this.loadSchemaCatalog(uri, input))
+                .catch((error: unknown) => {
+                    logger.warn(`Could not load schema catalog for '${uri}'.`, error);
+                    return undefined;
+                })
+                .then((catalog) => {
+                    if (catalog === undefined && this.schemaCatalogs.get(uri) === entry) {
+                        this.schemaCatalogs.delete(uri);
                     }
+                    return catalog;
+                }),
+        };
+
+        this.schemaCatalogs.set(uri, entry);
+        return entry.catalog;
+    }
+
+    private prepareImports(
+        document: TextDocument,
+        prolog: ModuleProlog,
+    ): { provider: ModuleProvider; dependencies: ReadonlySet<DocumentUri> } {
+        const resolvedTargets = new Map<ModuleImport, readonly ResolvedImportTarget[]>();
+        const dependencies = new Set<DocumentUri>();
+        for (const imported of prolog.imports) {
+            const targets = this.documents.loadImport(document, imported);
+            resolvedTargets.set(
+                imported,
+                targets.map((loaded) => {
+                    if (loaded.targetUri !== undefined) dependencies.add(loaded.targetUri);
                     return {
                         locationUri: loaded.locationUri,
                         range: loaded.range,
                         targetUri: loaded.targetUri,
                         prolog:
-                            loaded.document !== undefined
-                                ? this.getProlog(loaded.document)
-                                : undefined,
+                            loaded.document === undefined
+                                ? undefined
+                                : this.getProlog(loaded.document),
                     };
-                });
-            },
+                }),
+            );
+        }
+        // Track direct local schema locations without parsing XSD files as query modules.
+        for (const imported of prolog.schemaImports) {
+            for (const location of resolveSchemaLocations(document.uri, imported, prolog.baseUri)) {
+                if (location.targetUri?.startsWith("file:")) {
+                    dependencies.add(location.targetUri);
+                }
+            }
+        }
+        return {
+            provider: { loadImport: (_uri, imported) => resolvedTargets.get(imported) ?? [] },
+            dependencies,
         };
     }
 
@@ -140,24 +290,33 @@ export class WorkspaceIndex {
         return prolog;
     }
 
-    public getReferencesToDefinition(definition: Definition): readonly AnyResolvedReference[] {
+    public async getReferencesToDefinition(
+        definition: Definition,
+    ): Promise<readonly AnyResolvedReference[]> {
         if (definition.origin !== "source") return [];
 
-        this.ensureDocumentsAnalysed(this.documents.getTrackedDocumentUris());
+        await this.ensureDocumentsAnalysed(this.documents.getTrackedDocumentUris());
 
         return this.symbols.referencesTo(definition);
     }
 
-    private ensureDocumentsAnalysed(uris: readonly DocumentUri[]): void {
-        for (const uri of new Set(uris)) {
-            if (this.analyses.has(uri) || this.failedAnalyses.has(uri)) continue;
+    private async ensureDocumentsAnalysed(uris: readonly DocumentUri[]): Promise<void> {
+        const pending = new Set(uris);
+        for (const uri of pending) {
+            if (this.failedAnalyses.has(uri)) continue;
             try {
                 const document = this.documents.load(uri);
                 if (document === undefined) {
                     this.failedAnalyses.add(uri);
                     continue;
                 }
-                this.analyse(document, new Set());
+                await this.analyse(document);
+                // Imported modules may be outside the scanned workspace folders.
+                for (const imported of this.getProlog(document).imports) {
+                    for (const target of this.documents.loadImport(document, imported)) {
+                        if (target.document !== undefined) pending.add(target.document.uri);
+                    }
+                }
             } catch (error) {
                 this.failedAnalyses.add(uri);
                 logger.warn(`Could not index workspace document '${uri}'.`, error);

@@ -5,19 +5,23 @@ import { workspaceService } from "./services.js";
 import { positionAt, positionAtNth, testDocument, testDocumentFromUri } from "./test-utils.js";
 
 describe("JSONiq rename", () => {
-    it("prepares rename placeholder for variables and functions", () => {
+    it("prepares rename placeholder for variables and functions", async () => {
         const source = [
             "declare function local:greet($name) { $name };",
             "let $x := 1 return $x",
         ].join("\n");
         const document = testDocument("rename-prepare", source);
 
-        const fnPrepare = prepareRename(
+        const fnPrepare = await prepareRename(
             document,
             positionAt(document, "local:greet"),
             workspaceService,
         );
-        const varPrepare = prepareRename(document, positionAt(document, "$x"), workspaceService);
+        const varPrepare = await prepareRename(
+            document,
+            positionAt(document, "$x"),
+            workspaceService,
+        );
 
         expect(fnPrepare?.placeholder).toBe("greet");
         expect(varPrepare?.placeholder).toBe("x");

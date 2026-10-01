@@ -12,7 +12,7 @@ export function createHoverContext(
     workspace: WorkspaceService,
     wrapper: WrapperClient,
 ): HoverContext {
-    let analysis: AnalysisResult | undefined;
+    let analysis: Promise<AnalysisResult> | undefined;
 
     return {
         document,

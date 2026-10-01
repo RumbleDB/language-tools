@@ -206,7 +206,11 @@ class ModulePrologCollector extends ParserAstVisitor<void> {
 
     protected override visitFunctionDeclaration(node: FunctionDeclarationAstNode): void {
         const definition = this.definitions.function(
-            this.nameResolver.resolveFunctionName(node.name, node.selectionRange),
+            this.nameResolver.resolveFunctionName(
+                node.name,
+                node.selectionRange,
+                this.defaultFunctionNamespace,
+            ),
             node.range,
             node.selectionRange,
         );

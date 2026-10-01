@@ -7,7 +7,7 @@ export interface HoverContext {
     document: TextDocument;
     position: Position;
     wrapper: WrapperClient;
-    getAnalysis(): AnalysisResult;
+    getAnalysis(): Promise<AnalysisResult>;
 }
 
 export type HoverProvider = (context: HoverContext) => Hover | null | Promise<Hover | null>;

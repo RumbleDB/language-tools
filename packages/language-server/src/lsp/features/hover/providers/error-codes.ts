@@ -4,8 +4,8 @@ import { MarkupKind } from "vscode-languageserver";
 
 import type { HoverProvider } from "../types.js";
 
-export const provideErrorCodeHover: HoverProvider = (context) => {
-    const node = findNodeThatContainsPosition(context.getAnalysis(), context.position);
+export const provideErrorCodeHover: HoverProvider = async (context) => {
+    const node = findNodeThatContainsPosition(await context.getAnalysis(), context.position);
     if (node == null || node?.kind !== "error-code-target") {
         return null;
     }

@@ -5,25 +5,25 @@ import { workspaceService } from "./services.js";
 import { testDocument } from "./test-utils.js";
 
 describe("JSONiq semantic diagnostics", () => {
-    it("reports unresolved variable references", () => {
+    it("reports unresolved variable references", async () => {
         const document = testDocument("semantic-unresolved", [
             "declare function local:f($x) {",
             "  $x + $missing",
             "};",
         ]);
 
-        const diagnostics = workspaceService.getAnalysis(document).diagnostics;
+        const diagnostics = (await workspaceService.getAnalysis(document)).diagnostics;
 
         expect(diagnostics.map((diagnostic) => diagnostic.code)).toEqual(["unresolved-variable"]);
     });
 
-    it("does not highlight catch syntax as implicit variable declarations", () => {
+    it("does not highlight catch syntax as implicit variable declarations", async () => {
         const document = testDocument("semantic-catch-variables", [
             "try { 1 div 0 }",
             "catch * { $err:code, $err:description }",
         ]);
 
-        const tokens = collectSemanticTokens(document, workspaceService);
+        const tokens = await collectSemanticTokens(document, workspaceService);
 
         expect(tokens.data).toEqual([
             1,
@@ -39,13 +39,13 @@ describe("JSONiq semantic diagnostics", () => {
         ]);
     });
 
-    it("distinguishes declarations, source references, and builtin references", () => {
+    it("distinguishes declarations, source references, and builtin references", async () => {
         const document = testDocument("semantic-token-modifiers", [
             "declare variable $source := 1;",
             "$source + fn:abs(-1)",
         ]);
 
-        const tokens = collectSemanticTokens(document, workspaceService);
+        const tokens = await collectSemanticTokens(document, workspaceService);
         const tokenTypesAndModifiers = Array.from({ length: tokens.data.length / 5 }, (_, index) =>
             tokens.data.slice(index * 5 + 3, index * 5 + 5),
         );

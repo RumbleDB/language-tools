@@ -6,7 +6,7 @@ import type { StaticFunctionSignature } from "./type-system.js";
 
 export type DefinitionKind = "variable" | "namespace" | "type" | "parameter" | "function";
 
-export type DefinitionOrigin = "source" | "implicit" | "builtin";
+export type DefinitionOrigin = "source" | "schema" | "implicit" | "builtin";
 
 declare const symbolIdBrand: unique symbol;
 export type SymbolId = string & { readonly [symbolIdBrand]: true };
@@ -90,11 +90,28 @@ export interface ImplicitVariableDefinition extends AbstractDefinition<"variable
     readonly origin: "implicit";
 }
 
+/** A constructor function supplied by a schema imported into this module. */
+export interface SchemaConstructorDefinition extends BaseDefinition<"function"> {
+    readonly origin: "schema";
+    /** XSD containing the named type; declaration ranges are not available yet. */
+    readonly sourceUri?: string;
+    readonly signature: StaticFunctionSignature;
+}
+
+/** A named XML Schema type supplied by a schema imported into this module. */
+export interface SchemaTypeDefinition extends BaseDefinition<"type"> {
+    readonly origin: "schema";
+    /** XSD containing the named type; declaration ranges are not available yet. */
+    readonly sourceUri?: string;
+}
+
 export type ScopeDefinition =
     | SourceVariableDefinition
     | SourceParameterDefinition
     | SourceFunctionDefinition
     | SourceTypeDefinition
+    | SchemaConstructorDefinition
+    | SchemaTypeDefinition
     | ImplicitVariableDefinition;
 
 export type VariableDefinition =
@@ -104,8 +121,8 @@ export type VariableDefinition =
 
 export interface ScopeDefinitionByReferenceKind {
     variable: VariableDefinition;
-    function: SourceFunctionDefinition;
-    type: SourceTypeDefinition;
+    function: SourceFunctionDefinition | SchemaConstructorDefinition;
+    type: SourceTypeDefinition | SchemaTypeDefinition;
 }
 
 export interface BuiltinDefinitionByReferenceKind {
@@ -116,13 +133,15 @@ export interface BuiltinDefinitionByReferenceKind {
 
 export interface DefinitionByReferenceKind {
     variable: VariableDefinition;
-    function: SourceFunctionDefinition | BuiltinFunctionDefinition;
-    type: SourceTypeDefinition | BuiltinTypeDefinition;
+    function: SourceFunctionDefinition | BuiltinFunctionDefinition | SchemaConstructorDefinition;
+    type: SourceTypeDefinition | BuiltinTypeDefinition | SchemaTypeDefinition;
 }
 
 export type Definition =
     | SourceDefinition
     | ImplicitVariableDefinition
+    | SchemaConstructorDefinition
+    | SchemaTypeDefinition
     | BuiltinFunctionDefinition
     | BuiltinTypeDefinition;
 

@@ -10,6 +10,8 @@ import { collectModuleProlog, type ModuleProlog } from "./resolution/module-prol
 export interface AnalyzeModuleOptions {
     readonly provider: ModuleProvider;
     readonly prolog?: ModuleProlog;
+    readonly schemaConstructors?: AnalysisEnvironment["schemaConstructors"];
+    readonly schemaTypes?: AnalysisEnvironment["schemaTypes"];
     readonly resolveBuiltin?: AnalysisEnvironment["resolveBuiltin"];
 }
 
@@ -35,6 +37,10 @@ export function analyzeModule(
     const analysis = analyzeDocument(document, ast, {
         resolvedImports: importResult.resolvedImports,
         prolog,
+        ...(options.schemaConstructors !== undefined && {
+            schemaConstructors: options.schemaConstructors,
+        }),
+        ...(options.schemaTypes !== undefined && { schemaTypes: options.schemaTypes }),
         ...(options.resolveBuiltin !== undefined && { resolveBuiltin: options.resolveBuiltin }),
     });
 

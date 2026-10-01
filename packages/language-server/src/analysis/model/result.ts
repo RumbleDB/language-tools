@@ -1,9 +1,12 @@
+import type { Prefix } from "server/parser/types/name.js";
 import type { Diagnostic } from "vscode-languageserver";
 
 import type { ModuleProlog } from "../resolution/module-prolog.js";
 import type { ModuleNode } from "./ast.js";
 import type {
     BuiltinDefinitionByReferenceKind,
+    SchemaConstructorDefinition,
+    SchemaTypeDefinition,
     SourceModuleExportDefinition,
 } from "./definitions.js";
 import type { ReferenceNameByKind } from "./names.js";
@@ -25,6 +28,15 @@ export interface AnalysisResult {
      */
     readonly scope: Scope;
 
+    /** Effective prefix bindings, including defaults overridden by module declarations. */
+    readonly namespaces: ReadonlyMap<Prefix, string>;
+
+    /** Explicit default for unprefixed element/type names; an empty string means no namespace. */
+    readonly defaultElementTypeNamespace: string | undefined;
+
+    /** Explicit default for unprefixed function names; an empty string means no namespace. */
+    readonly defaultFunctionNamespace: string | undefined;
+
     /**
      * List of all diagnostics reported during analysis of the module
      */
@@ -38,6 +50,10 @@ export interface ResolvedModuleImport {
 }
 
 export interface AnalysisEnvironment {
+    /** Schema constructors visible in this module only; these are not library-module exports. */
+    readonly schemaConstructors?: readonly SchemaConstructorDefinition[];
+    /** Named XML Schema types visible in this module only; these are not library-module exports. */
+    readonly schemaTypes?: readonly SchemaTypeDefinition[];
     readonly resolvedImports?: readonly ResolvedModuleImport[];
     readonly prolog?: ModuleProlog;
     /** Resolves a name to its builtin definition, if one exists. */

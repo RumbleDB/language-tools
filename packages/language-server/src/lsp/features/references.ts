@@ -37,7 +37,7 @@ export async function findReferenceLocations(
     includeDeclaration: boolean,
     workspace: WorkspaceService,
 ): Promise<Location[]> {
-    const analysis = workspace.getAnalysis(document);
+    const analysis = await workspace.getAnalysis(document);
     const occurrence = findSymbolAtPosition(analysis, position);
     const targetDeclaration = occurrence?.declaration;
 

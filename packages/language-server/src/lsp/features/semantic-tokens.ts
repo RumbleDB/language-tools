@@ -98,11 +98,11 @@ class SemanticTokensVisitor extends AstVisitor<void> {
     }
 }
 
-export function collectSemanticTokens(
+export async function collectSemanticTokens(
     document: TextDocument,
     workspace: WorkspaceService,
-): SemanticTokens {
-    const analysis = workspace.getAnalysis(document);
+): Promise<SemanticTokens> {
+    const analysis = await workspace.getAnalysis(document);
     const builder = new SemanticTokensBuilder();
     new SemanticTokensVisitor(builder).visit(analysis.ast);
     return builder.build();
