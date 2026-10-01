@@ -10,6 +10,7 @@ import type { SchemaCatalogWireResult } from "server/integrations/rumble/operati
 import { getSchemaCatalog } from "server/integrations/rumble/operations/schema-catalog/service.js";
 import { findCompletions } from "server/lsp/features/completion.js";
 import { findHover } from "server/lsp/features/hover.js";
+import { findSignatureHelp } from "server/lsp/features/signature-help.js";
 import { describe, expect, it, vi } from "vitest";
 import { TextDocument } from "vscode-languageserver-textdocument";
 import { FileChangeType, type Connection } from "vscode-languageserver/node";
@@ -171,6 +172,15 @@ describe("schema catalog", () => {
                 const { parser, workspace } = createServerContext({} as Connection, client);
                 const analysis = await workspace.getAnalysis(document);
                 expect(analysis.diagnostics).toEqual([]);
+                // Parameter help uses the signature exported by the actual Java schema loader.
+                const signature = await findSignatureHelp(
+                    document,
+                    positionAt(document, '"a"'),
+                    workspace,
+                );
+                expect(signature?.signatures[0]?.label).toBe(
+                    "t:Code($arg1 as xs:anyAtomicType?) as Code?",
+                );
                 // Verify hover renders the signature supplied by the real schema catalog.
                 const hover = await findHover(
                     document,
