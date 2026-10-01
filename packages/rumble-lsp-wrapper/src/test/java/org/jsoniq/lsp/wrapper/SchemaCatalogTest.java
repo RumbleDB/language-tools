@@ -1,7 +1,6 @@
 package org.jsoniq.lsp.wrapper;
 
 import java.net.URI;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Base64;
@@ -13,13 +12,12 @@ import org.jsoniq.lsp.wrapper.types.FunctionDefinition;
 import org.jsoniq.lsp.wrapper.types.ResolvedQName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.ValueSource;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -47,19 +45,17 @@ class SchemaCatalogTest {
                   <xs:simpleType name="Code"><xs:restriction base="xs:string"/></xs:simpleType>
                 </xs:schema>
                 """);
-        // The document need not exist on disk: the request supplies its current contents.
+        // Only the query URI is needed, not its contents or a file on disk.
         return directory.resolve("query.xq").toUri();
     }
 
-    @ParameterizedTest
-    @ValueSource(strings = {"query.jq", "query.xq"})
-    void resolvesRelativeSchemasAndExportsConstructorSignatures(String fileName, @TempDir Path directory)
-            throws Exception {
-        writeSchema(directory);
-        String body = fileName.endsWith(".xq") ? "<result/>" : "1";
-        SchemaCatalog.Result result = this.catalog.resolve(
-                "import schema namespace t = \"urn:test\" at \"types.xsd\"; " + body,
-                directory.resolve(fileName).toUri());
+    private static SchemaCatalog.Input input(String namespace, String... locations) {
+        return new SchemaCatalog.Input(List.of(new SchemaCatalog.Import(namespace, List.of(locations))), null);
+    }
+
+    @Test
+    void resolvesRelativeSchemasAndExportsConstructorSignatures(@TempDir Path directory) throws Exception {
+        SchemaCatalog.Result result = this.catalog.resolve(input("urn:test", "types.xsd"), writeSchema(directory));
 
         assertTrue(result.errors().isEmpty(), result.errors().toString());
         assertEquals(
@@ -104,11 +100,11 @@ class SchemaCatalogTest {
                 </xs:schema>
                 """);
         SchemaCatalog.Result result = this.catalog.resolve(
-                """
-                import schema namespace t = "urn:test" at "types.xsd";
-                import schema namespace o = "urn:other" at "other.xsd";
-                1
-                """,
+                new SchemaCatalog.Input(
+                        List.of(
+                                new SchemaCatalog.Import("urn:test", List.of("types.xsd")),
+                                new SchemaCatalog.Import("urn:other", List.of("other.xsd"))),
+                        null),
                 documentUri);
 
         assertTrue(result.errors().isEmpty(), result.errors().toString());
@@ -122,40 +118,29 @@ class SchemaCatalogTest {
     }
 
     @Test
-    void detectsLanguageFromTheQueryDeclaration(@TempDir Path directory) throws Exception {
-        writeSchema(directory);
-        SchemaCatalog.Result result = this.catalog.resolve(
-                """
-                xquery version "3.1";
-                import schema namespace t = "urn:test" at "types.xsd";
-                <result/>
-                """,
-                directory.resolve("query.jq").toUri());
-
+    void resolvesDeclaredBaseUriBeforeLoadingIncludes(@TempDir Path directory) throws Exception {
+        Path schemas = Files.createDirectory(directory.resolve("schemas"));
+        writeSchema(schemas);
+        // Includes are still resolved relative to the XSD, after applying the query's base URI.
+        SchemaCatalog.Input input = new SchemaCatalog.Input(
+                List.of(new SchemaCatalog.Import("urn:test", List.of("types.xsd"))), "schemas/");
+        SchemaCatalog.Result result =
+                this.catalog.resolve(input, directory.resolve("query.xq").toUri());
         assertTrue(result.errors().isEmpty(), result.errors().toString());
         assertEquals(3, result.constructors().size());
     }
 
     @Test
-    void supportsLibraryModules(@TempDir Path directory) throws Exception {
-        SchemaCatalog.Result result = this.catalog.resolve(
-                """
-                xquery version "3.1";
-                module namespace lib = "urn:lib";
-                import schema namespace t = "urn:test" at "types.xsd";
-                declare function lib:code() { t:Code("a") };
-                """,
-                writeSchema(directory));
-
-        assertTrue(result.errors().isEmpty(), result.errors().toString());
-        assertEquals(3, result.constructors().size());
+    void rejectsAMismatchedTargetNamespace(@TempDir Path directory) throws Exception {
+        SchemaCatalog.Result result = this.catalog.resolve(input("urn:wrong", "types.xsd"), writeSchema(directory));
+        assertFalse(result.errors().isEmpty());
+        assertTrue(result.constructors().isEmpty());
     }
 
     @Test
     void reportsSchemaResolutionErrors(@TempDir Path directory) {
         SchemaCatalog.Result result = this.catalog.resolve(
-                "import schema namespace t = \"urn:test\" at \"missing.xsd\"; 1",
-                directory.resolve("query.xq").toUri());
+                input("urn:test", "missing.xsd"), directory.resolve("query.xq").toUri());
 
         assertFalse(result.errors().isEmpty());
         assertFalse(result.errors().get(0).message().isBlank());
@@ -166,18 +151,18 @@ class SchemaCatalogTest {
 
     @Test
     void returnsNoSchemaEntriesWithoutAnImport() {
-        assertEquals(this.catalog.createEmptyResponse(), this.catalog.resolve("1", null));
-        assertEquals(this.catalog.createEmptyResponse(), this.catalog.resolve("", null));
+        assertEquals(
+                this.catalog.createEmptyResponse(),
+                this.catalog.resolve(new SchemaCatalog.Input(List.of(), null), null));
     }
 
     @Test
     void handlesAndSerializesTheDaemonPayload(@TempDir Path directory) throws Exception {
-        String query = "import schema namespace t = \"urn:test\" at \"types.xsd\"; 1";
         var mapper = new ObjectMapper();
         Request request = new Request(
                 1,
                 "schema-catalog",
-                Base64.getEncoder().encodeToString(query.getBytes(StandardCharsets.UTF_8)),
+                Base64.getEncoder().encodeToString(mapper.writeValueAsBytes(input("urn:test", "types.xsd"))),
                 writeSchema(directory).toString(),
                 null);
         Request decoded = mapper.readValue(mapper.writeValueAsString(request), Request.class);
@@ -190,5 +175,17 @@ class SchemaCatalogTest {
         assertEquals(1, json.at("/constructors/0/name/arity").asInt());
         assertEquals("?", json.at("/constructors/0/signature/returnType/arity").asText());
         assertTrue(json.get("errors").isEmpty());
+    }
+
+    @Test
+    void rejectsMalformedInput() {
+        Request request = new Request(
+                1,
+                "schema-catalog",
+                Base64.getEncoder().encodeToString("{}".getBytes(java.nio.charset.StandardCharsets.UTF_8)),
+                "file:///query.xq",
+                null);
+        assertThrows(IllegalArgumentException.class, () -> this.catalog.handle(request));
+        assertThrows(IllegalArgumentException.class, () -> this.catalog.resolve(input("urn:test", "types.xsd"), null));
     }
 }
