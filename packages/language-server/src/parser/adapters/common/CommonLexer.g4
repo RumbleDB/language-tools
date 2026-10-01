@@ -937,7 +937,7 @@ ENTER_STRING
 
 EXIT_INTERPOLATION
    :
-   { !_modeStack.isEmpty() && _modeStack.peek() == STRING_MODE }? RBRACE GRAVE -> popMode
+   { this.modeNames[this.modeStack.at(-1) ?? -1] === "STRING_MODE" }? RBRACE GRAVE -> popMode
    ;
 
 ContentChar
