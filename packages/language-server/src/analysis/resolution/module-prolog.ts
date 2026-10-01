@@ -6,6 +6,7 @@ import type {
     ModuleDeclarationAstNode,
     ModuleImportAstNode,
     SchemaImportAstNode,
+    BaseUriDeclarationAstNode,
     NamespaceDeclarationAstNode,
     TypeDeclarationAstNode,
     VariableDeclarationAstNode,
@@ -43,6 +44,7 @@ export interface ModuleProlog {
     readonly uri: DocumentUri;
     readonly targetNamespace: string | undefined;
     readonly imports: readonly ModuleImport[];
+    readonly baseUri: string | undefined;
     readonly schemaImports: readonly SchemaImportAstNode[];
     readonly namespaces: ReadonlyMap<Prefix, SourceNamespaceDefinition>;
     readonly declarations: ModulePrologDeclarations;
@@ -75,6 +77,7 @@ class ModulePrologCollector extends ParserAstVisitor<void> {
     private readonly diagnostics: Diagnostic[] = [];
     private readonly definitions: SourceDefinitionFactory;
     private readonly nameResolver: NamespaceResolver;
+    private baseUri: string | undefined;
     private targetNamespace: string | undefined;
 
     public constructor(
@@ -96,12 +99,17 @@ class ModulePrologCollector extends ParserAstVisitor<void> {
             targetNamespace: this.targetNamespace,
             imports: this.imports,
             schemaImports: this.schemaImports,
+            baseUri: this.baseUri,
             namespaces: this.namespaces,
             declarations: this.declarations,
             exports: this.exports,
             diagnostics: this.diagnostics,
             definitions: this.definitions,
         };
+    }
+
+    protected override visitBaseUriDeclaration(node: BaseUriDeclarationAstNode): void {
+        this.baseUri ??= node.uri;
     }
 
     protected override visitModuleDeclaration(node: ModuleDeclarationAstNode): void {

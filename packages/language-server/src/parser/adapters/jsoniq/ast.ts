@@ -29,6 +29,7 @@ import {
     NamedFunctionRefContext,
     NamespaceDeclContext,
     SchemaImportContext,
+    BaseURIDeclContext,
     LibraryModuleContext,
     ModuleImportContext,
     PositionalVarContext,
@@ -141,6 +142,15 @@ class JsoniqAstBuilder extends JsoniqParserVisitor<AstVisitResult> {
             },
         ];
     };
+
+    public override visitBaseURIDecl = (node: BaseURIDeclContext): AstVisitResult => [
+        {
+            kind: "base-uri-declaration",
+            uri: unquoteStringLiteral(node.uriLiteral().getText()),
+            range: rangeFromNode(node, this.document),
+            children: [],
+        },
+    ];
 
     public override visitSchemaImport = (node: SchemaImportContext): AstVisitResult => {
         const namespaceUri = node._nsURI;

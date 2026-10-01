@@ -20,6 +20,14 @@ describe.each(["jsoniq", "xquery"])("%s schema imports", (language) => {
         return { document, prolog, analysis };
     }
 
+    it("retains the declared base URI alongside schema imports", () => {
+        const { prolog } = parse(
+            'declare base-uri "schemas/"; import schema namespace s = "urn:test" at "types.xsd"; 1',
+        );
+        expect(prolog.baseUri).toBe("schemas/");
+        expect(prolog.schemaImports[0]?.locations[0]?.uri).toBe("types.xsd");
+    });
+
     it("retains the schema namespace, prefix, and location ranges", () => {
         const { document, prolog } = parse(
             'import schema namespace s = "urn:test" at "one.xsd", "two.xsd"; 1',

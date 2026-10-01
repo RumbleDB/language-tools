@@ -11,6 +11,7 @@ export type AstNodeKind =
     | "module"
     | "module-declaration"
     | "module-import"
+    | "base-uri-declaration"
     | "schema-import"
     | "namespace-declaration"
     | "context-item-declaration"
@@ -49,6 +50,10 @@ export interface ModuleImportAstNode extends AstNodeBase<"module-import"> {
     readonly namespaceUri: string;
     readonly namespaceUriRange: Range;
     readonly locations: readonly { uri: string; range: Range }[];
+}
+
+export interface BaseUriDeclarationAstNode extends AstNodeBase<"base-uri-declaration"> {
+    readonly uri: string;
 }
 
 export interface SchemaImportAstNode extends AstNodeBase<"schema-import"> {
@@ -142,6 +147,7 @@ export type AstNode =
     | ModuleAstNode
     | ModuleDeclarationAstNode
     | ModuleImportAstNode
+    | BaseUriDeclarationAstNode
     | SchemaImportAstNode
     | NamespaceDeclarationAstNode
     | ContextItemDeclarationAstNode

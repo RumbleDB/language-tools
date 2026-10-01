@@ -1,5 +1,6 @@
 import type {
     ArgumentAstNode,
+    BaseUriDeclarationAstNode,
     AstNode,
     CatchErrorTargetAstNode,
     CatchClauseAstNode,
@@ -29,6 +30,8 @@ export abstract class ParserAstVisitor<R = void> {
                 return this.visitModuleDeclaration(node);
             case "module-import":
                 return this.visitModuleImport(node);
+            case "base-uri-declaration":
+                return this.visitBaseUriDeclaration(node);
             case "schema-import":
                 return this.visitSchemaImport(node);
             case "namespace-declaration":
@@ -62,6 +65,10 @@ export abstract class ParserAstVisitor<R = void> {
             default:
                 throw node satisfies never;
         }
+    }
+
+    protected visitBaseUriDeclaration(node: BaseUriDeclarationAstNode): R {
+        return this.defaultVisit(node);
     }
 
     protected visitChildren(node: AstNode): R[] {
