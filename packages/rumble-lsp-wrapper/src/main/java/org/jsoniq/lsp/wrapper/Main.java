@@ -15,6 +15,7 @@ import org.jsoniq.lsp.wrapper.cli.CLICommand;
 import org.jsoniq.lsp.wrapper.handlers.Handshake;
 import org.jsoniq.lsp.wrapper.handlers.RequestHandler;
 import org.jsoniq.lsp.wrapper.handlers.RunQuery;
+import org.jsoniq.lsp.wrapper.handlers.SchemaCatalog;
 import org.jsoniq.lsp.wrapper.handlers.StaticTypeChecker;
 import org.jsoniq.lsp.wrapper.handlers.TypeAtPosition;
 import org.jsoniq.lsp.wrapper.messages.Request;
@@ -34,6 +35,7 @@ public class Main {
     private static final BuiltInTypes BUILTIN_TYPES = new BuiltInTypes();
     private static final Handshake HANDSHAKE = new Handshake();
     private static final RunQuery RUN_QUERY = new RunQuery();
+    private static final SchemaCatalog SCHEMA_CATALOG = new SchemaCatalog();
     private static final Map<String, CLICommand> CLI_COMMANDS = Map.of(
             BUILTIN_FUNCTIONS.flag(), BUILTIN_FUNCTIONS,
             BUILTIN_TYPES.flag(), BUILTIN_TYPES,
@@ -43,7 +45,8 @@ public class Main {
             INFERENCER.getRequestType(), INFERENCER,
             TYPE_AT_POSITION.getRequestType(), TYPE_AT_POSITION,
             HANDSHAKE.getRequestType(), HANDSHAKE,
-            RUN_QUERY.getRequestType(), RUN_QUERY);
+            RUN_QUERY.getRequestType(), RUN_QUERY,
+            SCHEMA_CATALOG.getRequestType(), SCHEMA_CATALOG);
 
     public static void main(String[] args) {
         CLICommand cliCommand = findCliCommand(args);
@@ -122,12 +125,7 @@ public class Main {
                         new Error("UNSUPPORTED_REQUEST_TYPE", "Unsupported requestType '" + requestType + "'."));
             }
 
-            return new Response(
-                    requestId,
-                    requestType,
-                    handler.handle(new Request(
-                            requestId, requestType, request.body(), request.documentUri(), request.position())),
-                    null);
+            return new Response(requestId, requestType, handler.handle(request), null);
         } catch (Throwable throwable) {
             throwable.printStackTrace(System.err);
             System.err.flush();
