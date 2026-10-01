@@ -58,6 +58,7 @@ class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
     private currentScope: ScopeBuilder;
     private readonly definitions: SourceDefinitionFactory;
     private readonly namespaces: ReadonlyMap<Prefix, SourceNamespaceDefinition>;
+    private readonly defaultElementTypeNamespace: string | undefined;
     private readonly declarations: ModulePrologDeclarations;
     private readonly resolvedImportsByNamespace: ReadonlyMap<string, ResolvedModuleImport>;
     private readonly diagnostics: Diagnostic[];
@@ -78,6 +79,7 @@ class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
 
         this.definitions = prolog.definitions;
         this.namespaces = prolog.namespaces;
+        this.defaultElementTypeNamespace = prolog.defaultElementTypeNamespace;
         this.declarations = prolog.declarations;
         this.diagnostics = [...prolog.diagnostics];
         this.resolveBuiltin = environment.resolveBuiltin ?? ((_kind, _name) => undefined);
@@ -99,7 +101,7 @@ class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
         this.nameResolver = new NamespaceResolver(
             this.namespaces,
             (diagnostic) => this.diagnostics.push(diagnostic),
-            prolog.defaultElementTypeNamespace,
+            this.defaultElementTypeNamespace,
         );
     }
 
@@ -115,6 +117,7 @@ class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
             ast,
             scope: this.moduleScope,
             namespaces: this.nameResolver.getNamespaces(),
+            defaultElementTypeNamespace: this.defaultElementTypeNamespace,
             diagnostics: this.diagnostics,
         };
     }

@@ -31,6 +31,9 @@ export interface AnalysisResult {
     /** Effective prefix bindings, including defaults overridden by module declarations. */
     readonly namespaces: ReadonlyMap<Prefix, string>;
 
+    /** Explicit default for unprefixed element/type names; an empty string means no namespace. */
+    readonly defaultElementTypeNamespace: string | undefined;
+
     /**
      * List of all diagnostics reported during analysis of the module
      */

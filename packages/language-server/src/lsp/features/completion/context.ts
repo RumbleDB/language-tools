@@ -54,15 +54,18 @@ export function typedPrefix(source: string, cursorOffset: number, pattern: RegEx
     return source.slice(0, cursorOffset).match(pattern)?.[0] ?? null;
 }
 
-/** Catalog names have no query prefix. Offer each bound alias, or an expanded QName. */
+/** Offer bound aliases and a local name when the caller supplies a matching default namespace. */
 export function getQNameCompletionLabels(
     qname: QName,
     namespaces: ReadonlyMap<string, string>,
+    defaultNamespace?: string,
 ): string[] {
     const prefixes = [...namespaces].filter(([, uri]) => uri === qname.namespaceUri);
-    return prefixes.length === 0
-        ? [QNameToString(qname, true)]
-        : prefixes.map(([prefix]) => QNameToString({ ...qname, prefix }, false));
+    const labels = prefixes.map(([prefix]) => QNameToString({ ...qname, prefix }, false));
+    if (defaultNamespace !== undefined && qname.namespaceUri === defaultNamespace) {
+        labels.unshift(qname.localName);
+    }
+    return labels.length === 0 ? [QNameToString(qname, true)] : labels;
 }
 
 export function replaceTypedPrefix(
