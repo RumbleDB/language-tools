@@ -3,6 +3,7 @@ package org.jsoniq.lsp.wrapper.handlers;
 import java.io.IOException;
 import java.net.URI;
 import java.util.Base64;
+import java.util.LinkedHashSet;
 import java.util.List;
 
 import org.jsoniq.lsp.wrapper.messages.Request;
@@ -47,10 +48,11 @@ public final class SchemaCatalog implements RequestHandler {
     public record Result(
             List<ResolvedQName> types,
             List<FunctionDefinition> constructors,
+            List<String> dependencies,
             List<StaticTypeChecker.StaticTypeError> errors)
             implements ResponseBody {}
 
-    private static final Result EMPTY_RESULT = new Result(List.of(), List.of(), List.of());
+    private static final Result EMPTY_RESULT = new Result(List.of(), List.of(), List.of(), List.of());
 
     public Result resolve(Input input, URI documentUri) {
         if (input.imports().isEmpty()) return EMPTY_RESULT;
@@ -58,6 +60,7 @@ public final class SchemaCatalog implements RequestHandler {
             throw new IllegalArgumentException("An absolute documentUri is required.");
         }
         var metadata = new ExceptionMetadata(documentUri.toString(), 1, 0, 1, 0, "");
+        var dependencies = new LinkedHashSet<String>();
         try {
             URI baseUri = input.baseUri() == null
                     ? documentUri
@@ -71,7 +74,11 @@ public final class SchemaCatalog implements RequestHandler {
                             imported.locations(),
                             metadata))
                     .toList();
-            var loaded = XmlSchemaCatalogLoader.load(imports, baseUri, new CompilationConfiguration(configuration));
+            var loaded = XmlSchemaCatalogLoader.load(
+                    imports,
+                    baseUri,
+                    new CompilationConfiguration(configuration),
+                    uri -> dependencies.add(uri.toString()));
             if (loaded.isEmpty()) return EMPTY_RESULT;
             var catalog = loaded.get();
             // Built-in constructors are exported separately. Prefixes belong to the query, not the schema.
@@ -86,9 +93,14 @@ public final class SchemaCatalog implements RequestHandler {
                             FunctionDefinition.Name.create(constructor.identifier()),
                             FunctionDefinition.Signature.fromFunctionSignature(constructor.signature())))
                     .toList();
-            return new Result(names.stream().map(ResolvedQName::fromName).toList(), constructors, List.of());
+            return new Result(
+                    names.stream().map(ResolvedQName::fromName).toList(),
+                    constructors,
+                    List.copyOf(dependencies),
+                    List.of());
         } catch (RumbleException exception) {
-            return new Result(List.of(), List.of(), List.of(StaticTypeChecker.toTypeError(exception)));
+            return new Result(
+                    List.of(), List.of(), List.copyOf(dependencies), List.of(StaticTypeChecker.toTypeError(exception)));
         }
     }
 

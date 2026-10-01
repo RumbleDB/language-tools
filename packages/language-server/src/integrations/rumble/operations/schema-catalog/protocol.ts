@@ -20,6 +20,8 @@ export interface SchemaCatalogRequest {
 export interface SchemaCatalogWireResult {
     types: QName[];
     constructors: { name: FunctionName; signature: StaticFunctionSignature }[];
+    /** Absolute schema URIs attempted by Rumble, including imports, includes, and failed reads. */
+    dependencies?: string[];
     errors: StaticTypecheckError[];
 }
 

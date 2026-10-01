@@ -5,6 +5,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Base64;
 import java.util.List;
+import java.util.Set;
 
 import org.jsoniq.lsp.wrapper.handlers.SchemaCatalog;
 import org.jsoniq.lsp.wrapper.messages.Request;
@@ -58,6 +59,12 @@ class SchemaCatalogTest {
         SchemaCatalog.Result result = this.catalog.resolve(input("urn:test", "types.xsd"), writeSchema(directory));
 
         assertTrue(result.errors().isEmpty(), result.errors().toString());
+        // The endpoint exposes the same files that Xerces actually reads, including includes.
+        assertEquals(
+                List.of(
+                        directory.resolve("types.xsd").toUri(),
+                        directory.resolve("common.xsd").toUri()),
+                result.dependencies().stream().map(URI::create).toList());
         assertEquals(
                 List.of("Code", "CodeOrInteger", "Codes", "Record"),
                 result.types().stream().map(ResolvedQName::localName).toList());
@@ -138,6 +145,55 @@ class SchemaCatalogTest {
     }
 
     @Test
+    void reportsNestedImportsAndIncludes(@TempDir Path directory) throws Exception {
+        URI documentUri = writeSchema(directory);
+        Path root = directory.resolve("types.xsd");
+        Files.writeString(
+                root,
+                Files.readString(root)
+                        .replace(
+                                "<xs:include",
+                                "<xs:import namespace=\"urn:other\" schemaLocation=\"other.xsd\"/><xs:include"));
+        Files.writeString(
+                directory.resolve("other.xsd"),
+                """
+                <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" targetNamespace="urn:other">
+                  <xs:include schemaLocation="nested.xsd"/>
+                </xs:schema>
+                """);
+        Files.writeString(
+                directory.resolve("nested.xsd"),
+                """
+                <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" targetNamespace="urn:other">
+                  <xs:simpleType name="Other"><xs:restriction base="xs:string"/></xs:simpleType>
+                </xs:schema>
+                """);
+        SchemaCatalog.Result result = this.catalog.resolve(input("urn:test", "types.xsd"), documentUri);
+        assertTrue(result.errors().isEmpty(), result.errors().toString());
+        // Track the whole loaded graph, rather than only files named in the query prolog.
+        assertEquals(
+                Set.of("types.xsd", "common.xsd", "other.xsd", "nested.xsd"),
+                result.dependencies().stream()
+                        .map(uri -> Path.of(URI.create(uri)).getFileName().toString())
+                        .collect(java.util.stream.Collectors.toSet()));
+        assertEquals(4, result.dependencies().size());
+    }
+
+    @Test
+    void preservesDependenciesWhenAnIncludedSchemaIsMissing(@TempDir Path directory) throws Exception {
+        URI documentUri = writeSchema(directory);
+        Files.delete(directory.resolve("common.xsd"));
+        SchemaCatalog.Result result = this.catalog.resolve(input("urn:test", "types.xsd"), documentUri);
+        assertFalse(result.errors().isEmpty());
+        // Keeping the missing URI allows a later file creation to invalidate this failed catalog.
+        assertEquals(
+                List.of(
+                        directory.resolve("types.xsd").toUri(),
+                        directory.resolve("common.xsd").toUri()),
+                result.dependencies().stream().map(URI::create).toList());
+    }
+
+    @Test
     void reportsSchemaResolutionErrors(@TempDir Path directory) {
         SchemaCatalog.Result result = this.catalog.resolve(
                 input("urn:test", "missing.xsd"), directory.resolve("query.xq").toUri());
@@ -147,6 +203,9 @@ class SchemaCatalogTest {
         assertNotNull(result.errors().get(0).range());
         assertTrue(result.types().isEmpty());
         assertTrue(result.constructors().isEmpty());
+        assertEquals(
+                List.of(directory.resolve("missing.xsd").toUri()),
+                result.dependencies().stream().map(URI::create).toList());
     }
 
     @Test
@@ -175,6 +234,7 @@ class SchemaCatalogTest {
         assertEquals(1, json.at("/constructors/0/name/arity").asInt());
         assertEquals("?", json.at("/constructors/0/signature/returnType/arity").asText());
         assertTrue(json.get("errors").isEmpty());
+        assertEquals(2, json.get("dependencies").size());
     }
 
     @Test

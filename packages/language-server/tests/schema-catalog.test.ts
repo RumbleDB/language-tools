@@ -125,6 +125,9 @@ describe("schema catalog", () => {
                 expect(result).toBeDefined();
                 if (result === undefined) return;
                 expect(result.errors).toEqual([]);
+                expect(result.dependencies?.map((uri) => new URL(uri).href)).toEqual([
+                    pathToFileURL(path.join(directory, "schemas", "types.xsd")).href,
+                ]);
                 expect(result.types).toEqual([{ localName: "Code", namespaceUri: "urn:test" }]);
                 expect(result.constructors).toEqual([
                     {
