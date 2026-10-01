@@ -22,6 +22,7 @@ import type {
 import { collectModuleProlog, type ModuleProlog } from "../analysis/resolution/module-prolog.js";
 import { WorkspaceDocumentStore } from "./document-store.js";
 import { ModuleGraph } from "./module-graph.js";
+import { resolveModuleLocations } from "./module-resolver.js";
 import { WorkspaceSymbolIndex } from "./symbol-index.js";
 
 interface CachedAnalysis {
@@ -98,6 +99,9 @@ export class WorkspaceIndex {
         const changedUris = changes.map((change) => change.uri);
         for (const uri of changedUris) this.parser.clear(uri);
         const affected = this.invalidateAffected(changedUris);
+
+        // Disk changes can alter schema contents without changing the catalog request key.
+        for (const uri of affected) this.schemaCatalogs.delete(uri);
 
         this.documents.updateWorkspaceDocuments(changes);
         logger.debug("Tracked documents:", this.documents.getTrackedDocumentUris());
@@ -226,6 +230,19 @@ export class WorkspaceIndex {
                     };
                 }),
             );
+        }
+        // Track direct local schema locations without parsing XSD files as query modules.
+        try {
+            const baseUri = new URL(prolog.baseUri ?? document.uri, document.uri).toString();
+            for (const imported of prolog.schemaImports) {
+                for (const location of resolveModuleLocations(baseUri, imported)) {
+                    if (location.targetUri?.startsWith("file:")) {
+                        dependencies.add(location.targetUri);
+                    }
+                }
+            }
+        } catch {
+            // Rumble reports invalid base URIs when loading the schema catalog.
         }
         return {
             provider: { loadImport: (_uri, imported) => resolvedTargets.get(imported) ?? [] },

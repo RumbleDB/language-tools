@@ -10,7 +10,7 @@ import type { SchemaCatalogWireResult } from "server/integrations/rumble/operati
 import { getSchemaCatalog } from "server/integrations/rumble/operations/schema-catalog/service.js";
 import { describe, expect, it, vi } from "vitest";
 import { TextDocument } from "vscode-languageserver-textdocument";
-import type { Connection } from "vscode-languageserver/node";
+import { FileChangeType, type Connection } from "vscode-languageserver/node";
 
 import { createMockWrapperClient, positionAt, testDocument } from "./test-utils.js";
 
@@ -191,6 +191,25 @@ describe("schema catalog", () => {
                     kind: "function",
                     origin: "implicit",
                 });
+                // A saved XSD must replace the cached constructors without any query edit.
+                const schemaPath = path.join(directory, "schemas", "types.xsd");
+                await writeFile(
+                    schemaPath,
+                    `<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" targetNamespace="urn:test">
+                      <xs:simpleType name="NewCode"><xs:restriction base="xs:string"/></xs:simpleType>
+                    </xs:schema>`,
+                );
+                await workspace.updateWatchedFiles([
+                    { uri: pathToFileURL(schemaPath).href, type: FileChangeType.Changed },
+                ]);
+                const refreshed = await workspace.getAnalysis(document);
+                const constructors = getVisibleDeclarationsAtPosition(
+                    refreshed,
+                    document.getText().length,
+                ).filter((definition) => definition.origin === "implicit");
+                expect(constructors.map((definition) => definition.name)).toEqual([
+                    { qname: { localName: "NewCode", namespaceUri: "urn:test" }, arity: 1 },
+                ]);
             } finally {
                 client.dispose();
                 await rm(directory, { recursive: true, force: true });

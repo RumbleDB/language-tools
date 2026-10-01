@@ -7,7 +7,7 @@ import { createServerContext } from "server/app/context.js";
 import type { SchemaCatalogWireResult } from "server/integrations/rumble/operations/schema-catalog/protocol.js";
 import { describe, expect, it, vi } from "vitest";
 import { TextDocument } from "vscode-languageserver-textdocument";
-import type { Connection } from "vscode-languageserver/node";
+import { FileChangeType, type Connection } from "vscode-languageserver/node";
 
 import { createMockWrapperClient, positionAt, testDocument } from "./test-utils.js";
 
@@ -62,6 +62,68 @@ function update(document: TextDocument, text: string) {
 }
 
 describe("workspace schema catalog cache", () => {
+    it.each([
+        FileChangeType.Created,
+        FileChangeType.Changed,
+        FileChangeType.Deleted,
+    ] as Array<FileChangeType>)(
+        "reloads a directly imported schema after file event %s without editing the query",
+        async (type) => {
+            const { workspace, sendRequest } = setup();
+            const document = testDocument("schema-cache-file-event", source);
+            const first = await workspace.getAnalysis(document);
+            // Unrelated schemas must not invalidate this query's catalog.
+            await workspace.updateWatchedFiles([{ uri: "file:///unrelated.xsd", type }]);
+            expect(await workspace.getAnalysis(document)).toBe(first);
+            const affected = await workspace.updateWatchedFiles([
+                { uri: "file:///types.xsd", type },
+            ]);
+            expect(affected.has(document.uri)).toBe(true);
+            expect(await workspace.getAnalysis(document)).not.toBe(first);
+            expect(sendRequest).toHaveBeenCalledTimes(2);
+        },
+    );
+
+    it("resolves schema dependencies against the declared base URI and removes old dependencies", async () => {
+        const { workspace, sendRequest } = setup();
+        const document = testDocument(
+            "schema-cache-dependencies",
+            `declare base-uri "schemas/"; ${source}`,
+        );
+        await workspace.getAnalysis(document);
+        update(document, `declare base-uri "schemas/"; ${source.replace("types.xsd", "new.xsd")}`);
+        const current = await workspace.getAnalysis(document);
+        // Changing the import removes its old graph edge, so saving the old XSD has no effect.
+        await workspace.updateWatchedFiles([
+            { uri: "file:///schemas/types.xsd", type: FileChangeType.Changed },
+        ]);
+        expect(await workspace.getAnalysis(document)).toBe(current);
+        const affected = await workspace.updateWatchedFiles([
+            { uri: "file:///schemas/new.xsd", type: FileChangeType.Changed },
+        ]);
+        expect(affected.has(document.uri)).toBe(true);
+        await workspace.getAnalysis(document);
+        expect(sendRequest).toHaveBeenCalledTimes(3);
+    });
+
+    it("invalidates a pending schema request when its file changes", async () => {
+        const { workspace, sendRequest } = setup();
+        const pending = Promise.withResolvers<ReturnType<typeof response>>();
+        sendRequest.mockReturnValueOnce(pending.promise);
+        const document = testDocument("schema-cache-pending-file", source);
+        const first = workspace.getAnalysis(document);
+        await workspace.updateWatchedFiles([
+            { uri: "file:///types.xsd", type: FileChangeType.Changed },
+        ]);
+        const current = await workspace.getAnalysis(document);
+        // Complete the obsolete catalog last: it must not restore stale constructors or analysis.
+        pending.resolve(response({ types: [], constructors: [], errors: [] }));
+        await first;
+        expect(await workspace.getAnalysis(document)).toBe(current);
+        expect(current.diagnostics).toEqual([]);
+        expect(sendRequest).toHaveBeenCalledTimes(2);
+    });
+
     it("reuses the catalog for body edits and prefix aliases, including an incomplete body", async () => {
         const { workspace, sendRequest } = setup();
         const document = testDocument("schema-cache-body", source);
