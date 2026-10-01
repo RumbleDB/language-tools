@@ -43,9 +43,14 @@ public final class RunQuery implements RequestHandler {
         }
 
         try {
-            SequenceOfItems result = query == null
-                    ? getRumble().runQuery(documentUri)
-                    : getRumble().runQuery(query);
+            SequenceOfItems result;
+            if (query == null) {
+                result = getRumble().runQuery(documentUri);
+            } else if (documentUri == null) {
+                result = getRumble().runQuery(query);
+            } else {
+                result = getRumble().runQuery(query, documentUri);
+            }
 
             ObjectMapper mapper = new ObjectMapper();
             ArrayNode arrayNode = mapper.createArrayNode();
@@ -102,7 +107,10 @@ public final class RunQuery implements RequestHandler {
     }
 
     private static String decodeBody(String body) {
-        if (body == null || body.isBlank()) {
+        if (body == null) {
+            return null;
+        }
+        if (body.isBlank()) {
             return "";
         }
         try {
