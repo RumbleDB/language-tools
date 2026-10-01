@@ -5,6 +5,7 @@ import type { ModuleNode } from "./ast.js";
 import type {
     BuiltinDefinitionByReferenceKind,
     SchemaConstructorDefinition,
+    SchemaTypeDefinition,
     SourceModuleExportDefinition,
 } from "./definitions.js";
 import type { ReferenceNameByKind } from "./names.js";
@@ -41,6 +42,8 @@ export interface ResolvedModuleImport {
 export interface AnalysisEnvironment {
     /** Schema constructors visible in this module only; these are not library-module exports. */
     readonly schemaConstructors?: readonly SchemaConstructorDefinition[];
+    /** Named XML Schema types visible in this module only; these are not library-module exports. */
+    readonly schemaTypes?: readonly SchemaTypeDefinition[];
     readonly resolvedImports?: readonly ResolvedModuleImport[];
     readonly prolog?: ModuleProlog;
     /** Resolves a name to its builtin definition, if one exists. */

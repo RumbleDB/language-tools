@@ -10,7 +10,11 @@ import type { DocumentUri } from "vscode-languageserver";
 import { TextDocument } from "vscode-languageserver-textdocument";
 import { FileChangeType, type FileEvent } from "vscode-languageserver/node";
 
-import type { Definition, SchemaConstructorDefinition } from "../analysis/model/definitions.js";
+import type {
+    Definition,
+    SchemaConstructorDefinition,
+    SchemaTypeDefinition,
+} from "../analysis/model/definitions.js";
 import type { ModuleImport } from "../analysis/model/module-info.js";
 import type { AnyResolvedReference } from "../analysis/model/reference.js";
 import type { AnalysisResult } from "../analysis/model/result.js";
@@ -140,10 +144,16 @@ export class WorkspaceIndex {
                     origin: "implicit",
                 }));
                 const language = getActiveParserId(document);
+                const schemaTypes: SchemaTypeDefinition[] = (catalog?.types ?? []).map((name) => ({
+                    name,
+                    kind: "type",
+                    origin: "implicit",
+                }));
                 const { analysis } = analyzeModule(document, ast, {
                     provider,
                     prolog,
                     schemaConstructors,
+                    schemaTypes,
                     resolveBuiltin: (kind, name) => resolveBuiltin(kind, name, language),
                 });
                 if (this.analyses.get(document.uri) === entry) {

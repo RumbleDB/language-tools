@@ -11,6 +11,7 @@ export interface AnalyzeModuleOptions {
     readonly provider: ModuleProvider;
     readonly prolog?: ModuleProlog;
     readonly schemaConstructors?: AnalysisEnvironment["schemaConstructors"];
+    readonly schemaTypes?: AnalysisEnvironment["schemaTypes"];
     readonly resolveBuiltin?: AnalysisEnvironment["resolveBuiltin"];
 }
 
@@ -39,6 +40,7 @@ export function analyzeModule(
         ...(options.schemaConstructors !== undefined && {
             schemaConstructors: options.schemaConstructors,
         }),
+        ...(options.schemaTypes !== undefined && { schemaTypes: options.schemaTypes }),
         ...(options.resolveBuiltin !== undefined && { resolveBuiltin: options.resolveBuiltin }),
     });
 

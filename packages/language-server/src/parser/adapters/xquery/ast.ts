@@ -26,6 +26,7 @@ import {
     FunctionDeclContext,
     GroupByVarContext,
     InlineFunctionExprContext,
+    ItemTypeContext,
     LetVarContext,
     NamedFunctionRefContext,
     NamespaceDeclContext,
@@ -551,6 +552,19 @@ class XQueryAstBuilder extends XQueryParserVisitor<AstVisitResult> {
                     : -1,
         },
     ];
+
+    public override visitItemType = (node: ItemTypeContext): AstVisitResult => {
+        const name = node.eqName();
+        if (name === null) return this.visitChildrenAsNodes(node);
+        return [
+            {
+                kind: "type-reference",
+                name: parseQNameText(name.getText()),
+                range: rangeFromNode(name, this.document),
+                children: [],
+            },
+        ];
+    };
 
     private visitChildrenAsNodes(node: ParseTree): AstNode[] {
         return this.visitChildren(node) ?? [];

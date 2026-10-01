@@ -96,12 +96,18 @@ export interface SchemaConstructorDefinition extends BaseDefinition<"function"> 
     readonly signature: StaticFunctionSignature;
 }
 
+/** A named XML Schema type supplied by a schema imported into this module. */
+export interface SchemaTypeDefinition extends BaseDefinition<"type"> {
+    readonly origin: "implicit";
+}
+
 export type ScopeDefinition =
     | SourceVariableDefinition
     | SourceParameterDefinition
     | SourceFunctionDefinition
     | SourceTypeDefinition
     | SchemaConstructorDefinition
+    | SchemaTypeDefinition
     | ImplicitVariableDefinition;
 
 export type VariableDefinition =
@@ -112,7 +118,7 @@ export type VariableDefinition =
 export interface ScopeDefinitionByReferenceKind {
     variable: VariableDefinition;
     function: SourceFunctionDefinition | SchemaConstructorDefinition;
-    type: SourceTypeDefinition;
+    type: SourceTypeDefinition | SchemaTypeDefinition;
 }
 
 export interface BuiltinDefinitionByReferenceKind {
@@ -124,13 +130,14 @@ export interface BuiltinDefinitionByReferenceKind {
 export interface DefinitionByReferenceKind {
     variable: VariableDefinition;
     function: SourceFunctionDefinition | BuiltinFunctionDefinition | SchemaConstructorDefinition;
-    type: SourceTypeDefinition | BuiltinTypeDefinition;
+    type: SourceTypeDefinition | BuiltinTypeDefinition | SchemaTypeDefinition;
 }
 
 export type Definition =
     | SourceDefinition
     | ImplicitVariableDefinition
     | SchemaConstructorDefinition
+    | SchemaTypeDefinition
     | BuiltinFunctionDefinition
     | BuiltinTypeDefinition;
 

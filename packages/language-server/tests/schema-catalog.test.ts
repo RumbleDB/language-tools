@@ -119,7 +119,7 @@ describe("schema catalog", () => {
                     ).href,
                     language,
                     1,
-                    'declare base-uri "schemas/"; import schema namespace t = "urn:test" at "types.xsd"; t:Code("a")',
+                    'declare base-uri "schemas/"; import schema namespace t = "urn:test" at "types.xsd"; declare variable $value as t:Code := t:Code("a"); $value',
                 );
 
                 const result = await getSchemaCatalog(
@@ -172,6 +172,14 @@ describe("schema catalog", () => {
                 const { parser, workspace } = createServerContext({} as Connection, client);
                 const analysis = await workspace.getAnalysis(document);
                 expect(analysis.diagnostics).toEqual([]);
+                // The catalog's named types must resolve in annotations independently from constructor calls.
+                expect(
+                    findSymbolAtPosition(analysis, positionAt(document, "t:Code :="))?.declaration,
+                ).toMatchObject({
+                    kind: "type",
+                    origin: "implicit",
+                    name: { namespaceUri: "urn:test", localName: "Code" },
+                });
                 // Parameter help uses the signature exported by the actual Java schema loader.
                 const signature = await findSignatureHelp(
                     document,
@@ -247,7 +255,10 @@ describe("schema catalog", () => {
                 const constructors = getVisibleDeclarationsAtPosition(
                     refreshed,
                     document.getText().length,
-                ).filter((definition) => definition.origin === "implicit");
+                ).filter(
+                    (definition) =>
+                        definition.kind === "function" && definition.origin === "implicit",
+                );
                 expect(constructors.map((definition) => definition.name)).toEqual([
                     { qname: { localName: "NewCode", namespaceUri: "urn:test" }, arity: 1 },
                 ]);

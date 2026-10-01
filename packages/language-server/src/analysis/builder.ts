@@ -92,6 +92,9 @@ class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
         for (const definition of environment.schemaConstructors ?? []) {
             this.moduleScope.declare(definition, 0);
         }
+        for (const definition of environment.schemaTypes ?? []) {
+            this.moduleScope.declare(definition, 0);
+        }
         this.currentScope = this.moduleScope;
         this.nameResolver = new NamespaceResolver(this.namespaces, (diagnostic) =>
             this.diagnostics.push(diagnostic),
