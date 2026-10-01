@@ -9,6 +9,7 @@ import { RumbleWrapperClient } from "server/integrations/rumble/client.js";
 import type { SchemaCatalogWireResult } from "server/integrations/rumble/operations/schema-catalog/protocol.js";
 import { getSchemaCatalog } from "server/integrations/rumble/operations/schema-catalog/service.js";
 import { findCompletions } from "server/lsp/features/completion.js";
+import { findDefinitionLocation } from "server/lsp/features/definition.js";
 import { findHover } from "server/lsp/features/hover.js";
 import { findSignatureHelp } from "server/lsp/features/signature-help.js";
 import { describe, expect, it, vi } from "vitest";
@@ -219,9 +220,24 @@ describe("schema catalog", () => {
                         ?.declaration,
                 ).toEqual({
                     ...result.constructors[0],
+                    sourceUri: pathToFileURL(path.join(directory, "schemas", "common.xsd")).href,
                     kind: "function",
                     origin: "schema",
                 });
+                // Both annotations and constructor calls navigate to the included XSD.
+                const schemaLocation = {
+                    uri: pathToFileURL(path.join(directory, "schemas", "common.xsd")).href,
+                    range: { start: { line: 0, character: 0 }, end: { line: 0, character: 0 } },
+                };
+                for (const reference of ["t:Code :=", 't:Code("a")']) {
+                    expect(
+                        await findDefinitionLocation(
+                            document,
+                            positionAt(document, reference),
+                            workspace,
+                        ),
+                    ).toEqual(schemaLocation);
+                }
                 // An unfinished body must not prevent the workspace from loading the same schema.
                 TextDocument.update(
                     document,
@@ -270,6 +286,7 @@ describe("schema catalog", () => {
                     getVisibleDeclarationsAtPosition(incomplete, document.getText().length),
                 ).toContainEqual({
                     ...result.constructors[0],
+                    sourceUri: pathToFileURL(path.join(directory, "schemas", "common.xsd")).href,
                     kind: "function",
                     origin: "schema",
                 });

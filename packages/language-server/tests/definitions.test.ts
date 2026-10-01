@@ -1,8 +1,17 @@
+import { findSymbolAtPosition } from "server/analysis/index.js";
+import { createServerContext } from "server/app/context.js";
 import { findDefinitionLocation } from "server/lsp/features/definition.js";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+import type { Connection } from "vscode-languageserver/node";
 
 import { workspaceService } from "./services.js";
-import { positionAtNth, testDocument, testDocumentFromUri } from "./test-utils.js";
+import {
+    createMockWrapperClient,
+    positionAt,
+    positionAtNth,
+    testDocument,
+    testDocumentFromUri,
+} from "./test-utils.js";
 
 describe("JSONiq go-to-definition", () => {
     it("resolves variable reference to the nearest declaration", async () => {
@@ -133,5 +142,44 @@ describe("JSONiq go-to-definition", () => {
             line: 1,
             character: "declare function ".length,
         });
+    });
+});
+
+describe("schema go-to-definition", () => {
+    it("keeps schema symbols resolvable when their source file is unavailable", async () => {
+        const name = { namespaceUri: "urn:test", localName: "Code" };
+        const wrapper = createMockWrapperClient({
+            sendRequest: vi.fn().mockResolvedValue({
+                id: 1,
+                responseType: "schema-catalog",
+                body: {
+                    types: [{ name }],
+                    constructors: [
+                        {
+                            name: { qname: name, arity: 1 },
+                            signature: {
+                                parameterTypes: [],
+                                returnType: { itemType: { kind: "named", name }, arity: "?" },
+                            },
+                        },
+                    ],
+                    errors: [],
+                },
+                error: null,
+            }),
+        });
+        const { workspace } = createServerContext({} as Connection, wrapper);
+        const document = testDocument("schema-definition-without-source", [
+            'import schema namespace t = "urn:test";',
+            'declare variable $value as t:Code := t:Code("a");',
+            "$value",
+        ]);
+        const analysis = await workspace.getAnalysis(document);
+        // Missing provenance must not remove types or constructors from semantic resolution.
+        for (const reference of ["t:Code :=", 't:Code("a")']) {
+            const position = positionAt(document, reference);
+            expect(findSymbolAtPosition(analysis, position)?.declaration?.origin).toBe("schema");
+            expect(await findDefinitionLocation(document, position, workspace)).toBeNull();
+        }
     });
 });

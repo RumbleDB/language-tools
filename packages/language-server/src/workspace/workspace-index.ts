@@ -16,6 +16,7 @@ import type {
     SchemaTypeDefinition,
 } from "../analysis/model/definitions.js";
 import type { ModuleImport } from "../analysis/model/module-info.js";
+import { QNameToString } from "../analysis/model/names.js";
 import type { AnyResolvedReference } from "../analysis/model/reference.js";
 import type { AnalysisResult } from "../analysis/model/result.js";
 import { analyzeModule } from "../analysis/pipeline.js";
@@ -136,19 +137,30 @@ export class WorkspaceIndex {
             version: document.version,
             analysis: Promise.resolve().then(async () => {
                 const catalog = await pendingCatalog;
-                const schemaConstructors: SchemaConstructorDefinition[] = (
-                    catalog?.constructors ?? []
-                ).map((constructor) => ({
-                    ...constructor,
-                    kind: "function",
-                    origin: "schema",
-                }));
-                const language = getActiveParserId(document);
                 const schemaTypes: SchemaTypeDefinition[] = (catalog?.types ?? []).map((type) => ({
-                    name: type.name,
+                    ...type,
+                    ...(type.sourceUri === undefined
+                        ? {}
+                        : { sourceUri: new URL(type.sourceUri).href }),
                     kind: "type",
                     origin: "schema",
                 }));
+                // Constructors navigate to the schema declaration of their corresponding type.
+                const typeSources = new Map(
+                    schemaTypes.map((type) => [QNameToString(type.name, true), type.sourceUri]),
+                );
+                const schemaConstructors: SchemaConstructorDefinition[] = (
+                    catalog?.constructors ?? []
+                ).map((constructor) => {
+                    const sourceUri = typeSources.get(QNameToString(constructor.name.qname, true));
+                    return {
+                        ...constructor,
+                        ...(sourceUri === undefined ? {} : { sourceUri }),
+                        kind: "function",
+                        origin: "schema",
+                    };
+                });
+                const language = getActiveParserId(document);
                 const { analysis } = analyzeModule(document, ast, {
                     provider,
                     prolog,

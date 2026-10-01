@@ -93,12 +93,16 @@ export interface ImplicitVariableDefinition extends AbstractDefinition<"variable
 /** A constructor function supplied by a schema imported into this module. */
 export interface SchemaConstructorDefinition extends BaseDefinition<"function"> {
     readonly origin: "schema";
+    /** XSD containing the named type; declaration ranges are not available yet. */
+    readonly sourceUri?: string;
     readonly signature: StaticFunctionSignature;
 }
 
 /** A named XML Schema type supplied by a schema imported into this module. */
 export interface SchemaTypeDefinition extends BaseDefinition<"type"> {
     readonly origin: "schema";
+    /** XSD containing the named type; declaration ranges are not available yet. */
+    readonly sourceUri?: string;
 }
 
 export type ScopeDefinition =
