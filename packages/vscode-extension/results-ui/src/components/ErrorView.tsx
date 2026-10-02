@@ -1,6 +1,8 @@
-import { createMemo, createSignal, Show } from "solid-js";
+import { createMemo, Show } from "solid-js";
 
 import type { ExecutionResultData } from "../types.js";
+import { createCopyAction } from "../utils/clipboard.js";
+import { formatError } from "../utils/format-error.js";
 import { vscode } from "../vscode.js";
 
 interface ErrorViewProps {
@@ -37,8 +39,7 @@ function formatPathDisplay(target: string): string {
 }
 
 export function ErrorView(props: ErrorViewProps) {
-    const [copied, setCopied] = createSignal(false);
-    let copyTimer: ReturnType<typeof setTimeout> | undefined;
+    const { copied, copy } = createCopyAction();
 
     const targetLocation = createMemo(() => getTargetLocation(props.error.location, props.fileUri));
 
@@ -77,54 +78,8 @@ export function ErrorView(props: ErrorViewProps) {
         };
     });
 
-    const copyErrorDetails = async () => {
-        const err = props.error;
-        const loc = targetLocation();
-        const r = rangeInfo();
-
-        const lines: string[] = [];
-        if (err.code) {
-            lines.push(`Error Code: [${err.code}]`);
-        }
-        lines.push(`Message: ${err.message}`);
-        if (loc) {
-            lines.push(`File: ${fullPath()}`);
-        }
-        if (r) {
-            lines.push(`Position: ${r.humanReadable} (${r.short})`);
-        }
-
-        const textToCopy = lines.join("\n");
-        let success = false;
-        try {
-            if (navigator.clipboard && window.isSecureContext) {
-                await navigator.clipboard.writeText(textToCopy);
-                success = true;
-            }
-        } catch {
-            success = false;
-        }
-
-        if (!success) {
-            try {
-                const textArea = document.createElement("textarea");
-                textArea.value = textToCopy;
-                textArea.style.position = "fixed";
-                textArea.style.left = "-999999px";
-                textArea.style.top = "-999999px";
-                document.body.appendChild(textArea);
-                textArea.focus();
-                textArea.select();
-                document.execCommand("copy");
-                textArea.remove();
-            } catch (e) {
-                console.error("Copy failed:", e);
-            }
-        }
-
-        setCopied(true);
-        if (copyTimer) clearTimeout(copyTimer);
-        copyTimer = setTimeout(() => setCopied(false), 2000);
+    const copyErrorDetails = () => {
+        copy(formatError(props.error, props.fileUri));
     };
 
     const handleOpenLocation = () => {

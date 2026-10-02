@@ -22,6 +22,9 @@ import { Header } from "./components/Header.js";
 import { RawView } from "./components/RawView.js";
 import { TableView } from "./components/Table.js";
 import type { ExecutionResultData } from "./types.js";
+import { createCopyAction } from "./utils/clipboard.js";
+import { formatError } from "./utils/format-error.js";
+import { type ViewFormat, type IndentMode, formatRawOutput } from "./utils/format-raw.js";
 
 declare global {
     interface Window {
@@ -93,16 +96,16 @@ function getDynamicColumnSize(items: Record<string, unknown>[], key: string): nu
 
 export function App() {
     const [data, setData] = createSignal<ExecutionResultData | undefined>(window.__INITIAL_DATA__);
-    const [copied, setCopied] = createSignal(false);
+    const { copied, copy } = createCopyAction();
     const [globalFilter, setGlobalFilter] = createSignal("");
     const [sorting, setSorting] = createSignal<SortingState>([]);
     const [viewMode, setViewMode] = createSignal<"table" | "raw">("table");
+    const [rawFormat, setRawFormat] = createSignal<ViewFormat>("sequence");
+    const [rawIndent, setRawIndent] = createSignal<IndentMode>("pretty");
     const [pagination, setPagination] = createSignal<PaginationState>({
         pageIndex: 0,
         pageSize: 50,
     });
-
-    let copyTimer: ReturnType<typeof setTimeout> | undefined;
 
     onMount(() => {
         const handleMessage = (event: MessageEvent) => {
@@ -116,43 +119,19 @@ export function App() {
         return () => window.removeEventListener("message", handleMessage);
     });
 
-    const copyOutput = async () => {
+    const copyOutput = () => {
         const d = data();
         if (!d) return;
-        const content = d.output ?? formatError(d.error);
-
-        let success = false;
-        try {
-            if (navigator.clipboard && window.isSecureContext) {
-                await navigator.clipboard.writeText(content);
-                success = true;
-            }
-        } catch {
-            success = false;
+        if (viewMode() === "raw") {
+            copy(formatRawOutput(d.output ?? "", rawFormat(), rawIndent()));
+        } else {
+            copy(d.output ?? formatError(d.error, d.fileUri));
         }
-
-        if (!success) {
-            try {
-                const textArea = document.createElement("textarea");
-                textArea.value = content;
-                textArea.style.position = "fixed";
-                textArea.style.left = "-999999px";
-                textArea.style.top = "-999999px";
-                document.body.appendChild(textArea);
-                textArea.focus();
-                textArea.select();
-                document.execCommand("copy");
-                textArea.remove();
-            } catch (err) {
-                console.error("Copy failed:", err);
-            }
-        }
-
-        setCopied(true);
-        if (copyTimer) clearTimeout(copyTimer);
-        copyTimer = setTimeout(() => setCopied(false), 2000);
     };
 
+    // The backend always serializes the result sequence as a JSON array,
+    // e.g. (1, 2, 3) → [1,2,3] and [1,2,3] → [[1,2,3]].
+    // Each element of the outer array is one sequence item.
     const parsedItems = createMemo(() => {
         const d = data();
         if (!d || !d.output || d.error) return [];
@@ -160,23 +139,8 @@ export function App() {
         const rawText = d.output.trim();
         if (!rawText) return [];
 
-        try {
-            const parsed = JSON.parse(rawText);
-            return Array.isArray(parsed) ? parsed : [parsed];
-        } catch {
-            const items: unknown[] = [];
-            const lines = rawText.split("\n");
-            for (const line of lines) {
-                const trimmed = line.trim();
-                if (!trimmed) continue;
-                try {
-                    items.push(JSON.parse(trimmed));
-                } catch {
-                    items.push(line);
-                }
-            }
-            return items;
-        }
+        const parsed = JSON.parse(rawText) as unknown;
+        return Array.isArray(parsed) ? parsed : [parsed];
     });
 
     const isAllObjects = createMemo(() => {
@@ -325,7 +289,13 @@ export function App() {
                                     </Show>
 
                                     <Show when={viewMode() === "raw"}>
-                                        <RawView output={res().output ?? ""} />
+                                        <RawView
+                                            output={res().output ?? ""}
+                                            format={rawFormat()}
+                                            onFormatChange={setRawFormat}
+                                            indent={rawIndent()}
+                                            onIndentChange={setRawIndent}
+                                        />
                                     </Show>
                                 </Show>
                             </Show>
@@ -335,24 +305,4 @@ export function App() {
             </Show>
         </div>
     );
-}
-
-function formatError(error: ExecutionResultData["error"]): string {
-    if (!error) return "";
-    const lines: string[] = [];
-    if (error.code) {
-        lines.push(`Error Code: [${error.code}]`);
-    }
-    lines.push(`Message: ${error.message}`);
-    if (error.location) {
-        lines.push(`File: ${error.location}`);
-    }
-    if (error.range) {
-        const startLine = error.range.start.line + 1;
-        const startCol = error.range.start.character + 1;
-        const endLine = error.range.end.line + 1;
-        const endCol = error.range.end.character + 1;
-        lines.push(`Position: Line ${startLine}, Column ${startCol} (to ${endLine}:${endCol})`);
-    }
-    return lines.join("\n");
 }

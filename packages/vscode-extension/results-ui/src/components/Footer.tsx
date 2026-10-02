@@ -21,8 +21,11 @@ export function Footer(props: FooterProps) {
                 </button>
 
                 <span class="px-1 text-xs text-secondary font-medium">
-                    Page {props.table.atoms.pagination.get().pageIndex + 1} of{" "}
-                    {props.table.getPageCount()}
+                    Page{" "}
+                    {props.table.getPageCount() > 0
+                        ? props.table.atoms.pagination.get().pageIndex + 1
+                        : 1}{" "}
+                    of {Math.max(props.table.getPageCount(), 1)}
                 </span>
 
                 <button
