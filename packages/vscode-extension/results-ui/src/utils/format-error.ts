@@ -12,9 +12,9 @@ export function formatError(error: ExecutionResultData["error"], fileUri?: strin
     lines.push(`Message: ${error.message}`);
     const location = error.location || fileUri;
     if (location) {
-        lines.push(`File: ${location}`);
+        lines.push(`${error.location ? "File" : "Query"}: ${location}`);
     }
-    if (error.range) {
+    if (error.location && error.range) {
         const startLine = error.range.start.line + 1;
         const startCol = error.range.start.character + 1;
         const endLine = error.range.end.line + 1;

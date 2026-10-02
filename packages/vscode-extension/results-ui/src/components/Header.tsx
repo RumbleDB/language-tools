@@ -42,12 +42,6 @@ export function Header(props: HeaderProps) {
                     />
                     Re-run
                 </button>
-                <Show when={!props.isSuccess}>
-                    <span class="i-iconoir-alert-triangle text-base shrink-0 text-error" />
-                    <span class="px-1.5 py-0.2 rounded text-2xs font-medium bg-error/15 text-error border border-error/30 shrink-0">
-                        Failed
-                    </span>
-                </Show>
                 <Show when={props.isSuccess}>
                     <div class="w-px h-3.5 bg-outline-variant shrink-0" />
                     <div class="flex items-center gap-2.5 text-secondary shrink-0">

@@ -77,6 +77,7 @@ export function App() {
                                     error={res().error!}
                                     fileUri={res().fileUri}
                                     durationMs={res().durationMs}
+                                    sourceText={res().sourceText}
                                 />
                             </Show>
 

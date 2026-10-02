@@ -2,6 +2,7 @@ import { RUN_QUERY_REQUEST } from "jsoniq-language-server/requests";
 import * as vscode from "vscode";
 import type { LanguageClient } from "vscode-languageclient/node";
 
+import { errorSourceText } from "../source-location.js";
 import { ResultsWebviewPanel } from "../views/results-webview.js";
 
 export function registerRunQueryCommand(
@@ -43,17 +44,19 @@ export function registerRunQueryCommand(
                     const error = response.error;
 
                     if (error) {
+                        const sourceText = await errorSourceText(
+                            error.location,
+                            document.uri,
+                            queryText,
+                        );
                         ResultsWebviewPanel.show(context.extensionUri, {
                             fileUri: uri,
                             error,
+                            ...(sourceText !== undefined ? { sourceText } : {}),
                             items: null,
                             durationMs,
                             timestamp,
                         });
-
-                        vscode.window.showErrorMessage(
-                            `Query execution failed: ${error.code ? `[${error.code}] ` : ""}${error.message}`,
-                        );
                     } else {
                         ResultsWebviewPanel.show(context.extensionUri, {
                             fileUri: uri,
@@ -74,8 +77,6 @@ export function registerRunQueryCommand(
                         durationMs,
                         timestamp,
                     });
-
-                    vscode.window.showErrorMessage(`Failed to execute query: ${errorMsg}`);
                 }
             },
         );

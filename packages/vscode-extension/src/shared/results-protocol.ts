@@ -4,6 +4,8 @@ export interface ExecutionResultData {
     fileUri: string;
     items: RunQueryItem[] | null;
     error?: RunQueryError;
+    /** Text of the reported error file, supplied by the extension. */
+    sourceText?: string;
     durationMs: number;
     timestamp: string;
 }

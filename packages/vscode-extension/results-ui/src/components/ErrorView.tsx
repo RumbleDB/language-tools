@@ -1,7 +1,8 @@
-import { createMemo, createSignal, onCleanup, Show } from "solid-js";
+import { createMemo, createSignal, For, onCleanup, Show } from "solid-js";
 
 import type { ExecutionResultData } from "../types.js";
 import { createCopyAction } from "../utils/clipboard.js";
+import { errorSourceLines } from "../utils/error-source.js";
 import { formatError } from "../utils/format-error.js";
 import { vscode } from "../vscode.js";
 
@@ -9,211 +10,166 @@ interface ErrorViewProps {
     error: NonNullable<ExecutionResultData["error"]>;
     fileUri: string;
     durationMs: number;
-}
-
-function extractFileName(target: string): string {
-    if (!target) return "";
-    try {
-        const url = new URL(target);
-        const pathname = decodeURIComponent(url.pathname);
-        return pathname.split("/").pop() || pathname;
-    } catch {
-        return target.split("/").pop() || target;
-    }
-}
-
-function formatPathDisplay(target: string): string {
-    if (!target) return "";
-    if (target.startsWith("file://")) {
-        try {
-            return decodeURIComponent(new URL(target).pathname);
-        } catch {
-            return target.replace(/^file:\/\//, "");
-        }
-    }
-    return target;
+    sourceText?: string;
 }
 
 export function ErrorView(props: ErrorViewProps) {
     const { copied, copy } = createCopyAction();
     const [navigationError, setNavigationError] = createSignal("");
+    const [copyError, setCopyError] = createSignal("");
     onCleanup(
         vscode.onMessage("OPEN_ERROR_LOCATION_ERROR", (message) => {
             setNavigationError(message.message);
         }),
     );
 
-    const targetLocation = createMemo(() => props.error.location || props.fileUri);
-
-    const fileName = createMemo(() => extractFileName(targetLocation()));
-    const fullPath = createMemo(() => formatPathDisplay(targetLocation()));
-
-    const rangeInfo = createMemo(() => {
-        const range = props.error.range;
-        if (!range) return null;
-        const startLine = range.start.line + 1;
-        const startCol = range.start.character + 1;
-        const endLine = range.end.line + 1;
-        const endCol = range.end.character + 1;
-
-        if (startLine === endLine && startCol === endCol) {
-            return {
-                humanReadable: `Line ${startLine}, Column ${startCol}`,
-                short: `${startLine}:${startCol}`,
-                startLine,
-                startCol,
-            };
+    const targetLocation = () => props.error.location || props.fileUri;
+    const targetRange = () => (props.error.location ? props.error.range : null);
+    const fullPath = createMemo(() => {
+        try {
+            const target = new URL(targetLocation());
+            return target.protocol === "file:"
+                ? decodeURIComponent(target.pathname)
+                : targetLocation();
+        } catch {
+            return targetLocation();
         }
-        if (startLine === endLine) {
-            return {
-                humanReadable: `Line ${startLine}, Columns ${startCol}–${endCol}`,
-                short: `${startLine}:${startCol}-${endCol}`,
-                startLine,
-                startCol,
-            };
-        }
-        return {
-            humanReadable: `Line ${startLine}:${startCol} – Line ${endLine}:${endCol}`,
-            short: `${startLine}:${startCol}-${endLine}:${endCol}`,
-            startLine,
-            startCol,
-        };
     });
-
-    const copyErrorDetails = () => {
-        copy(formatError(props.error, props.fileUri));
+    const locationLabel = () => {
+        if (!props.error.location) return "Open query";
+        const name = fullPath().split(/[\\/]/).pop() || fullPath();
+        const range = targetRange();
+        return range ? `${name}:${range.start.line + 1}:${range.start.character + 1}` : name;
     };
 
+    const copyErrorDetails = async () => {
+        setCopyError("");
+        if (!(await copy(formatError(props.error, props.fileUri)))) {
+            setCopyError("Unable to copy error details.");
+        }
+    };
     const handleOpenLocation = () => {
-        const loc = targetLocation();
-        if (!loc) return;
         setNavigationError("");
         try {
+            const range = targetRange();
             vscode.postMessage("OPEN_ERROR_LOCATION", {
-                location: loc,
-                ...(props.error.range ? { range: props.error.range } : {}),
+                location: targetLocation(),
+                ...(range ? { range } : {}),
             });
         } catch (error) {
             setNavigationError(error instanceof Error ? error.message : String(error));
         }
     };
 
+    const sourceLines = createMemo(() => errorSourceLines(props.sourceText, targetRange()));
+
     return (
-        <div class="flex-1 w-full overflow-y-auto p-4 sm:p-6 flex flex-col items-center justify-start box-border">
-            <div class="w-full bg-surface-container border border-error/35 rounded-lg shadow-sm overflow-hidden flex flex-col">
-                {/* Header banner */}
-                <div class="bg-error/10 border-b border-error/25 px-4 py-3 flex items-center justify-between gap-3 flex-wrap">
-                    <div class="flex items-center gap-2.5 min-w-0">
-                        <span class="i-iconoir-alert-triangle text-lg text-error shrink-0" />
-                        <span class="font-semibold text-sm text-on-surface">Execution Error</span>
-                        <Show when={props.error.code}>
-                            <span class="px-2 py-0.5 rounded text-xs font-mono font-bold bg-error/20 text-error border border-error/35 tracking-wider">
-                                {props.error.code}
-                            </span>
-                        </Show>
-                    </div>
-
-                    <button
-                        type="button"
-                        onClick={copyErrorDetails}
-                        aria-label={copied() ? "Error details copied" : "Copy Details"}
-                        class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-2xs font-medium bg-surface text-secondary hover:text-on-surface hover:bg-surface-variant border border-outline-variant transition-colors cursor-pointer"
-                        title="Copy error details to clipboard"
-                    >
-                        <span
-                            class={
-                                "w-3 h-3 shrink-0 " +
-                                (copied()
-                                    ? "i-iconoir-check text-success text-xs"
-                                    : "i-iconoir-copy text-xs")
-                            }
-                        />
-                        Copy Details
-                    </button>
-                </div>
-
-                {/* Body Content */}
-                <div class="p-4 sm:p-5 space-y-4">
-                    {/* Error Message Box */}
-                    <div class="space-y-1.5">
-                        <div class="text-2xs font-semibold text-secondary uppercase tracking-wider">
-                            Description
-                        </div>
-                        <div class="p-3.5 bg-surface rounded-md border border-outline-variant font-mono text-xs text-on-surface select-text overflow-x-auto whitespace-pre-wrap break-words leading-relaxed">
-                            {props.error.message}
-                        </div>
-                    </div>
-
-                    {/* Error Location Card (when location or fileUri is available) */}
-                    <Show when={targetLocation()}>
-                        <div class="space-y-1.5">
-                            <div class="text-2xs font-semibold text-secondary uppercase tracking-wider">
-                                Source Location
-                            </div>
-                            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 bg-surface rounded-md border border-outline-variant hover:border-outline transition-colors">
-                                <div class="min-w-0 flex items-start gap-2.5 flex-1">
-                                    <span class="i-iconoir-page text-base text-secondary shrink-0 mt-0.5" />
-                                    <div class="min-w-0 flex-1">
-                                        <div class="flex items-center gap-2 flex-wrap">
-                                            <span class="font-mono text-xs font-bold text-on-surface truncate">
-                                                {fileName()}
-                                            </span>
-                                            <Show when={rangeInfo()}>
-                                                {(range) => (
-                                                    <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-surface-container-high text-on-surface font-mono text-2xs font-medium border border-outline-variant">
-                                                        <span class="i-iconoir-pin text-2xs text-secondary" />
-                                                        {range().humanReadable}
-                                                    </span>
-                                                )}
-                                            </Show>
-                                        </div>
-                                        <div
-                                            class="text-2xs text-secondary/70 truncate mt-1 font-mono select-all"
-                                            title={fullPath()}
-                                        >
-                                            {fullPath()}
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <button
-                                    type="button"
-                                    onClick={handleOpenLocation}
-                                    class="inline-flex items-center justify-center gap-1.5 px-3.5 py-1.5 rounded text-xs font-semibold bg-primary text-on-primary hover:opacity-90 active:scale-98 transition cursor-pointer shrink-0 shadow-sm"
-                                    title={`Open ${fileName()} at error location in editor`}
-                                >
-                                    <span class="i-iconoir-open-new-window text-sm" />
-                                    <span>
-                                        {rangeInfo()
-                                            ? `Go to Line ${rangeInfo()!.startLine}`
-                                            : "Open in Editor"}
+        <div class="flex-1 w-full overflow-y-auto box-border">
+            <div class="flex items-center justify-between gap-3 px-4 py-2 border-b border-outline-variant text-xs">
+                <span class="text-secondary">Query failed · {props.durationMs}ms</span>
+                <button
+                    type="button"
+                    onClick={copyErrorDetails}
+                    aria-label={copied() ? "Error details copied" : "Copy Details"}
+                    title="Copy error details to clipboard"
+                    class="inline-flex items-center gap-1.5 text-secondary hover:text-on-surface cursor-pointer shrink-0"
+                >
+                    <span
+                        class={`w-3 h-3 shrink-0 ${copied() ? "i-iconoir-check text-success" : "i-iconoir-copy"}`}
+                    />
+                    Copy Details
+                </button>
+            </div>
+            <div class="max-w-5xl mx-auto p-4 sm:p-6 space-y-4">
+                <section class="border border-error/30 bg-error/5 rounded-lg overflow-hidden">
+                    <div class="flex items-start gap-3 p-4">
+                        <span class="i-iconoir-warning-triangle text-error w-5 h-5 shrink-0 mt-0.5" />
+                        <div class="min-w-0 flex-1 space-y-3">
+                            <div class="flex items-center gap-2 flex-wrap">
+                                <span class="font-semibold text-sm">Query execution failed</span>
+                                <Show when={props.error.code}>
+                                    <span class="text-xs font-mono text-error bg-error/10 px-1.5 py-0.5 rounded break-all">
+                                        {props.error.code}
                                     </span>
-                                </button>
+                                </Show>
+                            </div>
+                            <p role="alert" class="m-0 text-sm whitespace-pre-wrap break-words">
+                                {props.error.message}
+                            </p>
+                        </div>
+                    </div>
+                    <div class="border-t border-error/20 px-4 py-3 flex items-center justify-between gap-3 flex-wrap">
+                        <span class="text-xs text-secondary font-mono break-all min-w-0">
+                            {fullPath()}
+                        </span>
+                        <button
+                            type="button"
+                            onClick={handleOpenLocation}
+                            title={fullPath()}
+                            class="inline-flex items-center gap-1.5 text-xs text-on-surface hover:underline cursor-pointer shrink-0"
+                        >
+                            <span class="i-iconoir-open-new-window w-3 h-3 shrink-0" />
+                            {locationLabel()}
+                        </button>
+                    </div>
+                </section>
+                <Show when={sourceLines().length > 0}>
+                    <section
+                        aria-label="Query source preview"
+                        class="border border-outline-variant rounded-lg overflow-hidden"
+                    >
+                        <div class="flex items-center gap-2 flex-wrap px-4 py-2.5 bg-surface-container border-b border-outline-variant text-xs text-secondary">
+                            <span class="i-iconoir-code" />
+                            <span>{fullPath()}</span>
+                        </div>
+                        <div class="overflow-x-auto bg-surface">
+                            <div class="min-w-max font-mono text-xs leading-6">
+                                <For each={sourceLines()}>
+                                    {(line) => (
+                                        <div
+                                            class={`flex py-0.5 ${line.highlighted ? "bg-error/10" : ""}`}
+                                        >
+                                            <span
+                                                aria-hidden="true"
+                                                class={`w-12 shrink-0 text-right pr-3 select-none ${line.highlighted ? "text-error" : "text-secondary"}`}
+                                            >
+                                                {line.number}
+                                            </span>
+                                            <code class="whitespace-pre pr-4 flex-1 bg-transparent">
+                                                {line.before}
+                                                <mark class="bg-transparent underline decoration-error decoration-wavy underline-offset-4">
+                                                    {line.selected}
+                                                </mark>
+                                                {line.after}
+                                                {line.before || line.selected || line.after
+                                                    ? ""
+                                                    : " "}
+                                            </code>
+                                        </div>
+                                    )}
+                                </For>
                             </div>
                         </div>
-                    </Show>
-
-                    <Show when={navigationError()}>
-                        <p role="alert" class="text-xs text-error">
-                            Unable to open error location: {navigationError()}
-                        </p>
-                    </Show>
-
-                    {/* Footer metadata info */}
-                    <div class="flex items-center justify-between pt-2 border-t border-outline-variant text-2xs text-secondary">
-                        <span class="flex items-center gap-1">
-                            <span class="i-iconoir-timer text-xs" />
-                            Execution failed after {props.durationMs}ms
-                        </span>
-                        <Show when={rangeInfo()}>
-                            {(range) => (
-                                <span class="font-mono text-secondary/70">
-                                    Position: {range().short}
-                                </span>
-                            )}
-                        </Show>
-                    </div>
-                </div>
+                    </section>
+                </Show>
+                <details class="border border-outline-variant rounded-lg overflow-hidden">
+                    <summary class="cursor-pointer px-4 py-3 text-xs font-semibold bg-surface-container">
+                        Error details
+                    </summary>
+                    <pre class="m-0 p-4 font-mono text-xs whitespace-pre-wrap break-words border-t border-outline-variant">
+                        {formatError(props.error, props.fileUri)}
+                    </pre>
+                </details>
+                <Show when={navigationError()}>
+                    <p role="alert" class="m-0 text-xs text-error">
+                        Unable to open source: {navigationError()}
+                    </p>
+                </Show>
+                <Show when={copyError()}>
+                    <p role="alert" class="m-0 text-xs text-error">
+                        {copyError()}
+                    </p>
+                </Show>
             </div>
         </div>
     );

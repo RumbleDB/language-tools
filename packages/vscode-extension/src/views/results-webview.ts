@@ -7,6 +7,7 @@ import type {
     ExportResultsRequest,
     OpenErrorLocationRequest,
 } from "../shared/results-protocol.js";
+import { sourceLocationUri } from "../source-location.js";
 import { handleResultsMessage } from "./results-message-handler.js";
 
 export class ResultsWebviewPanel {
@@ -62,19 +63,7 @@ export class ResultsWebviewPanel {
     private async openErrorLocation(params: OpenErrorLocationRequest): Promise<void> {
         const { location, range } = params;
 
-        let docUri: vscode.Uri;
-        if (location.startsWith("file:")) {
-            docUri = vscode.Uri.parse(location);
-        } else if (/^[a-zA-Z]:[\\/]/.test(location) || location.startsWith("/")) {
-            docUri = vscode.Uri.file(location);
-        } else {
-            try {
-                docUri = vscode.Uri.parse(location);
-                if (!docUri.scheme) docUri = vscode.Uri.file(location);
-            } catch {
-                docUri = vscode.Uri.file(location);
-            }
-        }
+        const docUri = sourceLocationUri(location);
         const document = await vscode.workspace.openTextDocument(docUri);
         const selection = range
             ? new vscode.Range(
@@ -197,7 +186,7 @@ export class ResultsWebviewPanel {
         );
 
         const nonce = getNonce();
-        const initialDataJson = JSON.stringify(data);
+        const initialDataJson = JSON.stringify(data).replace(/</g, "\\u003c");
 
         return /* html */ `<!DOCTYPE html>
 <html lang="en">
