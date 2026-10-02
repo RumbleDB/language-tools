@@ -1,16 +1,14 @@
-import { createMemo, createSignal, Show } from "solid-js";
+import { createMemo, createSignal, onCleanup, Show } from "solid-js";
 
 import type { ExecutionResultData } from "../types.js";
+import { createCopyAction } from "../utils/clipboard.js";
+import { formatError } from "../utils/format-error.js";
 import { vscode } from "../vscode.js";
 
 interface ErrorViewProps {
     error: NonNullable<ExecutionResultData["error"]>;
     fileUri: string;
     durationMs: number;
-}
-
-function getTargetLocation(errorLocation: string | null | undefined, fileUri: string): string {
-    return errorLocation || fileUri;
 }
 
 function extractFileName(target: string): string {
@@ -37,10 +35,15 @@ function formatPathDisplay(target: string): string {
 }
 
 export function ErrorView(props: ErrorViewProps) {
-    const [copied, setCopied] = createSignal(false);
-    let copyTimer: ReturnType<typeof setTimeout> | undefined;
+    const { copied, copy } = createCopyAction();
+    const [navigationError, setNavigationError] = createSignal("");
+    onCleanup(
+        vscode.onMessage("OPEN_ERROR_LOCATION_ERROR", (message) => {
+            setNavigationError(message.message);
+        }),
+    );
 
-    const targetLocation = createMemo(() => getTargetLocation(props.error.location, props.fileUri));
+    const targetLocation = createMemo(() => props.error.location || props.fileUri);
 
     const fileName = createMemo(() => extractFileName(targetLocation()));
     const fullPath = createMemo(() => formatPathDisplay(targetLocation()));
@@ -77,64 +80,22 @@ export function ErrorView(props: ErrorViewProps) {
         };
     });
 
-    const copyErrorDetails = async () => {
-        const err = props.error;
-        const loc = targetLocation();
-        const r = rangeInfo();
-
-        const lines: string[] = [];
-        if (err.code) {
-            lines.push(`Error Code: [${err.code}]`);
-        }
-        lines.push(`Message: ${err.message}`);
-        if (loc) {
-            lines.push(`File: ${fullPath()}`);
-        }
-        if (r) {
-            lines.push(`Position: ${r.humanReadable} (${r.short})`);
-        }
-
-        const textToCopy = lines.join("\n");
-        let success = false;
-        try {
-            if (navigator.clipboard && window.isSecureContext) {
-                await navigator.clipboard.writeText(textToCopy);
-                success = true;
-            }
-        } catch {
-            success = false;
-        }
-
-        if (!success) {
-            try {
-                const textArea = document.createElement("textarea");
-                textArea.value = textToCopy;
-                textArea.style.position = "fixed";
-                textArea.style.left = "-999999px";
-                textArea.style.top = "-999999px";
-                document.body.appendChild(textArea);
-                textArea.focus();
-                textArea.select();
-                document.execCommand("copy");
-                textArea.remove();
-            } catch (e) {
-                console.error("Copy failed:", e);
-            }
-        }
-
-        setCopied(true);
-        if (copyTimer) clearTimeout(copyTimer);
-        copyTimer = setTimeout(() => setCopied(false), 2000);
+    const copyErrorDetails = () => {
+        copy(formatError(props.error, props.fileUri));
     };
 
     const handleOpenLocation = () => {
         const loc = targetLocation();
         if (!loc) return;
-        vscode.postMessage({
-            type: "OPEN_ERROR_LOCATION",
-            location: loc,
-            range: props.error.range,
-        });
+        setNavigationError("");
+        try {
+            vscode.postMessage("OPEN_ERROR_LOCATION", {
+                location: loc,
+                ...(props.error.range ? { range: props.error.range } : {}),
+            });
+        } catch (error) {
+            setNavigationError(error instanceof Error ? error.message : String(error));
+        }
     };
 
     return (
@@ -155,17 +116,19 @@ export function ErrorView(props: ErrorViewProps) {
                     <button
                         type="button"
                         onClick={copyErrorDetails}
+                        aria-label={copied() ? "Error details copied" : "Copy Details"}
                         class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-2xs font-medium bg-surface text-secondary hover:text-on-surface hover:bg-surface-variant border border-outline-variant transition-colors cursor-pointer"
                         title="Copy error details to clipboard"
                     >
                         <span
                             class={
-                                copied()
+                                "w-3 h-3 shrink-0 " +
+                                (copied()
                                     ? "i-iconoir-check text-success text-xs"
-                                    : "i-iconoir-copy text-xs"
+                                    : "i-iconoir-copy text-xs")
                             }
                         />
-                        <span>{copied() ? "Copied" : "Copy Details"}</span>
+                        Copy Details
                     </button>
                 </div>
 
@@ -228,6 +191,12 @@ export function ErrorView(props: ErrorViewProps) {
                                 </button>
                             </div>
                         </div>
+                    </Show>
+
+                    <Show when={navigationError()}>
+                        <p role="alert" class="text-xs text-error">
+                            Unable to open error location: {navigationError()}
+                        </p>
                     </Show>
 
                     {/* Footer metadata info */}

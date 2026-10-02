@@ -1,13 +1,13 @@
-import { FlexRender, type Table as SolidTable } from "@tanstack/solid-table";
+import { FlexRender } from "@tanstack/solid-table";
 import { For, Show } from "solid-js";
 
-import type { TFeatures } from "../App.js";
+import type { ResultsTableInstance } from "./table/model.js";
 
 interface TableProps {
-    table: SolidTable<TFeatures, Record<string, unknown>>;
+    table: ResultsTableInstance;
+    totalRows: number;
     globalFilter: string;
     onGlobalFilterChange: (value: string) => void;
-    totalRows: number;
 }
 
 export function TableView(props: TableProps) {

@@ -38,13 +38,13 @@ export function registerRunQueryCommand(
                     const durationMs = Date.now() - startTime;
                     const timestamp = new Date().toLocaleTimeString();
 
-                    const error = response?.error;
-                    const output = response?.output;
+                    const error = response.error;
 
                     if (error) {
                         ResultsWebviewPanel.show(context.extensionUri, {
                             fileUri: activeEditor.document.fileName,
                             error,
+                            items: null,
                             durationMs,
                             timestamp,
                         });
@@ -55,7 +55,7 @@ export function registerRunQueryCommand(
                     } else {
                         ResultsWebviewPanel.show(context.extensionUri, {
                             fileUri: activeEditor.document.fileName,
-                            output: typeof output === "string" ? output : "(No output returned)",
+                            items: response.items,
                             durationMs,
                             timestamp,
                         });
@@ -68,6 +68,7 @@ export function registerRunQueryCommand(
                     ResultsWebviewPanel.show(context.extensionUri, {
                         fileUri: activeEditor.document.fileName,
                         error: { message: errorMsg, code: null, location: null, range: null },
+                        items: null,
                         durationMs,
                         timestamp,
                     });

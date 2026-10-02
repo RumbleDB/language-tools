@@ -1,27 +1,14 @@
-import {
-    createTable,
-    tableFeatures,
-    columnFilteringFeature,
-    rowSortingFeature,
-    globalFilteringFeature,
-    rowPaginationFeature,
-    columnSizingFeature,
-    columnResizingFeature,
-    createSortedRowModel,
-    createFilteredRowModel,
-    createPaginatedRowModel,
-    type ColumnDef,
-    type SortingState,
-    type PaginationState,
-} from "@tanstack/solid-table";
-import { createSignal, onMount, createMemo, Show, type JSX } from "solid-js";
+import { createSignal, onMount, onCleanup, createMemo, Show } from "solid-js";
 
 import { ErrorView } from "./components/ErrorView.js";
-import { Footer } from "./components/Footer.js";
 import { Header } from "./components/Header.js";
 import { RawView } from "./components/RawView.js";
-import { TableView } from "./components/Table.js";
-import type { ExecutionResultData } from "./types.js";
+import { ResultActions } from "./components/ResultActions.js";
+import { ResultsTable } from "./components/ResultsTable.js";
+import { SequenceView } from "./components/SequenceView.js";
+import type { ExecutionResultData, ViewMode } from "./types.js";
+import { projectTableRows, type ResultSelection } from "./utils/result-items.js";
+import { vscode } from "./vscode.js";
 
 declare global {
     interface Window {
@@ -29,235 +16,26 @@ declare global {
     }
 }
 
-const features = tableFeatures({
-    columnFilteringFeature,
-    rowSortingFeature,
-    globalFilteringFeature,
-    rowPaginationFeature,
-    columnSizingFeature,
-    columnResizingFeature,
-    sortedRowModel: createSortedRowModel(),
-    filteredRowModel: createFilteredRowModel(),
-    paginatedRowModel: createPaginatedRowModel(),
-});
-
-export type TFeatures = typeof features;
-export type TData = Record<string, unknown>;
-
-const INDEX_COLUMN: ColumnDef<TFeatures, TData> = {
-    id: "__index",
-    header: "#",
-    size: 60,
-    minSize: 50,
-    maxSize: 80,
-    accessorFn: (_: TData, index: number) => index + 1,
-    cell: (info) => (
-        <span class="text-secondary/60 font-mono text-xs select-none tabular-nums">
-            {String(info.getValue())}
-        </span>
-    ),
-};
-
-function renderCellValue(val: unknown): JSX.Element {
-    if (val === undefined || val === null) {
-        return <span class="text-secondary/50 italic font-mono">null</span>;
-    }
-    if (typeof val === "boolean") {
-        return (
-            <span class={val ? "text-success font-semibold" : "text-error font-semibold"}>
-                {String(val)}
-            </span>
-        );
-    }
-    if (typeof val === "number") {
-        return <span class="text-token-number font-mono">{val}</span>;
-    }
-    if (typeof val === "object") {
-        return <span class="text-token-string font-mono">{JSON.stringify(val)}</span>;
-    }
-    return <span class="text-on-surface font-mono">{String(val)}</span>;
-}
-
-function getDynamicColumnSize(items: Record<string, unknown>[], key: string): number {
-    const sample = items.slice(0, 30);
-    const maxLen = Math.max(
-        key.length,
-        ...sample.map((it) => {
-            const val = it[key];
-            if (val === null || val === undefined) return 0;
-            return typeof val === "object" ? JSON.stringify(val).length : String(val).length;
-        }),
-    );
-    return Math.min(Math.max(maxLen * 8 + 36, 90), 450);
-}
-
 export function App() {
     const [data, setData] = createSignal<ExecutionResultData | undefined>(window.__INITIAL_DATA__);
-    const [copied, setCopied] = createSignal(false);
-    const [globalFilter, setGlobalFilter] = createSignal("");
-    const [sorting, setSorting] = createSignal<SortingState>([]);
-    const [viewMode, setViewMode] = createSignal<"table" | "raw">("table");
-    const [pagination, setPagination] = createSignal<PaginationState>({
-        pageIndex: 0,
-        pageSize: 50,
-    });
-
-    let copyTimer: ReturnType<typeof setTimeout> | undefined;
+    const [tableSelection, setTableSelection] = createSignal<ResultSelection>();
+    const [viewMode, setViewMode] = createSignal<ViewMode>("inspect");
 
     onMount(() => {
-        const handleMessage = (event: MessageEvent) => {
-            const message = event.data;
-            if (message && message.type === "SET_DATA") {
+        onCleanup(
+            vscode.onMessage("SET_DATA", (message) => {
                 setData(message.data);
-            }
-        };
-
-        window.addEventListener("message", handleMessage);
-        return () => window.removeEventListener("message", handleMessage);
-    });
-
-    const copyOutput = async () => {
-        const d = data();
-        if (!d) return;
-        const content = d.output ?? formatError(d.error);
-
-        let success = false;
-        try {
-            if (navigator.clipboard && window.isSecureContext) {
-                await navigator.clipboard.writeText(content);
-                success = true;
-            }
-        } catch {
-            success = false;
-        }
-
-        if (!success) {
-            try {
-                const textArea = document.createElement("textarea");
-                textArea.value = content;
-                textArea.style.position = "fixed";
-                textArea.style.left = "-999999px";
-                textArea.style.top = "-999999px";
-                document.body.appendChild(textArea);
-                textArea.focus();
-                textArea.select();
-                document.execCommand("copy");
-                textArea.remove();
-            } catch (err) {
-                console.error("Copy failed:", err);
-            }
-        }
-
-        setCopied(true);
-        if (copyTimer) clearTimeout(copyTimer);
-        copyTimer = setTimeout(() => setCopied(false), 2000);
-    };
-
-    const parsedItems = createMemo(() => {
-        const d = data();
-        if (!d || !d.output || d.error) return [];
-
-        const rawText = d.output.trim();
-        if (!rawText) return [];
-
-        try {
-            const parsed = JSON.parse(rawText);
-            return Array.isArray(parsed) ? parsed : [parsed];
-        } catch {
-            const items: unknown[] = [];
-            const lines = rawText.split("\n");
-            for (const line of lines) {
-                const trimmed = line.trim();
-                if (!trimmed) continue;
-                try {
-                    items.push(JSON.parse(trimmed));
-                } catch {
-                    items.push(line);
-                }
-            }
-            return items;
-        }
-    });
-
-    const isAllObjects = createMemo(() => {
-        const items = parsedItems();
-        return (
-            items.length > 0 &&
-            items.every((it) => typeof it === "object" && it !== null && !Array.isArray(it))
+            }),
         );
     });
 
-    const tableColumns = createMemo<ColumnDef<TFeatures, TData>[]>(() => {
-        const items = parsedItems();
-        if (items.length === 0) return [];
-
-        if (isAllObjects()) {
-            const keySet = new Set<string>();
-            items.forEach((it) => {
-                if (typeof it === "object" && it !== null) {
-                    Object.keys(it).forEach((k) => keySet.add(k));
-                }
-            });
-
-            const dataCols: ColumnDef<TFeatures, TData>[] = Array.from(keySet).map((key) => ({
-                id: key,
-                accessorKey: key,
-                header: key.toUpperCase(),
-                size: getDynamicColumnSize(items as TData[], key),
-                minSize: 80,
-                cell: (info) => renderCellValue(info.getValue()),
-            }));
-
-            return [INDEX_COLUMN, ...dataCols];
-        }
-
-        return [
-            INDEX_COLUMN,
-            {
-                id: "value",
-                accessorKey: "value",
-                header: "VALUE",
-                size: 400,
-                minSize: 150,
-                cell: (info) => renderCellValue(info.getValue()),
-            },
-        ];
-    });
-
-    const tableData = createMemo<TData[]>(() => {
-        return parsedItems().map((item) => {
-            if (typeof item === "object" && item !== null && !Array.isArray(item)) {
-                return item as TData;
-            }
-            return { value: item };
-        });
-    });
-
-    const table = createTable({
-        features,
-        get data() {
-            return tableData();
-        },
-        get columns() {
-            return tableColumns();
-        },
-        columnResizeMode: "onChange",
-        defaultColumn: {
-            size: 160,
-            minSize: 60,
-        },
-        get state() {
-            return {
-                sorting: sorting(),
-                globalFilter: globalFilter(),
-                pagination: pagination(),
-            };
-        },
-        onSortingChange: setSorting,
-        onGlobalFilterChange: setGlobalFilter,
-        onPaginationChange: setPagination,
-    });
-
+    const resultItems = createMemo(() => data()?.items ?? []);
+    const fullSelection = createMemo(() => ({
+        items: resultItems(),
+        ...projectTableRows(resultItems()),
+    }));
+    const actionSelection = () =>
+        viewMode() === "table" ? (tableSelection() ?? fullSelection()) : fullSelection();
     const fileName = () => {
         const uri = data()?.fileUri;
         if (!uri) return "Query Results";
@@ -266,7 +44,7 @@ export function App() {
 
     const isSuccess = () => {
         const d = data();
-        return Boolean(d && !d.error && d.output !== undefined);
+        return Boolean(d && !d.error && d.items !== null);
     };
 
     return (
@@ -280,9 +58,19 @@ export function App() {
                         <Header
                             fileName={fileName()}
                             isSuccess={isSuccess()}
-                            hasItems={parsedItems().length > 0}
+                            hasItems={resultItems().length > 0}
                             viewMode={viewMode()}
                             onViewModeChange={setViewMode}
+                            durationMs={res().durationMs}
+                            rowCount={resultItems().length}
+                            actions={
+                                <ResultActions
+                                    items={actionSelection().items}
+                                    rows={actionSelection().rows}
+                                    columns={actionSelection().columns}
+                                    tableView={viewMode() === "table"}
+                                />
+                            }
                         />
 
                         <main class="flex-1 flex flex-col bg-surface overflow-hidden relative w-full">
@@ -294,9 +82,9 @@ export function App() {
                                 />
                             </Show>
 
-                            <Show when={!res().error && res().output !== undefined}>
+                            <Show when={!res().error && res().items !== null}>
                                 <Show
-                                    when={parsedItems().length > 0}
+                                    when={resultItems().length > 0}
                                     fallback={
                                         <div class="p-4 sm:p-6">
                                             <div class="inline-flex items-center gap-1.5 text-xs bg-surface-container px-3 py-1.5 rounded border border-outline-variant text-secondary">
@@ -306,28 +94,26 @@ export function App() {
                                         </div>
                                     }
                                 >
-                                    <Show when={viewMode() === "table"}>
-                                        <TableView
-                                            table={table}
-                                            globalFilter={globalFilter()}
-                                            onGlobalFilterChange={setGlobalFilter}
-                                            totalRows={tableData().length}
+                                    <div
+                                        class="flex-1 flex flex-col overflow-hidden"
+                                        classList={{ hidden: viewMode() !== "inspect" }}
+                                    >
+                                        <SequenceView items={res().items!} />
+                                    </div>
+
+                                    <div
+                                        class="flex-1 flex flex-col overflow-hidden"
+                                        classList={{ hidden: viewMode() !== "table" }}
+                                    >
+                                        <ResultsTable
+                                            items={res().items!}
+                                            onSelectionChange={setTableSelection}
                                         />
-                                    </Show>
+                                    </div>
 
                                     <Show when={viewMode() === "raw"}>
-                                        <RawView output={res().output ?? ""} />
+                                        <RawView items={res().items!} />
                                     </Show>
-
-                                    <Footer
-                                        durationMs={res().durationMs}
-                                        rowCount={parsedItems().length}
-                                        table={table}
-                                        pageSize={pagination().pageSize}
-                                        onPageSizeChange={(size) => table.setPageSize(size)}
-                                        copied={copied()}
-                                        onCopy={copyOutput}
-                                    />
                                 </Show>
                             </Show>
                         </main>
@@ -336,24 +122,4 @@ export function App() {
             </Show>
         </div>
     );
-}
-
-function formatError(error: ExecutionResultData["error"]): string {
-    if (!error) return "";
-    const lines: string[] = [];
-    if (error.code) {
-        lines.push(`Error Code: [${error.code}]`);
-    }
-    lines.push(`Message: ${error.message}`);
-    if (error.location) {
-        lines.push(`File: ${error.location}`);
-    }
-    if (error.range) {
-        const startLine = error.range.start.line + 1;
-        const startCol = error.range.start.character + 1;
-        const endLine = error.range.end.line + 1;
-        const endCol = error.range.end.character + 1;
-        lines.push(`Position: Line ${startLine}, Column ${startCol} (to ${endLine}:${endCol})`);
-    }
-    return lines.join("\n");
 }

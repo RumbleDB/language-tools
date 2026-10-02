@@ -4,6 +4,7 @@
     "private": true,
     "type": "module",
     "scripts": {
+        "test": "node --experimental-strip-types --test tests/*.test.mjs",
         "build": "vite build",
         "build:watch": "vite build --watch",
         "dev": "vite",

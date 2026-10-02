@@ -1,21 +1,27 @@
-import { For, Show } from "solid-js";
+import { For, Show, type JSX } from "solid-js";
+
+import type { ViewMode } from "../types.js";
 
 interface HeaderProps {
     fileName: string;
     isSuccess: boolean;
     hasItems: boolean;
-    viewMode: "table" | "raw";
-    onViewModeChange: (mode: "table" | "raw") => void;
+    viewMode: ViewMode;
+    onViewModeChange: (mode: ViewMode) => void;
+    durationMs: number;
+    rowCount: number;
+    actions: JSX.Element;
 }
 
 const VIEW_MODES = [
+    { mode: "inspect", label: "Inspect", icon: "i-iconoir-list" },
     { mode: "table", label: "Table", icon: "i-iconoir-table" },
     { mode: "raw", label: "Raw Output", icon: "i-iconoir-code" },
 ] as const;
 
 export function Header(props: HeaderProps) {
     return (
-        <header class="bg-surface border-b border-outline-variant min-h-[36px] py-1 px-4 flex items-center justify-between gap-2 w-full shrink-0 z-10 box-border">
+        <header class="bg-surface border-b border-outline-variant min-h-[36px] py-1 px-4 flex items-center justify-between gap-2 flex-wrap w-full shrink-0 z-10 box-border">
             <div class="flex items-center gap-2 text-secondary min-w-0">
                 <span
                     class={
@@ -32,6 +38,19 @@ export function Header(props: HeaderProps) {
                         Failed
                     </span>
                 </Show>
+                <Show when={props.isSuccess}>
+                    <div class="w-px h-3.5 bg-outline-variant shrink-0" />
+                    <div class="flex items-center gap-2.5 text-secondary shrink-0">
+                        <span class="flex items-center gap-1 text-2xs">
+                            <span class="i-iconoir-timer text-xs" />
+                            {props.durationMs}ms
+                        </span>
+                        <span class="flex items-center gap-1 text-2xs">
+                            <span class="i-iconoir-table-rows text-xs" />
+                            {props.rowCount} item{props.rowCount === 1 ? "" : "s"}
+                        </span>
+                    </div>
+                </Show>
             </div>
 
             <div class="flex items-center gap-2 shrink-0">
@@ -41,6 +60,7 @@ export function Header(props: HeaderProps) {
                             {(item) => (
                                 <button
                                     onClick={() => props.onViewModeChange(item.mode)}
+                                    aria-pressed={props.viewMode === item.mode}
                                     class={`px-2 py-0.5 rounded-sm text-2xs font-medium flex items-center gap-1 cursor-pointer transition-colors ${
                                         props.viewMode === item.mode
                                             ? "bg-primary text-on-primary font-semibold"
@@ -53,6 +73,10 @@ export function Header(props: HeaderProps) {
                             )}
                         </For>
                     </div>
+
+                    <div class="w-px h-3.5 bg-outline-variant" />
+
+                    {props.actions}
                 </Show>
             </div>
         </header>
