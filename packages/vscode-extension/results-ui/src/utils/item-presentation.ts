@@ -54,11 +54,11 @@ export function itemPreview(item: RunQueryItem): string {
     if (item.kind === "object" || item.kind === "map") {
         const count = item.entries?.length ?? 0;
         const noun = item.kind === "object" ? "field" : "entry";
-        return `${item.kind === "map" ? "map" : ""}{${count ? "…" : ""}} · ${count} ${count === 1 ? noun : item.kind === "object" ? "fields" : "entries"}`;
+        return `${containerPreview(item, 0)} · ${count} ${count === 1 ? noun : item.kind === "object" ? "fields" : "entries"}`;
     }
     if (item.kind === "array") {
         const count = item.members?.length ?? 0;
-        return `${arrayPreview(item, 0)} · ${count} member${count === 1 ? "" : "s"}`;
+        return `${containerPreview(item, 0)} · ${count} member${count === 1 ? "" : "s"}`;
     }
     if (item.kind === "null") return "null";
     if (item.kind === "function" && item.function) {
@@ -77,29 +77,46 @@ export function itemPreview(item: RunQueryItem): string {
     return item.serialized ?? `[${item.serializationError ?? "Serialization unavailable"}]`;
 }
 
-function arrayPreview(item: RunQueryItem, depth: number): string {
-    const members = item.members ?? [];
-    if (members.length === 0) return "[]";
-    if (depth >= 2) return "[…]";
-    const previews = members.slice(0, 3).map((sequence) => {
-        if (sequence.length === 0) return "()";
-        const values = sequence.slice(0, 2).map((value) => {
-            if (value.kind === "array") return arrayPreview(value, depth + 1);
-            if (value.kind === "object" || value.kind === "map") {
-                return `${value.kind === "map" ? "map" : ""}{${value.entries?.length ? "…" : ""}}`;
-            }
-            if (itemTone(value) === "string" && value.lexicalValue !== undefined) {
-                const text = value.lexicalValue;
-                return JSON.stringify(text.length > 32 ? `${text.slice(0, 32)}…` : text);
-            }
-            const text = itemPreview(value).replace(/\s*\n\s*/g, " ");
-            return text.length > 40 ? `${text.slice(0, 40)}…` : text;
-        });
-        if (sequence.length > 2) values.push("…");
-        return sequence.length === 1 ? values[0] : `(${values.join(", ")})`;
-    });
-    if (members.length > 3) previews.push("…");
-    return `[${previews.join(", ")}]`;
+function containerPreview(item: RunQueryItem, depth: number): string {
+    if (item.kind === "array") {
+        const members = item.members ?? [];
+        if (members.length === 0) return "[]";
+        if (depth >= 2) return "[…]";
+        const previews = members
+            .slice(0, 3)
+            .map((sequence) => sequencePreview(sequence, depth + 1));
+        if (members.length > 3) previews.push("…");
+        return `[${previews.join(", ")}]`;
+    }
+    const prefix = item.kind === "map" ? "map" : "";
+    const entries = item.entries ?? [];
+    if (entries.length === 0) return `${prefix}{}`;
+    if (depth >= 2) return `${prefix}{…}`;
+    const previews = entries
+        .slice(0, 3)
+        .map(
+            (entry) =>
+                `${shortValue(entry.key, depth + 1)}: ${sequencePreview(entry.value, depth + 1)}`,
+        );
+    if (entries.length > 3) previews.push("…");
+    return `${prefix}{${previews.join(", ")}}`;
+}
+
+function sequencePreview(sequence: RunQueryItem[], depth: number): string {
+    if (sequence.length === 0) return "()";
+    const values = sequence.slice(0, 2).map((value) => shortValue(value, depth));
+    if (sequence.length > 2) values.push("…");
+    return sequence.length === 1 ? values[0]! : `(${values.join(", ")})`;
+}
+
+function shortValue(value: RunQueryItem, depth: number): string {
+    if (["array", "object", "map"].includes(value.kind)) return containerPreview(value, depth);
+    if (itemTone(value) === "string" && value.lexicalValue !== undefined) {
+        const text = value.lexicalValue;
+        return JSON.stringify(text.length > 32 ? `${text.slice(0, 32)}…` : text);
+    }
+    const text = itemPreview(value).replace(/\s*\n\s*/g, " ");
+    return text.length > 40 ? `${text.slice(0, 40)}…` : text;
 }
 
 export function isExpandable(item: RunQueryItem): boolean {

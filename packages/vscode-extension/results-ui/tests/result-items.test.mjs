@@ -160,3 +160,35 @@ test("array previews preserve nested arrays and member sequence boundaries", asy
     assert.equal(itemPreview(array([[one], [two], [one], [two]])), "[1, 2, 1, …] · 4 members");
     assert.equal(itemPreview(array([[array([[array([[one]])]])]])), "[[[…]]] · 1 member");
 });
+
+test("object previews show fields and maps retain typed keys and sequence values", async () => {
+    const { itemPreview } = await import("../src/utils/item-presentation.ts");
+    const entries = [
+        { key: key("a"), value: [atomic("xs:boolean", "true")] },
+        { key: key("b"), value: [atomic("xs:boolean", "false")] },
+    ];
+    assert.equal(
+        itemPreview({ kind: "object", type: "object", serialized: "map{}", entries }),
+        '{"a": true, "b": false} · 2 fields',
+    );
+    assert.equal(
+        itemPreview({
+            kind: "map",
+            type: "map(*)",
+            serialized: "map{}",
+            entries: [
+                {
+                    key: atomic("xs:integer", "1"),
+                    value: [atomic("xs:integer", "1"), atomic("xs:integer", "2")],
+                },
+                { key: key("1"), value: [] },
+            ],
+        }),
+        'map{1: (1, 2), "1": ()} · 2 entries',
+    );
+    const four = [...entries, { key: key("c"), value: [] }, { key: key("d"), value: [] }];
+    assert.equal(
+        itemPreview({ kind: "object", type: "object", serialized: "map{}", entries: four }),
+        '{"a": true, "b": false, "c": (), …} · 4 fields',
+    );
+});
