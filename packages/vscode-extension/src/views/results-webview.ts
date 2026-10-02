@@ -3,8 +3,7 @@ import * as vscode from "vscode";
 
 export interface ExecutionResultData {
     fileUri: string;
-    output?: string;
-    items?: RunQueryItem[] | null;
+    items: RunQueryItem[] | null;
     error?: RunQueryError;
     durationMs: number;
     timestamp: string;

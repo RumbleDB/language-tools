@@ -1,13 +1,10 @@
 import { createSignal, createMemo, For } from "solid-js";
 
-import { type ViewFormat, type IndentMode, formatRawOutput } from "../utils/format-raw.js";
+import type { RunQueryItem } from "../types.js";
+import { formatRawOutput } from "../utils/result-items.js";
 
 interface RawViewProps {
-    output: string;
-    format: ViewFormat;
-    onFormatChange: (format: ViewFormat) => void;
-    indent: IndentMode;
-    onIndentChange: (indent: IndentMode) => void;
+    items: RunQueryItem[];
 }
 
 function escapeHtml(text: string): string {
@@ -58,20 +55,9 @@ function highlightJsonLine(text: string): string {
 export function RawView(props: RawViewProps) {
     const [wordWrap, setWordWrap] = createSignal(true);
 
-    const formattedText = createMemo(() =>
-        formatRawOutput(props.output, props.format, props.indent),
-    );
-
+    const formattedText = createMemo(() => formatRawOutput(props.items));
     const lines = createMemo(() => formattedText().split("\n"));
-
-    const itemCount = createMemo(() => {
-        try {
-            const parsed = JSON.parse(props.output.trim());
-            return Array.isArray(parsed) ? parsed.length : 1;
-        } catch {
-            return 0;
-        }
-    });
+    const itemCount = () => props.items.length;
 
     const gutterWidth = createMemo(() => {
         const digits = Math.max(String(lines().length).length, 2);
@@ -83,60 +69,6 @@ export function RawView(props: RawViewProps) {
             {/* Toolbar */}
             <div class="px-3 py-1.5 flex items-center justify-between gap-2 border-b border-outline-variant bg-surface-container-low shrink-0 text-xs flex-wrap">
                 <div class="flex items-center gap-2 flex-wrap">
-                    {/* Format Selector: Sequence vs JSON Array */}
-                    <div class="inline-flex items-center bg-surface-container rounded p-0.5 border border-outline-variant gap-0.5">
-                        <button
-                            onClick={() => props.onFormatChange("sequence")}
-                            class={`px-2 py-0.5 rounded-sm text-2xs font-medium flex items-center gap-1 cursor-pointer transition-colors ${
-                                props.format === "sequence"
-                                    ? "bg-primary text-on-primary font-semibold"
-                                    : "text-secondary hover:text-on-surface"
-                            }`}
-                            title="Display each JSONiq sequence item separately"
-                        >
-                            <span class="i-iconoir-list text-xs" />
-                            Sequence
-                        </button>
-                        <button
-                            onClick={() => props.onFormatChange("json")}
-                            class={`px-2 py-0.5 rounded-sm text-2xs font-medium flex items-center gap-1 cursor-pointer transition-colors ${
-                                props.format === "json"
-                                    ? "bg-primary text-on-primary font-semibold"
-                                    : "text-secondary hover:text-on-surface"
-                            }`}
-                            title="Display the raw JSON array wire envelope"
-                        >
-                            <span class="i-iconoir-code text-xs" />
-                            JSON Array
-                        </button>
-                    </div>
-
-                    {/* Indentation Selector: Pretty vs Compact */}
-                    <div class="inline-flex items-center bg-surface-container rounded p-0.5 border border-outline-variant gap-0.5">
-                        <button
-                            onClick={() => props.onIndentChange("pretty")}
-                            class={`px-2 py-0.5 rounded-sm text-2xs font-medium cursor-pointer transition-colors ${
-                                props.indent === "pretty"
-                                    ? "bg-primary text-on-primary font-semibold"
-                                    : "text-secondary hover:text-on-surface"
-                            }`}
-                            title="Pretty-print with indentation"
-                        >
-                            Pretty
-                        </button>
-                        <button
-                            onClick={() => props.onIndentChange("compact")}
-                            class={`px-2 py-0.5 rounded-sm text-2xs font-medium cursor-pointer transition-colors ${
-                                props.indent === "compact"
-                                    ? "bg-primary text-on-primary font-semibold"
-                                    : "text-secondary hover:text-on-surface"
-                            }`}
-                            title="Compact single-line items"
-                        >
-                            Compact
-                        </button>
-                    </div>
-
                     {/* Word Wrap Toggle */}
                     <button
                         onClick={() => setWordWrap((w) => !w)}

@@ -45,7 +45,7 @@ export function Header(props: HeaderProps) {
                         </span>
                         <span class="flex items-center gap-1 text-2xs">
                             <span class="i-iconoir-table-rows text-xs" />
-                            {props.rowCount} rows
+                            {props.rowCount} item{props.rowCount === 1 ? "" : "s"}
                         </span>
                     </div>
                 </Show>

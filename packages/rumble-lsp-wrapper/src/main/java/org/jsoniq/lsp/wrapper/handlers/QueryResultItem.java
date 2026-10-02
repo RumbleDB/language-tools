@@ -8,7 +8,7 @@ import org.rumbledb.api.Item;
 import org.rumbledb.serialization.SerializationParameters;
 import org.rumbledb.serialization.Serializers;
 
-/** A typed inspection representation, independent of the legacy JSON output envelope. */
+/** A typed result item for inspection and serialization. */
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record QueryResultItem(
         String kind,

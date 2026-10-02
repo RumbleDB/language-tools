@@ -38,10 +38,9 @@ export interface RunQueryItem {
 }
 
 export interface RunQueryLSPResult {
-    output: string | null;
     error: RunQueryError | null;
-    /** Ordered sequence; [] means an empty result. Absent/null for older wrappers or errors. */
-    items?: RunQueryItem[] | null;
+    /** Ordered sequence; [] means an empty result, null means no result is available. */
+    items: RunQueryItem[] | null;
 }
 
 export const RUN_QUERY_REQUEST = defineRequest<

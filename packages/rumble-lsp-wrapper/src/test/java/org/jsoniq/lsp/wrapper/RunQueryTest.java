@@ -54,7 +54,6 @@ class RunQueryTest {
         RunQuery.Result empty = this.runQuery.run("()", null);
         assertNull(empty.error());
         assertEquals(java.util.List.of(), empty.items());
-        assertEquals("[]", empty.output());
         RunQuery.Result result = this.runQuery.run("(null, \"\", [])", null);
         assertNull(result.error());
         assertEquals(3, result.items().size());
@@ -145,7 +144,7 @@ class RunQueryTest {
         assertEquals("array", json.get("items").get(1).get("kind").asText());
         assertEquals(0, json.get("items").get(1).get("members").size());
         assertTrue(json.get("error").isNull());
-        assertNotNull(json.get("output"));
+        assertNull(json.get("output"));
     }
 
     @Test
@@ -168,7 +167,7 @@ class RunQueryTest {
     @Test
     void emptyQueryReturnsEmptyResult() {
         RunQuery.Result result = this.runQuery.run("", null);
-        assertNotNull(result.output());
+        assertNotNull(result.items());
         assertNull(result.error());
     }
 
@@ -176,17 +175,18 @@ class RunQueryTest {
     void simpleArithmeticQueryExecutesSuccessfully() {
         RunQuery.Result result = assertDoesNotThrow(() -> this.runQuery.run("1 + 1", null));
         assertNull(result.error());
-        assertNotNull(result.output());
-        assertTrue(result.output().contains("2"));
+        assertNotNull(result.items());
+        assertEquals("2", result.items().get(0).lexicalValue());
     }
 
     @Test
     void jsonQueryExecutesSuccessfully() {
         RunQuery.Result result = assertDoesNotThrow(() -> this.runQuery.run("{ \"foo\": \"bar\" }", null));
         assertNull(result.error());
-        assertNotNull(result.output());
-        assertTrue(result.output().contains("foo"));
-        assertTrue(result.output().contains("bar"));
+        assertNotNull(result.items());
+        assertEquals("foo", result.items().get(0).entries().get(0).key().lexicalValue());
+        assertEquals(
+                "bar", result.items().get(0).entries().get(0).value().get(0).lexicalValue());
     }
 
     @Test
@@ -196,14 +196,14 @@ class RunQueryTest {
 
         RunQuery.Result result = (RunQuery.Result) this.runQuery.handle(request);
         assertNull(result.error());
-        assertNotNull(result.output());
-        assertTrue(result.output().contains("6"));
+        assertNotNull(result.items());
+        assertEquals("6", result.items().get(0).lexicalValue());
     }
 
     @Test
     void syntaxErrorReturnsStructuredError() {
         RunQuery.Result result = assertDoesNotThrow(() -> this.runQuery.run("1 +", URI.create("file:///query.jq")));
-        assertNull(result.output());
+        assertNull(result.items());
         assertNotNull(result.error());
         assertEquals("XPST0003", result.error().code());
         assertTrue(!result.error().message().isBlank());
@@ -215,7 +215,7 @@ class RunQueryTest {
     @Test
     void runtimeErrorReturnsStructuredError() {
         RunQuery.Result result = this.runQuery.run("1 idiv 0", URI.create("file:///runtime.jq"));
-        assertNull(result.output());
+        assertNull(result.items());
         assertNotNull(result.error());
         assertEquals("FOAR0001", result.error().code());
         assertEquals("file:///runtime.jq", result.error().location());
@@ -232,8 +232,8 @@ class RunQueryTest {
                     new Request(1L, "run-query", null, tempFile.toUri().toString(), null);
             RunQuery.Result result = (RunQuery.Result) this.runQuery.handle(request);
             assertNull(result.error());
-            assertNotNull(result.output());
-            assertTrue(result.output().contains("100"));
+            assertNotNull(result.items());
+            assertEquals("100", result.items().get(0).lexicalValue());
         } finally {
             java.nio.file.Files.deleteIfExists(tempFile);
         }
@@ -255,7 +255,8 @@ class RunQueryTest {
         RunQuery.Result result = (RunQuery.Result) this.runQuery.handle(request);
 
         assertNull(result.error());
-        assertEquals("[\"editor value\"]", result.output());
+        assertEquals("editor value", result.items().get(0).lexicalValue());
+        assertEquals("Q{urn:test}Code", result.items().get(0).typeName());
     }
 
     @Test
@@ -264,8 +265,8 @@ class RunQueryTest {
         String query = "distinct-values(parallelize((1, 1.0, 1e0))) eq 1";
         RunQuery.Result result = assertDoesNotThrow(() -> this.runQuery.run(query, null));
         assertNull(result.error());
-        assertNotNull(result.output());
-        assertTrue(result.output().contains("true"));
+        assertNotNull(result.items());
+        assertEquals("true", result.items().get(0).lexicalValue());
     }
 
     @Test
@@ -273,8 +274,9 @@ class RunQueryTest {
         String query = "xquery version \"3.1\"; <html/>, <html/>, ()";
         RunQuery.Result result = assertDoesNotThrow(() -> this.runQuery.run(query, null));
         assertNull(result.error());
-        assertNotNull(result.output());
-        assertTrue(result.output().contains("<html>"));
-        assertTrue(result.output().contains("</html>"));
+        assertNotNull(result.items());
+        assertEquals(2, result.items().size());
+        assertTrue(result.items().get(0).serialized().contains("<html"));
+        assertEquals("node", result.items().get(1).kind());
     }
 }

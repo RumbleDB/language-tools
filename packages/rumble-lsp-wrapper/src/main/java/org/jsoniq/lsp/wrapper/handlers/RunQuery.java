@@ -11,9 +11,6 @@ import org.jsoniq.lsp.wrapper.Range;
 import org.jsoniq.lsp.wrapper.messages.Request;
 import org.jsoniq.lsp.wrapper.messages.ResponseBody;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ArrayNode;
-
 import org.rumbledb.api.Item;
 import org.rumbledb.api.Rumble;
 import org.rumbledb.api.SequenceOfItems;
@@ -39,11 +36,7 @@ public final class RunQuery implements RequestHandler {
         }
     }
 
-    public record Result(String output, QueryError error, List<QueryResultItem> items) implements ResponseBody {
-        public Result(String output, QueryError error) {
-            this(output, error, null);
-        }
-    }
+    public record Result(List<QueryResultItem> items, QueryError error) implements ResponseBody {}
 
     private static Rumble RUMBLE_INSTANCE = null;
 
@@ -74,8 +67,6 @@ public final class RunQuery implements RequestHandler {
                 result = getRumble().runQuery(query, documentUri);
             }
 
-            ObjectMapper mapper = new ObjectMapper();
-            ArrayNode arrayNode = mapper.createArrayNode();
             List<QueryResultItem> items = new ArrayList<>();
 
             result.open();
@@ -83,35 +74,14 @@ public final class RunQuery implements RequestHandler {
                 while (result.hasNext()) {
                     Item item = result.next();
                     if (item != null) {
-                        QueryResultItem descriptor = QueryResultItem.from(item);
-                        items.add(descriptor);
-                        try {
-                            if (item.isObject()) {
-                                arrayNode.add(mapper.readTree(item.serialize()));
-                            } else if (item.isAtomic()) {
-                                if (item.isBoolean()) {
-                                    arrayNode.add(item.getBooleanValue());
-                                } else if (item.isInt() || item.isInteger()) {
-                                    arrayNode.add(item.getIntValue());
-                                } else if (item.isDouble() || item.isDecimal() || item.isFloat()) {
-                                    arrayNode.add(item.castToDoubleValue());
-                                } else {
-                                    arrayNode.add(item.getStringValue());
-                                }
-                            } else {
-                                arrayNode.add(item.serialize());
-                            }
-                        } catch (Exception e) {
-                            arrayNode.add(descriptor.serialized());
-                        }
+                        items.add(QueryResultItem.from(item));
                     }
                 }
             } finally {
                 result.close();
             }
 
-            String output = mapper.writeValueAsString(arrayNode);
-            return new Result(output, null, List.copyOf(items));
+            return new Result(List.copyOf(items), null);
         } catch (RumbleException exception) {
             return new Result(null, QueryError.from(exception));
         } catch (Throwable throwable) {

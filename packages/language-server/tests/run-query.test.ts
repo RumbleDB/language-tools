@@ -18,7 +18,7 @@ describe("run query service", () => {
             { kind: "node", type: "element", nodeKind: "element", serialized: "<book/>" },
             { kind: "array", type: "array(*)", serialized: "[()]", members: [[]] },
         ];
-        const body = { output: '[9007199254740993,"<book/>","[()]"]', error: null, items };
+        const body = { error: null, items };
         const wrapper = createMockWrapperClient({
             sendRequest: vi.fn().mockResolvedValue({ body }),
         });
@@ -32,7 +32,7 @@ describe("run query service", () => {
             id: 1,
             responseType: "run-query",
             body: {
-                output: "2",
+                items: [{ kind: "atomic", type: "xs:integer", serialized: "2", lexicalValue: "2" }],
                 error: null,
             },
             error: null,
@@ -51,7 +51,7 @@ describe("run query service", () => {
             undefined,
             undefined,
         );
-        expect(result.output).toBe("2");
+        expect(result.items?.[0]?.lexicalValue).toBe("2");
         expect(result.error).toBeNull();
     });
 
@@ -63,7 +63,7 @@ describe("run query service", () => {
 
         const result = await runQuery(document, wrapper);
 
-        expect(result.output).toBeNull();
+        expect(result.items).toBeNull();
         expect(result.error).toEqual({
             message: "Syntax error",
             code: null,
@@ -80,10 +80,10 @@ describe("run query service", () => {
             range: { start: { line: 2, character: 4 }, end: { line: 2, character: 12 } },
         };
         const wrapper = createMockWrapperClient({
-            sendRequest: vi.fn().mockResolvedValue({ body: { output: null, error } }),
+            sendRequest: vi.fn().mockResolvedValue({ body: { items: null, error } }),
         });
         const result = await runQueryFromSource("file:///test.jq", "1 div 0", wrapper);
-        expect(result).toEqual({ output: null, error });
+        expect(result).toEqual({ items: null, error });
     });
 
     it("returns a structured error when no source or URI is provided", async () => {
@@ -102,7 +102,9 @@ describe("run query service", () => {
             id: 2,
             responseType: "run-query",
             body: {
-                output: "42",
+                items: [
+                    { kind: "atomic", type: "xs:integer", serialized: "42", lexicalValue: "42" },
+                ],
                 error: null,
             },
             error: null,
@@ -120,7 +122,7 @@ describe("run query service", () => {
             undefined,
             undefined,
         );
-        expect(result.output).toBe("42");
+        expect(result.items?.[0]?.lexicalValue).toBe("42");
     });
 
     it("returns an error result when an already-aborted signal is passed", async () => {
@@ -151,7 +153,7 @@ describe("run query service", () => {
 
         const result = await runQueryFromSource("file:///test.jq", "1", wrapper, controller.signal);
 
-        expect(result.output).toBeNull();
+        expect(result.items).toBeNull();
         expect(result.error?.message).toBe("This operation was aborted");
     });
 
@@ -181,7 +183,7 @@ describe("run query service", () => {
         controller.abort();
         const result = await resultPromise;
 
-        expect(result.output).toBeNull();
+        expect(result.items).toBeNull();
         expect(result.error?.message).toBe("This operation was aborted");
     });
 });

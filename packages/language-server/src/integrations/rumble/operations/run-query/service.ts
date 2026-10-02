@@ -25,7 +25,7 @@ export async function runQueryFromSource(
     if (!client.isUsable()) {
         const unavailableErr = client.getUnavailableError();
         return {
-            output: null,
+            items: null,
             error: {
                 message: unavailableErr
                     ? `Rumble wrapper is unavailable: ${unavailableErr.message}`
@@ -39,7 +39,7 @@ export async function runQueryFromSource(
 
     if (source === undefined && documentUri === undefined) {
         return {
-            output: null,
+            items: null,
             error: {
                 message: "No source or document URI provided for run-query.",
                 code: null,
@@ -66,7 +66,7 @@ export async function runQueryFromSource(
         const message = error instanceof Error ? error.message : String(error);
         logger.warn(`Run-query failed for ${documentUri ?? "unknown URI"}: ${message}`);
         return {
-            output: null,
+            items: null,
             error: { message, code: null, location: null, range: null },
         };
     }
