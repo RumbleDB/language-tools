@@ -17,10 +17,21 @@ export function Header(props: HeaderProps) {
     return (
         <header class="bg-surface border-b border-outline-variant min-h-[36px] py-1 px-4 flex items-center justify-between gap-2 w-full shrink-0 z-10 box-border">
             <div class="flex items-center gap-2 text-secondary min-w-0">
-                <span class="i-iconoir-page text-base shrink-0" />
+                <span
+                    class={
+                        props.isSuccess
+                            ? "i-iconoir-page text-base shrink-0"
+                            : "i-iconoir-alert-triangle text-base shrink-0 text-error"
+                    }
+                />
                 <h1 class="text-sm font-semibold text-on-surface truncate max-w-[240px] sm:max-w-xs">
                     {props.fileName}
                 </h1>
+                <Show when={!props.isSuccess}>
+                    <span class="px-1.5 py-0.2 rounded text-2xs font-medium bg-error/15 text-error border border-error/30 shrink-0">
+                        Failed
+                    </span>
+                </Show>
             </div>
 
             <div class="flex items-center gap-2 shrink-0">

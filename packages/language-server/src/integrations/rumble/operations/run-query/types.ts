@@ -1,4 +1,1 @@
-export interface RunQueryWireResult {
-    output: string | null;
-    error: string | null;
-}
+export type { RunQueryLSPResult as RunQueryWireResult } from "server/lsp/protocol/requests/run-query.js";

@@ -16,6 +16,7 @@ import {
 } from "@tanstack/solid-table";
 import { createSignal, onMount, createMemo, Show, type JSX } from "solid-js";
 
+import { ErrorView } from "./components/ErrorView.js";
 import { Footer } from "./components/Footer.js";
 import { Header } from "./components/Header.js";
 import { RawView } from "./components/RawView.js";
@@ -118,7 +119,7 @@ export function App() {
     const copyOutput = async () => {
         const d = data();
         if (!d) return;
-        const content = d.output ?? d.error ?? "";
+        const content = d.output ?? formatError(d.error);
 
         let success = false;
         try {
@@ -286,12 +287,11 @@ export function App() {
 
                         <main class="flex-1 flex flex-col bg-surface overflow-hidden relative w-full">
                             <Show when={res().error}>
-                                <div class="p-4 sm:p-6">
-                                    <div class="bg-error-container text-on-error-container p-4 rounded border border-error/30 font-mono text-xs whitespace-pre-wrap flex items-start gap-2">
-                                        <span class="i-iconoir-alert-triangle text-base shrink-0 mt-0.5 text-error" />
-                                        <div class="flex-1">{res().error}</div>
-                                    </div>
-                                </div>
+                                <ErrorView
+                                    error={res().error!}
+                                    fileUri={res().fileUri}
+                                    durationMs={res().durationMs}
+                                />
                             </Show>
 
                             <Show when={!res().error && res().output !== undefined}>
@@ -336,4 +336,24 @@ export function App() {
             </Show>
         </div>
     );
+}
+
+function formatError(error: ExecutionResultData["error"]): string {
+    if (!error) return "";
+    const lines: string[] = [];
+    if (error.code) {
+        lines.push(`Error Code: [${error.code}]`);
+    }
+    lines.push(`Message: ${error.message}`);
+    if (error.location) {
+        lines.push(`File: ${error.location}`);
+    }
+    if (error.range) {
+        const startLine = error.range.start.line + 1;
+        const startCol = error.range.start.character + 1;
+        const endLine = error.range.end.line + 1;
+        const endCol = error.range.end.character + 1;
+        lines.push(`Position: Line ${startLine}, Column ${startCol} (to ${endLine}:${endCol})`);
+    }
+    return lines.join("\n");
 }

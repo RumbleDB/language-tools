@@ -1,5 +1,6 @@
 package org.jsoniq.lsp.wrapper;
 
+import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -16,8 +17,28 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import org.rumbledb.exceptions.ExceptionMetadata;
+import org.rumbledb.exceptions.RumbleException;
+
 class RunQueryTest {
     private final RunQuery runQuery = new RunQuery();
+
+    @Test
+    void missingMetadataDoesNotExposePlaceholderLocation() {
+        RumbleException exception = new RumbleException("Query failed", ExceptionMetadata.EMPTY_METADATA);
+        RunQuery.QueryError error = RunQuery.QueryError.from(exception);
+        assertEquals("Query failed", error.message());
+        assertEquals(exception.getErrorCode().toString(), error.code());
+        assertNull(error.location());
+        assertNull(error.range());
+
+        exception.setMetadata(null);
+        error = RunQuery.QueryError.from(exception);
+        assertEquals("Query failed", error.message());
+        assertEquals(exception.getErrorCode().toString(), error.code());
+        assertNull(error.location());
+        assertNull(error.range());
+    }
 
     @Test
     void emptyQueryReturnsEmptyResult() {
@@ -55,10 +76,25 @@ class RunQueryTest {
     }
 
     @Test
-    void syntaxErrorReturnsErrorMessage() {
-        RunQuery.Result result = assertDoesNotThrow(() -> this.runQuery.run("1 +", null));
+    void syntaxErrorReturnsStructuredError() {
+        RunQuery.Result result = assertDoesNotThrow(() -> this.runQuery.run("1 +", URI.create("file:///query.jq")));
         assertNull(result.output());
         assertNotNull(result.error());
+        assertEquals("XPST0003", result.error().code());
+        assertTrue(!result.error().message().isBlank());
+        assertEquals("file:///query.jq", result.error().location());
+        assertEquals(0, result.error().range().start().line());
+        assertEquals(3, result.error().range().start().character());
+    }
+
+    @Test
+    void runtimeErrorReturnsStructuredError() {
+        RunQuery.Result result = this.runQuery.run("1 idiv 0", URI.create("file:///runtime.jq"));
+        assertNull(result.output());
+        assertNotNull(result.error());
+        assertEquals("FOAR0001", result.error().code());
+        assertEquals("file:///runtime.jq", result.error().location());
+        assertNotNull(result.error().range());
     }
 
     @Test
