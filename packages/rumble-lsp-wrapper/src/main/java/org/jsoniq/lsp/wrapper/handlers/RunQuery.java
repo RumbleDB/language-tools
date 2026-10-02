@@ -5,6 +5,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.Objects;
 
+import org.jsoniq.lsp.wrapper.Range;
 import org.jsoniq.lsp.wrapper.messages.Request;
 import org.jsoniq.lsp.wrapper.messages.ResponseBody;
 
@@ -15,13 +16,28 @@ import org.rumbledb.api.Item;
 import org.rumbledb.api.Rumble;
 import org.rumbledb.api.SequenceOfItems;
 import org.rumbledb.config.RumbleConfiguration;
+import org.rumbledb.exceptions.ExceptionMetadata;
 import org.rumbledb.exceptions.RumbleException;
 
 public final class RunQuery implements RequestHandler {
     public static final String REQUEST_TYPE = "run-query";
     public static final Result EMPTY_RESULT = new Result(null, null);
 
-    public record Result(String output, String error) implements ResponseBody {}
+    public record QueryError(String message, String code, String location, Range range) {
+        public static QueryError from(RumbleException exception) {
+            String message = Objects.toString(exception.getJSONiqErrorMessage(), exception.getMessage());
+            String code = exception.getErrorCode().toString();
+            ExceptionMetadata metadata = exception.getMetadata();
+
+            if (metadata == null || metadata == ExceptionMetadata.EMPTY_METADATA) {
+                return new QueryError(message, code, null, null);
+            }
+
+            return new QueryError(message, code, metadata.getLocation(), Range.fromExceptionMetadata(metadata));
+        }
+    }
+
+    public record Result(String output, QueryError error) implements ResponseBody {}
 
     private static Rumble RUMBLE_INSTANCE = null;
 
@@ -85,12 +101,11 @@ public final class RunQuery implements RequestHandler {
             String output = mapper.writeValueAsString(arrayNode);
             return new Result(output, null);
         } catch (RumbleException exception) {
-            String errorMessage = Objects.toString(exception.getJSONiqErrorMessage(), exception.getMessage());
-            return new Result(null, errorMessage);
+            return new Result(null, QueryError.from(exception));
         } catch (Throwable throwable) {
             String errorMessage = Objects.toString(
                     throwable.getMessage(), throwable.getClass().getName());
-            return new Result(null, errorMessage);
+            return new Result(null, new QueryError(errorMessage, null, null, null));
         }
     }
 
