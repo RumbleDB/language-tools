@@ -87,7 +87,7 @@ export class ResultsWebviewPanel {
 
         const existing = ResultsWebviewPanel.panels.get(data.fileUri);
         if (existing) {
-            existing.panel.reveal();
+            existing.panel.reveal(undefined, true);
             existing.update(data);
             return;
         }
@@ -95,7 +95,7 @@ export class ResultsWebviewPanel {
         const panel = vscode.window.createWebviewPanel(
             "jsoniqResults",
             `Execution Results - ${vscode.Uri.parse(data.fileUri).path.split("/").pop()}`,
-            column,
+            { viewColumn: column, preserveFocus: true },
             {
                 enableScripts: true,
                 retainContextWhenHidden: true,
