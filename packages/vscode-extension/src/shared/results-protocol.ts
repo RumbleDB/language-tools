@@ -1,11 +1,20 @@
 import type { RunQueryError, RunQueryItem } from "jsoniq-language-server/requests";
 
+export interface QueryExecutionError extends RunQueryError {
+    /** Bounded source excerpt, prepared by the extension for display. */
+    sourceLines?: {
+        number: number;
+        highlighted: boolean;
+        before: string;
+        selected: string;
+        after: string;
+    }[];
+}
+
 export interface ExecutionResultData {
     fileUri: string;
     items: RunQueryItem[] | null;
-    error?: RunQueryError;
-    /** Text of the reported error file, supplied by the extension. */
-    sourceText?: string;
+    error?: QueryExecutionError;
     durationMs: number;
     timestamp: string;
 }
@@ -19,7 +28,7 @@ export interface ExportResultsRequest {
 export interface OpenErrorLocationRequest {
     type: "OPEN_ERROR_LOCATION";
     location: string;
-    range?: NonNullable<RunQueryError["range"]>;
+    range?: NonNullable<QueryExecutionError["range"]>;
 }
 
 export type ResultsRequest =

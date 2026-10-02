@@ -1,7 +1,7 @@
 import type { ExecutionResultData } from "../types.js";
 
 /**
- * Formats a RunQueryError or execution error into human-readable text for copying or display.
+ * Formats a QueryExecutionError into human-readable text for copying or display.
  */
 export function formatError(error: ExecutionResultData["error"], fileUri?: string): string {
     if (!error) return "";

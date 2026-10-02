@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { errorSourceLines } from "../src/utils/error-source.ts";
+import { errorSourceLines } from "../../src/error-source.ts";
 
 test("source excerpt highlights the exact token and preserves CRLF lines", () => {
     const lines = errorSourceLines("first\r\nreturn bad + 1\r\nlast", {

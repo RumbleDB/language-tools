@@ -1,14 +1,10 @@
-interface Position {
-    line: number;
-    character: number;
-}
-interface Range {
-    start: Position;
-    end: Position;
-}
+import type { QueryExecutionError } from "./shared/results-protocol.js";
 
 /** Small excerpt of the executed query; LSP range ends are exclusive. */
-export function errorSourceLines(text: string | undefined, range: Range | null) {
+export function errorSourceLines(
+    text: string | undefined,
+    range: QueryExecutionError["range"],
+): NonNullable<QueryExecutionError["sourceLines"]> {
     if (text === undefined || !range) return [];
     const lines = text.split(/\r\n|\n|\r/);
     if (range.start.line < 0 || range.start.line >= lines.length) return [];
@@ -18,6 +14,7 @@ export function errorSourceLines(text: string | undefined, range: Range | null) 
             : range.end.line;
     const first = Math.max(0, range.start.line - 3);
     const last = Math.min(lines.length - 1, lastErrorLine + 3, first + 14);
+
     return lines.slice(first, last + 1).map((content, offset) => {
         const line = first + offset;
         const highlighted = line >= range.start.line && line <= lastErrorLine;

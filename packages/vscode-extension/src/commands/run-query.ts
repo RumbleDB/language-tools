@@ -2,6 +2,7 @@ import { RUN_QUERY_REQUEST } from "jsoniq-language-server/requests";
 import * as vscode from "vscode";
 import type { LanguageClient } from "vscode-languageclient/node";
 
+import { errorSourceLines } from "../error-source.js";
 import { errorSourceText } from "../source-location.js";
 import { ResultsWebviewPanel } from "../views/results-webview.js";
 
@@ -44,15 +45,15 @@ export function registerRunQueryCommand(
                     const error = response.error;
 
                     if (error) {
-                        const sourceText = await errorSourceText(
-                            error.location,
-                            document.uri,
-                            queryText,
-                        );
+                        const sourceLines = error.range
+                            ? errorSourceLines(
+                                  await errorSourceText(error.location, document.uri, queryText),
+                                  error.range,
+                              )
+                            : [];
                         ResultsWebviewPanel.show(context.extensionUri, {
                             fileUri: uri,
-                            error,
-                            ...(sourceText !== undefined ? { sourceText } : {}),
+                            error: { ...error, sourceLines },
                             items: null,
                             durationMs,
                             timestamp,

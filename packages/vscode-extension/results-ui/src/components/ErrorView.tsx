@@ -2,7 +2,6 @@ import { createMemo, createSignal, For, onCleanup, Show } from "solid-js";
 
 import type { ExecutionResultData } from "../types.js";
 import { createCopyAction } from "../utils/clipboard.js";
-import { errorSourceLines } from "../utils/error-source.js";
 import { formatError } from "../utils/format-error.js";
 import { vscode } from "../vscode.js";
 
@@ -10,7 +9,6 @@ interface ErrorViewProps {
     error: NonNullable<ExecutionResultData["error"]>;
     fileUri: string;
     durationMs: number;
-    sourceText?: string;
 }
 
 export function ErrorView(props: ErrorViewProps) {
@@ -61,7 +59,7 @@ export function ErrorView(props: ErrorViewProps) {
         }
     };
 
-    const sourceLines = createMemo(() => errorSourceLines(props.sourceText, targetRange()));
+    const sourceLines = () => props.error.sourceLines ?? [];
 
     return (
         <div class="flex-1 w-full overflow-y-auto box-border">
