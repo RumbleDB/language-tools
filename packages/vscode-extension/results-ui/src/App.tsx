@@ -9,6 +9,7 @@ import type { ExecutionResultData, ViewMode } from "./types.js";
 import { createCopyAction } from "./utils/clipboard.js";
 import { formatError } from "./utils/format-error.js";
 import { formatRawOutput } from "./utils/result-items.js";
+import { vscode } from "./vscode.js";
 
 declare global {
     interface Window {
@@ -22,15 +23,11 @@ export function App() {
     const [viewMode, setViewMode] = createSignal<ViewMode>("inspect");
 
     onMount(() => {
-        const handleMessage = (event: MessageEvent) => {
-            const message = event.data;
-            if (message && message.type === "SET_DATA") {
+        onCleanup(
+            vscode.onMessage("SET_DATA", (message) => {
                 setData(message.data);
-            }
-        };
-
-        window.addEventListener("message", handleMessage);
-        onCleanup(() => window.removeEventListener("message", handleMessage));
+            }),
+        );
     });
 
     const copyOutput = () => {

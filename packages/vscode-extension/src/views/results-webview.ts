@@ -1,13 +1,14 @@
-import type { RunQueryError, RunQueryItem } from "jsoniq-language-server/requests";
 import * as vscode from "vscode";
 
-export interface ExecutionResultData {
-    fileUri: string;
-    items: RunQueryItem[] | null;
-    error?: RunQueryError;
-    durationMs: number;
-    timestamp: string;
-}
+import type {
+    ExecutionResultData,
+    ResultsResponse,
+    ResultsRequest,
+    ExportResultsRequest,
+    ExportResult,
+    OpenErrorLocationRequest,
+} from "../shared/results-protocol.js";
+import { handleResultsMessage } from "./results-message-handler.js";
 
 export class ResultsWebviewPanel {
     public static currentPanel: ResultsWebviewPanel | undefined;
@@ -21,82 +22,53 @@ export class ResultsWebviewPanel {
         this.extensionUri = extensionUri;
 
         this.panel.onDidDispose(() => this.dispose(), null, this.disposables);
+        const handlers = {
+            exportResults: (message: ExportResultsRequest) => this.exportResults(message),
+            openErrorLocation: (message: OpenErrorLocationRequest) =>
+                this.openErrorLocation(message),
+        };
         this.panel.webview.onDidReceiveMessage(
-            async (message: unknown) => {
-                if (typeof message !== "object" || message === null || !("type" in message)) {
-                    return;
-                }
-                if (message.type === "EXPORT_RESULTS") {
-                    if (
-                        !("content" in message) ||
-                        typeof message.content !== "string" ||
-                        !("format" in message) ||
-                        (message.format !== "sequence" && message.format !== "csv")
-                    ) {
-                        return;
-                    }
-                    await this.exportResults(
-                        message.content,
-                        message.format === "csv" ? "csv" : "txt",
-                    );
-                    return;
-                }
-                if (message.type !== "OPEN_ERROR_LOCATION") return;
-                const msg = message as {
-                    location?: string;
-                    range?: {
-                        start: { line: number; character: number };
-                        end: { line: number; character: number };
-                    };
-                };
-                const error = this.data?.error;
-                const targetLocation = msg.location || error?.location || this.data?.fileUri;
-                const targetRange = msg.range ?? error?.range;
-
-                if (!targetLocation) return;
-                try {
-                    let docUri: vscode.Uri;
-                    if (targetLocation.startsWith("file:")) {
-                        docUri = vscode.Uri.parse(targetLocation);
-                    } else if (
-                        /^[a-zA-Z]:[\\/]/.test(targetLocation) ||
-                        targetLocation.startsWith("/")
-                    ) {
-                        docUri = vscode.Uri.file(targetLocation);
-                    } else {
-                        try {
-                            docUri = vscode.Uri.parse(targetLocation);
-                            if (!docUri.scheme) {
-                                docUri = vscode.Uri.file(targetLocation);
-                            }
-                        } catch {
-                            docUri = vscode.Uri.file(targetLocation);
-                        }
-                    }
-
-                    const document = await vscode.workspace.openTextDocument(docUri);
-                    const selection = targetRange
-                        ? new vscode.Range(
-                              targetRange.start.line,
-                              targetRange.start.character,
-                              targetRange.end.line,
-                              targetRange.end.character,
-                          )
-                        : new vscode.Range(0, 0, 0, 0);
-
-                    await vscode.window.showTextDocument(document, {
-                        viewColumn: vscode.ViewColumn.One,
-                        preview: false,
-                        selection,
-                    });
-                } catch (err) {
-                    const message = err instanceof Error ? err.message : String(err);
-                    vscode.window.showErrorMessage(`Unable to open error location: ${message}`);
-                }
-            },
+            (message: ResultsRequest) =>
+                handleResultsMessage(message, handlers, (response) => this.postMessage(response)),
             null,
             this.disposables,
         );
+    }
+
+    private postMessage(message: ResultsResponse): Thenable<boolean> {
+        return this.panel.webview.postMessage(message);
+    }
+
+    private async openErrorLocation(params: OpenErrorLocationRequest): Promise<void> {
+        const { location, range } = params;
+
+        let docUri: vscode.Uri;
+        if (location.startsWith("file:")) {
+            docUri = vscode.Uri.parse(location);
+        } else if (/^[a-zA-Z]:[\\/]/.test(location) || location.startsWith("/")) {
+            docUri = vscode.Uri.file(location);
+        } else {
+            try {
+                docUri = vscode.Uri.parse(location);
+                if (!docUri.scheme) docUri = vscode.Uri.file(location);
+            } catch {
+                docUri = vscode.Uri.file(location);
+            }
+        }
+        const document = await vscode.workspace.openTextDocument(docUri);
+        const selection = range
+            ? new vscode.Range(
+                  range.start.line,
+                  range.start.character,
+                  range.end.line,
+                  range.end.character,
+              )
+            : new vscode.Range(0, 0, 0, 0);
+        await vscode.window.showTextDocument(document, {
+            viewColumn: vscode.ViewColumn.One,
+            preview: false,
+            selection,
+        });
     }
 
     public static show(extensionUri: vscode.Uri, data: ExecutionResultData): void {
@@ -125,38 +97,33 @@ export class ResultsWebviewPanel {
         ResultsWebviewPanel.currentPanel.update(data);
     }
 
-    private async exportResults(content: string, extension: "csv" | "txt"): Promise<void> {
-        try {
-            const source = this.data?.fileUri;
-            const sourceUri = source
-                ? source.startsWith("file:")
-                    ? vscode.Uri.parse(source)
-                    : vscode.Uri.file(source)
+    private async exportResults(params: ExportResultsRequest): Promise<ExportResult> {
+        const extension = params.format === "csv" ? "csv" : "txt";
+        const source = this.data?.fileUri;
+        const sourceUri = source
+            ? source.startsWith("file:")
+                ? vscode.Uri.parse(source)
+                : vscode.Uri.file(source)
+            : undefined;
+        const name =
+            sourceUri?.path
+                .split("/")
+                .pop()
+                ?.replace(/\.[^/.]+$/, "") || "query";
+        const defaultUri =
+            sourceUri?.scheme === "file"
+                ? sourceUri.with({
+                      path: `${sourceUri.path.slice(0, sourceUri.path.lastIndexOf("/") + 1)}${name}-results.${extension}`,
+                  })
                 : undefined;
-            const name =
-                sourceUri?.path
-                    .split("/")
-                    .pop()
-                    ?.replace(/\.[^/.]+$/, "") || "query";
-            const defaultUri =
-                sourceUri?.scheme === "file"
-                    ? sourceUri.with({
-                          path: `${sourceUri.path.slice(0, sourceUri.path.lastIndexOf("/") + 1)}${name}-results.${extension}`,
-                      })
-                    : undefined;
-            const uri = await vscode.window.showSaveDialog({
-                saveLabel: "Export results",
-                filters: extension === "csv" ? { CSV: ["csv"] } : { "Result sequence": ["txt"] },
-                ...(defaultUri ? { defaultUri } : {}),
-            });
-            if (!uri) return;
-            await vscode.workspace.fs.writeFile(uri, new TextEncoder().encode(content));
-            vscode.window.showInformationMessage("Results exported.");
-        } catch (error) {
-            vscode.window.showErrorMessage(
-                `Unable to export results: ${error instanceof Error ? error.message : String(error)}`,
-            );
-        }
+        const uri = await vscode.window.showSaveDialog({
+            saveLabel: "Export results",
+            filters: extension === "csv" ? { CSV: ["csv"] } : { "Result sequence": ["txt"] },
+            ...(defaultUri ? { defaultUri } : {}),
+        });
+        if (!uri) return { type: "EXPORT_RESULT", status: "cancelled" };
+        await vscode.workspace.fs.writeFile(uri, new TextEncoder().encode(params.content));
+        return { type: "EXPORT_RESULT", status: "saved" };
     }
 
     private update(data: ExecutionResultData): void {
@@ -164,7 +131,7 @@ export class ResultsWebviewPanel {
         if (!this.panel.webview.html) {
             this.panel.webview.html = this.getHtmlForWebview(data);
         } else {
-            this.panel.webview.postMessage({ type: "SET_DATA", data });
+            void this.postMessage({ type: "SET_DATA", data });
         }
     }
 

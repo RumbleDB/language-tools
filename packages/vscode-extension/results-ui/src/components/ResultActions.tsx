@@ -1,9 +1,13 @@
-import { createSignal, Show } from "solid-js";
+import { createSignal, onCleanup, Show } from "solid-js";
 
 import type { RunQueryItem } from "../types.js";
 import { createCopyAction } from "../utils/clipboard.js";
 import { formatCsv, serializeResultItems, type ResultTableRow } from "../utils/result-items.js";
 import { vscode } from "../vscode.js";
+
+type ExportState =
+    | { status: "idle" | "exporting" | "saved" }
+    | { status: "failed"; message: string };
 
 export function ResultActions(props: {
     items: RunQueryItem[];
@@ -12,28 +16,47 @@ export function ResultActions(props: {
 }) {
     const { copy, copied } = createCopyAction();
     const [format, setFormat] = createSignal<"sequence" | "csv">("sequence");
-    const [error, setError] = createSignal("");
+    const [copyError, setCopyError] = createSignal("");
+    const [exportState, setExportState] = createSignal<ExportState>({ status: "idle" });
+    const exportError = () => {
+        const state = exportState();
+        return state.status === "failed" ? state.message : "";
+    };
+    onCleanup(
+        vscode.onMessage("EXPORT_RESULT", (message) => {
+            setExportState(
+                message.status === "error"
+                    ? { status: "failed", message: message.message }
+                    : { status: message.status === "saved" ? "saved" : "idle" },
+            );
+        }),
+    );
     const disabled = () =>
         props.items.length === 0 || props.items.some((item) => item.serialized === null);
     const copyRows = async () => {
-        setError("");
+        setCopyError("");
         try {
             if (!(await copy(serializeResultItems(props.items))))
-                setError("Unable to copy to clipboard.");
+                setCopyError("Unable to copy to clipboard.");
         } catch (error) {
-            setError(error instanceof Error ? error.message : String(error));
+            setCopyError(error instanceof Error ? error.message : String(error));
         }
     };
     const exportRows = () => {
-        setError("");
+        if (exportState().status === "exporting") return;
+        setCopyError("");
+        setExportState({ status: "exporting" });
         try {
             const content =
                 format() === "csv"
                     ? formatCsv(props.rows, props.columns)
                     : serializeResultItems(props.items);
-            vscode.postMessage({ type: "EXPORT_RESULTS", format: format(), content });
+            vscode.postMessage("EXPORT_RESULTS", { format: format(), content });
         } catch (error) {
-            setError(error instanceof Error ? error.message : String(error));
+            setExportState({
+                status: "failed",
+                message: error instanceof Error ? error.message : String(error),
+            });
         }
     };
     return (
@@ -61,16 +84,28 @@ export function ResultActions(props: {
             </select>
             <button
                 type="button"
-                disabled={disabled()}
+                disabled={disabled() || exportState().status === "exporting"}
                 onClick={exportRows}
                 title="Export all matching rows in sort order, across every page"
                 class="px-2 py-1 text-xs rounded hover:bg-surface-variant cursor-pointer disabled:opacity-30"
             >
-                Export {props.items.length} row{props.items.length === 1 ? "" : "s"}
+                {exportState().status === "exporting"
+                    ? "Exporting…"
+                    : `Export ${props.items.length} row${props.items.length === 1 ? "" : "s"}`}
             </button>
-            <Show when={error()}>
+            <Show when={exportState().status === "saved"}>
+                <span role="status" class="text-xs text-success">
+                    Results exported.
+                </span>
+            </Show>
+            <Show when={exportError()}>
                 <span role="alert" class="text-xs text-error">
-                    {error()}
+                    {exportError()}
+                </span>
+            </Show>
+            <Show when={copyError()}>
+                <span role="alert" class="text-xs text-error">
+                    {copyError()}
                 </span>
             </Show>
         </div>

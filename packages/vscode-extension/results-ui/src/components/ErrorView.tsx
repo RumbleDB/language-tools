@@ -1,4 +1,4 @@
-import { createMemo, Show } from "solid-js";
+import { createMemo, createSignal, onCleanup, Show } from "solid-js";
 
 import type { ExecutionResultData } from "../types.js";
 import { createCopyAction } from "../utils/clipboard.js";
@@ -9,10 +9,6 @@ interface ErrorViewProps {
     error: NonNullable<ExecutionResultData["error"]>;
     fileUri: string;
     durationMs: number;
-}
-
-function getTargetLocation(errorLocation: string | null | undefined, fileUri: string): string {
-    return errorLocation || fileUri;
 }
 
 function extractFileName(target: string): string {
@@ -40,8 +36,14 @@ function formatPathDisplay(target: string): string {
 
 export function ErrorView(props: ErrorViewProps) {
     const { copied, copy } = createCopyAction();
+    const [navigationError, setNavigationError] = createSignal("");
+    onCleanup(
+        vscode.onMessage("OPEN_ERROR_LOCATION_ERROR", (message) => {
+            setNavigationError(message.message);
+        }),
+    );
 
-    const targetLocation = createMemo(() => getTargetLocation(props.error.location, props.fileUri));
+    const targetLocation = createMemo(() => props.error.location || props.fileUri);
 
     const fileName = createMemo(() => extractFileName(targetLocation()));
     const fullPath = createMemo(() => formatPathDisplay(targetLocation()));
@@ -85,11 +87,15 @@ export function ErrorView(props: ErrorViewProps) {
     const handleOpenLocation = () => {
         const loc = targetLocation();
         if (!loc) return;
-        vscode.postMessage({
-            type: "OPEN_ERROR_LOCATION",
-            location: loc,
-            range: props.error.range,
-        });
+        setNavigationError("");
+        try {
+            vscode.postMessage("OPEN_ERROR_LOCATION", {
+                location: loc,
+                ...(props.error.range ? { range: props.error.range } : {}),
+            });
+        } catch (error) {
+            setNavigationError(error instanceof Error ? error.message : String(error));
+        }
     };
 
     return (
@@ -183,6 +189,12 @@ export function ErrorView(props: ErrorViewProps) {
                                 </button>
                             </div>
                         </div>
+                    </Show>
+
+                    <Show when={navigationError()}>
+                        <p role="alert" class="text-xs text-error">
+                            Unable to open error location: {navigationError()}
+                        </p>
                     </Show>
 
                     {/* Footer metadata info */}
