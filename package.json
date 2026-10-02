@@ -38,7 +38,7 @@
         "@changesets/cli": "^3.0.3",
         "@octokit/rest": "^22.0.1",
         "husky": "^9.1.7",
-        "lint-staged": "^17.5.1",
+        "lint-staged": "^17.6.0",
         "npm-run-all2": "^9.0.3",
         "oxfmt": "catalog:",
         "oxlint": "catalog:"
