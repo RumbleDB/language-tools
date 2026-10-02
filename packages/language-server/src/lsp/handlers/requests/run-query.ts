@@ -21,14 +21,16 @@ export function registerRunQuery(
             const controller = new AbortController();
             const { dispose } = token.onCancellationRequested(() => controller.abort());
             try {
-                if (params.uri !== undefined) {
-                    const document = documents.get(params.uri);
-                    if (document !== undefined)
-                        return await runQuery(document, wrapper, controller.signal);
-                }
+                const document = documents.get(params.uri);
+                if (document !== undefined)
+                    return await runQuery(document, wrapper, controller.signal);
 
-                const uri = params.uri?.startsWith("untitled:") ? undefined : params.uri;
-                return await runQueryFromSource(uri, params.query, wrapper, controller.signal);
+                return await runQueryFromSource(
+                    params.uri,
+                    params.query,
+                    wrapper,
+                    controller.signal,
+                );
             } finally {
                 dispose();
             }

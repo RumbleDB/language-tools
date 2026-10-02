@@ -5,6 +5,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
+import java.util.Objects;
 
 import org.jsoniq.lsp.wrapper.Position;
 import org.jsoniq.lsp.wrapper.Range;
@@ -25,7 +26,6 @@ import org.rumbledb.expressions.module.MainModule;
 import org.rumbledb.expressions.module.VariableDeclaration;
 import org.rumbledb.expressions.postfix.ObjectLookupExpression;
 import org.rumbledb.expressions.primary.InlineFunctionExpression;
-import org.rumbledb.runtime.functions.input.FileSystemUtil;
 
 public final class TypeAtPosition implements RequestHandler {
     public static final String REQUEST_TYPE = "type-at-position";
@@ -46,12 +46,12 @@ public final class TypeAtPosition implements RequestHandler {
 
     @Override
     public Result handle(Request request) {
+        URI documentUri = URI.create(Objects.requireNonNull(request.documentUri(), "documentUri is required."));
         if (request.body() == null || request.body().isEmpty() || request.position() == null) {
             return EMPTY_RESULT;
         }
 
         String query = new String(Base64.getDecoder().decode(request.body()), StandardCharsets.UTF_8);
-        URI documentUri = request.documentUri() == null ? null : URI.create(request.documentUri());
         return findType(query, documentUri, request.position());
     }
 
@@ -60,23 +60,15 @@ public final class TypeAtPosition implements RequestHandler {
         return EMPTY_RESULT;
     }
 
-    public Result findType(String query, Position position) {
-        return findType(query, null, position);
-    }
-
     public Result findType(String query, URI documentUri, Position position) {
+        Objects.requireNonNull(documentUri, "documentUri is required.");
         if (query == null || query.isEmpty() || position == null) {
             return EMPTY_RESULT;
         }
 
         try {
             MainModule module = CompilationPipeline.compileMainModule(
-                    query,
-                    documentUri == null
-                            ? FileSystemUtil.resolveURIAgainstWorkingDirectory(".", ExceptionMetadata.EMPTY_METADATA)
-                            : documentUri,
-                    new CompilationConfiguration(this.configuration),
-                    ExternalBindings.empty());
+                    query, documentUri, new CompilationConfiguration(this.configuration), ExternalBindings.empty());
             List<Candidate> candidates = new TypeAtPositionVisitor().visit(module, new ArrayList<>());
             Candidate candidate = selectCandidate(candidates, position);
             if (candidate == null || candidate.sequenceType() == null) {

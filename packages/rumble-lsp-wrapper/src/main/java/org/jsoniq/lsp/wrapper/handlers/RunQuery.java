@@ -53,19 +53,12 @@ public final class RunQuery implements RequestHandler {
     }
 
     public Result run(String query, URI documentUri) {
-        if (query == null && documentUri == null) {
-            return EMPTY_RESULT;
-        }
+        Objects.requireNonNull(documentUri, "documentUri is required.");
 
         try {
-            SequenceOfItems result;
-            if (query == null) {
-                result = getRumble().runQuery(documentUri);
-            } else if (documentUri == null) {
-                result = getRumble().runQuery(query);
-            } else {
-                result = getRumble().runQuery(query, documentUri);
-            }
+            SequenceOfItems result = query == null
+                    ? getRumble().runQuery(documentUri)
+                    : getRumble().runQuery(query, documentUri);
 
             List<QueryResultItem> items = new ArrayList<>();
 
@@ -94,7 +87,7 @@ public final class RunQuery implements RequestHandler {
     @Override
     public ResponseBody handle(Request request) {
         String query = decodeBody(request.body());
-        URI documentUri = request.documentUri() == null ? null : URI.create(request.documentUri());
+        URI documentUri = URI.create(Objects.requireNonNull(request.documentUri(), "documentUri is required."));
         return run(query, documentUri);
     }
 

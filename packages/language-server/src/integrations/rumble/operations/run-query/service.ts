@@ -17,7 +17,7 @@ export async function runQuery(
 }
 
 export async function runQueryFromSource(
-    documentUri: string | undefined,
+    documentUri: string,
     source: string | undefined,
     client: WrapperClient,
     signal?: AbortSignal,
@@ -37,18 +37,6 @@ export async function runQueryFromSource(
         };
     }
 
-    if (source === undefined && documentUri === undefined) {
-        return {
-            items: null,
-            error: {
-                message: "No source or document URI provided for run-query.",
-                code: null,
-                location: null,
-                range: null,
-            },
-        };
-    }
-
     const request: RunQueryRequest = {
         requestType: REQUEST_TYPE_RUN_QUERY,
         body: source !== undefined ? Buffer.from(source, "utf8").toString("base64") : undefined,
@@ -56,6 +44,9 @@ export async function runQueryFromSource(
     };
 
     try {
+        if (!documentUri) {
+            throw new Error("A document URI is required for run-query.");
+        }
         const response = await client.sendRequest<RunQueryRequestSpec>(
             request,
             undefined, // no timeout — rely on AbortSignal for cancellation
@@ -64,7 +55,7 @@ export async function runQueryFromSource(
         return response.body;
     } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
-        logger.warn(`Run-query failed for ${documentUri ?? "unknown URI"}: ${message}`);
+        logger.warn(`Run-query failed for ${documentUri}: ${message}`);
         return {
             items: null,
             error: { message, code: null, location: null, range: null },

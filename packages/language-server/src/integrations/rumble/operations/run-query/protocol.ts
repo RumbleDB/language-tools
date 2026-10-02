@@ -7,7 +7,7 @@ export const REQUEST_TYPE_RUN_QUERY = "run-query" as const;
 export interface RunQueryRequest {
     requestType: typeof REQUEST_TYPE_RUN_QUERY;
     body: string | undefined;
-    documentUri: string | undefined;
+    documentUri: string;
 }
 
 export type RunQueryRequestSpec = WrapperRequestSpec<

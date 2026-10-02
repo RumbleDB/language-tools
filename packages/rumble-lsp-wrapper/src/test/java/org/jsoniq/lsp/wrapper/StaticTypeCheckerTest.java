@@ -1,5 +1,7 @@
 package org.jsoniq.lsp.wrapper;
 
+import java.net.URI;
+
 import org.jsoniq.lsp.wrapper.handlers.StaticTypeChecker;
 import org.junit.jupiter.api.Test;
 
@@ -12,7 +14,7 @@ class StaticTypeCheckerTest {
     private final StaticTypeChecker typeChecker = new StaticTypeChecker();
 
     private StaticTypeChecker.Result checkWithoutThrow(String query) {
-        return assertDoesNotThrow(() -> this.typeChecker.infer(query));
+        return assertDoesNotThrow(() -> this.typeChecker.infer(query, URI.create("file:///static-typecheck.jq")));
     }
 
     @Test

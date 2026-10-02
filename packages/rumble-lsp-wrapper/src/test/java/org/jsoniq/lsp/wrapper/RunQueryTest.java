@@ -21,11 +21,13 @@ import org.rumbledb.exceptions.ExceptionMetadata;
 import org.rumbledb.exceptions.RumbleException;
 
 class RunQueryTest {
+    private static final URI DOCUMENT_URI = URI.create("file:///run-query");
+
     private final RunQuery runQuery = new RunQuery();
 
     @Test
     void preservesMixedJsoniqItemsAndNestedTypes() {
-        RunQuery.Result result = this.runQuery.run("(42, \"42\", true, null, {\"n\": 7}, [1, [2]])", null);
+        RunQuery.Result result = this.runQuery.run("(42, \"42\", true, null, {\"n\": 7}, [1, [2]])", DOCUMENT_URI);
         assertNull(result.error());
         assertEquals(
                 java.util.List.of("atomic", "atomic", "atomic", "null", "object", "array"),
@@ -51,10 +53,10 @@ class RunQueryTest {
 
     @Test
     void distinguishesEmptySequenceNullEmptyStringAndEmptyArray() {
-        RunQuery.Result empty = this.runQuery.run("()", null);
+        RunQuery.Result empty = this.runQuery.run("()", DOCUMENT_URI);
         assertNull(empty.error());
         assertEquals(java.util.List.of(), empty.items());
-        RunQuery.Result result = this.runQuery.run("(null, \"\", [])", null);
+        RunQuery.Result result = this.runQuery.run("(null, \"\", [])", DOCUMENT_URI);
         assertNull(result.error());
         assertEquals(3, result.items().size());
         assertEquals("null", result.items().get(0).kind());
@@ -66,7 +68,7 @@ class RunQueryTest {
     void preservesNumericPrecisionAndAtomicTypeNames() {
         RunQuery.Result result = this.runQuery.run(
                 "(xs:integer(\"123456789012345678901234567890\"), xs:decimal(\"0.12345678901234567890123456789\"), xs:date(\"2026-10-02\"))",
-                null);
+                DOCUMENT_URI);
         assertNull(result.error());
         assertEquals("123456789012345678901234567890", result.items().get(0).lexicalValue());
         assertEquals("0.12345678901234567890123456789", result.items().get(1).lexicalValue());
@@ -77,7 +79,7 @@ class RunQueryTest {
 
     @Test
     void distinguishesXmlNodesFromStringsContainingXml() {
-        RunQuery.Result result = this.runQuery.run("xquery version \"3.1\"; (<book/>, \"<book/>\")", null);
+        RunQuery.Result result = this.runQuery.run("xquery version \"3.1\"; (<book/>, \"<book/>\")", DOCUMENT_URI);
         assertNull(result.error());
         assertEquals("node", result.items().get(0).kind());
         assertEquals("element", result.items().get(0).nodeKind());
@@ -89,7 +91,7 @@ class RunQueryTest {
     @Test
     void preservesTypedMapKeysAndSequenceValuedEntriesAndArrayMembers() {
         RunQuery.Result result = this.runQuery.run(
-                "xquery version \"3.1\"; (map {1: (\"a\", \"b\"), \"1\": ()}, [(), (1, 2), [3]])", null);
+                "xquery version \"3.1\"; (map {1: (\"a\", \"b\"), \"1\": ()}, [(), (1, 2), [3]])", DOCUMENT_URI);
         assertNull(result.error());
         var map = result.items().get(0);
         assertEquals("map", map.kind());
@@ -114,7 +116,7 @@ class RunQueryTest {
 
     @Test
     void returningAFunctionDoesNotFailSerialization() {
-        RunQuery.Result result = this.runQuery.run("xquery version \"3.1\"; fn:concat#2", null);
+        RunQuery.Result result = this.runQuery.run("xquery version \"3.1\"; fn:concat#2", DOCUMENT_URI);
         assertNull(result.error());
         var function = result.items().get(0);
         assertEquals("function", function.kind());
@@ -126,14 +128,14 @@ class RunQueryTest {
 
     @Test
     void typedItemsAreAbsentOnQueryErrors() {
-        RunQuery.Result result = this.runQuery.run("1 +", null);
+        RunQuery.Result result = this.runQuery.run("1 +", DOCUMENT_URI);
         assertNotNull(result.error());
         assertNull(result.items());
     }
 
     @Test
     void serializesTypedItemsInTheResponseBody() throws Exception {
-        RunQuery.Result result = this.runQuery.run("(xs:integer(\"9007199254740993\"), [])", null);
+        RunQuery.Result result = this.runQuery.run("(xs:integer(\"9007199254740993\"), [])", DOCUMENT_URI);
         assertNull(result.error());
         var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
         var json = mapper.readTree(mapper.writeValueAsString(result));
@@ -166,14 +168,14 @@ class RunQueryTest {
 
     @Test
     void emptyQueryReturnsEmptyResult() {
-        RunQuery.Result result = this.runQuery.run("", null);
+        RunQuery.Result result = this.runQuery.run("", DOCUMENT_URI);
         assertNotNull(result.items());
         assertNull(result.error());
     }
 
     @Test
     void simpleArithmeticQueryExecutesSuccessfully() {
-        RunQuery.Result result = assertDoesNotThrow(() -> this.runQuery.run("1 + 1", null));
+        RunQuery.Result result = assertDoesNotThrow(() -> this.runQuery.run("1 + 1", DOCUMENT_URI));
         assertNull(result.error());
         assertNotNull(result.items());
         assertEquals("2", result.items().get(0).lexicalValue());
@@ -181,7 +183,7 @@ class RunQueryTest {
 
     @Test
     void jsonQueryExecutesSuccessfully() {
-        RunQuery.Result result = assertDoesNotThrow(() -> this.runQuery.run("{ \"foo\": \"bar\" }", null));
+        RunQuery.Result result = assertDoesNotThrow(() -> this.runQuery.run("{ \"foo\": \"bar\" }", DOCUMENT_URI));
         assertNull(result.error());
         assertNotNull(result.items());
         assertEquals("foo", result.items().get(0).entries().get(0).key().lexicalValue());
@@ -192,7 +194,7 @@ class RunQueryTest {
     @Test
     void handleBase64EncodedRequest() {
         String base64Body = Base64.getEncoder().encodeToString("2 * 3".getBytes(StandardCharsets.UTF_8));
-        Request request = new Request(1L, "run-query", base64Body, null, null);
+        Request request = new Request(1L, "run-query", base64Body, DOCUMENT_URI.toString(), null);
 
         RunQuery.Result result = (RunQuery.Result) this.runQuery.handle(request);
         assertNull(result.error());
@@ -263,7 +265,7 @@ class RunQueryTest {
     void parallelizeQueryExecutesSuccessfully() {
         System.setProperty("spark.master", "local[*]");
         String query = "distinct-values(parallelize((1, 1.0, 1e0))) eq 1";
-        RunQuery.Result result = assertDoesNotThrow(() -> this.runQuery.run(query, null));
+        RunQuery.Result result = assertDoesNotThrow(() -> this.runQuery.run(query, DOCUMENT_URI));
         assertNull(result.error());
         assertNotNull(result.items());
         assertEquals("true", result.items().get(0).lexicalValue());
@@ -272,7 +274,7 @@ class RunQueryTest {
     @Test
     void multilineElementQueryExecutesSuccessfully() {
         String query = "xquery version \"3.1\"; <html/>, <html/>, ()";
-        RunQuery.Result result = assertDoesNotThrow(() -> this.runQuery.run(query, null));
+        RunQuery.Result result = assertDoesNotThrow(() -> this.runQuery.run(query, DOCUMENT_URI));
         assertNull(result.error());
         assertNotNull(result.items());
         assertEquals(2, result.items().size());

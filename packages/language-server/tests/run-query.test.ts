@@ -86,15 +86,29 @@ describe("run query service", () => {
         expect(result).toEqual({ items: null, error });
     });
 
-    it("returns a structured error when no source or URI is provided", async () => {
-        const wrapper = createMockWrapperClient();
-        const result = await runQueryFromSource(undefined, undefined, wrapper);
+    it("rejects a missing URI even when source is provided", async () => {
+        const wrapper = createMockWrapperClient({ sendRequest: vi.fn() });
+        // Exercise malformed input from a client that bypasses the TypeScript contract.
+        const result = await runQueryFromSource(undefined as unknown as string, "1", wrapper);
         expect(result.error).toEqual({
-            message: "No source or document URI provided for run-query.",
+            message: "A document URI is required for run-query.",
             code: null,
             location: null,
             range: null,
         });
+        expect(wrapper.sendRequest).not.toHaveBeenCalled();
+    });
+
+    it("preserves untitled document URIs", async () => {
+        const wrapper = createMockWrapperClient({
+            sendRequest: vi.fn().mockResolvedValue({ body: { items: [], error: null } }),
+        });
+        await runQueryFromSource("untitled:Untitled-1", "()", wrapper);
+        expect(wrapper.sendRequest).toHaveBeenCalledWith(
+            expect.objectContaining({ documentUri: "untitled:Untitled-1" }),
+            undefined,
+            undefined,
+        );
     });
 
     it("allows running query directly from source and URI", async () => {

@@ -5,7 +5,7 @@ import { defineRequest } from "./types.js";
 export const RUN_QUERY_LSP_METHOD = "jsoniq/runQuery" as const;
 
 export interface RunQueryLSPParams {
-    uri?: string;
+    uri: string;
     query?: string;
 }
 

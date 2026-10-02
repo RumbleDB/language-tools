@@ -17,7 +17,6 @@ import org.rumbledb.config.CompilationConfiguration;
 import org.rumbledb.config.RumbleConfiguration;
 import org.rumbledb.exceptions.ExceptionMetadata;
 import org.rumbledb.exceptions.RumbleException;
-import org.rumbledb.runtime.functions.input.FileSystemUtil;
 
 public final class StaticTypeChecker implements RequestHandler {
 
@@ -35,11 +34,8 @@ public final class StaticTypeChecker implements RequestHandler {
                 .build();
     }
 
-    public Result infer(String query) {
-        return infer(query, null);
-    }
-
     public Result infer(String query, URI documentUri) {
+        Objects.requireNonNull(documentUri, "documentUri is required.");
         if (query == null || query.isEmpty()) {
             return EMPTY_RESULT;
         }
@@ -56,18 +52,12 @@ public final class StaticTypeChecker implements RequestHandler {
 
     private static void parseModule(String query, URI documentUri, RumbleConfiguration configuration) {
         if (isLibraryModule(query)) {
-            CompilationPipeline.analyzeLibraryModule(
-                    query, documentUri == null ? URI.create(".") : documentUri, configuration);
+            CompilationPipeline.analyzeLibraryModule(query, documentUri, configuration);
             return;
         }
 
         CompilationPipeline.compileMainModule(
-                query,
-                documentUri == null
-                        ? FileSystemUtil.resolveURIAgainstWorkingDirectory(".", ExceptionMetadata.EMPTY_METADATA)
-                        : documentUri,
-                new CompilationConfiguration(configuration),
-                ExternalBindings.empty());
+                query, documentUri, new CompilationConfiguration(configuration), ExternalBindings.empty());
     }
 
     private static boolean isLibraryModule(String query) {
@@ -91,7 +81,7 @@ public final class StaticTypeChecker implements RequestHandler {
 
         byte[] decodedBytes = Base64.getDecoder().decode(request.body());
         String query = new String(decodedBytes, StandardCharsets.UTF_8);
-        URI documentUri = request.documentUri() == null ? null : URI.create(request.documentUri());
+        URI documentUri = URI.create(Objects.requireNonNull(request.documentUri(), "documentUri is required."));
         return infer(query, documentUri);
     }
 

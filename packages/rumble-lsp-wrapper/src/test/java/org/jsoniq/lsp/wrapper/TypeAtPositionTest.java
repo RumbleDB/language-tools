@@ -13,13 +13,16 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
 class TypeAtPositionTest {
+    private static final URI DOCUMENT_URI = URI.create("file:///type-at-position.jq");
+
     private final TypeAtPosition typeAtPosition = new TypeAtPosition();
 
     @Test
     void returnsOuterExpressionEndingAtPosition() {
         String query = "((1 + 2) * 3)";
 
-        TypeAtPosition.Result result = this.typeAtPosition.findType(query, new Position(0, query.length()));
+        TypeAtPosition.Result result =
+                this.typeAtPosition.findType(query, DOCUMENT_URI, new Position(0, query.length()));
 
         assertNotNull(result.sequenceType());
         assertEquals("xs:integer", result.sequenceType().toString());
@@ -35,7 +38,8 @@ class TypeAtPositionTest {
                 """;
         int declarationOffset = query.indexOf("$a") + 1;
 
-        TypeAtPosition.Result result = this.typeAtPosition.findType(query, positionAtOffset(query, declarationOffset));
+        TypeAtPosition.Result result =
+                this.typeAtPosition.findType(query, DOCUMENT_URI, positionAtOffset(query, declarationOffset));
 
         assertNotNull(result.sequenceType());
         assertEquals("xs:integer", result.sequenceType().toString());
@@ -56,7 +60,8 @@ class TypeAtPositionTest {
                 """;
         int declarationOffset = query.indexOf("local:f") + 1;
 
-        TypeAtPosition.Result result = this.typeAtPosition.findType(query, positionAtOffset(query, declarationOffset));
+        TypeAtPosition.Result result =
+                this.typeAtPosition.findType(query, DOCUMENT_URI, positionAtOffset(query, declarationOffset));
 
         assertNotNull(result.sequenceType());
         assertEquals("item*", result.sequenceType().toString());
@@ -80,7 +85,8 @@ class TypeAtPositionTest {
                 """;
         int expressionEnd = query.indexOf("$a.nested") + "$a.nested".length();
 
-        TypeAtPosition.Result result = this.typeAtPosition.findType(query, positionAtOffset(query, expressionEnd));
+        TypeAtPosition.Result result =
+                this.typeAtPosition.findType(query, DOCUMENT_URI, positionAtOffset(query, expressionEnd));
 
         assertNotNull(result.sequenceType());
         assertEquals("object", result.sequenceType().itemType().kind());
@@ -103,7 +109,8 @@ class TypeAtPositionTest {
                 """;
         int detailsOffset = query.indexOf("details.tlf") + "det".length();
 
-        TypeAtPosition.Result result = this.typeAtPosition.findType(query, positionAtOffset(query, detailsOffset));
+        TypeAtPosition.Result result =
+                this.typeAtPosition.findType(query, DOCUMENT_URI, positionAtOffset(query, detailsOffset));
 
         assertNotNull(result.sequenceType());
         assertEquals("object", result.sequenceType().itemType().kind());
@@ -131,7 +138,8 @@ class TypeAtPositionTest {
                 """;
         int tlfOffset = query.indexOf("tlf)") + "t".length();
 
-        TypeAtPosition.Result result = this.typeAtPosition.findType(query, positionAtOffset(query, tlfOffset));
+        TypeAtPosition.Result result =
+                this.typeAtPosition.findType(query, DOCUMENT_URI, positionAtOffset(query, tlfOffset));
 
         assertNotNull(result.sequenceType());
         assertEquals("xs:decimal", result.sequenceType().toString());
@@ -146,7 +154,7 @@ class TypeAtPositionTest {
     void returnsSmallestExpressionContainingPositionWhenNothingEndsThere() {
         String query = "1 + 20";
 
-        TypeAtPosition.Result result = this.typeAtPosition.findType(query, new Position(0, 5));
+        TypeAtPosition.Result result = this.typeAtPosition.findType(query, DOCUMENT_URI, new Position(0, 5));
 
         assertNotNull(result.sequenceType());
         assertEquals("xs:integer", result.sequenceType().toString());
@@ -183,7 +191,7 @@ class TypeAtPositionTest {
 
     @Test
     void returnsEmptyResultForInvalidQuery() {
-        TypeAtPosition.Result result = this.typeAtPosition.findType("$a.", new Position(0, 3));
+        TypeAtPosition.Result result = this.typeAtPosition.findType("$a.", DOCUMENT_URI, new Position(0, 3));
 
         assertNull(result.sequenceType());
         assertNull(result.range());
