@@ -142,13 +142,6 @@ export function App() {
         return [
             INDEX_COLUMN,
             {
-                id: "type",
-                accessorFn: (row) => row.value![0]!.type,
-                header: "Type",
-                size: 160,
-                minSize: 100,
-            },
-            {
                 id: "value",
                 accessorFn: (row) => formatCell(row.value),
                 header: "Value",
