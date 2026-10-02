@@ -4,7 +4,8 @@ import { ErrorView } from "./components/ErrorView.js";
 import { Header } from "./components/Header.js";
 import { RawView } from "./components/RawView.js";
 import { ResultsTable } from "./components/ResultsTable.js";
-import type { ExecutionResultData } from "./types.js";
+import { SequenceView } from "./components/SequenceView.js";
+import type { ExecutionResultData, ViewMode } from "./types.js";
 import { createCopyAction } from "./utils/clipboard.js";
 import { formatError } from "./utils/format-error.js";
 import { formatRawOutput } from "./utils/result-items.js";
@@ -18,7 +19,7 @@ declare global {
 export function App() {
     const [data, setData] = createSignal<ExecutionResultData | undefined>(window.__INITIAL_DATA__);
     const { copied, copy } = createCopyAction();
-    const [viewMode, setViewMode] = createSignal<"table" | "raw">("table");
+    const [viewMode, setViewMode] = createSignal<ViewMode>("inspect");
 
     onMount(() => {
         const handleMessage = (event: MessageEvent) => {
@@ -91,6 +92,13 @@ export function App() {
                                         </div>
                                     }
                                 >
+                                    <div
+                                        class="flex-1 flex flex-col overflow-hidden"
+                                        classList={{ hidden: viewMode() !== "inspect" }}
+                                    >
+                                        <SequenceView items={res().items!} />
+                                    </div>
+
                                     <div
                                         class="flex-1 flex flex-col overflow-hidden"
                                         classList={{ hidden: viewMode() !== "table" }}

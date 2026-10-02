@@ -71,3 +71,21 @@ body {
         var(--vscode-descriptionForeground, rgba(204, 204, 204, 0.6))
     );
 }
+
+/* Typed value colors come from backend metadata, including in table cells. */
+.result-value-number {
+    color: var(--vscode-debugTokenExpression-number, #b5cea8);
+}
+.result-value-string {
+    color: var(--vscode-debugTokenExpression-string, #ce9178);
+}
+.result-value-boolean {
+    color: var(--vscode-debugTokenExpression-boolean, #569cd6);
+}
+.result-value-null {
+    color: var(--vscode-descriptionForeground);
+    font-style: italic;
+}
+.result-value-value {
+    color: var(--vscode-editor-foreground);
+}

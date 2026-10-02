@@ -80,3 +80,83 @@ test("serialization errors are visible instead of silently becoming null", () =>
         "[function(*): Unavailable]",
     );
 });
+
+test("presentation uses backend types, not string contents", async () => {
+    const { itemTone, itemPreview, isExpandable } =
+        await import("../src/utils/item-presentation.ts");
+    const number = {
+        ...atomic("xs:integer", "9007199254740993"),
+        lexicalValue: "9007199254740993",
+    };
+    const string = {
+        ...atomic("xs:string", '"9007199254740993"'),
+        lexicalValue: "9007199254740993",
+    };
+    assert.equal(itemTone(number), "number");
+    assert.equal(itemTone(string), "string");
+    assert.equal(itemPreview(number), "9007199254740993");
+    assert.equal(itemPreview(string), '"9007199254740993"');
+    const xmlString = { ...atomic("xs:string", '"<book/>"'), lexicalValue: "<book/>" };
+    assert.equal(isExpandable(xmlString), false);
+    assert.equal(isExpandable({ kind: "node", type: "element", serialized: "<book/>" }), true);
+    // A custom QName that happens to end in 'integer' is not a built-in integer type.
+    assert.equal(itemTone({ ...number, typeName: "Q{urn:custom}integer" }), "value");
+});
+
+test("container summaries distinguish arrays, objects, maps, and functions", async () => {
+    const { itemPreview, isExpandable } = await import("../src/utils/item-presentation.ts");
+    assert.equal(
+        itemPreview({ kind: "array", type: "array(*)", serialized: "[]", members: [] }),
+        "[] · 0 members",
+    );
+    const array = { kind: "array", type: "array(*)", serialized: "[()]", members: [[]] };
+    assert.equal(itemPreview(array), "[()] · 1 member");
+    assert.equal(isExpandable(array), true);
+    assert.equal(
+        itemPreview({ kind: "object", type: "object", serialized: "map{}", entries: [] }),
+        "{} · 0 fields",
+    );
+    assert.equal(
+        itemPreview({ kind: "map", type: "map(*)", serialized: "map{}", entries: [] }),
+        "map{} · 0 entries",
+    );
+    assert.equal(
+        itemPreview({
+            kind: "function",
+            type: "function(*)",
+            serialized: "fn:concat#2",
+            function: { name: "fn:concat", arity: 2, signature: "function(*)" },
+        }),
+        "fn:concat#2",
+    );
+});
+
+test("long strings remain complete when copied, and string-derived types retain quotes", async () => {
+    const { itemPreview, isExpandable, itemTone } =
+        await import("../src/utils/item-presentation.ts");
+    const value = "x".repeat(500);
+    const item = { ...atomic("xs:string", JSON.stringify(value)), lexicalValue: value };
+    assert.equal(isExpandable(item), true);
+    assert.equal(itemPreview(item), JSON.stringify(value));
+    assert.equal(formatRawOutput([item]), JSON.stringify(value));
+    const token = {
+        ...atomic("xs:token", '"42"'),
+        typeName: "Q{http://www.w3.org/2001/XMLSchema}token",
+        lexicalValue: "42",
+    };
+    assert.equal(itemTone(token), "string");
+    assert.equal(itemPreview(token), '"42"');
+});
+
+test("array previews preserve nested arrays and member sequence boundaries", async () => {
+    const { itemPreview } = await import("../src/utils/item-presentation.ts");
+    const array = (members) => ({ kind: "array", type: "array(*)", serialized: "array", members });
+    const one = atomic("xs:integer", "1");
+    const two = atomic("xs:integer", "2");
+    assert.equal(
+        itemPreview(array([[], [one, two], [array([[one]])]])),
+        "[(), (1, 2), [1]] · 3 members",
+    );
+    assert.equal(itemPreview(array([[one], [two], [one], [two]])), "[1, 2, 1, …] · 4 members");
+    assert.equal(itemPreview(array([[array([[array([[one]])]])]])), "[[[…]]] · 1 member");
+});

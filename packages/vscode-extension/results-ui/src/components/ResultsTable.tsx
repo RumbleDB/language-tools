@@ -4,11 +4,12 @@ import {
     type SortingState,
     type PaginationState,
 } from "@tanstack/solid-table";
-import { createSignal, createMemo, createEffect, on, type JSX } from "solid-js";
+import { createSignal, createMemo, createEffect, on } from "solid-js";
 
 import type { RunQueryItem } from "../types.js";
 import { formatCell, projectTableRows } from "../utils/result-items.js";
 import { Footer } from "./Footer.js";
+import { SequenceValue } from "./ItemValue.js";
 import { TableView } from "./Table.js";
 import { features, type TFeatures, type TData } from "./table/model.js";
 
@@ -29,19 +30,6 @@ const INDEX_COLUMN: ColumnDef<TFeatures, TData> = {
         </span>
     ),
 };
-
-function renderCellValue(items: RunQueryItem[] | undefined): JSX.Element {
-    const missing = items === undefined;
-    const isNull = items?.length === 1 && items[0]?.kind === "null";
-    return (
-        <span
-            class={`font-mono ${missing || isNull ? "text-secondary/50 italic" : "text-on-surface"}`}
-            title={missing ? "Missing field" : items.map((item) => item.type).join(", ")}
-        >
-            {formatCell(items)}
-        </span>
-    );
-}
 
 function getDynamicColumnSize(items: TData[], key: string): number {
     const maxLen = Math.max(
@@ -87,7 +75,9 @@ export function ResultsTable(props: ResultsTableProps) {
                     header: key,
                     size: getDynamicColumnSize(tableData(), key),
                     minSize: 80,
-                    cell: (info) => renderCellValue(info.row.original[key]),
+                    cell: (info) => (
+                        <SequenceValue items={info.row.original[key]} copyable={false} />
+                    ),
                 })),
             ];
         }
@@ -99,7 +89,7 @@ export function ResultsTable(props: ResultsTableProps) {
                 header: "Value",
                 size: 400,
                 minSize: 150,
-                cell: (info) => renderCellValue(info.row.original.value),
+                cell: (info) => <SequenceValue items={info.row.original.value} copyable={false} />,
             },
         ];
     });
