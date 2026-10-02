@@ -1,9 +1,10 @@
-import type { RunQueryError } from "jsoniq-language-server/requests";
+import type { RunQueryError, RunQueryItem } from "jsoniq-language-server/requests";
 import * as vscode from "vscode";
 
 export interface ExecutionResultData {
     fileUri: string;
     output?: string;
+    items?: RunQueryItem[] | null;
     error?: RunQueryError;
     durationMs: number;
     timestamp: string;

@@ -7,6 +7,26 @@ import { describe, expect, it, vi } from "vitest";
 import { createMockWrapperClient, testDocument } from "./test-utils.js";
 
 describe("run query service", () => {
+    it("preserves typed mixed items without coercing lexical values", async () => {
+        const items = [
+            {
+                kind: "atomic",
+                type: "xs:integer",
+                serialized: "9007199254740993",
+                lexicalValue: "9007199254740993",
+            },
+            { kind: "node", type: "element", nodeKind: "element", serialized: "<book/>" },
+            { kind: "array", type: "array(*)", serialized: "[()]", members: [[]] },
+        ];
+        const body = { output: '[9007199254740993,"<book/>","[()]"]', error: null, items };
+        const wrapper = createMockWrapperClient({
+            sendRequest: vi.fn().mockResolvedValue({ body }),
+        });
+        const result = await runQueryFromSource("file:///test.xq", "mixed result", wrapper);
+        expect(result).toEqual(body);
+        expect(result.items?.[0]?.lexicalValue).toBe("9007199254740993");
+    });
+
     it("sends document text and documentUri to wrapper", async () => {
         const sendRequest = vi.fn().mockResolvedValue({
             id: 1,

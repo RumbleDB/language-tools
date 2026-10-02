@@ -56,6 +56,7 @@ export function registerRunQueryCommand(
                         ResultsWebviewPanel.show(context.extensionUri, {
                             fileUri: activeEditor.document.fileName,
                             output: typeof output === "string" ? output : "(No output returned)",
+                            items: response?.items ?? null,
                             durationMs,
                             timestamp,
                         });

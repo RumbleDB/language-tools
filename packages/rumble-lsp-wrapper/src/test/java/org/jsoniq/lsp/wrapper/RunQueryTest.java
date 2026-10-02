@@ -24,6 +24,131 @@ class RunQueryTest {
     private final RunQuery runQuery = new RunQuery();
 
     @Test
+    void preservesMixedJsoniqItemsAndNestedTypes() {
+        RunQuery.Result result = this.runQuery.run("(42, \"42\", true, null, {\"n\": 7}, [1, [2]])", null);
+        assertNull(result.error());
+        assertEquals(
+                java.util.List.of("atomic", "atomic", "atomic", "null", "object", "array"),
+                result.items().stream().map(item -> item.kind()).toList());
+        assertEquals("42", result.items().get(0).lexicalValue());
+        assertEquals("42", result.items().get(1).lexicalValue());
+        assertTrue(!result.items().get(0).type().equals(result.items().get(1).type()));
+        assertEquals("n", result.items().get(4).entries().get(0).key().lexicalValue());
+        assertEquals("7", result.items().get(4).entries().get(0).value().get(0).lexicalValue());
+        assertEquals("array", result.items().get(5).members().get(1).get(0).kind());
+        assertEquals(
+                "2",
+                result.items()
+                        .get(5)
+                        .members()
+                        .get(1)
+                        .get(0)
+                        .members()
+                        .get(0)
+                        .get(0)
+                        .lexicalValue());
+    }
+
+    @Test
+    void distinguishesEmptySequenceNullEmptyStringAndEmptyArray() {
+        RunQuery.Result empty = this.runQuery.run("()", null);
+        assertNull(empty.error());
+        assertEquals(java.util.List.of(), empty.items());
+        assertEquals("[]", empty.output());
+        RunQuery.Result result = this.runQuery.run("(null, \"\", [])", null);
+        assertNull(result.error());
+        assertEquals(3, result.items().size());
+        assertEquals("null", result.items().get(0).kind());
+        assertEquals("", result.items().get(1).lexicalValue());
+        assertEquals(java.util.List.of(), result.items().get(2).members());
+    }
+
+    @Test
+    void preservesNumericPrecisionAndAtomicTypeNames() {
+        RunQuery.Result result = this.runQuery.run(
+                "(xs:integer(\"123456789012345678901234567890\"), xs:decimal(\"0.12345678901234567890123456789\"), xs:date(\"2026-10-02\"))",
+                null);
+        assertNull(result.error());
+        assertEquals("123456789012345678901234567890", result.items().get(0).lexicalValue());
+        assertEquals("0.12345678901234567890123456789", result.items().get(1).lexicalValue());
+        assertEquals(
+                "Q{http://www.w3.org/2001/XMLSchema}date", result.items().get(2).typeName());
+        assertEquals("2026-10-02", result.items().get(2).lexicalValue());
+    }
+
+    @Test
+    void distinguishesXmlNodesFromStringsContainingXml() {
+        RunQuery.Result result = this.runQuery.run("xquery version \"3.1\"; (<book/>, \"<book/>\")", null);
+        assertNull(result.error());
+        assertEquals("node", result.items().get(0).kind());
+        assertEquals("element", result.items().get(0).nodeKind());
+        assertTrue(result.items().get(0).serialized().contains("book"));
+        assertEquals("atomic", result.items().get(1).kind());
+        assertEquals("<book/>", result.items().get(1).lexicalValue());
+    }
+
+    @Test
+    void preservesTypedMapKeysAndSequenceValuedEntriesAndArrayMembers() {
+        RunQuery.Result result = this.runQuery.run(
+                "xquery version \"3.1\"; (map {1: (\"a\", \"b\"), \"1\": ()}, [(), (1, 2), [3]])", null);
+        assertNull(result.error());
+        var map = result.items().get(0);
+        assertEquals("map", map.kind());
+        assertEquals(2, map.entries().size());
+        var numericEntry = map.entries().stream()
+                .filter(entry -> entry.key().typeName().endsWith("}int")
+                        || entry.key().typeName().endsWith("}integer"))
+                .findFirst()
+                .orElseThrow();
+        assertEquals(2, numericEntry.value().size());
+        var stringEntry = map.entries().stream()
+                .filter(entry -> entry.key().typeName().endsWith("}string"))
+                .findFirst()
+                .orElseThrow();
+        assertEquals(java.util.List.of(), stringEntry.value());
+        assertNull(map.serializationError());
+        var array = result.items().get(1);
+        assertEquals(java.util.List.of(), array.members().get(0));
+        assertEquals(2, array.members().get(1).size());
+        assertEquals("array", array.members().get(2).get(0).kind());
+    }
+
+    @Test
+    void returningAFunctionDoesNotFailSerialization() {
+        RunQuery.Result result = this.runQuery.run("xquery version \"3.1\"; fn:concat#2", null);
+        assertNull(result.error());
+        var function = result.items().get(0);
+        assertEquals("function", function.kind());
+        assertEquals(2, function.function().arity());
+        assertTrue(function.function().name().contains("concat"));
+        assertNotNull(function.function().signature());
+        assertNull(function.serializationError());
+    }
+
+    @Test
+    void typedItemsAreAbsentOnQueryErrors() {
+        RunQuery.Result result = this.runQuery.run("1 +", null);
+        assertNotNull(result.error());
+        assertNull(result.items());
+    }
+
+    @Test
+    void serializesTypedItemsInTheResponseBody() throws Exception {
+        RunQuery.Result result = this.runQuery.run("(xs:integer(\"9007199254740993\"), [])", null);
+        assertNull(result.error());
+        var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+        var json = mapper.readTree(mapper.writeValueAsString(result));
+        assertEquals(
+                "9007199254740993", json.get("items").get(0).get("lexicalValue").asText());
+        assertEquals(
+                "9007199254740993", json.get("items").get(0).get("serialized").asText());
+        assertEquals("array", json.get("items").get(1).get("kind").asText());
+        assertEquals(0, json.get("items").get(1).get("members").size());
+        assertTrue(json.get("error").isNull());
+        assertNotNull(json.get("output"));
+    }
+
+    @Test
     void missingMetadataDoesNotExposePlaceholderLocation() {
         RumbleException exception = new RumbleException("Query failed", ExceptionMetadata.EMPTY_METADATA);
         RunQuery.QueryError error = RunQuery.QueryError.from(exception);
