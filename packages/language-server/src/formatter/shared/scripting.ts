@@ -1,6 +1,5 @@
 import type { ParseTree, TerminalNode, Token } from "antlr4ng";
-import type * as jsoniq from "server/parser/adapters/jsoniq/grammar/JsoniqParser.js";
-import type * as xquery from "server/parser/adapters/xquery/grammar/XQueryParser.js";
+import type * as ctx from "server/parser/context.js";
 
 import { concat, type Doc, group, hardline, indent, join, line, NIL, space } from "../doc.js";
 import { formatTokenSeparatedDocs } from "./tokens.js";
@@ -8,33 +7,6 @@ import { formatTokenSeparatedDocs } from "./tokens.js";
 type SourceTerminal = TerminalNode | TerminalNode[] | Token | null | undefined;
 type FormatTerminal = (terminal: SourceTerminal, expectedToken: number | string) => Doc;
 type Visit = (node: ParseTree | null | undefined) => Doc;
-
-type Program = jsoniq.ProgramContext | xquery.ProgramContext;
-type Statements = jsoniq.StatementsContext | xquery.StatementsContext;
-type StatementsAndExpression = jsoniq.StatementsAndExprContext | xquery.StatementsAndExprContext;
-type StatementsAndOptionalExpression =
-    | jsoniq.StatementsAndOptionalExprContext
-    | xquery.StatementsAndOptionalExprContext;
-type ApplyStatement = jsoniq.ApplyStatementContext | xquery.ApplyStatementContext;
-type AssignStatement = jsoniq.AssignStatementContext | xquery.AssignStatementContext;
-type BlockStatement = jsoniq.BlockStatementContext | xquery.BlockStatementContext;
-type BreakStatement = jsoniq.BreakStatementContext | xquery.BreakStatementContext;
-type ContinueStatement = jsoniq.ContinueStatementContext | xquery.ContinueStatementContext;
-type ExitStatement = jsoniq.ExitStatementContext | xquery.ExitStatementContext;
-type FlworStatement = jsoniq.FlworStatementContext | xquery.FlworStatementContext;
-type IfStatement = jsoniq.IfStatementContext | xquery.IfStatementContext;
-type SwitchStatement = jsoniq.SwitchStatementContext | xquery.SwitchStatementContext;
-type SwitchCaseStatement = jsoniq.SwitchCaseStatementContext | xquery.SwitchCaseStatementContext;
-type TryCatchStatement = jsoniq.TryCatchStatementContext | xquery.TryCatchStatementContext;
-type CatchCaseStatement = jsoniq.CatchCaseStatementContext | xquery.CatchCaseStatementContext;
-type TypeswitchStatement = jsoniq.TypeSwitchStatementContext | xquery.TypeSwitchStatementContext;
-type CaseStatement = jsoniq.CaseStatementContext | xquery.CaseStatementContext;
-type VariableDeclarationStatement = jsoniq.VarDeclStatementContext | xquery.VarDeclStatementContext;
-type VariableDeclarationForStatement =
-    | jsoniq.VarDeclForStatementContext
-    | xquery.VarDeclForStatementContext;
-type WhileStatement = jsoniq.WhileStatementContext | xquery.WhileStatementContext;
-type BlockExpression = jsoniq.BlockExprContext | xquery.BlockExprContext;
 
 function isEmpty(doc: Doc): boolean {
     return doc.kind === "text" && doc.text === "";
@@ -46,22 +18,25 @@ function formatStatementBlock(leftBrace: Doc, statements: Doc, rightBrace: Doc):
         : concat([leftBrace, indent(concat([hardline, statements])), hardline, rightBrace]);
 }
 
-export function formatProgram(node: Program, visit: Visit): Doc {
+export function formatProgram(node: ctx.ProgramContext, visit: Visit): Doc {
     return visit(node.statementsAndOptionalExpr());
 }
 
-export function formatStatements(node: Statements, visit: Visit): Doc {
+export function formatStatements(node: ctx.StatementsContext, visit: Visit): Doc {
     return join(hardline, node.statement().map(visit));
 }
 
-export function formatStatementsAndExpression(node: StatementsAndExpression, visit: Visit): Doc {
+export function formatStatementsAndExpression(
+    node: ctx.StatementsAndExprContext,
+    visit: Visit,
+): Doc {
     const statements = visit(node.statements());
     const expression = visit(node.expr());
     return isEmpty(statements) ? expression : concat([statements, hardline, expression]);
 }
 
 export function formatStatementsAndOptionalExpression(
-    node: StatementsAndOptionalExpression,
+    node: ctx.StatementsAndOptionalExprContext,
     visit: Visit,
 ): Doc {
     const statements = visit(node.statements());
@@ -73,7 +48,7 @@ export function formatStatementsAndOptionalExpression(
 }
 
 export function formatApplyStatement(
-    node: ApplyStatement,
+    node: ctx.ApplyStatementContext,
     visit: Visit,
     formatTerminal: FormatTerminal,
 ): Doc {
@@ -81,7 +56,7 @@ export function formatApplyStatement(
 }
 
 export function formatAssignStatement(
-    node: AssignStatement,
+    node: ctx.AssignStatementContext,
     visit: Visit,
     formatTerminal: FormatTerminal,
 ): Doc {
@@ -96,7 +71,7 @@ export function formatAssignStatement(
 }
 
 export function formatBlockStatement(
-    node: BlockStatement,
+    node: ctx.BlockStatementContext,
     visit: Visit,
     formatTerminal: FormatTerminal,
 ): Doc {
@@ -107,7 +82,10 @@ export function formatBlockStatement(
     );
 }
 
-export function formatBreakStatement(node: BreakStatement, formatTerminal: FormatTerminal): Doc {
+export function formatBreakStatement(
+    node: ctx.BreakStatementContext,
+    formatTerminal: FormatTerminal,
+): Doc {
     return concat([
         formatTerminal(node.KW_BREAK(), "break"),
         space,
@@ -117,7 +95,7 @@ export function formatBreakStatement(node: BreakStatement, formatTerminal: Forma
 }
 
 export function formatContinueStatement(
-    node: ContinueStatement,
+    node: ctx.ContinueStatementContext,
     formatTerminal: FormatTerminal,
 ): Doc {
     return concat([
@@ -129,7 +107,7 @@ export function formatContinueStatement(
 }
 
 export function formatExitStatement(
-    node: ExitStatement,
+    node: ctx.ExitStatementContext,
     visit: Visit,
     formatTerminal: FormatTerminal,
 ): Doc {
@@ -144,7 +122,7 @@ export function formatExitStatement(
 }
 
 export function formatFlworStatement(
-    node: FlworStatement,
+    node: ctx.FlworStatementContext,
     visit: Visit,
     formatTerminal: FormatTerminal,
 ): Doc {
@@ -168,7 +146,7 @@ export function formatFlworStatement(
 }
 
 export function formatIfStatement(
-    node: IfStatement,
+    node: ctx.IfStatementContext,
     visit: Visit,
     formatTerminal: FormatTerminal,
 ): Doc {
@@ -196,7 +174,7 @@ export function formatIfStatement(
 }
 
 export function formatSwitchStatement(
-    node: SwitchStatement,
+    node: ctx.SwitchStatementContext,
     visit: Visit,
     formatTerminal: FormatTerminal,
 ): Doc {
@@ -219,7 +197,7 @@ export function formatSwitchStatement(
 }
 
 export function formatSwitchCaseStatement(
-    node: SwitchCaseStatement,
+    node: ctx.SwitchCaseStatementContext,
     visit: Visit,
     formatTerminal: FormatTerminal,
 ): Doc {
@@ -239,7 +217,7 @@ export function formatSwitchCaseStatement(
 }
 
 export function formatTryCatchStatement(
-    node: TryCatchStatement,
+    node: ctx.TryCatchStatementContext,
     visit: Visit,
     formatTerminal: FormatTerminal,
 ): Doc {
@@ -253,7 +231,7 @@ export function formatTryCatchStatement(
 }
 
 export function formatCatchCaseStatement(
-    node: CatchCaseStatement,
+    node: ctx.CatchCaseStatementContext,
     visit: Visit,
     formatTerminal: FormatTerminal,
 ): Doc {
@@ -273,7 +251,7 @@ export function formatCatchCaseStatement(
 }
 
 export function formatTypeswitchStatement(
-    node: TypeswitchStatement,
+    node: ctx.TypeSwitchStatementContext,
     visit: Visit,
     formatTerminal: FormatTerminal,
 ): Doc {
@@ -298,7 +276,7 @@ export function formatTypeswitchStatement(
 }
 
 export function formatCaseStatement(
-    node: CaseStatement,
+    node: ctx.CaseStatementContext,
     visit: Visit,
     formatTerminal: FormatTerminal,
 ): Doc {
@@ -324,7 +302,7 @@ export function formatCaseStatement(
 }
 
 export function formatVariableDeclarationStatement(
-    node: VariableDeclarationStatement,
+    node: ctx.VarDeclStatementContext,
     commaTokenType: number,
     visit: Visit,
     formatTerminal: FormatTerminal,
@@ -345,7 +323,7 @@ export function formatVariableDeclarationStatement(
 }
 
 export function formatVariableDeclarationForStatement(
-    node: VariableDeclarationForStatement,
+    node: ctx.VarDeclForStatementContext,
     visit: Visit,
     formatTerminal: FormatTerminal,
 ): Doc {
@@ -359,7 +337,7 @@ export function formatVariableDeclarationForStatement(
 }
 
 export function formatWhileStatement(
-    node: WhileStatement,
+    node: ctx.WhileStatementContext,
     visit: Visit,
     formatTerminal: FormatTerminal,
 ): Doc {
@@ -381,7 +359,7 @@ export function formatWhileStatement(
 }
 
 export function formatBlockExpression(
-    node: BlockExpression,
+    node: ctx.BlockExprContext,
     visit: Visit,
     formatTerminal: FormatTerminal,
 ): Doc {

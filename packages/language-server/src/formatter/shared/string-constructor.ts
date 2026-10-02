@@ -1,6 +1,5 @@
 import type { ParseTree, ParserRuleContext, TerminalNode } from "antlr4ng";
-import type * as jsoniq from "server/parser/adapters/jsoniq/grammar/JsoniqParser.js";
-import type * as xquery from "server/parser/adapters/xquery/grammar/XQueryParser.js";
+import type * as ctx from "server/parser/context.js";
 
 import { composeTokenDoc, type FormatterContext } from "../context.js";
 import { concat, type Doc, space } from "../doc.js";
@@ -15,12 +14,10 @@ interface StringContent extends ParserRuleContext {
     stringConstructorInterpolation(): StringInterpolation[];
 }
 
-type StringConstructor = jsoniq.StringConstructorContext | xquery.StringConstructorContext;
-
 /** Preserves literal template text while formatting embedded expressions. */
 export function formatStringConstructor(
     context: FormatterContext,
-    node: StringConstructor,
+    node: ctx.StringConstructorContext,
     visit: (node: ParseTree | null | undefined) => Doc,
 ): Doc {
     const open = node.ENTER_STRING();

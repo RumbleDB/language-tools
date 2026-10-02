@@ -1,4 +1,5 @@
 import { type ParseTree, type TerminalNode } from "antlr4ng";
+import type * as ctx from "server/parser/context.js";
 import {
     type AstNode,
     type AstParameter,
@@ -8,71 +9,8 @@ import { parseQNameText } from "server/parser/types/name.js";
 import { rangeFromNode } from "server/utils/range.js";
 import type { TextDocument } from "vscode-languageserver-textdocument";
 
-import type * as jsoniq from "../adapters/jsoniq/grammar/JsoniqParser.js";
-import type * as xquery from "../adapters/xquery/grammar/XQueryParser.js";
 import { parseFunctionName, parseVarName } from "./name.js";
 
-type CatchCaseStatementContext =
-    | jsoniq.CatchCaseStatementContext
-    | xquery.CatchCaseStatementContext;
-type CatchClauseContext = jsoniq.CatchClauseContext | xquery.CatchClauseContext;
-type CaseClauseContext = jsoniq.CaseClauseContext | xquery.CaseClauseContext;
-type CaseStatementContext = jsoniq.CaseStatementContext | xquery.CaseStatementContext;
-type CountClauseContext = jsoniq.CountClauseContext | xquery.CountClauseContext;
-type ContextItemDeclContext = jsoniq.ContextItemDeclContext | xquery.ContextItemDeclContext;
-type ContextItemExprContext = jsoniq.ContextItemExprContext | xquery.ContextItemExprContext;
-type FlworExprContext = jsoniq.FlworExprContext | xquery.FlworExprContext;
-type FlworStatementContext = jsoniq.FlworStatementContext | xquery.FlworStatementContext;
-type ForVarContext = jsoniq.ForVarContext | xquery.ForVarContext;
-type FunctionCallContext = jsoniq.FunctionCallContext | xquery.FunctionCallContext;
-type FunctionDeclContext = jsoniq.FunctionDeclContext | xquery.FunctionDeclContext;
-type GroupByClauseContext = jsoniq.GroupByClauseContext | xquery.GroupByClauseContext;
-type InlineFunctionExprContext =
-    | jsoniq.InlineFunctionExprContext
-    | xquery.InlineFunctionExprContext;
-type LetVarContext = jsoniq.LetVarContext | xquery.LetVarContext;
-type NamedFunctionRefContext = jsoniq.NamedFunctionRefContext | xquery.NamedFunctionRefContext;
-type NamespaceDeclContext = jsoniq.NamespaceDeclContext | xquery.NamespaceDeclContext;
-type DefaultNamespaceDeclContext =
-    | jsoniq.DefaultNamespaceDeclContext
-    | xquery.DefaultNamespaceDeclContext;
-type SchemaImportContext = jsoniq.SchemaImportContext | xquery.SchemaImportContext;
-type BaseURIDeclContext = jsoniq.BaseURIDeclContext | xquery.BaseURIDeclContext;
-type LibraryModuleContext = jsoniq.LibraryModuleContext | xquery.LibraryModuleContext;
-type ModuleImportContext = jsoniq.ModuleImportContext | xquery.ModuleImportContext;
-type QuantifiedExprVarContext = jsoniq.QuantifiedExprVarContext | xquery.QuantifiedExprVarContext;
-type SlidingWindowClauseContext =
-    | jsoniq.SlidingWindowClauseContext
-    | xquery.SlidingWindowClauseContext;
-type TumblingWindowClauseContext =
-    | jsoniq.TumblingWindowClauseContext
-    | xquery.TumblingWindowClauseContext;
-type TypeSwitchStatementContext =
-    | jsoniq.TypeSwitchStatementContext
-    | xquery.TypeSwitchStatementContext;
-type TypeswitchExprContext = jsoniq.TypeswitchExprContext | xquery.TypeswitchExprContext;
-type VarDeclContext = jsoniq.VarDeclContext | xquery.VarDeclContext;
-type VarBindingContext = jsoniq.VarBindingContext | xquery.VarBindingContext;
-type VarRefContext = jsoniq.VarRefContext | xquery.VarRefContext;
-type WindowVarsContext = jsoniq.WindowVarsContext | xquery.WindowVarsContext;
-type ModuleAndThisIsItContext = jsoniq.ModuleAndThisIsItContext | xquery.ModuleAndThisIsItContext;
-type NameTestContext = jsoniq.NameTestContext | xquery.NameTestContext;
-
-type WindowStartConditionContext =
-    | jsoniq.WindowStartConditionContext
-    | xquery.WindowStartConditionContext;
-type WindowEndConditionContext =
-    | jsoniq.WindowEndConditionContext
-    | xquery.WindowEndConditionContext;
-type VarDeclStatementContext = jsoniq.VarDeclStatementContext | xquery.VarDeclStatementContext;
-type TransformExprContext = jsoniq.TransformExprContext | xquery.TransformExprContext;
-type ArgumentListContext = jsoniq.ArgumentListContext | xquery.ArgumentListContext;
-type GroupByVarContext = jsoniq.GroupByVarContext | xquery.GroupByVarContext;
-type VarDeclForStatementContext =
-    | jsoniq.VarDeclForStatementContext
-    | xquery.VarDeclForStatementContext;
-type CopyDeclContext = jsoniq.CopyDeclContext | xquery.CopyDeclContext;
-type ArgumentContext = jsoniq.ArgumentContext | xquery.ArgumentContext;
 export type AstVisitResult = AstNode[];
 
 interface AstTraversal {
@@ -88,7 +26,7 @@ function unquoteStringLiteral(text: string): string {
         : text;
 }
 
-function hasPrivateAnnotation(node: FunctionDeclContext | VarDeclContext): boolean {
+function hasPrivateAnnotation(node: ctx.FunctionDeclContext | ctx.VarDeclContext): boolean {
     return (
         node
             .annotations()
@@ -107,7 +45,7 @@ export class CommonAstBuilder {
         private readonly traversal: AstTraversal,
     ) {}
 
-    public visitModuleAndThisIsIt = (node: ModuleAndThisIsItContext): AstVisitResult => [
+    public visitModuleAndThisIsIt = (node: ctx.ModuleAndThisIsItContext): AstVisitResult => [
         {
             kind: "module",
             range: rangeFromNode(node, this.document),
@@ -115,7 +53,7 @@ export class CommonAstBuilder {
         },
     ];
 
-    public visitLibraryModule = (node: LibraryModuleContext): AstVisitResult => {
+    public visitLibraryModule = (node: ctx.LibraryModuleContext): AstVisitResult => {
         const prefix = node.ncName();
         const namespace = node.uriLiteral();
         return [
@@ -133,7 +71,7 @@ export class CommonAstBuilder {
         ];
     };
 
-    public visitModuleImport = (node: ModuleImportContext): AstVisitResult => {
+    public visitModuleImport = (node: ctx.ModuleImportContext): AstVisitResult => {
         const target = node._targetNamespace;
         if (target === undefined) return [];
         return [
@@ -155,7 +93,7 @@ export class CommonAstBuilder {
         ];
     };
 
-    public visitBaseURIDecl = (node: BaseURIDeclContext): AstVisitResult => [
+    public visitBaseURIDecl = (node: ctx.BaseURIDeclContext): AstVisitResult => [
         {
             kind: "base-uri-declaration",
             uri: unquoteStringLiteral(node.uriLiteral().getText()),
@@ -164,7 +102,7 @@ export class CommonAstBuilder {
         },
     ];
 
-    public visitSchemaImport = (node: SchemaImportContext): AstVisitResult => {
+    public visitSchemaImport = (node: ctx.SchemaImportContext): AstVisitResult => {
         const namespaceUri = node._nsURI;
         if (namespaceUri === undefined) return [];
         const prefix = node.schemaPrefix()?.ncName();
@@ -190,7 +128,7 @@ export class CommonAstBuilder {
         ];
     };
 
-    public visitDefaultNamespaceDecl = (node: DefaultNamespaceDeclContext): AstVisitResult => [
+    public visitDefaultNamespaceDecl = (node: ctx.DefaultNamespaceDeclContext): AstVisitResult => [
         {
             kind: "default-namespace-declaration",
             namespaceKind: node.KW_ELEMENT() === null ? "function" : "element",
@@ -201,7 +139,7 @@ export class CommonAstBuilder {
         },
     ];
 
-    public visitNamespaceDecl = (node: NamespaceDeclContext): AstVisitResult => {
+    public visitNamespaceDecl = (node: ctx.NamespaceDeclContext): AstVisitResult => {
         const nameNode = node.ncName();
         if (nameNode === null) {
             return [];
@@ -229,7 +167,7 @@ export class CommonAstBuilder {
         ];
     };
 
-    public visitContextItemDecl = (node: ContextItemDeclContext): AstVisitResult => [
+    public visitContextItemDecl = (node: ctx.ContextItemDeclContext): AstVisitResult => [
         {
             kind: "context-item-declaration",
             name: {
@@ -245,7 +183,7 @@ export class CommonAstBuilder {
         },
     ];
 
-    public visitContextItemExpr = (node: ContextItemExprContext): AstVisitResult => [
+    public visitContextItemExpr = (node: ctx.ContextItemExprContext): AstVisitResult => [
         {
             kind: "context-item-expression",
             name: { kind: "unprefixed-qname", localName: "$" },
@@ -254,7 +192,7 @@ export class CommonAstBuilder {
         },
     ];
 
-    public visitFunctionDecl = (node: FunctionDeclContext): AstVisitResult => [
+    public visitFunctionDecl = (node: ctx.FunctionDeclContext): AstVisitResult => [
         {
             kind: "function-declaration",
             range: rangeFromNode(node, this.document),
@@ -267,7 +205,7 @@ export class CommonAstBuilder {
     ];
 
     private buildVariableDeclaration(
-        node: VarBindingContext | null | undefined,
+        node: ctx.VarBindingContext | null | undefined,
         visibleFrom: VariableDeclarationAstNode["visibleFrom"] | null,
     ): VariableDeclarationAstNode | null {
         if (node === null || node === undefined || visibleFrom === null) {
@@ -316,7 +254,7 @@ export class CommonAstBuilder {
               ];
     }
 
-    public visitVarDecl = (node: VarDeclContext): AstVisitResult => {
+    public visitVarDecl = (node: ctx.VarDeclContext): AstVisitResult => {
         const terminator = node.SEMICOLON();
         const visibleFrom =
             terminator === null || terminator.symbol.tokenIndex < 0
@@ -329,7 +267,7 @@ export class CommonAstBuilder {
         );
     };
 
-    public visitForVar = (node: ForVarContext): AstVisitResult => {
+    public visitForVar = (node: ctx.ForVarContext): AstVisitResult => {
         const expression = node._ex;
         const visibleFrom =
             expression === undefined ? null : rangeFromNode(expression, this.document).end;
@@ -339,7 +277,7 @@ export class CommonAstBuilder {
         ]);
     };
 
-    public visitLetVar = (node: LetVarContext): AstVisitResult => {
+    public visitLetVar = (node: ctx.LetVarContext): AstVisitResult => {
         const expression = node._ex;
         const visibleFrom =
             expression === undefined ? null : rangeFromNode(expression, this.document).end;
@@ -349,24 +287,24 @@ export class CommonAstBuilder {
         );
     };
 
-    public visitTumblingWindowClause = (node: TumblingWindowClauseContext): AstVisitResult =>
+    public visitTumblingWindowClause = (node: ctx.TumblingWindowClauseContext): AstVisitResult =>
         this.declarationsBeforeChildren(node, [
             this.buildVariableDeclaration(node._name, rangeFromNode(node, this.document).end),
         ]);
 
-    public visitSlidingWindowClause = (node: SlidingWindowClauseContext): AstVisitResult =>
+    public visitSlidingWindowClause = (node: ctx.SlidingWindowClauseContext): AstVisitResult =>
         this.declarationsBeforeChildren(node, [
             this.buildVariableDeclaration(node._name, rangeFromNode(node, this.document).end),
         ]);
 
-    public visitWindowStartCondition = (node: WindowStartConditionContext): AstVisitResult =>
+    public visitWindowStartCondition = (node: ctx.WindowStartConditionContext): AstVisitResult =>
         this.visitWindowCondition(node);
 
-    public visitWindowEndCondition = (node: WindowEndConditionContext): AstVisitResult =>
+    public visitWindowEndCondition = (node: ctx.WindowEndConditionContext): AstVisitResult =>
         this.visitWindowCondition(node);
 
     private visitWindowCondition(
-        node: WindowStartConditionContext | WindowEndConditionContext,
+        node: ctx.WindowStartConditionContext | ctx.WindowEndConditionContext,
     ): AstVisitResult {
         const variables = node.windowVars();
         const expression = node.exprSingle();
@@ -379,7 +317,7 @@ export class CommonAstBuilder {
     }
 
     private visitWindowVars(
-        node: WindowVarsContext | null | undefined,
+        node: ctx.WindowVarsContext | null | undefined,
         visibleFrom: VariableDeclarationAstNode["visibleFrom"] | null,
     ): AstVisitResult {
         if (node == null) return [];
@@ -391,7 +329,7 @@ export class CommonAstBuilder {
         ].filter((declaration): declaration is VariableDeclarationAstNode => declaration !== null);
     }
 
-    public visitCountClause = (node: CountClauseContext): AstVisitResult =>
+    public visitCountClause = (node: ctx.CountClauseContext): AstVisitResult =>
         this.declarationsBeforeChildren(node, [
             this.buildVariableDeclaration(
                 node.varBinding(),
@@ -399,13 +337,13 @@ export class CommonAstBuilder {
             ),
         ]);
 
-    public visitGroupByClause = (node: GroupByClauseContext): AstVisitResult => {
+    public visitGroupByClause = (node: ctx.GroupByClauseContext): AstVisitResult => {
         const visibleFrom = rangeFromNode(node, this.document).end;
         return node.groupByVar().flatMap((binding) => this.visitGroupByVar(binding, visibleFrom));
     };
 
     private visitGroupByVar(
-        node: GroupByVarContext,
+        node: ctx.GroupByVarContext,
         visibleFrom: VariableDeclarationAstNode["visibleFrom"],
     ): AstVisitResult {
         return this.declarationsBeforeChildren(node, [
@@ -413,7 +351,7 @@ export class CommonAstBuilder {
         ]);
     }
 
-    public visitQuantifiedExprVar = (node: QuantifiedExprVarContext): AstVisitResult => {
+    public visitQuantifiedExprVar = (node: ctx.QuantifiedExprVarContext): AstVisitResult => {
         const expression = node.exprSingle();
         return this.declarationsBeforeChildren(node, [
             this.buildVariableDeclaration(
@@ -423,7 +361,7 @@ export class CommonAstBuilder {
         ]);
     };
 
-    public visitTypeswitchExpr = (node: TypeswitchExprContext): AstVisitResult =>
+    public visitTypeswitchExpr = (node: ctx.TypeswitchExprContext): AstVisitResult =>
         this.declarationsBeforeChildren(node, [
             this.buildVariableDeclaration(
                 node._var_ref,
@@ -431,7 +369,7 @@ export class CommonAstBuilder {
             ),
         ]);
 
-    public visitCaseClause = (node: CaseClauseContext): AstVisitResult =>
+    public visitCaseClause = (node: ctx.CaseClauseContext): AstVisitResult =>
         this.declarationsBeforeChildren(node, [
             this.buildVariableDeclaration(
                 node._var_ref,
@@ -439,7 +377,7 @@ export class CommonAstBuilder {
             ),
         ]);
 
-    public visitInlineFunctionExpr = (node: InlineFunctionExprContext): AstVisitResult => {
+    public visitInlineFunctionExpr = (node: ctx.InlineFunctionExprContext): AstVisitResult => {
         const bodyStart = node.LBRACE();
         const visibleFrom = bodyStart === null ? null : rangeFromNode(bodyStart, this.document).end;
         const declarations =
@@ -451,7 +389,7 @@ export class CommonAstBuilder {
         return this.declarationsBeforeChildren(node, declarations);
     };
 
-    public visitTypeSwitchStatement = (node: TypeSwitchStatementContext): AstVisitResult =>
+    public visitTypeSwitchStatement = (node: ctx.TypeSwitchStatementContext): AstVisitResult =>
         this.declarationsBeforeChildren(node, [
             this.buildVariableDeclaration(
                 node._var_ref,
@@ -459,7 +397,7 @@ export class CommonAstBuilder {
             ),
         ]);
 
-    public visitCaseStatement = (node: CaseStatementContext): AstVisitResult =>
+    public visitCaseStatement = (node: ctx.CaseStatementContext): AstVisitResult =>
         this.declarationsBeforeChildren(node, [
             this.buildVariableDeclaration(
                 node._var_ref,
@@ -467,7 +405,7 @@ export class CommonAstBuilder {
             ),
         ]);
 
-    public visitVarDeclStatement = (node: VarDeclStatementContext): AstVisitResult => {
+    public visitVarDeclStatement = (node: ctx.VarDeclStatementContext): AstVisitResult => {
         const terminator = node.SEMICOLON();
         const visibleFrom =
             terminator === null || terminator.symbol.tokenIndex < 0
@@ -482,7 +420,7 @@ export class CommonAstBuilder {
     };
 
     private visitVarDeclForStatement(
-        node: VarDeclForStatementContext,
+        node: ctx.VarDeclForStatementContext,
         visibleFrom: VariableDeclarationAstNode["visibleFrom"] | null,
     ): AstVisitResult {
         return this.declarationsBeforeChildren(node, [
@@ -490,7 +428,7 @@ export class CommonAstBuilder {
         ]);
     }
 
-    public visitTransformExpr = (node: TransformExprContext): AstVisitResult => {
+    public visitTransformExpr = (node: ctx.TransformExprContext): AstVisitResult => {
         const expression = node._mod_expr;
         const visibleFrom =
             expression === undefined ? null : rangeFromNode(expression, this.document).start;
@@ -502,7 +440,7 @@ export class CommonAstBuilder {
     };
 
     private visitCopyDecl(
-        node: CopyDeclContext,
+        node: ctx.CopyDeclContext,
         visibleFrom: VariableDeclarationAstNode["visibleFrom"] | null,
     ): AstVisitResult {
         return this.declarationsBeforeChildren(node, [
@@ -510,7 +448,7 @@ export class CommonAstBuilder {
         ]);
     }
 
-    public visitFlworExpr = (node: FlworExprContext): AstVisitResult => [
+    public visitFlworExpr = (node: ctx.FlworExprContext): AstVisitResult => [
         {
             kind: "flowr-expression",
             range: rangeFromNode(node, this.document),
@@ -518,7 +456,7 @@ export class CommonAstBuilder {
         },
     ];
 
-    public visitFlworStatement = (node: FlworStatementContext): AstVisitResult => [
+    public visitFlworStatement = (node: ctx.FlworStatementContext): AstVisitResult => [
         {
             kind: "flowr-expression",
             range: rangeFromNode(node, this.document),
@@ -526,7 +464,7 @@ export class CommonAstBuilder {
         },
     ];
 
-    public visitVarRef = (node: VarRefContext): AstVisitResult => {
+    public visitVarRef = (node: ctx.VarRefContext): AstVisitResult => {
         const name = parseVarName(node);
         return name === null
             ? []
@@ -540,13 +478,13 @@ export class CommonAstBuilder {
               ];
     };
 
-    public visitCatchCaseStatement = (node: CatchCaseStatementContext): AstVisitResult =>
+    public visitCatchCaseStatement = (node: ctx.CatchCaseStatementContext): AstVisitResult =>
         this.buildCatchClause(node, node._catch_block?.LBRACE(), node._catch_block);
 
-    public visitCatchClause = (node: CatchClauseContext): AstVisitResult =>
+    public visitCatchClause = (node: ctx.CatchClauseContext): AstVisitResult =>
         this.buildCatchClause(node, node.LBRACE(), node._catch_expression);
 
-    private buildCatchErrorTarget(node: NameTestContext): AstVisitResult {
+    private buildCatchErrorTarget(node: ctx.NameTestContext): AstVisitResult {
         const name = node.eqName();
         return [
             {
@@ -561,10 +499,10 @@ export class CommonAstBuilder {
         ];
     }
 
-    public visitArgumentList = (node: ArgumentListContext): AstVisitResult =>
+    public visitArgumentList = (node: ctx.ArgumentListContext): AstVisitResult =>
         node.argument().flatMap((argument, index) => this.visitArgument(argument, index));
 
-    private visitArgument(node: ArgumentContext, index: number): AstVisitResult {
+    private visitArgument(node: ctx.ArgumentContext, index: number): AstVisitResult {
         return [
             {
                 kind: "argument",
@@ -575,7 +513,7 @@ export class CommonAstBuilder {
         ];
     }
 
-    private buildParameters(node: FunctionDeclContext): AstParameter[] {
+    private buildParameters(node: ctx.FunctionDeclContext): AstParameter[] {
         const parameters: AstParameter[] = [];
 
         for (const [index, param] of node.paramList()?.param().entries() ?? []) {
@@ -601,7 +539,7 @@ export class CommonAstBuilder {
         return parameters;
     }
 
-    public visitFunctionCall = (node: FunctionCallContext): AstVisitResult => {
+    public visitFunctionCall = (node: ctx.FunctionCallContext): AstVisitResult => {
         const nameNode = node._fn_name;
         const name = parseFunctionName(node, node.argumentList()?.argument().length);
         if (nameNode === undefined) {
@@ -621,7 +559,7 @@ export class CommonAstBuilder {
         ];
     };
 
-    public visitNamedFunctionRef = (node: NamedFunctionRefContext): AstVisitResult => {
+    public visitNamedFunctionRef = (node: ctx.NamedFunctionRefContext): AstVisitResult => {
         const nameNode = node._fn_name;
         const arity = Number.parseInt(
             node._arity?.text ?? node.IntegerLiteral()?.getText() ?? "",
@@ -642,7 +580,7 @@ export class CommonAstBuilder {
     };
 
     private buildCatchClause(
-        node: CatchCaseStatementContext | CatchClauseContext,
+        node: ctx.CatchCaseStatementContext | ctx.CatchClauseContext,
         bodyStart: TerminalNode | null | undefined,
         body: ParseTree | null | undefined,
     ): AstVisitResult {

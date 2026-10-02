@@ -1,6 +1,5 @@
 import { ParserRuleContext, TerminalNode, type ParseTree, type Token } from "antlr4ng";
-import type * as jsoniq from "server/parser/adapters/jsoniq/grammar/JsoniqParser.js";
-import type * as xquery from "server/parser/adapters/xquery/grammar/XQueryParser.js";
+import type * as ctx from "server/parser/context.js";
 
 import type { FormatterContext } from "../context.js";
 import {
@@ -21,36 +20,6 @@ import { formatTokenSeparatedDocs } from "./tokens.js";
 type SourceTerminal = TerminalNode | TerminalNode[] | Token | null | undefined;
 type FormatTerminal = (terminal: SourceTerminal, expectedToken: number | string) => Doc;
 type Visit = (node: ParseTree | null | undefined) => Doc;
-
-type BoundarySpaceDeclaration = jsoniq.BoundarySpaceDeclContext | xquery.BoundarySpaceDeclContext;
-type FunctionDeclaration = jsoniq.FunctionDeclContext | xquery.FunctionDeclContext;
-type VariableDeclaration = jsoniq.VarDeclContext | xquery.VarDeclContext;
-type IfExpression = jsoniq.IfExprContext | xquery.IfExprContext;
-type TryCatchExpression = jsoniq.TryCatchExprContext | xquery.TryCatchExprContext;
-type PairConstructor = jsoniq.PairConstructorContext | xquery.PairConstructorContext;
-type Predicate = jsoniq.PredicateContext | xquery.PredicateContext;
-type VariableName =
-    | jsoniq.VarRefContext
-    | jsoniq.VarBindingContext
-    | xquery.VarRefContext
-    | xquery.VarBindingContext;
-type EnclosedExpression = jsoniq.EnclosedExpressionContext | xquery.EnclosedExpressionContext;
-type SequenceType = jsoniq.SequenceTypeContext | xquery.SequenceTypeContext;
-type CatchClause = jsoniq.CatchClauseContext | xquery.CatchClauseContext;
-type SwitchExpression = jsoniq.SwitchExprContext | xquery.SwitchExprContext;
-type SwitchCaseClause = jsoniq.SwitchCaseClauseContext | xquery.SwitchCaseClauseContext;
-type TypeswitchExpression = jsoniq.TypeswitchExprContext | xquery.TypeswitchExprContext;
-type CaseClause = jsoniq.CaseClauseContext | xquery.CaseClauseContext;
-type LibraryModule = jsoniq.LibraryModuleContext | xquery.LibraryModuleContext;
-type MainModule = jsoniq.MainModuleContext | xquery.MainModuleContext;
-type Prolog = jsoniq.PrologContext | xquery.PrologContext;
-type AnnotatedDeclaration = jsoniq.AnnotatedDeclContext | xquery.AnnotatedDeclContext;
-type ParameterList = jsoniq.ParamListContext | xquery.ParamListContext;
-type Parameter = jsoniq.ParamContext | xquery.ParamContext;
-type Annotations = jsoniq.AnnotationsContext | xquery.AnnotationsContext;
-type Annotation = jsoniq.AnnotationContext | xquery.AnnotationContext;
-
-type QueryModule = jsoniq.ModuleContext | xquery.ModuleContext;
 
 interface PrologRuleTypes {
     readonly RULE_moduleImport: number;
@@ -81,7 +50,7 @@ export function formatDocumentRoot(context: FormatterContext, body: Doc): Doc {
 }
 
 export function formatModule(
-    node: QueryModule,
+    node: ctx.ModuleContext,
     languageTerminal: SourceTerminal,
     languageName: string,
     visit: Visit,
@@ -122,7 +91,7 @@ export function formatModule(
 }
 
 export function formatParameterList(
-    node: ParameterList,
+    node: ctx.ParamListContext,
     commaTokenType: number,
     visit: Visit,
     formatTerminal: FormatTerminal,
@@ -135,7 +104,7 @@ export function formatParameterList(
 }
 
 export function formatParameter(
-    node: Parameter,
+    node: ctx.ParamContext,
     visit: Visit,
     formatTerminal: FormatTerminal,
 ): Doc {
@@ -146,12 +115,12 @@ export function formatParameter(
         : parameter;
 }
 
-export function formatAnnotations(node: Annotations, visit: Visit): Doc {
+export function formatAnnotations(node: ctx.AnnotationsContext, visit: Visit): Doc {
     return join(space, node.annotation().map(visit));
 }
 
 export function formatAnnotation(
-    node: Annotation,
+    node: ctx.AnnotationContext,
     commaTokenType: number,
     visit: Visit,
     formatTerminal: FormatTerminal,
@@ -173,7 +142,7 @@ export function formatAnnotation(
 
 export function formatBoundarySpaceDeclaration(
     context: FormatterContext,
-    node: BoundarySpaceDeclaration,
+    node: ctx.BoundarySpaceDeclContext,
     formatTerminal: FormatTerminal,
 ): Doc {
     const isPreserve = node.KW_PRESERVE() !== null;
@@ -192,7 +161,7 @@ export function formatBoundarySpaceDeclaration(
 }
 
 export function formatLibraryModule(
-    node: LibraryModule,
+    node: ctx.LibraryModuleContext,
     visit: Visit,
     formatTerminal: FormatTerminal,
 ): Doc {
@@ -212,7 +181,7 @@ export function formatLibraryModule(
     return prolog.kind !== "text" ? concat([header, hardline, hardline, prolog]) : header;
 }
 
-export function formatMainModule(node: MainModule, visit: Visit): Doc {
+export function formatMainModule(node: ctx.MainModuleContext, visit: Visit): Doc {
     const prolog = visit(node.prolog());
     const program = visit(node.program());
     if (prolog.kind !== "text" && program.kind !== "text") {
@@ -223,7 +192,7 @@ export function formatMainModule(node: MainModule, visit: Visit): Doc {
 
 export function formatProlog(
     context: FormatterContext,
-    node: Prolog,
+    node: ctx.PrologContext,
     rules: PrologRuleTypes,
     visit: Visit,
 ): Doc {
@@ -296,7 +265,7 @@ function findDeclarationType(node: ParseTree, rules: PrologRuleTypes): Declarati
     return "other";
 }
 
-export function formatAnnotatedDeclaration(node: AnnotatedDeclaration, visit: Visit): Doc {
+export function formatAnnotatedDeclaration(node: ctx.AnnotatedDeclContext, visit: Visit): Doc {
     const parts: Doc[] = [];
     for (let index = 0; index < node.getChildCount(); index++) {
         const child = node.getChild(index);
@@ -311,7 +280,7 @@ export function formatAnnotatedDeclaration(node: AnnotatedDeclaration, visit: Vi
 }
 
 export function formatFunctionDeclaration(
-    node: FunctionDeclaration,
+    node: ctx.FunctionDeclContext,
     visit: Visit,
     formatTerminal: FormatTerminal,
 ): Doc {
@@ -370,7 +339,7 @@ export function formatFunctionDeclaration(
 }
 
 export function formatVariableDeclaration(
-    node: VariableDeclaration,
+    node: ctx.VarDeclContext,
     visit: Visit,
     formatTerminal: FormatTerminal,
 ): Doc {
@@ -400,7 +369,7 @@ export function formatVariableDeclaration(
 }
 
 export function formatIfExpression(
-    node: IfExpression,
+    node: ctx.IfExprContext,
     visit: Visit,
     formatTerminal: FormatTerminal,
 ): Doc {
@@ -417,7 +386,7 @@ export function formatIfExpression(
 }
 
 export function formatTryCatchExpression(
-    node: TryCatchExpression,
+    node: ctx.TryCatchExprContext,
     visit: Visit,
     formatTerminal: FormatTerminal,
 ): Doc {
@@ -431,7 +400,7 @@ export function formatTryCatchExpression(
 }
 
 export function formatPairConstructor(
-    node: PairConstructor,
+    node: ctx.PairConstructorContext,
     visit: Visit,
     formatTerminal: FormatTerminal,
 ): Doc {
@@ -439,7 +408,7 @@ export function formatPairConstructor(
 }
 
 export function formatPredicate(
-    node: Predicate,
+    node: ctx.PredicateContext,
     visit: Visit,
     formatTerminal: FormatTerminal,
 ): Doc {
@@ -451,7 +420,7 @@ export function formatPredicate(
 }
 
 export function formatVariableName(
-    node: VariableName,
+    node: ctx.VariableNameContext,
     visit: Visit,
     formatTerminal: FormatTerminal,
 ): Doc {
@@ -459,7 +428,7 @@ export function formatVariableName(
 }
 
 export function formatEnclosedExpression(
-    node: EnclosedExpression,
+    node: ctx.EnclosedExpressionContext,
     visit: Visit,
     formatTerminal: FormatTerminal,
 ): Doc {
@@ -471,7 +440,7 @@ export function formatEnclosedExpression(
 }
 
 export function formatSequenceType(
-    node: SequenceType,
+    node: ctx.SequenceTypeContext,
     visit: Visit,
     formatTerminal: FormatTerminal,
 ): Doc {
@@ -495,7 +464,7 @@ export function formatSequenceType(
 }
 
 export function formatCatchClause(
-    node: CatchClause,
+    node: ctx.CatchClauseContext,
     visit: Visit,
     formatTerminal: FormatTerminal,
 ): Doc {
@@ -519,7 +488,7 @@ export function formatCatchClause(
 }
 
 export function formatSwitchExpression(
-    node: SwitchExpression,
+    node: ctx.SwitchExprContext,
     visit: Visit,
     formatTerminal: FormatTerminal,
 ): Doc {
@@ -555,7 +524,7 @@ export function formatSwitchExpression(
 }
 
 export function formatSwitchCaseClause(
-    node: SwitchCaseClause,
+    node: ctx.SwitchCaseClauseContext,
     visit: Visit,
     formatTerminal: FormatTerminal,
 ): Doc {
@@ -575,7 +544,7 @@ export function formatSwitchCaseClause(
 }
 
 export function formatTypeswitchExpression(
-    node: TypeswitchExpression,
+    node: ctx.TypeswitchExprContext,
     visit: Visit,
     formatTerminal: FormatTerminal,
 ): Doc {
@@ -613,7 +582,7 @@ export function formatTypeswitchExpression(
 }
 
 export function formatCaseClause(
-    node: CaseClause,
+    node: ctx.CaseClauseContext,
     visit: Visit,
     formatTerminal: FormatTerminal,
 ): Doc {

@@ -1,6 +1,5 @@
 import type { ParseTree, TerminalNode, Token } from "antlr4ng";
-import type * as jsoniq from "server/parser/adapters/jsoniq/grammar/JsoniqParser.js";
-import type * as xquery from "server/parser/adapters/xquery/grammar/XQueryParser.js";
+import type * as ctx from "server/parser/context.js";
 
 import { composeTokenDoc, type TokenDoc } from "../context.js";
 import { concat, type Doc, group, hardline, indent, line, softline, space } from "../doc.js";
@@ -11,18 +10,6 @@ type SourceTerminal = TerminalNode | TerminalNode[] | Token | null | undefined;
 type FormatTerminal = (terminal: SourceTerminal, expectedToken: number | string) => Doc;
 type FormatToken = (terminal: SourceTerminal, expectedToken: number | string) => TokenDoc;
 type Visit = (node: ParseTree | null | undefined) => Doc;
-
-type SquareArrayConstructor =
-    | jsoniq.SquareArrayConstructorContext
-    | xquery.SquareArrayConstructorContext;
-type CurlyArrayConstructor =
-    | jsoniq.CurlyArrayConstructorContext
-    | xquery.CurlyArrayConstructorContext;
-type PostfixExpression = jsoniq.PostfixExprContext | xquery.PostfixExprContext;
-type ParenthesizedExpression = jsoniq.ParenthesizedExprContext | xquery.ParenthesizedExprContext;
-type FunctionCall = jsoniq.FunctionCallContext | xquery.FunctionCallContext;
-type ArgumentList = jsoniq.ArgumentListContext | xquery.ArgumentListContext;
-type Argument = jsoniq.ArgumentContext | xquery.ArgumentContext;
 
 export function formatPairObjectConstructor(
     firstToken: TokenDoc,
@@ -55,7 +42,7 @@ export function formatPairObjectConstructor(
 }
 
 export function formatSquareArrayConstructor(
-    node: SquareArrayConstructor,
+    node: ctx.SquareArrayConstructorContext,
     commaTokenType: number,
     visit: Visit,
     formatToken: FormatToken,
@@ -85,7 +72,7 @@ export function formatSquareArrayConstructor(
 }
 
 export function formatCurlyArrayConstructor(
-    node: CurlyArrayConstructor,
+    node: ctx.CurlyArrayConstructorContext,
     visit: Visit,
     formatTerminal: FormatTerminal,
 ): Doc {
@@ -96,7 +83,7 @@ export function formatCurlyArrayConstructor(
     ]);
 }
 
-export function formatPostfixExpression(node: PostfixExpression, visit: Visit): Doc {
+export function formatPostfixExpression(node: ctx.PostfixExprContext, visit: Visit): Doc {
     const parts: Doc[] = [];
     for (let index = 0; index < node.getChildCount(); index++) {
         parts.push(visit(node.getChild(index)));
@@ -136,7 +123,7 @@ function formatParenthesizedList(
 }
 
 export function formatParenthesizedExpression(
-    node: ParenthesizedExpression,
+    node: ctx.ParenthesizedExprContext,
     commaTokenType: number,
     visit: Visit,
     formatTerminal: FormatTerminal,
@@ -156,12 +143,12 @@ export function formatParenthesizedExpression(
     );
 }
 
-export function formatFunctionCall(node: FunctionCall, visit: Visit): Doc {
+export function formatFunctionCall(node: ctx.FunctionCallContext, visit: Visit): Doc {
     return concat([visit(node._fn_name), visit(node.argumentList())]);
 }
 
 export function formatArgumentList(
-    node: ArgumentList,
+    node: ctx.ArgumentListContext,
     commaTokenType: number,
     visit: Visit,
     formatTerminal: FormatTerminal,
@@ -175,7 +162,11 @@ export function formatArgumentList(
     );
 }
 
-export function formatArgument(node: Argument, visit: Visit, formatTerminal: FormatTerminal): Doc {
+export function formatArgument(
+    node: ctx.ArgumentContext,
+    visit: Visit,
+    formatTerminal: FormatTerminal,
+): Doc {
     return node.QUESTION() !== null
         ? formatTerminal(node.QUESTION(), "?")
         : visit(node.exprSingle());

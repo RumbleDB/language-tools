@@ -1,6 +1,5 @@
 import type { ParseTree, ParserRuleContext, TerminalNode, Token } from "antlr4ng";
-import type * as jsoniq from "server/parser/adapters/jsoniq/grammar/JsoniqParser.js";
-import type * as xquery from "server/parser/adapters/xquery/grammar/XQueryParser.js";
+import type * as ctx from "server/parser/context.js";
 
 import { concat, type Doc, group, NIL, space } from "../doc.js";
 import { formatFlworExpressionDoc } from "../helpers.js";
@@ -10,20 +9,8 @@ type SourceTerminal = TerminalNode | TerminalNode[] | Token | null | undefined;
 type FormatTerminal = (terminal: SourceTerminal, expectedToken: number | string) => Doc;
 type Visit = (node: ParseTree | null | undefined) => Doc;
 
-type FlworExpression = jsoniq.FlworExprContext | xquery.FlworExprContext;
-type ForClause = jsoniq.ForClauseContext | xquery.ForClauseContext;
-type ForVariable = jsoniq.ForVarContext | xquery.ForVarContext;
-type LetClause = jsoniq.LetClauseContext | xquery.LetClauseContext;
-type LetVariable = jsoniq.LetVarContext | xquery.LetVarContext;
-type WhereClause = jsoniq.WhereClauseContext | xquery.WhereClauseContext;
-type GroupByClause = jsoniq.GroupByClauseContext | xquery.GroupByClauseContext;
-type GroupByVariable = jsoniq.GroupByVarContext | xquery.GroupByVarContext;
-type OrderByClause = jsoniq.OrderByClauseContext | xquery.OrderByClauseContext;
-type CountClause = jsoniq.CountClauseContext | xquery.CountClauseContext;
-type ExpressionSequence = jsoniq.ExprContext | xquery.ExprContext;
-
 export function formatFlworExpression(
-    node: FlworExpression,
+    node: ctx.FlworExprContext,
     visit: Visit,
     formatTerminal: FormatTerminal,
 ): Doc {
@@ -60,7 +47,7 @@ function formatCommaSeparatedChildren(
 }
 
 export function formatForClause(
-    node: ForClause,
+    node: ctx.ForClauseContext,
     commaTokenType: number,
     visit: Visit,
     formatTerminal: FormatTerminal,
@@ -75,7 +62,7 @@ export function formatForClause(
 }
 
 export function formatForVariable(
-    node: ForVariable,
+    node: ctx.ForVarContext,
     visit: Visit,
     formatTerminal: FormatTerminal,
 ): Doc {
@@ -99,7 +86,7 @@ export function formatForVariable(
 }
 
 export function formatLetClause(
-    node: LetClause,
+    node: ctx.LetClauseContext,
     commaTokenType: number,
     visit: Visit,
     formatTerminal: FormatTerminal,
@@ -114,7 +101,7 @@ export function formatLetClause(
 }
 
 export function formatLetVariable(
-    node: LetVariable,
+    node: ctx.LetVarContext,
     visit: Visit,
     formatTerminal: FormatTerminal,
 ): Doc {
@@ -132,7 +119,7 @@ export function formatLetVariable(
 }
 
 export function formatWhereClause(
-    node: WhereClause,
+    node: ctx.WhereClauseContext,
     visit: Visit,
     formatTerminal: FormatTerminal,
 ): Doc {
@@ -140,7 +127,7 @@ export function formatWhereClause(
 }
 
 export function formatGroupByClause(
-    node: GroupByClause,
+    node: ctx.GroupByClauseContext,
     commaTokenType: number,
     visit: Visit,
     formatTerminal: FormatTerminal,
@@ -157,7 +144,7 @@ export function formatGroupByClause(
 }
 
 export function formatGroupByVariable(
-    node: GroupByVariable,
+    node: ctx.GroupByVarContext,
     visit: Visit,
     formatTerminal: FormatTerminal,
 ): Doc {
@@ -171,7 +158,7 @@ export function formatGroupByVariable(
 }
 
 export function formatOrderByClause(
-    node: OrderByClause,
+    node: ctx.OrderByClauseContext,
     commaTokenType: number,
     visit: Visit,
     formatTerminal: FormatTerminal,
@@ -192,7 +179,7 @@ export function formatOrderByClause(
 }
 
 export function formatCountClause(
-    node: CountClause,
+    node: ctx.CountClauseContext,
     visit: Visit,
     formatTerminal: FormatTerminal,
 ): Doc {
@@ -200,7 +187,7 @@ export function formatCountClause(
 }
 
 export function formatExpressionSequence(
-    node: ExpressionSequence,
+    node: ctx.ExprContext,
     commaTokenType: number,
     visit: Visit,
     formatTerminal: FormatTerminal,
