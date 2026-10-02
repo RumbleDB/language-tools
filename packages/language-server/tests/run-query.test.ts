@@ -44,7 +44,37 @@ describe("run query service", () => {
         const result = await runQuery(document, wrapper);
 
         expect(result.output).toBeNull();
-        expect(result.error).toBe("Syntax error");
+        expect(result.error).toEqual({
+            message: "Syntax error",
+            code: null,
+            location: null,
+            range: null,
+        });
+    });
+
+    it("preserves query error codes and source ranges from the wrapper", async () => {
+        const error = {
+            message: "Division by zero",
+            code: "FOAR0001",
+            location: "file:///library.jq",
+            range: { start: { line: 2, character: 4 }, end: { line: 2, character: 12 } },
+        };
+        const wrapper = createMockWrapperClient({
+            sendRequest: vi.fn().mockResolvedValue({ body: { output: null, error } }),
+        });
+        const result = await runQueryFromSource("file:///test.jq", "1 div 0", wrapper);
+        expect(result).toEqual({ output: null, error });
+    });
+
+    it("returns a structured error when no source or URI is provided", async () => {
+        const wrapper = createMockWrapperClient();
+        const result = await runQueryFromSource(undefined, undefined, wrapper);
+        expect(result.error).toEqual({
+            message: "No source or document URI provided for run-query.",
+            code: null,
+            location: null,
+            range: null,
+        });
     });
 
     it("allows running query directly from source and URI", async () => {
@@ -102,7 +132,7 @@ describe("run query service", () => {
         const result = await runQueryFromSource("file:///test.jq", "1", wrapper, controller.signal);
 
         expect(result.output).toBeNull();
-        expect(result.error).toBe("This operation was aborted");
+        expect(result.error?.message).toBe("This operation was aborted");
     });
 
     it("returns an error result when the signal is aborted mid-flight", async () => {
@@ -132,6 +162,6 @@ describe("run query service", () => {
         const result = await resultPromise;
 
         expect(result.output).toBeNull();
-        expect(result.error).toBe("This operation was aborted");
+        expect(result.error?.message).toBe("This operation was aborted");
     });
 });

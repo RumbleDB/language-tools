@@ -26,16 +26,26 @@ export async function runQueryFromSource(
         const unavailableErr = client.getUnavailableError();
         return {
             output: null,
-            error: unavailableErr
-                ? `Rumble wrapper is unavailable: ${unavailableErr.message}`
-                : "Rumble wrapper is unavailable.",
+            error: {
+                message: unavailableErr
+                    ? `Rumble wrapper is unavailable: ${unavailableErr.message}`
+                    : "Rumble wrapper is unavailable.",
+                code: null,
+                location: null,
+                range: null,
+            },
         };
     }
 
     if (source === undefined && documentUri === undefined) {
         return {
             output: null,
-            error: "No source or document URI provided for run-query.",
+            error: {
+                message: "No source or document URI provided for run-query.",
+                code: null,
+                location: null,
+                range: null,
+            },
         };
     }
 
@@ -57,7 +67,7 @@ export async function runQueryFromSource(
         logger.warn(`Run-query failed for ${documentUri ?? "unknown URI"}: ${message}`);
         return {
             output: null,
-            error: message,
+            error: { message, code: null, location: null, range: null },
         };
     }
 }
