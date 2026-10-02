@@ -1,4 +1,4 @@
-import { createSignal } from "solid-js";
+import { createSignal, onCleanup } from "solid-js";
 
 /**
  * Copies the given text to the clipboard using the modern Web Clipboard API,
@@ -20,6 +20,10 @@ export async function copyToClipboard(text: string): Promise<boolean> {
 export function createCopyAction(durationMs = 2000) {
     const [copied, setCopied] = createSignal(false);
     let timer: ReturnType<typeof setTimeout> | undefined;
+
+    onCleanup(() => {
+        if (timer) clearTimeout(timer);
+    });
 
     const copy = async (text: string) => {
         const success = await copyToClipboard(text);
