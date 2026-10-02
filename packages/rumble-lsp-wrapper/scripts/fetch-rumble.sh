@@ -16,8 +16,7 @@ WRAPPER_RUMBLE_JAR_LINK="$WRAPPER_GENERATED_RESOURCES_DIR/rumbledb-current-jar-w
 WRAPPER_BUILD_STAMP="$WRAPPER_GENERATED_RESOURCES_DIR/rumble-build.stamp"
 
 RUMBLE_REPO_URL="https://github.com/RumbleDB/rumble.git"
-RUMBLE_REQUESTED_REF="jimmy/schema-lsp"
-RUMBLE_REQUESTED_COMMIT="05abaeb82b160a3297fbe9dda8982f9d3829a24b"
+RUMBLE_REQUESTED_COMMIT="e3746897ae035bfc0a5bef1e24509a3efddd09f8"
 RUMBLE_TARGET_DIR="$RUMBLE_DIR/target"
 RUMBLE_BUILD_CACHE_DIR="$WRAPPER_DIR/.cache/rumble/$RUMBLE_REQUESTED_COMMIT"
 
@@ -26,7 +25,7 @@ ensure_rumble_checkout() {
         echo "Initializing Rumble repository from $RUMBLE_REPO_URL..." >&2
         git init "$RUMBLE_DIR" >/dev/null
         git -C "$RUMBLE_DIR" remote add origin "$RUMBLE_REPO_URL"
-        echo "Fetching Rumble commit $RUMBLE_REQUESTED_COMMIT (ref: $RUMBLE_REQUESTED_REF)..." >&2
+        echo "Fetching Rumble commit $RUMBLE_REQUESTED_COMMIT..." >&2
         git -C "$RUMBLE_DIR" fetch --depth 1 origin "$RUMBLE_REQUESTED_COMMIT"
         git -C "$RUMBLE_DIR" checkout --detach FETCH_HEAD >/dev/null
         return
@@ -57,7 +56,6 @@ write_metadata_file() {
     mkdir -p "$(dirname "$metadata_file")"
     cat >"$metadata_file" <<EOF
 rumble.repoUrl=$RUMBLE_REPO_URL
-rumble.requestedRef=$RUMBLE_REQUESTED_REF
 rumble.requestedCommit=$RUMBLE_REQUESTED_COMMIT
 rumble.currentRef=$RUMBLE_CURRENT_REF
 rumble.version=$rumble_version
