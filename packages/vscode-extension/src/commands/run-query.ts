@@ -42,7 +42,7 @@ export function registerRunQueryCommand(
 
                     if (error) {
                         ResultsWebviewPanel.show(context.extensionUri, {
-                            fileUri: activeEditor.document.fileName,
+                            fileUri: uri,
                             error,
                             items: null,
                             durationMs,
@@ -54,7 +54,7 @@ export function registerRunQueryCommand(
                         );
                     } else {
                         ResultsWebviewPanel.show(context.extensionUri, {
-                            fileUri: activeEditor.document.fileName,
+                            fileUri: uri,
                             items: response.items,
                             durationMs,
                             timestamp,
@@ -66,7 +66,7 @@ export function registerRunQueryCommand(
                     const errorMsg = error instanceof Error ? error.message : String(error);
 
                     ResultsWebviewPanel.show(context.extensionUri, {
-                        fileUri: activeEditor.document.fileName,
+                        fileUri: uri,
                         error: { message: errorMsg, code: null, location: null, range: null },
                         items: null,
                         durationMs,

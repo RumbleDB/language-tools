@@ -39,7 +39,7 @@ export function App() {
     const fileName = () => {
         const uri = data()?.fileUri;
         if (!uri) return "Query Results";
-        return uri.split("/").pop() ?? uri;
+        return decodeURIComponent(uri.split("/").pop() ?? uri);
     };
 
     const isSuccess = () => {

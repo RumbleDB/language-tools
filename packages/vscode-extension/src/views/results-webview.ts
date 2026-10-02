@@ -10,16 +10,18 @@ import type {
 import { handleResultsMessage } from "./results-message-handler.js";
 
 export class ResultsWebviewPanel {
-    public static currentPanel: ResultsWebviewPanel | undefined;
+    private static readonly panels = new Map<string, ResultsWebviewPanel>();
     private readonly panel: vscode.WebviewPanel;
     private readonly extensionUri: vscode.Uri;
+    private readonly fileUri: string;
     private disposables: vscode.Disposable[] = [];
     private data: ExecutionResultData | undefined;
     private exporting = false;
 
-    private constructor(panel: vscode.WebviewPanel, extensionUri: vscode.Uri) {
+    private constructor(panel: vscode.WebviewPanel, extensionUri: vscode.Uri, fileUri: string) {
         this.panel = panel;
         this.extensionUri = extensionUri;
+        this.fileUri = fileUri;
 
         this.panel.onDidDispose(() => this.dispose(), null, this.disposables);
         const handlers = {
@@ -76,15 +78,16 @@ export class ResultsWebviewPanel {
             ? vscode.ViewColumn.Beside
             : vscode.ViewColumn.One;
 
-        if (ResultsWebviewPanel.currentPanel) {
-            ResultsWebviewPanel.currentPanel.panel.reveal(column);
-            ResultsWebviewPanel.currentPanel.update(data);
+        const existing = ResultsWebviewPanel.panels.get(data.fileUri);
+        if (existing) {
+            existing.panel.reveal(column);
+            existing.update(data);
             return;
         }
 
         const panel = vscode.window.createWebviewPanel(
             "jsoniqResults",
-            `Execution Results - ${data.fileUri}`,
+            `Execution Results - ${vscode.Uri.parse(data.fileUri).path.split("/").pop()}`,
             column,
             {
                 enableScripts: true,
@@ -93,8 +96,9 @@ export class ResultsWebviewPanel {
             },
         );
 
-        ResultsWebviewPanel.currentPanel = new ResultsWebviewPanel(panel, extensionUri);
-        ResultsWebviewPanel.currentPanel.update(data);
+        const results = new ResultsWebviewPanel(panel, extensionUri, data.fileUri);
+        ResultsWebviewPanel.panels.set(data.fileUri, results);
+        results.update(data);
     }
 
     private async exportResults(params: ExportResultsRequest): Promise<void> {
@@ -115,11 +119,7 @@ export class ResultsWebviewPanel {
             if (!format) return;
             const extension = format.format === "csv" ? "csv" : "txt";
             const source = this.data?.fileUri;
-            const sourceUri = source
-                ? source.startsWith("file:")
-                    ? vscode.Uri.parse(source)
-                    : vscode.Uri.file(source)
-                : undefined;
+            const sourceUri = source ? vscode.Uri.parse(source) : undefined;
             const name =
                 sourceUri?.path
                     .split("/")
@@ -160,8 +160,7 @@ export class ResultsWebviewPanel {
     }
 
     private dispose(): void {
-        ResultsWebviewPanel.currentPanel = undefined;
-        this.panel.dispose();
+        ResultsWebviewPanel.panels.delete(this.fileUri);
         while (this.disposables.length) {
             const d = this.disposables.pop();
             if (d) {
