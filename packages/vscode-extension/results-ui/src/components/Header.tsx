@@ -6,6 +6,10 @@ interface HeaderProps {
     hasItems: boolean;
     viewMode: "table" | "raw";
     onViewModeChange: (mode: "table" | "raw") => void;
+    durationMs: number;
+    rowCount: number;
+    copied: boolean;
+    onCopy: () => void;
 }
 
 const VIEW_MODES = [
@@ -32,6 +36,19 @@ export function Header(props: HeaderProps) {
                         Failed
                     </span>
                 </Show>
+                <Show when={props.isSuccess}>
+                    <div class="w-px h-3.5 bg-outline-variant shrink-0" />
+                    <div class="flex items-center gap-2.5 text-secondary shrink-0">
+                        <span class="flex items-center gap-1 text-2xs">
+                            <span class="i-iconoir-timer text-xs" />
+                            {props.durationMs}ms
+                        </span>
+                        <span class="flex items-center gap-1 text-2xs">
+                            <span class="i-iconoir-table-rows text-xs" />
+                            {props.rowCount} rows
+                        </span>
+                    </div>
+                </Show>
             </div>
 
             <div class="flex items-center gap-2 shrink-0">
@@ -53,6 +70,22 @@ export function Header(props: HeaderProps) {
                             )}
                         </For>
                     </div>
+
+                    <div class="w-px h-3.5 bg-outline-variant" />
+
+                    <button
+                        onClick={props.onCopy}
+                        class="px-2 py-0.5 text-on-surface hover:bg-surface-variant rounded transition-colors flex items-center gap-1 cursor-pointer font-sans text-2xs"
+                    >
+                        <span
+                            class={
+                                props.copied
+                                    ? "i-iconoir-check text-xs text-success"
+                                    : "i-iconoir-copy text-xs"
+                            }
+                        />
+                        {props.copied ? "Copied" : "Copy"}
+                    </button>
                 </Show>
             </div>
         </header>

@@ -283,6 +283,10 @@ export function App() {
                             hasItems={parsedItems().length > 0}
                             viewMode={viewMode()}
                             onViewModeChange={setViewMode}
+                            durationMs={res().durationMs}
+                            rowCount={parsedItems().length}
+                            copied={copied()}
+                            onCopy={copyOutput}
                         />
 
                         <main class="flex-1 flex flex-col bg-surface overflow-hidden relative w-full">
@@ -313,21 +317,16 @@ export function App() {
                                             onGlobalFilterChange={setGlobalFilter}
                                             totalRows={tableData().length}
                                         />
+                                        <Footer
+                                            table={table}
+                                            pageSize={pagination().pageSize}
+                                            onPageSizeChange={(size) => table.setPageSize(size)}
+                                        />
                                     </Show>
 
                                     <Show when={viewMode() === "raw"}>
                                         <RawView output={res().output ?? ""} />
                                     </Show>
-
-                                    <Footer
-                                        durationMs={res().durationMs}
-                                        rowCount={parsedItems().length}
-                                        table={table}
-                                        pageSize={pagination().pageSize}
-                                        onPageSizeChange={(size) => table.setPageSize(size)}
-                                        copied={copied()}
-                                        onCopy={copyOutput}
-                                    />
                                 </Show>
                             </Show>
                         </main>
