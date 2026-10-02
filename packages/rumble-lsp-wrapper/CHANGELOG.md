@@ -1,5 +1,39 @@
 # rumble-lsp-wrapper
 
+## 0.9.0
+
+### Minor Changes
+
+- [#72](https://github.com/RumbleDB/language-tools/pull/72) [`98ef780`](https://github.com/RumbleDB/language-tools/commit/98ef78007234cd7fb428f8e5d39ddefff6d16dd6) - Add completion, hover, and signature help for built-in XML Schema constructors, like `xs:integer("2")`
+
+- [#70](https://github.com/RumbleDB/language-tools/pull/70) [`b7e13ad`](https://github.com/RumbleDB/language-tools/commit/b7e13adc45d69f6ce334c3710c321b9e2cb3cd9f) - feat: upgrade RumbleDB to latest master commit cea0355
+  
+  See https://github.com/RumbleDB/rumble/compare/02f5c8bbc9591da9935d6a0687cbb20b61b70827...cea035505f3133aa9f442bc23049460ea8424c5d for differences
+
+- [#81](https://github.com/RumbleDB/language-tools/pull/81) [`36d1ab1`](https://github.com/RumbleDB/language-tools/commit/36d1ab13da1bdbf7fae54ff3f748679fe59e9941) - Refactor query execution and results presentation across the stack:
+  
+  - **Rumble LSP Wrapper**: Return structured `QueryResultItem` objects preserving item type metadata (atomic, object, array, XML) in query responses.
+  - **Language Server**: Support typed query result items in the `jsoniq/runQuery` LSP protocol.
+  - **VS Code Extension & Results UI**:
+      - Improve Results UI with structured sequence and item presentation, including expandable nested objects and XML rendering.
+      - Simplify UI layout by consolidating execution metadata, copy, and export actions into the header bar.
+      - Clean up footer to focus strictly on pagination controls.
+      - Establish a type-safe message protocol between the results webview and the extension host.
+
+- [`3d3bb13`](https://github.com/RumbleDB/language-tools/commit/3d3bb135d9a257da220faf55b84a6d11f6480867) - refactor: enforce document URI requirement across run-query and type-checking operations
+
+- [#75](https://github.com/RumbleDB/language-tools/pull/75) [`a7a2205`](https://github.com/RumbleDB/language-tools/commit/a7a22054a8150c65725f01b258481a778289a1ed) - Add a schema catalog endpoint and client to load imported XML Schema types, constructor signatures, source files, and dependencies.
+
+- [#80](https://github.com/RumbleDB/language-tools/pull/80) [`1fc174a`](https://github.com/RumbleDB/language-tools/commit/1fc174ac61e5d139fcd35a820b2074570d67c8e4) - feat: return structured error information from RumbleDB and display it in the results webview
+
+- [`9fff54e`](https://github.com/RumbleDB/language-tools/commit/9fff54ee3c052230a2dc203079782fc08016be22) - refactor: replace VisitorHelpers with CompilationPipeline for module parsing
+
+- [#74](https://github.com/RumbleDB/language-tools/pull/74) [`1db8ed2`](https://github.com/RumbleDB/language-tools/commit/1db8ed2160d212fe5e9d0c08b83204e570439873) - feat(run-query): resolve query resources relative to the document URI, so queries that depend on relative paths can be resolved correctly.
+
+- [`27bddd6`](https://github.com/RumbleDB/language-tools/commit/27bddd69f2f061f3488814e14c740afea4b650cc) - chore: upgrade RumbleDB to master/34de0e03e4211e585061bf8e8d0128b62b825a23
+  
+  See https://github.com/RumbleDB/rumble/commit/34de0e03e4211e585061bf8e8d0128b62b825a23
+
 ## 0.8.0
 
 ### Minor Changes
