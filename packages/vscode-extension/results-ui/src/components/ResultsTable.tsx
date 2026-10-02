@@ -1,13 +1,9 @@
-import {
-    createTable,
-    type ColumnDef,
-    type SortingState,
-    type PaginationState,
-} from "@tanstack/solid-table";
+import { createTable, type ColumnDef, type SortingState } from "@tanstack/solid-table";
 import { createSignal, createMemo, createEffect, on } from "solid-js";
 
 import type { RunQueryItem } from "../types.js";
 import { itemPreview } from "../utils/item-presentation.js";
+import { createPagination } from "../utils/pagination.js";
 import {
     formatCell,
     projectTableRows,
@@ -56,10 +52,7 @@ function getContentWidth(rows: TData[], key: string, header = key): number {
 export function ResultsTable(props: ResultsTableProps) {
     const [globalFilter, setGlobalFilter] = createSignal("");
     const [sorting, setSorting] = createSignal<SortingState>([]);
-    const [pagination, setPagination] = createSignal<PaginationState>({
-        pageIndex: 0,
-        pageSize: 50,
-    });
+    const pagination = createPagination(() => table.getPrePaginatedRowModel().rows.length);
 
     createEffect(
         on(
@@ -68,7 +61,7 @@ export function ResultsTable(props: ResultsTableProps) {
                 setGlobalFilter("");
                 setSorting([]);
                 table.resetColumnSizing(true);
-                setPagination((previous) => ({ ...previous, pageIndex: 0 }));
+                pagination.reset();
             },
             { defer: true },
         ),
@@ -130,12 +123,12 @@ export function ResultsTable(props: ResultsTableProps) {
             return {
                 sorting: sorting(),
                 globalFilter: globalFilter(),
-                pagination: pagination(),
+                pagination: pagination.state(),
             };
         },
         onSortingChange: setSorting,
         onGlobalFilterChange: setGlobalFilter,
-        onPaginationChange: setPagination,
+        onPaginationChange: pagination.setState,
     });
 
     createEffect(() => {
@@ -159,9 +152,14 @@ export function ResultsTable(props: ResultsTableProps) {
                 onGlobalFilterChange={setGlobalFilter}
             />
             <Footer
-                table={table}
-                pageSize={pagination().pageSize}
-                onPageSizeChange={(size) => table.setPageSize(size)}
+                pageIndex={pagination.state().pageIndex}
+                pageCount={pagination.pageCount()}
+                pageSize={pagination.state().pageSize}
+                canPreviousPage={pagination.canPreviousPage()}
+                canNextPage={pagination.canNextPage()}
+                onPreviousPage={pagination.previousPage}
+                onNextPage={pagination.nextPage}
+                onPageSizeChange={pagination.setPageSize}
             />
         </>
     );

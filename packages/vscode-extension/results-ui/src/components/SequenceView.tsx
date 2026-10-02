@@ -1,48 +1,57 @@
-import { createEffect, createSignal, For, on, Show } from "solid-js";
+import { createEffect, createMemo, For, on } from "solid-js";
 
 import type { RunQueryItem } from "../types.js";
+import { createPagination } from "../utils/pagination.js";
+import { Footer } from "./Footer.js";
 import { ItemValue } from "./ItemValue.js";
 
-const PAGE_SIZE = 50;
-
 export function SequenceView(props: { items: RunQueryItem[] }) {
-    const [visibleCount, setVisibleCount] = createSignal(PAGE_SIZE);
-    createEffect(
-        on(
-            () => props.items,
-            () => setVisibleCount(PAGE_SIZE),
-        ),
+    const pagination = createPagination(() => props.items.length);
+    const startIndex = () => pagination.state().pageIndex * pagination.state().pageSize;
+    const pageItems = createMemo(() =>
+        props.items.slice(startIndex(), startIndex() + pagination.state().pageSize),
     );
+    let list!: HTMLDivElement;
+    createEffect(on(() => props.items, pagination.reset, { defer: true }));
+    createEffect(() => {
+        pageItems();
+        list.scrollTop = 0;
+    });
 
     return (
-        <div class="flex-1 overflow-auto p-3 sm:p-4">
-            <ol class="list-none m-0 p-0 divide-y divide-outline-variant">
-                <For each={props.items.slice(0, visibleCount())}>
-                    {(item, index) => (
-                        <li class="flex items-start gap-3 py-3">
-                            <span
-                                class="text-2xs leading-5 font-mono text-secondary tabular-nums shrink-0 min-w-6 text-right"
-                                title="Sequence position"
-                            >
-                                {index() + 1}
-                            </span>
-                            <ItemValue item={item} />
-                        </li>
-                    )}
-                </For>
-            </ol>
-            <Show when={visibleCount() < props.items.length}>
-                <button
-                    type="button"
-                    class="mt-3 px-3 py-1.5 rounded text-xs bg-surface-container text-on-surface border border-outline-variant cursor-pointer hover:bg-surface-variant"
-                    onClick={() => setVisibleCount((count) => count + PAGE_SIZE)}
-                >
-                    Show next {Math.min(PAGE_SIZE, props.items.length - visibleCount())} items
-                </button>
-                <span class="ml-3 text-2xs text-secondary">
-                    Showing {Math.min(visibleCount(), props.items.length)} of {props.items.length}
-                </span>
-            </Show>
-        </div>
+        <>
+            <div
+                ref={(element) => {
+                    list = element;
+                }}
+                class="flex-1 overflow-auto p-3 sm:p-4"
+            >
+                <ol class="list-none m-0 p-0 divide-y divide-outline-variant">
+                    <For each={pageItems()}>
+                        {(item, index) => (
+                            <li class="flex items-start gap-3 py-3">
+                                <span
+                                    class="text-2xs leading-5 font-mono text-secondary tabular-nums shrink-0 min-w-6 text-right"
+                                    title="Sequence position"
+                                >
+                                    {startIndex() + index() + 1}
+                                </span>
+                                <ItemValue item={item} />
+                            </li>
+                        )}
+                    </For>
+                </ol>
+            </div>
+            <Footer
+                pageIndex={pagination.state().pageIndex}
+                pageCount={pagination.pageCount()}
+                pageSize={pagination.state().pageSize}
+                canPreviousPage={pagination.canPreviousPage()}
+                canNextPage={pagination.canNextPage()}
+                onPreviousPage={pagination.previousPage}
+                onNextPage={pagination.nextPage}
+                onPageSizeChange={pagination.setPageSize}
+            />
+        </>
     );
 }

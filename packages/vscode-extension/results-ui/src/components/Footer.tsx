@@ -1,8 +1,11 @@
-import type { ResultsTableInstance } from "./table/model.js";
-
 interface FooterProps {
-    table: ResultsTableInstance;
+    pageIndex: number;
+    pageCount: number;
     pageSize: number;
+    canPreviousPage: boolean;
+    canNextPage: boolean;
+    onPreviousPage: () => void;
+    onNextPage: () => void;
     onPageSizeChange: (size: number) => void;
 }
 
@@ -11,24 +14,22 @@ export function Footer(props: FooterProps) {
         <footer class="bg-surface-container-low border-t border-outline-variant min-h-[32px] py-1 px-3 w-full shrink-0 flex items-center justify-between gap-3 flex-wrap text-xs z-10 box-border">
             <div class="flex items-center gap-1">
                 <button
-                    onClick={() => props.table.previousPage()}
-                    disabled={!props.table.getCanPreviousPage()}
+                    aria-label="Previous page"
+                    onClick={props.onPreviousPage}
+                    disabled={!props.canPreviousPage}
                     class="p-1 hover:bg-surface-variant rounded transition-colors disabled:opacity-30 cursor-pointer flex items-center justify-center text-on-surface"
                 >
                     <span class="i-iconoir-nav-arrow-left text-sm" />
                 </button>
 
                 <span class="px-1 text-xs text-secondary font-medium">
-                    Page{" "}
-                    {props.table.getPageCount() > 0
-                        ? props.table.atoms.pagination.get().pageIndex + 1
-                        : 1}{" "}
-                    of {Math.max(props.table.getPageCount(), 1)}
+                    Page {props.pageIndex + 1} of {Math.max(props.pageCount, 1)}
                 </span>
 
                 <button
-                    onClick={() => props.table.nextPage()}
-                    disabled={!props.table.getCanNextPage()}
+                    aria-label="Next page"
+                    onClick={props.onNextPage}
+                    disabled={!props.canNextPage}
                     class="p-1 hover:bg-surface-variant rounded transition-colors disabled:opacity-30 cursor-pointer flex items-center justify-center text-on-surface"
                 >
                     <span class="i-iconoir-nav-arrow-right text-sm" />
@@ -38,6 +39,7 @@ export function Footer(props: FooterProps) {
             <div class="flex items-center gap-1.5 text-secondary">
                 <span class="text-2xs">Show:</span>
                 <select
+                    aria-label="Items per page"
                     value={props.pageSize}
                     onChange={(e) => {
                         const size = Number(e.currentTarget.value);
