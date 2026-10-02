@@ -15,6 +15,12 @@ export function formatItem(item: RunQueryItem): string {
 
 export type ResultTableRow = Record<string, RunQueryItem[]>;
 
+export interface ResultSelection {
+    items: RunQueryItem[];
+    rows: ResultTableRow[];
+    columns: string[];
+}
+
 export function formatCell(items: RunQueryItem[] | undefined): string {
     if (items === undefined) return "—";
     if (items.length === 0) return "()";
@@ -32,7 +38,10 @@ export function projectTableRows(items: readonly RunQueryItem[]) {
         }
         return row;
     });
-    return { objects, rows };
+    const columns = objects
+        ? Array.from(new Set(rows.flatMap((row) => Object.keys(row))))
+        : ["value"];
+    return { objects, rows, columns };
 }
 
 /** Source indexes stay stable through sorting/filtering; include every matching page. */

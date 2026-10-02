@@ -1,14 +1,13 @@
 import { FlexRender } from "@tanstack/solid-table";
-import { For, Show, type JSX } from "solid-js";
+import { For, Show } from "solid-js";
 
 import type { ResultsTableInstance } from "./table/model.js";
 
 interface TableProps {
     table: ResultsTableInstance;
+    totalRows: number;
     globalFilter: string;
     onGlobalFilterChange: (value: string) => void;
-    totalRows: number;
-    actions?: JSX.Element;
 }
 
 export function TableView(props: TableProps) {
@@ -35,13 +34,10 @@ export function TableView(props: TableProps) {
                         </button>
                     </Show>
                 </div>
-                <div class="flex items-center gap-3 flex-wrap">
-                    {props.actions}
-                    <span class="text-xs text-secondary shrink-0">
-                        Showing {props.table.getFilteredRowModel().rows.length} of {props.totalRows}{" "}
-                        rows
-                    </span>
-                </div>
+                <span class="text-xs text-secondary shrink-0">
+                    Showing {props.table.getFilteredRowModel().rows.length} of {props.totalRows}{" "}
+                    rows
+                </span>
             </div>
 
             {/* Data Table Container with Horizontal & Vertical Overflow */}

@@ -9,6 +9,7 @@ export function ResultActions(props: {
     items: RunQueryItem[];
     rows: ResultTableRow[];
     columns: string[];
+    tableView: boolean;
 }) {
     const { copy, copied } = createCopyAction();
     const [error, setError] = createSignal("");
@@ -40,19 +41,25 @@ export function ResultActions(props: {
                 type="button"
                 disabled={disabled()}
                 onClick={copyRows}
-                title="Copy all matching rows in sort order, across every page"
+                title={
+                    props.tableView
+                        ? "Copy all matching rows in sort order, across every page"
+                        : "Copy the entire result sequence in its original order"
+                }
                 class="px-2 py-1 text-xs flex items-center gap-1 rounded hover:bg-surface-variant cursor-pointer disabled:opacity-30"
             >
                 <span class={copied() ? "i-iconoir-check text-success" : "i-iconoir-copy"} />
-                {copied()
-                    ? "Copied"
-                    : `Copy ${props.items.length} row${props.items.length === 1 ? "" : "s"}`}
+                {copied() ? "Copied" : "Copy"}
             </button>
             <button
                 type="button"
                 disabled={disabled()}
                 onClick={exportRows}
-                title="Export all matching rows in sort order, across every page"
+                title={
+                    props.tableView
+                        ? "Export all matching rows in sort order, across every page"
+                        : "Export the entire result sequence in its original order"
+                }
                 class="px-2 py-1 text-xs rounded hover:bg-surface-variant cursor-pointer disabled:opacity-30"
             >
                 Export…

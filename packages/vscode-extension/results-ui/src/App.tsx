@@ -3,12 +3,11 @@ import { createSignal, onMount, onCleanup, createMemo, Show } from "solid-js";
 import { ErrorView } from "./components/ErrorView.js";
 import { Header } from "./components/Header.js";
 import { RawView } from "./components/RawView.js";
+import { ResultActions } from "./components/ResultActions.js";
 import { ResultsTable } from "./components/ResultsTable.js";
 import { SequenceView } from "./components/SequenceView.js";
 import type { ExecutionResultData, ViewMode } from "./types.js";
-import { createCopyAction } from "./utils/clipboard.js";
-import { formatError } from "./utils/format-error.js";
-import { formatRawOutput } from "./utils/result-items.js";
+import { projectTableRows, type ResultSelection } from "./utils/result-items.js";
 import { vscode } from "./vscode.js";
 
 declare global {
@@ -19,7 +18,7 @@ declare global {
 
 export function App() {
     const [data, setData] = createSignal<ExecutionResultData | undefined>(window.__INITIAL_DATA__);
-    const { copied, copy } = createCopyAction();
+    const [tableSelection, setTableSelection] = createSignal<ResultSelection>();
     const [viewMode, setViewMode] = createSignal<ViewMode>("inspect");
 
     onMount(() => {
@@ -30,13 +29,13 @@ export function App() {
         );
     });
 
-    const copyOutput = () => {
-        const d = data();
-        if (!d) return;
-        copy(d.error ? formatError(d.error, d.fileUri) : formatRawOutput(d.items ?? []));
-    };
-
     const resultItems = createMemo(() => data()?.items ?? []);
+    const fullSelection = createMemo(() => ({
+        items: resultItems(),
+        ...projectTableRows(resultItems()),
+    }));
+    const actionSelection = () =>
+        viewMode() === "table" ? (tableSelection() ?? fullSelection()) : fullSelection();
     const fileName = () => {
         const uri = data()?.fileUri;
         if (!uri) return "Query Results";
@@ -64,8 +63,14 @@ export function App() {
                             onViewModeChange={setViewMode}
                             durationMs={res().durationMs}
                             rowCount={resultItems().length}
-                            copied={copied()}
-                            onCopy={copyOutput}
+                            actions={
+                                <ResultActions
+                                    items={actionSelection().items}
+                                    rows={actionSelection().rows}
+                                    columns={actionSelection().columns}
+                                    tableView={viewMode() === "table"}
+                                />
+                            }
                         />
 
                         <main class="flex-1 flex flex-col bg-surface overflow-hidden relative w-full">
@@ -100,7 +105,10 @@ export function App() {
                                         class="flex-1 flex flex-col overflow-hidden"
                                         classList={{ hidden: viewMode() !== "table" }}
                                     >
-                                        <ResultsTable items={res().items!} />
+                                        <ResultsTable
+                                            items={res().items!}
+                                            onSelectionChange={setTableSelection}
+                                        />
                                     </div>
 
                                     <Show when={viewMode() === "raw"}>

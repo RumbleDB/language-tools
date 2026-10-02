@@ -1,4 +1,4 @@
-import { For, Show } from "solid-js";
+import { For, Show, type JSX } from "solid-js";
 
 import type { ViewMode } from "../types.js";
 
@@ -10,8 +10,7 @@ interface HeaderProps {
     onViewModeChange: (mode: ViewMode) => void;
     durationMs: number;
     rowCount: number;
-    copied: boolean;
-    onCopy: () => void;
+    actions: JSX.Element;
 }
 
 const VIEW_MODES = [
@@ -77,20 +76,7 @@ export function Header(props: HeaderProps) {
 
                     <div class="w-px h-3.5 bg-outline-variant" />
 
-                    <button
-                        onClick={props.onCopy}
-                        title="Copy the entire result sequence in its original order"
-                        class="px-2 py-0.5 text-on-surface hover:bg-surface-variant rounded transition-colors flex items-center gap-1 cursor-pointer font-sans text-2xs"
-                    >
-                        <span
-                            class={
-                                props.copied
-                                    ? "i-iconoir-check text-xs text-success"
-                                    : "i-iconoir-copy text-xs"
-                            }
-                        />
-                        {props.copied ? "Copied" : "Copy all"}
-                    </button>
+                    {props.actions}
                 </Show>
             </div>
         </header>

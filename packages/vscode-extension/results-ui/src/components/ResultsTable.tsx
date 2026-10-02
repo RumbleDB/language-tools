@@ -7,15 +7,20 @@ import {
 import { createSignal, createMemo, createEffect, on } from "solid-js";
 
 import type { RunQueryItem } from "../types.js";
-import { formatCell, projectTableRows, selectResultItems } from "../utils/result-items.js";
+import {
+    formatCell,
+    projectTableRows,
+    selectResultItems,
+    type ResultSelection,
+} from "../utils/result-items.js";
 import { CellValue } from "./CellValue.js";
 import { Footer } from "./Footer.js";
-import { ResultActions } from "./ResultActions.js";
 import { TableView } from "./Table.js";
 import { features, type TFeatures, type TData } from "./table/model.js";
 
 interface ResultsTableProps {
     items: RunQueryItem[];
+    onSelectionChange: (selection: ResultSelection) => void;
 }
 
 const INDEX_COLUMN: ColumnDef<TFeatures, TData> = {
@@ -63,10 +68,7 @@ export function ResultsTable(props: ResultsTableProps) {
     const resultItems = () => props.items;
     const projection = createMemo(() => projectTableRows(resultItems()));
     const tableData = () => projection().rows;
-    const columnKeys = () =>
-        projection().objects
-            ? Array.from(new Set(tableData().flatMap((row) => Object.keys(row))))
-            : ["value"];
+    const columnKeys = () => projection().columns;
 
     const tableColumns = createMemo<ColumnDef<TFeatures, TData>[]>(() => {
         if (resultItems().length === 0) return [];
@@ -121,23 +123,25 @@ export function ResultsTable(props: ResultsTableProps) {
         onPaginationChange: setPagination,
     });
 
+    createEffect(() => {
+        const rows = table.getSortedRowModel().rows;
+        props.onSelectionChange({
+            items: selectResultItems(
+                props.items,
+                rows.map((row) => row.index),
+            ),
+            rows: rows.map((row) => row.original),
+            columns: columnKeys(),
+        });
+    });
+
     return (
         <>
             <TableView
                 table={table}
+                totalRows={tableData().length}
                 globalFilter={globalFilter()}
                 onGlobalFilterChange={setGlobalFilter}
-                totalRows={tableData().length}
-                actions={
-                    <ResultActions
-                        items={selectResultItems(
-                            props.items,
-                            table.getSortedRowModel().rows.map((row) => row.index),
-                        )}
-                        rows={table.getSortedRowModel().rows.map((row) => row.original)}
-                        columns={columnKeys()}
-                    />
-                }
             />
             <Footer
                 table={table}
