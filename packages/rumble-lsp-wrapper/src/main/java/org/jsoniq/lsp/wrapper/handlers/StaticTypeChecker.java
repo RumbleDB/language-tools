@@ -12,10 +12,12 @@ import org.jsoniq.lsp.wrapper.messages.Request;
 import org.jsoniq.lsp.wrapper.messages.ResponseBody;
 
 import org.rumbledb.bindings.ExternalBindings;
-import org.rumbledb.compiler.VisitorHelpers;
+import org.rumbledb.compiler.CompilationPipeline;
+import org.rumbledb.config.CompilationConfiguration;
 import org.rumbledb.config.RumbleConfiguration;
 import org.rumbledb.exceptions.ExceptionMetadata;
 import org.rumbledb.exceptions.RumbleException;
+import org.rumbledb.runtime.functions.input.FileSystemUtil;
 
 public final class StaticTypeChecker implements RequestHandler {
 
@@ -54,17 +56,18 @@ public final class StaticTypeChecker implements RequestHandler {
 
     private static void parseModule(String query, URI documentUri, RumbleConfiguration configuration) {
         if (isLibraryModule(query)) {
-            VisitorHelpers.parseLibraryModuleFromQueryWithStaticContextAndInference(
+            CompilationPipeline.analyzeLibraryModule(
                     query, documentUri == null ? URI.create(".") : documentUri, configuration);
             return;
         }
 
-        if (documentUri == null) {
-            VisitorHelpers.parseMainModuleFromQuery(query, configuration, ExternalBindings.empty());
-            return;
-        }
-
-        VisitorHelpers.parseMainModule(query, documentUri, configuration, ExternalBindings.empty());
+        CompilationPipeline.compileMainModule(
+                query,
+                documentUri == null
+                        ? FileSystemUtil.resolveURIAgainstWorkingDirectory(".", ExceptionMetadata.EMPTY_METADATA)
+                        : documentUri,
+                new CompilationConfiguration(configuration),
+                ExternalBindings.empty());
     }
 
     private static boolean isLibraryModule(String query) {

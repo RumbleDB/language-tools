@@ -13,7 +13,8 @@ import org.jsoniq.lsp.wrapper.messages.ResponseBody;
 import org.jsoniq.lsp.wrapper.types.SequenceType;
 
 import org.rumbledb.bindings.ExternalBindings;
-import org.rumbledb.compiler.VisitorHelpers;
+import org.rumbledb.compiler.CompilationPipeline;
+import org.rumbledb.config.CompilationConfiguration;
 import org.rumbledb.config.RumbleConfiguration;
 import org.rumbledb.exceptions.ExceptionMetadata;
 import org.rumbledb.expressions.AbstractNodeVisitor;
@@ -24,6 +25,7 @@ import org.rumbledb.expressions.module.MainModule;
 import org.rumbledb.expressions.module.VariableDeclaration;
 import org.rumbledb.expressions.postfix.ObjectLookupExpression;
 import org.rumbledb.expressions.primary.InlineFunctionExpression;
+import org.rumbledb.runtime.functions.input.FileSystemUtil;
 
 public final class TypeAtPosition implements RequestHandler {
     public static final String REQUEST_TYPE = "type-at-position";
@@ -68,9 +70,13 @@ public final class TypeAtPosition implements RequestHandler {
         }
 
         try {
-            MainModule module = documentUri == null
-                    ? VisitorHelpers.parseMainModuleFromQuery(query, this.configuration, ExternalBindings.empty())
-                    : VisitorHelpers.parseMainModule(query, documentUri, this.configuration, ExternalBindings.empty());
+            MainModule module = CompilationPipeline.compileMainModule(
+                    query,
+                    documentUri == null
+                            ? FileSystemUtil.resolveURIAgainstWorkingDirectory(".", ExceptionMetadata.EMPTY_METADATA)
+                            : documentUri,
+                    new CompilationConfiguration(this.configuration),
+                    ExternalBindings.empty());
             List<Candidate> candidates = new TypeAtPositionVisitor().visit(module, new ArrayList<>());
             Candidate candidate = selectCandidate(candidates, position);
             if (candidate == null || candidate.sequenceType() == null) {
