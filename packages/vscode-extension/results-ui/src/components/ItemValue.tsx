@@ -9,6 +9,7 @@ import { XmlSource } from "./XmlSource.js";
 interface ItemValueProps {
     item: RunQueryItem;
     copyable?: boolean;
+    reserveArrowSpace?: boolean;
 }
 
 export function ItemValue(props: ItemValueProps) {
@@ -21,7 +22,14 @@ export function ItemValue(props: ItemValueProps) {
     return (
         <div class="min-w-0 w-full">
             <div class="flex items-start gap-1 min-w-0">
-                <Show when={expandable()} fallback={<span class="w-5 h-5 shrink-0" />}>
+                <Show
+                    when={expandable()}
+                    fallback={
+                        <Show when={props.reserveArrowSpace !== false}>
+                            <span class="w-5 h-5 shrink-0" />
+                        </Show>
+                    }
+                >
                     <button
                         type="button"
                         class="w-5 h-5 flex items-center justify-center shrink-0 text-secondary hover:text-on-surface rounded cursor-pointer"
@@ -128,7 +136,11 @@ export function ItemValue(props: ItemValueProps) {
 }
 
 /** Keeps sequence-valued entries/members distinct from a single array item. */
-export function SequenceValue(props: { items: RunQueryItem[] | undefined; copyable?: boolean }) {
+export function SequenceValue(props: {
+    items: RunQueryItem[] | undefined;
+    copyable?: boolean;
+    reserveArrowSpace?: boolean;
+}) {
     return (
         <Show
             when={props.items !== undefined}
@@ -166,7 +178,11 @@ export function SequenceValue(props: { items: RunQueryItem[] | undefined; copyab
                                         {index() + 1}.
                                     </span>
                                 </Show>
-                                <ItemValue item={item} copyable={props.copyable} />
+                                <ItemValue
+                                    item={item}
+                                    copyable={props.copyable}
+                                    reserveArrowSpace={props.reserveArrowSpace}
+                                />
                             </div>
                         )}
                     </For>

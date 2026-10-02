@@ -76,7 +76,11 @@ export function ResultsTable(props: ResultsTableProps) {
                     size: getDynamicColumnSize(tableData(), key),
                     minSize: 80,
                     cell: (info) => (
-                        <SequenceValue items={info.row.original[key]} copyable={false} />
+                        <SequenceValue
+                            items={info.row.original[key]}
+                            copyable={false}
+                            reserveArrowSpace={false}
+                        />
                     ),
                 })),
             ];
@@ -89,7 +93,13 @@ export function ResultsTable(props: ResultsTableProps) {
                 header: "Value",
                 size: 400,
                 minSize: 150,
-                cell: (info) => <SequenceValue items={info.row.original.value} copyable={false} />,
+                cell: (info) => (
+                    <SequenceValue
+                        items={info.row.original.value}
+                        copyable={false}
+                        reserveArrowSpace={false}
+                    />
+                ),
             },
         ];
     });
