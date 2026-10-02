@@ -34,7 +34,15 @@ libraryModule
    ;
 
 prolog
-   : (defaultNamespaceDecl | setter | namespaceDecl | schemaImport | moduleImport)* (annotatedDecl)*
+   : headers += prologHeader* declarations += annotatedDecl*
+   ;
+
+prologHeader
+   : defaultNamespaceDecl
+   | setter
+   | namespaceDecl
+   | schemaImport
+   | moduleImport
    ;
 
 defaultNamespaceDecl
@@ -359,7 +367,7 @@ unaryExpr
 
 valueExpr
    : validate_expr = validateExpr
-   | extensionExpr
+   | extension_expr = extensionExpr
    | simpleMap_expr = simpleMapExpr
    ;
 
@@ -399,7 +407,11 @@ validationMode
    ;
 
 extensionExpr
-   : PRAGMA+ LBRACE expr RBRACE
+   : pragma+ LBRACE expr? RBRACE
+   ;
+
+pragma
+   : PRAGMA
    ;
 
 simpleMapExpr
@@ -693,30 +705,12 @@ stringConstructorContent
    : stringConstructorChars (stringConstructorInterpolation stringConstructorChars)*
    ;
 
-charNoGrave
-   : BASIC_CHAR
-   | LBRACE
-   | RBRACKET
-   ;
-
-charNoLBrace
-   : BASIC_CHAR
-   | GRAVE
-   | RBRACKET
-   ;
-
-charNoRBrack
-   : BASIC_CHAR
-   | GRAVE
-   | LBRACE
-   ;
-
 stringConstructorChars
-   : (BASIC_CHAR | charNoGrave charNoLBrace | charNoRBrack charNoGrave charNoGrave | charNoGrave | LBRACE)*
+   : (BASIC_CHAR | GRAVE | RBRACKET | LBRACE)*
    ;
 
 stringConstructorInterpolation
-   : ENTER_INTERPOLATION expr EXIT_INTERPOLATION
+   : ENTER_INTERPOLATION expr? EXIT_INTERPOLATION
    ;
 
 unaryLookup
@@ -820,7 +814,7 @@ typeName
    ;
 
 functionTest
-   : annotation* (anyFunctionTest | typedFunctionTest)
+   : annotations (anyFunctionTest | typedFunctionTest)
    ;
 
 anyFunctionTest
