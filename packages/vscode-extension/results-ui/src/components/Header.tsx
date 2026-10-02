@@ -3,7 +3,6 @@ import { For, Show, type JSX } from "solid-js";
 import type { ViewMode } from "../types.js";
 
 interface HeaderProps {
-    fileName: string;
     isSuccess: boolean;
     hasItems: boolean;
     viewMode: ViewMode;
@@ -11,6 +10,8 @@ interface HeaderProps {
     durationMs: number;
     rowCount: number;
     actions: JSX.Element;
+    running: boolean;
+    onRerun: () => void;
 }
 
 const VIEW_MODES = [
@@ -23,17 +24,26 @@ export function Header(props: HeaderProps) {
     return (
         <header class="bg-surface border-b border-outline-variant min-h-[36px] py-1 px-4 flex items-center justify-between gap-2 flex-wrap w-full shrink-0 z-10 box-border">
             <div class="flex items-center gap-2 text-secondary min-w-0">
-                <span
-                    class={
-                        props.isSuccess
-                            ? "i-iconoir-page text-base shrink-0"
-                            : "i-iconoir-alert-triangle text-base shrink-0 text-error"
+                <button
+                    type="button"
+                    onClick={props.onRerun}
+                    disabled={props.running}
+                    aria-busy={props.running}
+                    title={
+                        props.running
+                            ? "Query is running"
+                            : "Re-run this query file using its current contents"
                     }
-                />
-                <h1 class="text-sm font-semibold text-on-surface truncate max-w-[240px] sm:max-w-xs">
-                    {props.fileName}
-                </h1>
+                    class="px-2 py-1 text-xs flex items-center gap-1 rounded bg-primary text-on-primary cursor-pointer disabled:opacity-30"
+                >
+                    <span
+                        class="i-iconoir-refresh w-3 h-3 shrink-0"
+                        classList={{ "animate-spin": props.running }}
+                    />
+                    Re-run
+                </button>
                 <Show when={!props.isSuccess}>
+                    <span class="i-iconoir-alert-triangle text-base shrink-0 text-error" />
                     <span class="px-1.5 py-0.2 rounded text-2xs font-medium bg-error/15 text-error border border-error/30 shrink-0">
                         Failed
                     </span>

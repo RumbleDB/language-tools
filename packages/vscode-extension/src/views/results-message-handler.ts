@@ -8,6 +8,7 @@ import type {
 interface ResultsHandlers {
     exportResults: (message: ExportResultsRequest) => Promise<void>;
     openErrorLocation: (message: OpenErrorLocationRequest) => Promise<void>;
+    rerunQuery: () => Promise<void>;
 }
 
 export async function handleResultsMessage(
@@ -16,6 +17,9 @@ export async function handleResultsMessage(
     respond: (response: ResultsResponse) => void | PromiseLike<unknown>,
 ): Promise<void> {
     switch (message.type) {
+        case "RERUN_QUERY":
+            await handlers.rerunQuery();
+            return;
         case "EXPORT_RESULTS":
             await handlers.exportResults(message);
             return;

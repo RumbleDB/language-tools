@@ -20,7 +20,11 @@ export interface OpenErrorLocationRequest {
     range?: NonNullable<RunQueryError["range"]>;
 }
 
-export type ResultsRequest = ExportResultsRequest | OpenErrorLocationRequest;
+export type ResultsRequest =
+    | ExportResultsRequest
+    | OpenErrorLocationRequest
+    | { type: "RERUN_QUERY" };
 export type ResultsResponse =
     | { type: "SET_DATA"; data: ExecutionResultData }
+    | { type: "SET_RUNNING"; running: boolean }
     | { type: "OPEN_ERROR_LOCATION_ERROR"; message: string };

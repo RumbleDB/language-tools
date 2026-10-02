@@ -15,6 +15,9 @@ test("export forwards both formats without sending a reply", async () => {
             exportResults: async (message) => {
                 calls.push(message);
             },
+            rerunQuery: async () => {
+                throw new Error("Unexpected rerun");
+            },
             openErrorLocation: async () => {
                 throw new Error("Unexpected navigation");
             },
@@ -31,6 +34,9 @@ test("navigation routes the location and only replies on failure", async () => {
     const calls = [];
     const replies = [];
     const handlers = {
+        rerunQuery: async () => {
+            throw new Error("Unexpected rerun");
+        },
         exportResults: async () => {
             throw new Error("Unexpected export");
         },
@@ -57,4 +63,26 @@ test("navigation routes the location and only replies on failure", async () => {
     assert.deepEqual(replies, [
         { type: "OPEN_ERROR_LOCATION_ERROR", message: "Document unavailable" },
     ]);
+});
+
+test("rerun routes to the result panel's query handler", async () => {
+    let reruns = 0;
+    await handleResultsMessage(
+        { type: "RERUN_QUERY" },
+        {
+            rerunQuery: async () => {
+                reruns++;
+            },
+            exportResults: async () => {
+                throw new Error("Unexpected export");
+            },
+            openErrorLocation: async () => {
+                throw new Error("Unexpected navigation");
+            },
+        },
+        () => {
+            throw new Error("Unexpected reply");
+        },
+    );
+    assert.equal(reruns, 1);
 });

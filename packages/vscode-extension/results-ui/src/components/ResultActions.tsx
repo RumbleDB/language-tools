@@ -47,7 +47,7 @@ export function ResultActions(props: {
                         ? "Copy all matching rows in sort order, across every page"
                         : "Copy the entire result sequence in its original order"
                 }
-                class="px-2 py-1 text-xs flex items-center gap-1 rounded hover:bg-surface-variant cursor-pointer disabled:opacity-30"
+                class="px-2 py-1 text-xs flex items-center gap-1 rounded hover:bg-surface-variant hover:text-on-surface cursor-pointer disabled:opacity-30"
             >
                 <span
                     class={`w-3 h-3 shrink-0 ${copied() ? "i-iconoir-check text-success" : "i-iconoir-copy"}`}
@@ -63,7 +63,7 @@ export function ResultActions(props: {
                         ? "Export all matching rows in sort order, across every page"
                         : "Export the entire result sequence in its original order"
                 }
-                class="px-2 py-1 text-xs flex items-center gap-1 rounded hover:bg-surface-variant cursor-pointer disabled:opacity-30"
+                class="px-2 py-1 text-xs flex items-center gap-1 rounded hover:bg-surface-variant hover:text-on-surface cursor-pointer disabled:opacity-30"
             >
                 <span class="w-3 h-3 shrink-0 i-iconoir-download" />
                 Export

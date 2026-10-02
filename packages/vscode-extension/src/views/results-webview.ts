@@ -17,6 +17,7 @@ export class ResultsWebviewPanel {
     private disposables: vscode.Disposable[] = [];
     private data: ExecutionResultData | undefined;
     private exporting = false;
+    private running = false;
 
     private constructor(panel: vscode.WebviewPanel, extensionUri: vscode.Uri, fileUri: string) {
         this.panel = panel;
@@ -28,6 +29,7 @@ export class ResultsWebviewPanel {
             exportResults: (message: ExportResultsRequest) => this.exportResults(message),
             openErrorLocation: (message: OpenErrorLocationRequest) =>
                 this.openErrorLocation(message),
+            rerunQuery: () => this.rerunQuery(),
         };
         this.panel.webview.onDidReceiveMessage(
             (message: ResultsRequest) =>
@@ -39,6 +41,22 @@ export class ResultsWebviewPanel {
 
     private postMessage(message: ResultsResponse): Thenable<boolean> {
         return this.panel.webview.postMessage(message);
+    }
+
+    private async rerunQuery(): Promise<void> {
+        if (this.running) return;
+        this.running = true;
+        try {
+            await this.postMessage({ type: "SET_RUNNING", running: true });
+            await vscode.commands.executeCommand("jsoniq.runQuery", vscode.Uri.parse(this.fileUri));
+        } catch (error) {
+            void vscode.window.showErrorMessage(
+                `Unable to re-run query: ${error instanceof Error ? error.message : String(error)}`,
+            );
+        } finally {
+            this.running = false;
+            await this.postMessage({ type: "SET_RUNNING", running: false });
+        }
     }
 
     private async openErrorLocation(params: OpenErrorLocationRequest): Promise<void> {
@@ -80,7 +98,7 @@ export class ResultsWebviewPanel {
 
         const existing = ResultsWebviewPanel.panels.get(data.fileUri);
         if (existing) {
-            existing.panel.reveal(column);
+            existing.panel.reveal();
             existing.update(data);
             return;
         }

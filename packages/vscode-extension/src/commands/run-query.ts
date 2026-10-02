@@ -8,15 +8,17 @@ export function registerRunQueryCommand(
     client: LanguageClient,
     context: vscode.ExtensionContext,
 ): vscode.Disposable {
-    return vscode.commands.registerCommand("jsoniq.runQuery", async () => {
-        const activeEditor = vscode.window.activeTextEditor;
-        if (activeEditor === undefined) {
+    return vscode.commands.registerCommand("jsoniq.runQuery", async (targetUri?: vscode.Uri) => {
+        const document = targetUri
+            ? await vscode.workspace.openTextDocument(targetUri)
+            : vscode.window.activeTextEditor?.document;
+        if (document === undefined) {
             vscode.window.showWarningMessage("No active document to execute.");
             return;
         }
 
-        const uri = activeEditor.document.uri.toString();
-        const queryText = activeEditor.document.getText();
+        const uri = document.uri.toString();
+        const queryText = document.getText();
         const startTime = Date.now();
 
         await vscode.window.withProgress(

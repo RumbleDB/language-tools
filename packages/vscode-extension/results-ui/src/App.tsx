@@ -20,6 +20,7 @@ export function App() {
     const [data, setData] = createSignal<ExecutionResultData | undefined>(window.__INITIAL_DATA__);
     const [tableSelection, setTableSelection] = createSignal<ResultSelection>();
     const [viewMode, setViewMode] = createSignal<ViewMode>("inspect");
+    const [running, setRunning] = createSignal(false);
 
     onMount(() => {
         onCleanup(
@@ -27,6 +28,7 @@ export function App() {
                 setData(message.data);
             }),
         );
+        onCleanup(vscode.onMessage("SET_RUNNING", (message) => setRunning(message.running)));
     });
 
     const resultItems = createMemo(() => data()?.items ?? []);
@@ -36,11 +38,6 @@ export function App() {
     }));
     const actionSelection = () =>
         viewMode() === "table" ? (tableSelection() ?? fullSelection()) : fullSelection();
-    const fileName = () => {
-        const uri = data()?.fileUri;
-        if (!uri) return "Query Results";
-        return decodeURIComponent(uri.split("/").pop() ?? uri);
-    };
 
     const isSuccess = () => {
         const d = data();
@@ -56,13 +53,14 @@ export function App() {
                 {(res) => (
                     <>
                         <Header
-                            fileName={fileName()}
                             isSuccess={isSuccess()}
                             hasItems={resultItems().length > 0}
                             viewMode={viewMode()}
                             onViewModeChange={setViewMode}
                             durationMs={res().durationMs}
                             rowCount={resultItems().length}
+                            running={running()}
+                            onRerun={() => vscode.postMessage("RERUN_QUERY", {})}
                             actions={
                                 <ResultActions
                                     items={actionSelection().items}
