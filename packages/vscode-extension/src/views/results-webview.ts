@@ -1,9 +1,10 @@
+import type { RunQueryError } from "jsoniq-language-server/requests";
 import * as vscode from "vscode";
 
 export interface ExecutionResultData {
     fileUri: string;
     output?: string;
-    error?: string;
+    error?: RunQueryError;
     durationMs: number;
     timestamp: string;
 }
@@ -13,12 +14,78 @@ export class ResultsWebviewPanel {
     private readonly panel: vscode.WebviewPanel;
     private readonly extensionUri: vscode.Uri;
     private disposables: vscode.Disposable[] = [];
+    private data: ExecutionResultData | undefined;
 
     private constructor(panel: vscode.WebviewPanel, extensionUri: vscode.Uri) {
         this.panel = panel;
         this.extensionUri = extensionUri;
 
         this.panel.onDidDispose(() => this.dispose(), null, this.disposables);
+        this.panel.webview.onDidReceiveMessage(
+            async (message: unknown) => {
+                if (
+                    typeof message !== "object" ||
+                    message === null ||
+                    !("type" in message) ||
+                    message.type !== "OPEN_ERROR_LOCATION"
+                ) {
+                    return;
+                }
+                const msg = message as {
+                    location?: string;
+                    range?: {
+                        start: { line: number; character: number };
+                        end: { line: number; character: number };
+                    };
+                };
+                const error = this.data?.error;
+                const targetLocation = msg.location || error?.location || this.data?.fileUri;
+                const targetRange = msg.range ?? error?.range;
+
+                if (!targetLocation) return;
+                try {
+                    let docUri: vscode.Uri;
+                    if (targetLocation.startsWith("file:")) {
+                        docUri = vscode.Uri.parse(targetLocation);
+                    } else if (
+                        /^[a-zA-Z]:[\\/]/.test(targetLocation) ||
+                        targetLocation.startsWith("/")
+                    ) {
+                        docUri = vscode.Uri.file(targetLocation);
+                    } else {
+                        try {
+                            docUri = vscode.Uri.parse(targetLocation);
+                            if (!docUri.scheme) {
+                                docUri = vscode.Uri.file(targetLocation);
+                            }
+                        } catch {
+                            docUri = vscode.Uri.file(targetLocation);
+                        }
+                    }
+
+                    const document = await vscode.workspace.openTextDocument(docUri);
+                    const selection = targetRange
+                        ? new vscode.Range(
+                              targetRange.start.line,
+                              targetRange.start.character,
+                              targetRange.end.line,
+                              targetRange.end.character,
+                          )
+                        : new vscode.Range(0, 0, 0, 0);
+
+                    await vscode.window.showTextDocument(document, {
+                        viewColumn: vscode.ViewColumn.One,
+                        preview: false,
+                        selection,
+                    });
+                } catch (err) {
+                    const message = err instanceof Error ? err.message : String(err);
+                    vscode.window.showErrorMessage(`Unable to open error location: ${message}`);
+                }
+            },
+            null,
+            this.disposables,
+        );
     }
 
     public static show(extensionUri: vscode.Uri, data: ExecutionResultData): void {
@@ -48,6 +115,7 @@ export class ResultsWebviewPanel {
     }
 
     private update(data: ExecutionResultData): void {
+        this.data = data;
         if (!this.panel.webview.html) {
             this.panel.webview.html = this.getHtmlForWebview(data);
         } else {

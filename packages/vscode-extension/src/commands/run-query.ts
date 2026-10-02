@@ -41,7 +41,7 @@ export function registerRunQueryCommand(
                     const error = response?.error;
                     const output = response?.output;
 
-                    if (typeof error === "string" && error.length > 0) {
+                    if (error) {
                         ResultsWebviewPanel.show(context.extensionUri, {
                             fileUri: activeEditor.document.fileName,
                             error,
@@ -49,7 +49,9 @@ export function registerRunQueryCommand(
                             timestamp,
                         });
 
-                        vscode.window.showErrorMessage(`Query execution failed: ${error}`);
+                        vscode.window.showErrorMessage(
+                            `Query execution failed: ${error.code ? `[${error.code}] ` : ""}${error.message}`,
+                        );
                     } else {
                         ResultsWebviewPanel.show(context.extensionUri, {
                             fileUri: activeEditor.document.fileName,
@@ -65,7 +67,7 @@ export function registerRunQueryCommand(
 
                     ResultsWebviewPanel.show(context.extensionUri, {
                         fileUri: activeEditor.document.fileName,
-                        error: errorMsg,
+                        error: { message: errorMsg, code: null, location: null, range: null },
                         durationMs,
                         timestamp,
                     });
