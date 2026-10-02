@@ -1,9 +1,7 @@
-import type { Table as SolidTable } from "@tanstack/solid-table";
-
-import type { TFeatures, TData } from "../App.js";
+import type { ResultsTableInstance } from "./table/model.js";
 
 interface FooterProps {
-    table: SolidTable<TFeatures, TData>;
+    table: ResultsTableInstance;
     pageSize: number;
     onPageSizeChange: (size: number) => void;
 }
