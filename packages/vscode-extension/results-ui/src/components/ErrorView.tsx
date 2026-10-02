@@ -116,17 +116,19 @@ export function ErrorView(props: ErrorViewProps) {
                     <button
                         type="button"
                         onClick={copyErrorDetails}
+                        aria-label={copied() ? "Error details copied" : "Copy Details"}
                         class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-2xs font-medium bg-surface text-secondary hover:text-on-surface hover:bg-surface-variant border border-outline-variant transition-colors cursor-pointer"
                         title="Copy error details to clipboard"
                     >
                         <span
                             class={
-                                copied()
+                                "w-3 h-3 shrink-0 " +
+                                (copied()
                                     ? "i-iconoir-check text-success text-xs"
-                                    : "i-iconoir-copy text-xs"
+                                    : "i-iconoir-copy text-xs")
                             }
                         />
-                        <span>{copied() ? "Copied" : "Copy Details"}</span>
+                        Copy Details
                     </button>
                 </div>
 
