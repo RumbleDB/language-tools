@@ -192,3 +192,55 @@ test("object previews show fields and maps retain typed keys and sequence values
         '{"a": true, "b": false, "c": (), …} · 4 fields',
     );
 });
+
+test("filtered exports follow sorted source indexes across pagination", async () => {
+    const { createTable } = await import("@tanstack/solid-table");
+    const { features } = await import("../src/components/table/model.ts");
+    const { selectResultItems, serializeResultItems } =
+        await import("../src/utils/result-items.ts");
+    const items = Array.from({ length: 80 }, (_, index) =>
+        key(`${index < 60 ? "keep" : "skip"}${String(index).padStart(2, "0")}`),
+    );
+    const table = createTable({
+        features,
+        data: items.map((item) => ({ name: [item] })),
+        columns: [{ id: "name", accessorFn: (row) => row.name[0].lexicalValue }],
+        state: {
+            sorting: [{ id: "name", desc: true }],
+            globalFilter: "keep",
+            pagination: { pageIndex: 1, pageSize: 20 },
+        },
+    });
+    assert.equal(table.getRowModel().rows.length, 20);
+    const selected = selectResultItems(
+        items,
+        table.getSortedRowModel().rows.map((row) => row.index),
+    );
+    assert.equal(selected.length, 60);
+    assert.equal(selected[0].lexicalValue, "keep59");
+    assert.equal(selected.at(-1).lexicalValue, "keep00");
+    assert.equal(serializeResultItems(selected).split("\n").length, 60);
+});
+
+test("CSV preserves numeric precision, escapes text, and distinguishes missing from null", async () => {
+    const { formatCsv } = await import("../src/utils/result-items.ts");
+    const row = Object.assign(Object.create(null), {
+        name: [{ ...atomic("xs:string", '"Ada, \\"A\\"\\nB"'), lexicalValue: 'Ada, "A"\nB' }],
+        number: [{ ...atomic("xs:integer", "9007199254740993"), lexicalValue: "9007199254740993" }],
+        empty: [],
+        null: [{ kind: "null", type: "js:null", serialized: "null" }],
+        formula: [{ ...atomic("xs:string", '"=1+1"'), lexicalValue: "=1+1" }],
+        negative: [{ ...atomic("xs:integer", "-42"), lexicalValue: "-42" }],
+    });
+    assert.equal(
+        formatCsv([row], ["name", "number", "empty", "null", "missing", "formula", "negative"]),
+        '"name","number","empty","null","missing","formula","negative"\r\n"Ada, ""A""\nB","9007199254740993","()","null","","\'=1+1","-42"\r\n',
+    );
+});
+
+test("exports reject serialization errors instead of writing placeholder values", async () => {
+    const { serializeResultItems, formatCsv } = await import("../src/utils/result-items.ts");
+    const bad = { kind: "function", type: "function(*)", serialized: null };
+    assert.throws(() => serializeResultItems([bad]), /cannot be serialized/);
+    assert.throws(() => formatCsv([{ value: [bad] }], ["value"]), /cannot be serialized/);
+});

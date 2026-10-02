@@ -23,14 +23,25 @@ export class ResultsWebviewPanel {
         this.panel.onDidDispose(() => this.dispose(), null, this.disposables);
         this.panel.webview.onDidReceiveMessage(
             async (message: unknown) => {
-                if (
-                    typeof message !== "object" ||
-                    message === null ||
-                    !("type" in message) ||
-                    message.type !== "OPEN_ERROR_LOCATION"
-                ) {
+                if (typeof message !== "object" || message === null || !("type" in message)) {
                     return;
                 }
+                if (message.type === "EXPORT_RESULTS") {
+                    if (
+                        !("content" in message) ||
+                        typeof message.content !== "string" ||
+                        !("format" in message) ||
+                        (message.format !== "sequence" && message.format !== "csv")
+                    ) {
+                        return;
+                    }
+                    await this.exportResults(
+                        message.content,
+                        message.format === "csv" ? "csv" : "txt",
+                    );
+                    return;
+                }
+                if (message.type !== "OPEN_ERROR_LOCATION") return;
                 const msg = message as {
                     location?: string;
                     range?: {
@@ -112,6 +123,40 @@ export class ResultsWebviewPanel {
 
         ResultsWebviewPanel.currentPanel = new ResultsWebviewPanel(panel, extensionUri);
         ResultsWebviewPanel.currentPanel.update(data);
+    }
+
+    private async exportResults(content: string, extension: "csv" | "txt"): Promise<void> {
+        try {
+            const source = this.data?.fileUri;
+            const sourceUri = source
+                ? source.startsWith("file:")
+                    ? vscode.Uri.parse(source)
+                    : vscode.Uri.file(source)
+                : undefined;
+            const name =
+                sourceUri?.path
+                    .split("/")
+                    .pop()
+                    ?.replace(/\.[^/.]+$/, "") || "query";
+            const defaultUri =
+                sourceUri?.scheme === "file"
+                    ? sourceUri.with({
+                          path: `${sourceUri.path.slice(0, sourceUri.path.lastIndexOf("/") + 1)}${name}-results.${extension}`,
+                      })
+                    : undefined;
+            const uri = await vscode.window.showSaveDialog({
+                saveLabel: "Export results",
+                filters: extension === "csv" ? { CSV: ["csv"] } : { "Result sequence": ["txt"] },
+                ...(defaultUri ? { defaultUri } : {}),
+            });
+            if (!uri) return;
+            await vscode.workspace.fs.writeFile(uri, new TextEncoder().encode(content));
+            vscode.window.showInformationMessage("Results exported.");
+        } catch (error) {
+            vscode.window.showErrorMessage(
+                `Unable to export results: ${error instanceof Error ? error.message : String(error)}`,
+            );
+        }
     }
 
     private update(data: ExecutionResultData): void {

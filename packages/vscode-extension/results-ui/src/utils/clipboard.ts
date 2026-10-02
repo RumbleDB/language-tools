@@ -32,6 +32,7 @@ export function createCopyAction(durationMs = 2000) {
             if (timer) clearTimeout(timer);
             timer = setTimeout(() => setCopied(false), durationMs);
         }
+        return success;
     };
 
     return { copied, copy } as const;

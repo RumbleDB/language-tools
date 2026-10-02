@@ -7,9 +7,10 @@ import {
 import { createSignal, createMemo, createEffect, on } from "solid-js";
 
 import type { RunQueryItem } from "../types.js";
-import { formatCell, projectTableRows } from "../utils/result-items.js";
+import { formatCell, projectTableRows, selectResultItems } from "../utils/result-items.js";
+import { CellValue } from "./CellValue.js";
 import { Footer } from "./Footer.js";
-import { SequenceValue } from "./ItemValue.js";
+import { ResultActions } from "./ResultActions.js";
 import { TableView } from "./Table.js";
 import { features, type TFeatures, type TData } from "./table/model.js";
 
@@ -62,26 +63,23 @@ export function ResultsTable(props: ResultsTableProps) {
     const resultItems = () => props.items;
     const projection = createMemo(() => projectTableRows(resultItems()));
     const tableData = () => projection().rows;
+    const columnKeys = () =>
+        projection().objects
+            ? Array.from(new Set(tableData().flatMap((row) => Object.keys(row))))
+            : ["value"];
 
     const tableColumns = createMemo<ColumnDef<TFeatures, TData>[]>(() => {
         if (resultItems().length === 0) return [];
         if (projection().objects) {
-            const keys = new Set(tableData().flatMap((row) => Object.keys(row)));
             return [
                 INDEX_COLUMN,
-                ...Array.from(keys).map((key): ColumnDef<TFeatures, TData> => ({
+                ...columnKeys().map((key): ColumnDef<TFeatures, TData> => ({
                     id: `field:${key}`,
                     accessorFn: (row) => formatCell(row[key]),
                     header: key,
                     size: getDynamicColumnSize(tableData(), key),
                     minSize: 80,
-                    cell: (info) => (
-                        <SequenceValue
-                            items={info.row.original[key]}
-                            copyable={false}
-                            reserveArrowSpace={false}
-                        />
-                    ),
+                    cell: (info) => <CellValue items={info.row.original[key]} />,
                 })),
             ];
         }
@@ -93,13 +91,7 @@ export function ResultsTable(props: ResultsTableProps) {
                 header: "Value",
                 size: 400,
                 minSize: 150,
-                cell: (info) => (
-                    <SequenceValue
-                        items={info.row.original.value}
-                        copyable={false}
-                        reserveArrowSpace={false}
-                    />
-                ),
+                cell: (info) => <CellValue items={info.row.original.value} />,
             },
         ];
     });
@@ -136,6 +128,16 @@ export function ResultsTable(props: ResultsTableProps) {
                 globalFilter={globalFilter()}
                 onGlobalFilterChange={setGlobalFilter}
                 totalRows={tableData().length}
+                actions={
+                    <ResultActions
+                        items={selectResultItems(
+                            props.items,
+                            table.getSortedRowModel().rows.map((row) => row.index),
+                        )}
+                        rows={table.getSortedRowModel().rows.map((row) => row.original)}
+                        columns={columnKeys()}
+                    />
+                }
             />
             <Footer
                 table={table}

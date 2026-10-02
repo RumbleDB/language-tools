@@ -79,6 +79,7 @@ export function Header(props: HeaderProps) {
 
                     <button
                         onClick={props.onCopy}
+                        title="Copy the entire result sequence in its original order"
                         class="px-2 py-0.5 text-on-surface hover:bg-surface-variant rounded transition-colors flex items-center gap-1 cursor-pointer font-sans text-2xs"
                     >
                         <span
@@ -88,7 +89,7 @@ export function Header(props: HeaderProps) {
                                     : "i-iconoir-copy text-xs"
                             }
                         />
-                        {props.copied ? "Copied" : "Copy"}
+                        {props.copied ? "Copied" : "Copy all"}
                     </button>
                 </Show>
             </div>
