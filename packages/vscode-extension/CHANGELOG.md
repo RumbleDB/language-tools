@@ -1,5 +1,41 @@
 # jsoniq-vscode
 
+## 1.9.0
+
+### Minor Changes
+
+- [`ef6e523`](https://github.com/RumbleDB/language-tools/commit/ef6e523ef2cf4929069a25686733ceb3611b0396) - feat(result-ui): enhance query error display with source text
+
+- [`ad721e6`](https://github.com/RumbleDB/language-tools/commit/ad721e66fc2211c19a817ad91e7af6467ae6fe57) - feat: implement rerun functionality for query execution
+
+- [#81](https://github.com/RumbleDB/language-tools/pull/81) [`36d1ab1`](https://github.com/RumbleDB/language-tools/commit/36d1ab13da1bdbf7fae54ff3f748679fe59e9941) - Refactor query execution and results presentation across the stack:
+  
+  - **Rumble LSP Wrapper**: Return structured `QueryResultItem` objects preserving item type metadata (atomic, object, array, XML) in query responses.
+  - **Language Server**: Support typed query result items in the `jsoniq/runQuery` LSP protocol.
+  - **VS Code Extension & Results UI**:
+      - Improve Results UI with structured sequence and item presentation, including expandable nested objects and XML rendering.
+      - Simplify UI layout by consolidating execution metadata, copy, and export actions into the header bar.
+      - Clean up footer to focus strictly on pagination controls.
+      - Establish a type-safe message protocol between the results webview and the extension host.
+
+- [#80](https://github.com/RumbleDB/language-tools/pull/80) [`1fc174a`](https://github.com/RumbleDB/language-tools/commit/1fc174ac61e5d139fcd35a820b2074570d67c8e4) - feat: return structured error information from RumbleDB and display it in the results webview
+
+- [`328317c`](https://github.com/RumbleDB/language-tools/commit/328317c8ea31845c7e027b75227cfa8860d285f3) - feat: allow multiple result tab to be open in VS Code extension, one per file
+
+### Patch Changes
+
+- [`9be2a7a`](https://github.com/RumbleDB/language-tools/commit/9be2a7a6b4f64b77a5a48d9a0d35d3eae71f7379) - refactor: pass only source lines instead of full query text to display the error
+
+- [#77](https://github.com/RumbleDB/language-tools/pull/77) [`e889be5`](https://github.com/RumbleDB/language-tools/commit/e889be5d4384944fd1fe78739dd84e7712662775) - feat: resolve imported schema types and constructors within their declaring module, respecting default namespaces. Cache schema catalogs and refresh dependent analysis when schema files change.
+
+- [`d9ca235`](https://github.com/RumbleDB/language-tools/commit/d9ca23578a5a47a48a7562dd01e72bc0f395b5cf) - chore: upgrade node dependencies
+  
+  Upgrade VS Code language client and server dependencies to 10.1.2 and the text document library to 1.0.15. Update build and test tooling, including Rolldown, Vite, Vitest, tsx, tsc-alias, fast-xml-parser, Node.js types, lint-staged, oxfmt, and oxlint, and refresh the dependency lockfile.
+
+- [`e5ab719`](https://github.com/RumbleDB/language-tools/commit/e5ab719f276c47f6d8547dea338645c4f8911342) - fix(results-ui): preserve focus when opening webview
+- Updated dependencies [[`e889be5`](https://github.com/RumbleDB/language-tools/commit/e889be5d4384944fd1fe78739dd84e7712662775), [`d9ca235`](https://github.com/RumbleDB/language-tools/commit/d9ca23578a5a47a48a7562dd01e72bc0f395b5cf), [`98ef780`](https://github.com/RumbleDB/language-tools/commit/98ef78007234cd7fb428f8e5d39ddefff6d16dd6), [`36d1ab1`](https://github.com/RumbleDB/language-tools/commit/36d1ab13da1bdbf7fae54ff3f748679fe59e9941), [`3d3bb13`](https://github.com/RumbleDB/language-tools/commit/3d3bb135d9a257da220faf55b84a6d11f6480867), [`adea065`](https://github.com/RumbleDB/language-tools/commit/adea065c47ee9efda02efc949b460bcc07449753), [`a7a2205`](https://github.com/RumbleDB/language-tools/commit/a7a22054a8150c65725f01b258481a778289a1ed), [`1e4dbe6`](https://github.com/RumbleDB/language-tools/commit/1e4dbe6667f65f7b927d96e475783747977e7786), [`9d7d3c2`](https://github.com/RumbleDB/language-tools/commit/9d7d3c2dc0f9836f41708cee8ca7cf0fa3b2d480), [`1fc174a`](https://github.com/RumbleDB/language-tools/commit/1fc174ac61e5d139fcd35a820b2074570d67c8e4), [`33e4318`](https://github.com/RumbleDB/language-tools/commit/33e4318233ad199be35b4ffd820c0ab56e101487)]:
+  - jsoniq-language-server@2.13.0
+
 ## 1.8.1
 
 ### Patch Changes
