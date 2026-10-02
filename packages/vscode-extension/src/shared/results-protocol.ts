@@ -10,8 +10,8 @@ export interface ExecutionResultData {
 
 export interface ExportResultsRequest {
     type: "EXPORT_RESULTS";
-    format: "sequence" | "csv";
-    content: string;
+    csv: string;
+    sequence: string;
 }
 
 export interface OpenErrorLocationRequest {
@@ -21,10 +21,6 @@ export interface OpenErrorLocationRequest {
 }
 
 export type ResultsRequest = ExportResultsRequest | OpenErrorLocationRequest;
-export type ExportResult =
-    | { type: "EXPORT_RESULT"; status: "saved" | "cancelled" }
-    | { type: "EXPORT_RESULT"; status: "error"; message: string };
 export type ResultsResponse =
     | { type: "SET_DATA"; data: ExecutionResultData }
-    | ExportResult
     | { type: "OPEN_ERROR_LOCATION_ERROR"; message: string };

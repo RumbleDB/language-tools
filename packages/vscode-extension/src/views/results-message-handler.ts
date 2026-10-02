@@ -1,13 +1,12 @@
 import type {
     ExportResultsRequest,
-    ExportResult,
     OpenErrorLocationRequest,
     ResultsRequest,
     ResultsResponse,
 } from "../shared/results-protocol.js";
 
 interface ResultsHandlers {
-    exportResults: (message: ExportResultsRequest) => Promise<ExportResult>;
+    exportResults: (message: ExportResultsRequest) => Promise<void>;
     openErrorLocation: (message: OpenErrorLocationRequest) => Promise<void>;
 }
 
@@ -16,22 +15,18 @@ export async function handleResultsMessage(
     handlers: ResultsHandlers,
     respond: (response: ResultsResponse) => void | PromiseLike<unknown>,
 ): Promise<void> {
-    let response: ResultsResponse;
-    try {
-        switch (message.type) {
-            case "EXPORT_RESULTS":
-                response = await handlers.exportResults(message);
-                break;
-            case "OPEN_ERROR_LOCATION":
+    switch (message.type) {
+        case "EXPORT_RESULTS":
+            await handlers.exportResults(message);
+            return;
+        case "OPEN_ERROR_LOCATION":
+            try {
                 await handlers.openErrorLocation(message);
-                return;
-        }
-    } catch (error) {
-        const detail = error instanceof Error ? error.message : String(error);
-        response =
-            message.type === "EXPORT_RESULTS"
-                ? { type: "EXPORT_RESULT", status: "error", message: detail }
-                : { type: "OPEN_ERROR_LOCATION_ERROR", message: detail };
+            } catch (error) {
+                await respond({
+                    type: "OPEN_ERROR_LOCATION_ERROR",
+                    message: error instanceof Error ? error.message : String(error),
+                });
+            }
     }
-    await respond(response);
 }

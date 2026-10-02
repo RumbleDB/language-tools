@@ -5,41 +5,26 @@ import { handleResultsMessage } from "../../src/views/results-message-handler.ts
 
 const request = (type, params) => ({ type, ...params });
 
-test("export replies distinguish saved, cancelled, and failed operations", async () => {
-    const replies = [];
+test("export forwards both formats without sending a reply", async () => {
     const calls = [];
-    const handlers = {
-        exportResults: async (message) => {
-            calls.push(message);
-            if (message.content === "fail") throw new Error("Disk is full");
-            return { type: "EXPORT_RESULT", status: message.content ? "saved" : "cancelled" };
+    const replies = [];
+    const message = request("EXPORT_RESULTS", { csv: "csv data", sequence: "sequence data" });
+    await handleResultsMessage(
+        message,
+        {
+            exportResults: async (message) => {
+                calls.push(message);
+            },
+            openErrorLocation: async () => {
+                throw new Error("Unexpected navigation");
+            },
         },
-        openErrorLocation: async () => {},
-    };
-    const respond = (message) => {
-        replies.push(message);
-    };
-    await handleResultsMessage(
-        request("EXPORT_RESULTS", { format: "csv", content: "data" }),
-        handlers,
-        respond,
+        (reply) => {
+            replies.push(reply);
+        },
     );
-    await handleResultsMessage(
-        request("EXPORT_RESULTS", { format: "sequence", content: "" }),
-        handlers,
-        respond,
-    );
-    await handleResultsMessage(
-        request("EXPORT_RESULTS", { format: "csv", content: "fail" }),
-        handlers,
-        respond,
-    );
-    assert.equal(calls.length, 3);
-    assert.deepEqual(replies, [
-        { type: "EXPORT_RESULT", status: "saved" },
-        { type: "EXPORT_RESULT", status: "cancelled" },
-        { type: "EXPORT_RESULT", status: "error", message: "Disk is full" },
-    ]);
+    assert.deepEqual(calls, [message]);
+    assert.deepEqual(replies, []);
 });
 
 test("navigation routes the location and only replies on failure", async () => {

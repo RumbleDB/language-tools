@@ -5,7 +5,6 @@ import type {
     ResultsResponse,
     ResultsRequest,
     ExportResultsRequest,
-    ExportResult,
     OpenErrorLocationRequest,
 } from "../shared/results-protocol.js";
 import { handleResultsMessage } from "./results-message-handler.js";
@@ -16,6 +15,7 @@ export class ResultsWebviewPanel {
     private readonly extensionUri: vscode.Uri;
     private disposables: vscode.Disposable[] = [];
     private data: ExecutionResultData | undefined;
+    private exporting = false;
 
     private constructor(panel: vscode.WebviewPanel, extensionUri: vscode.Uri) {
         this.panel = panel;
@@ -97,33 +97,57 @@ export class ResultsWebviewPanel {
         ResultsWebviewPanel.currentPanel.update(data);
     }
 
-    private async exportResults(params: ExportResultsRequest): Promise<ExportResult> {
-        const extension = params.format === "csv" ? "csv" : "txt";
-        const source = this.data?.fileUri;
-        const sourceUri = source
-            ? source.startsWith("file:")
-                ? vscode.Uri.parse(source)
-                : vscode.Uri.file(source)
-            : undefined;
-        const name =
-            sourceUri?.path
-                .split("/")
-                .pop()
-                ?.replace(/\.[^/.]+$/, "") || "query";
-        const defaultUri =
-            sourceUri?.scheme === "file"
-                ? sourceUri.with({
-                      path: `${sourceUri.path.slice(0, sourceUri.path.lastIndexOf("/") + 1)}${name}-results.${extension}`,
-                  })
+    private async exportResults(params: ExportResultsRequest): Promise<void> {
+        if (this.exporting) return;
+        this.exporting = true;
+        try {
+            const format = await vscode.window.showQuickPick(
+                [
+                    { label: "CSV", description: "Table data (.csv)", format: "csv" as const },
+                    {
+                        label: "Sequence text",
+                        description: "Serialized result sequence (.txt)",
+                        format: "sequence" as const,
+                    },
+                ],
+                { title: "Export results", placeHolder: "Choose an export format" },
+            );
+            if (!format) return;
+            const extension = format.format === "csv" ? "csv" : "txt";
+            const source = this.data?.fileUri;
+            const sourceUri = source
+                ? source.startsWith("file:")
+                    ? vscode.Uri.parse(source)
+                    : vscode.Uri.file(source)
                 : undefined;
-        const uri = await vscode.window.showSaveDialog({
-            saveLabel: "Export results",
-            filters: extension === "csv" ? { CSV: ["csv"] } : { "Result sequence": ["txt"] },
-            ...(defaultUri ? { defaultUri } : {}),
-        });
-        if (!uri) return { type: "EXPORT_RESULT", status: "cancelled" };
-        await vscode.workspace.fs.writeFile(uri, new TextEncoder().encode(params.content));
-        return { type: "EXPORT_RESULT", status: "saved" };
+            const name =
+                sourceUri?.path
+                    .split("/")
+                    .pop()
+                    ?.replace(/\.[^/.]+$/, "") || "query";
+            const defaultUri =
+                sourceUri?.scheme === "file"
+                    ? sourceUri.with({
+                          path: `${sourceUri.path.slice(0, sourceUri.path.lastIndexOf("/") + 1)}${name}-results.${extension}`,
+                      })
+                    : undefined;
+            const uri = await vscode.window.showSaveDialog({
+                saveLabel: "Export results",
+                filters:
+                    format.format === "csv" ? { CSV: ["csv"] } : { "Result sequence": ["txt"] },
+                ...(defaultUri ? { defaultUri } : {}),
+            });
+            if (!uri) return;
+            const content = format.format === "csv" ? params.csv : params.sequence;
+            await vscode.workspace.fs.writeFile(uri, new TextEncoder().encode(content));
+            void vscode.window.showInformationMessage("Results exported.");
+        } catch (error) {
+            void vscode.window.showErrorMessage(
+                `Unable to export results: ${error instanceof Error ? error.message : String(error)}`,
+            );
+        } finally {
+            this.exporting = false;
+        }
     }
 
     private update(data: ExecutionResultData): void {
