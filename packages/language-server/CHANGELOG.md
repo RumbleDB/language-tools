@@ -1,5 +1,29 @@
 # jsoniq-language-server
 
+## 2.14.0
+
+### Minor Changes
+
+- [`af7abf8`](https://github.com/RumbleDB/language-tools/commit/af7abf88b281e6bdd78e2b371288798d140d0ae3) - refactor: remove JSONiq prefixes from shared completion details and interface labels, and name the server "JSONiq and XQuery Language Server" to reflect support for both languages.
+
+- [`53a70ce`](https://github.com/RumbleDB/language-tools/commit/53a70ce9e811839ca911837702c213a0c4e0f3f6) - feat: return always serialized value from the RunQuery request, and use it in webview UI
+
+- [#83](https://github.com/RumbleDB/language-tools/pull/83) [`b1d180c`](https://github.com/RumbleDB/language-tools/commit/b1d180cbea2864e6b5947be7d4a2824d525ea164) - refactor: make query result data model more structured by using discriminated unions and required properties for each item kind, and adapt the VS Code list and table views to the new API.
+  
+  The exported `RunQueryItem` type is now a discriminated union with required properties for each item kind. Clients consuming `jsoniq/runQuery` results must update for these breaking payload changes:
+  
+  - Type metadata is grouped under `type.displayName` and optional `type.qname`, replacing the string `type` and top-level `typeName`.
+  - Objects expose `fields` containing literal `name` and sequence-valued `value` properties. Maps retain `entries` with typed atomic keys, including null keys, and sequence-valued values.
+  - Arrays require `members`, preserving empty and multi-item member sequences. Nodes require `nodeKind`.
+  - Functions expose `name`, `arity`, and `signature` directly instead of nesting them under `function`.
+  - `lexicalValue` is removed. Use `serialized` for value text, previews, copying, and exports, and object field names directly when projecting table columns.
+  
+  The backend separates item conversion from the result model and preserves runtime maps even when their contents resemble objects. Fallback query responses now contain a structured error instead of returning both `items` and `error` as null. The response envelope remains `{ items, error }`.
+  
+  The webview renders the new item variants, uses qualified type names for value colors, preserves literal object field names in table projection, and displays expanded function signatures once.
+
+- [`41af7cb`](https://github.com/RumbleDB/language-tools/commit/41af7cb9c42f59ffca18499b7aadec0bff3c1fe8) - feat(language-server): add CodeLens feature for running queries
+
 ## 2.13.0
 
 ### Minor Changes

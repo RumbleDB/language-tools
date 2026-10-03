@@ -1,5 +1,63 @@
 # jsoniq-vscode
 
+## 1.10.0
+
+### Minor Changes
+
+- [`8f5e3f2`](https://github.com/RumbleDB/language-tools/commit/8f5e3f2ff3357a22242b3821fac9e71d1aa60976) - feat(webview): unify results model across inspect and table view
+  
+  Now both views share the same data model, and switching between them keeps the same filtering, sorting and pagination state.
+
+- [`adecc1a`](https://github.com/RumbleDB/language-tools/commit/adecc1af6981dbbbc8402825f8e92368f24fb9a1) - feat(webview): add formatDuration utility and update duration display in webview
+
+- [`b07cfac`](https://github.com/RumbleDB/language-tools/commit/b07cfac4fd585a77600ac9b81a4886b3b10bfca6) - feat(webview): enhance and unify the list and table view design
+
+- [`af7abf8`](https://github.com/RumbleDB/language-tools/commit/af7abf88b281e6bdd78e2b371288798d140d0ae3) - refactor: remove JSONiq prefixes from shared completion details and interface labels, and name the server "JSONiq and XQuery Language Server" to reflect support for both languages.
+
+- [`bd7d283`](https://github.com/RumbleDB/language-tools/commit/bd7d283c39287f50771f533f97036bd6685b07fb) - refactor(webview): update color variables for better consistency
+
+- [`53a70ce`](https://github.com/RumbleDB/language-tools/commit/53a70ce9e811839ca911837702c213a0c4e0f3f6) - feat: return always serialized value from the RunQuery request, and use it in webview UI
+
+- [#83](https://github.com/RumbleDB/language-tools/pull/83) [`b1d180c`](https://github.com/RumbleDB/language-tools/commit/b1d180cbea2864e6b5947be7d4a2824d525ea164) - refactor: make query result data model more structured by using discriminated unions and required properties for each item kind, and adapt the VS Code list and table views to the new API.
+  
+  The exported `RunQueryItem` type is now a discriminated union with required properties for each item kind. Clients consuming `jsoniq/runQuery` results must update for these breaking payload changes:
+  
+  - Type metadata is grouped under `type.displayName` and optional `type.qname`, replacing the string `type` and top-level `typeName`.
+  - Objects expose `fields` containing literal `name` and sequence-valued `value` properties. Maps retain `entries` with typed atomic keys, including null keys, and sequence-valued values.
+  - Arrays require `members`, preserving empty and multi-item member sequences. Nodes require `nodeKind`.
+  - Functions expose `name`, `arity`, and `signature` directly instead of nesting them under `function`.
+  - `lexicalValue` is removed. Use `serialized` for value text, previews, copying, and exports, and object field names directly when projecting table columns.
+  
+  The backend separates item conversion from the result model and preserves runtime maps even when their contents resemble objects. Fallback query responses now contain a structured error instead of returning both `items` and `error` as null. The response envelope remains `{ items, error }`.
+  
+  The webview renders the new item variants, uses qualified type names for value colors, preserves literal object field names in table projection, and displays expanded function signatures once.
+
+- [`4285fd1`](https://github.com/RumbleDB/language-tools/commit/4285fd12a92b0854a13760a5caf4e4b59db9d761) - feat(webview): implement pagination functionality in sequence view
+
+- [`3190fa9`](https://github.com/RumbleDB/language-tools/commit/3190fa94f227ff0436c7fe771e82bd974f9e153d) - refactor(webview): remove copy and export functionality, which can be done in 'open in editor'
+
+- [`02f49a4`](https://github.com/RumbleDB/language-tools/commit/02f49a4b5f4bd63cdcf2d1d64c898268a77f4cc4) - feat(webview): remove RawView and delegate it to VSCode for better performance
+
+- [`96445d5`](https://github.com/RumbleDB/language-tools/commit/96445d576d3685ad1bac13e89998cb4f5f9c70ef) - feat(pagination): add page input picker and first and last page button
+
+- [`41af7cb`](https://github.com/RumbleDB/language-tools/commit/41af7cb9c42f59ffca18499b7aadec0bff3c1fe8) - feat(language-server): add CodeLens feature for running queries
+
+- [`0016909`](https://github.com/RumbleDB/language-tools/commit/00169099aec60b636e0f501bc03a9d3c5d13f447) - refactor(webview): show copy button on hover to avoid visual clutter
+
+- [`77806ed`](https://github.com/RumbleDB/language-tools/commit/77806edb2c179747f38b80c5ea56c2e20479fc6f) - feat(ListView): previews now adapt to the available width and stop at two lines
+
+### Patch Changes
+
+- [`4458280`](https://github.com/RumbleDB/language-tools/commit/4458280642c8e5480ac1c1e26f38be0ec6e7d010) - refactor: simplify isExpandable logic and improve preview measurement in ItemValue component
+
+- [`0334cbe`](https://github.com/RumbleDB/language-tools/commit/0334cbef2c0ef73bf84dca556409e065f62f87e2) - fix(ItemValue): key and value should be in same line
+
+- [`e5242a6`](https://github.com/RumbleDB/language-tools/commit/e5242a66fe80747438263ace476d72a13579431b) - refactor(item-preview): simplify output for array, object, and map previews
+
+- [`c408781`](https://github.com/RumbleDB/language-tools/commit/c40878151e1489e0898b2d26aae9ba66f2cff489) - refactor(webview): rename 'inspect' view to 'list' view
+- Updated dependencies [[`af7abf8`](https://github.com/RumbleDB/language-tools/commit/af7abf88b281e6bdd78e2b371288798d140d0ae3), [`53a70ce`](https://github.com/RumbleDB/language-tools/commit/53a70ce9e811839ca911837702c213a0c4e0f3f6), [`b1d180c`](https://github.com/RumbleDB/language-tools/commit/b1d180cbea2864e6b5947be7d4a2824d525ea164), [`41af7cb`](https://github.com/RumbleDB/language-tools/commit/41af7cb9c42f59ffca18499b7aadec0bff3c1fe8)]:
+  - jsoniq-language-server@2.14.0
+
 ## 1.9.0
 
 ### Minor Changes
