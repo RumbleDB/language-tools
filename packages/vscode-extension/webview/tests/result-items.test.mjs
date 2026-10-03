@@ -147,7 +147,8 @@ test("long strings remain complete when copied, and string-derived types retain 
         await import("../src/utils/item-presentation.ts");
     const value = "x".repeat(500);
     const item = { ...atomic("xs:string", JSON.stringify(value)), lexicalValue: value };
-    assert.equal(isExpandable(item), true);
+    // Atomic disclosure depends on measured clipping, not a character count.
+    assert.equal(isExpandable(item), false);
     assert.equal(itemPreview(item), JSON.stringify(value));
     assert.equal(formatRawOutput([item]), JSON.stringify(value));
     const token = {

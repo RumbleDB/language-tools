@@ -11,7 +11,7 @@ import {
 
 import type { RunQueryItem } from "@/types.js";
 import { createCopyAction } from "@/utils/clipboard.js";
-import { isExpandable, itemPreview, itemTone, truncatePreview } from "@/utils/item-presentation.js";
+import { isExpandable, itemPreview, itemTone } from "@/utils/item-presentation.js";
 import { formatItem } from "@/utils/result-items.js";
 
 import { XmlSource } from "./XmlSource.js";
@@ -29,26 +29,34 @@ export function ItemValue(props: ItemValueProps) {
     let previewElement!: HTMLSpanElement;
     const [previewClipped, setPreviewClipped] = createSignal(false);
     const preview = createMemo(() => itemPreview(props.item, !props.clampPreview));
-    const expandable = createMemo(
-        () => isExpandable(props.item, props.clampPreview ? Infinity : 120) || previewClipped(),
-    );
+    const expandable = createMemo(() => isExpandable(props.item) || previewClipped());
 
     // A short value can still need expansion when the panel or a nested field is narrow.
     const measurePreview = () => {
         if (previewElement) {
             setPreviewClipped(
                 Boolean(
-                    props.clampPreview && previewElement.scrollHeight > previewElement.clientHeight,
+                    previewElement.scrollHeight > previewElement.clientHeight ||
+                    previewElement.scrollWidth > previewElement.clientWidth,
                 ),
             );
         }
     };
     createEffect(on([preview, () => props.clampPreview], () => queueMicrotask(measurePreview)));
     onMount(() => {
-        if (!props.clampPreview) return;
-        const observer = new ResizeObserver(measurePreview);
+        let measurementFrame: number | undefined;
+        const observer = new ResizeObserver(() => {
+            if (measurementFrame !== undefined) return;
+            measurementFrame = requestAnimationFrame(() => {
+                measurementFrame = undefined;
+                measurePreview();
+            });
+        });
         observer.observe(previewElement);
-        onCleanup(() => observer.disconnect());
+        onCleanup(() => {
+            observer.disconnect();
+            if (measurementFrame !== undefined) cancelAnimationFrame(measurementFrame);
+        });
     });
     const tone = () => `result-value-${itemTone(props.item)}`;
 
@@ -83,11 +91,10 @@ export function ItemValue(props: ItemValueProps) {
                     ref={(element) => {
                         previewElement = element;
                     }}
-                    class={`font-mono text-xs leading-5 flex-1 min-w-0 break-words ${tone()}`}
-                    classList={{ "line-clamp-2": props.clampPreview }}
+                    class={`font-mono text-xs leading-5 flex-1 min-w-0 break-words line-clamp-2 ${tone()}`}
                     title={props.item.type}
                 >
-                    {props.clampPreview ? preview() : truncatePreview(preview(), 120)}
+                    {preview()}
                 </span>
                 <Show when={props.copyable !== false}>
                     <button

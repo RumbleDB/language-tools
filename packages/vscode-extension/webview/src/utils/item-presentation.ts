@@ -108,10 +108,9 @@ function shortValue(value: RunQueryItem, depth: number): string {
     return truncatePreview(text, 40);
 }
 
-export function isExpandable(item: RunQueryItem, previewLength = 120): boolean {
+export function isExpandable(item: RunQueryItem): boolean {
     if (item.kind === "object" || item.kind === "map") return Boolean(item.entries?.length);
     if (item.kind === "array") return Boolean(item.members?.length);
     if (item.kind === "node" || item.kind === "function") return true;
-    const value = itemPreview(item);
-    return value.length > previewLength || value.includes("\n");
+    return item.serialized.includes("\n");
 }
