@@ -4,6 +4,9 @@ import { legend as semanticLegend } from "../lsp/features/semantic-tokens.js";
 
 export const serverCapabilities: ServerCapabilities = {
     textDocumentSync: TextDocumentSyncKind.Incremental,
+    codeLensProvider: {
+        resolveProvider: false,
+    },
     documentSymbolProvider: true,
     documentLinkProvider: {
         resolveProvider: false,
