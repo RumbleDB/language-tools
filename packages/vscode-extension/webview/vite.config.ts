@@ -7,7 +7,7 @@ import solidPlugin from "vite-plugin-solid";
 export default defineConfig({
     plugins: [solidPlugin(), UnoCSS()],
     build: {
-        outDir: path.resolve(__dirname, "../dist/webview"),
+        outDir: path.resolve(import.meta.dirname, "../dist/webview"),
         emptyOutDir: true,
         rollupOptions: {
             output: {
