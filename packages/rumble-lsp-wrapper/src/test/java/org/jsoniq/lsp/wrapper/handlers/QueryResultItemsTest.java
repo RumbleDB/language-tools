@@ -2,14 +2,14 @@ package org.jsoniq.lsp.wrapper.handlers;
 
 import java.util.List;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import org.rumbledb.exceptions.ExceptionMetadata;
 import org.rumbledb.items.ItemFactory;
@@ -30,8 +30,7 @@ class QueryResultItemsTest {
         for (var map : maps) {
             assertTrue(map.isObject());
             var result = assertInstanceOf(
-                    QueryResultItem.MapItem.class,
-                    QueryResultItems.from(map, serializer, serializer.serialize(map)));
+                    QueryResultItem.MapItem.class, QueryResultItems.from(map, serializer, serializer.serialize(map)));
             assertEquals(map.getSize(), result.entries().size());
             var json = mapper.readTree(mapper.writeValueAsString(result));
             assertEquals("map", json.get("kind").asText());
@@ -48,8 +47,7 @@ class QueryResultItemsTest {
         parameters.setMethod("adaptive");
         var serializer = Serializers.from(parameters);
         var result = assertInstanceOf(
-                QueryResultItem.MapItem.class,
-                QueryResultItems.from(map, serializer, serializer.serialize(map)));
+                QueryResultItem.MapItem.class, QueryResultItems.from(map, serializer, serializer.serialize(map)));
         assertInstanceOf(QueryResultItem.NullItem.class, result.entries().get(0).key());
         assertEquals("null", result.entries().get(0).key().serialized());
     }

@@ -86,15 +86,14 @@ public final class RunQuery implements RequestHandler {
                             serialized = serializer.serialize(item);
                         } catch (RumbleException exception) {
                             QueryError error = QueryError.from(exception);
-                            return Result.failure(
-                                    new QueryError(
-                                            "Query evaluated, but result serialization failed for item "
-                                                    + (items.size() + 1)
-                                                    + ": "
-                                                    + error.message(),
-                                            error.code(),
-                                            error.location(),
-                                            error.range()));
+                            return Result.failure(new QueryError(
+                                    "Query evaluated, but result serialization failed for item "
+                                            + (items.size() + 1)
+                                            + ": "
+                                            + error.message(),
+                                    error.code(),
+                                    error.location(),
+                                    error.range()));
                         }
                         items.add(QueryResultItems.from(item, serializer, serialized));
                     }

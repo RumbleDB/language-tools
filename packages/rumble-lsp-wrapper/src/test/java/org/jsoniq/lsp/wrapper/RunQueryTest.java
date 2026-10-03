@@ -9,11 +9,8 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-
-import org.jsoniq.lsp.wrapper.handlers.RunQuery;
 import org.jsoniq.lsp.wrapper.handlers.QueryResultItem;
+import org.jsoniq.lsp.wrapper.handlers.RunQuery;
 import org.jsoniq.lsp.wrapper.messages.Request;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -24,6 +21,9 @@ import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import org.rumbledb.exceptions.ExceptionMetadata;
 import org.rumbledb.exceptions.RumbleException;
@@ -43,16 +43,23 @@ class RunQueryTest {
                 result.items().stream().map(item -> item.kind()).toList());
         assertEquals("42", result.items().get(0).serialized());
         assertEquals("\"42\"", result.items().get(1).serialized());
-        assertTrue(!result.items().get(0).type().displayName().equals(result.items().get(1).type().displayName()));
+        assertTrue(!result.items()
+                .get(0)
+                .type()
+                .displayName()
+                .equals(result.items().get(1).type().displayName()));
         assertInstanceOf(QueryResultItem.AtomicItem.class, result.items().get(0));
         assertInstanceOf(QueryResultItem.NullItem.class, result.items().get(3));
         for (var item : result.items().subList(0, 4)) assertItemProperties(json(item));
-        var object = assertInstanceOf(QueryResultItem.ObjectItem.class, result.items().get(4));
+        var object = assertInstanceOf(
+                QueryResultItem.ObjectItem.class, result.items().get(4));
         assertEquals("n", object.fields().get(0).name());
         assertEquals("7", object.fields().get(0).value().get(0).serialized());
         assertItemProperties(json(object), "fields");
-        var array = assertInstanceOf(QueryResultItem.ArrayItem.class, result.items().get(5));
-        var nested = assertInstanceOf(QueryResultItem.ArrayItem.class, array.members().get(1).get(0));
+        var array =
+                assertInstanceOf(QueryResultItem.ArrayItem.class, result.items().get(5));
+        var nested = assertInstanceOf(
+                QueryResultItem.ArrayItem.class, array.members().get(1).get(0));
         assertEquals("2", nested.members().get(0).get(0).serialized());
     }
 
@@ -70,8 +77,15 @@ class RunQueryTest {
         assertEquals(4, result.items().size());
         assertEquals("null", result.items().get(0).kind());
         assertEquals("\"\"", result.items().get(1).serialized());
-        assertEquals(java.util.List.of(), assertInstanceOf(QueryResultItem.ArrayItem.class, result.items().get(2)).members());
-        assertEquals(java.util.List.of(), assertInstanceOf(QueryResultItem.ObjectItem.class, result.items().get(3)).fields());
+        assertEquals(
+                java.util.List.of(),
+                assertInstanceOf(QueryResultItem.ArrayItem.class, result.items().get(2))
+                        .members());
+        assertEquals(
+                java.util.List.of(),
+                assertInstanceOf(
+                                QueryResultItem.ObjectItem.class, result.items().get(3))
+                        .fields());
         assertEquals(0, json(result.items().get(2)).get("members").size());
         assertEquals(0, json(result.items().get(3)).get("fields").size());
     }
@@ -85,15 +99,21 @@ class RunQueryTest {
         assertEquals("123456789012345678901234567890", result.items().get(0).serialized());
         assertEquals("0.12345678901234567890123456789", result.items().get(1).serialized());
         assertEquals(
-                "Q{http://www.w3.org/2001/XMLSchema}date", result.items().get(2).type().qname());
+                "Q{http://www.w3.org/2001/XMLSchema}date",
+                result.items().get(2).type().qname());
         assertEquals("xs:date(\"2026-10-02\")", result.items().get(2).serialized());
         JsonNode response = json(result);
         assertProperties(response, "items", "error");
-        assertEquals("123456789012345678901234567890", response.get("items").get(0).get("serialized").asText());
+        assertEquals(
+                "123456789012345678901234567890",
+                response.get("items").get(0).get("serialized").asText());
         JsonNode dateType = response.get("items").get(2).get("type");
         assertProperties(dateType, "displayName", "qname");
-        assertEquals(result.items().get(2).type().displayName(), dateType.get("displayName").asText());
-        assertEquals("Q{http://www.w3.org/2001/XMLSchema}date", dateType.get("qname").asText());
+        assertEquals(
+                result.items().get(2).type().displayName(),
+                dateType.get("displayName").asText());
+        assertEquals(
+                "Q{http://www.w3.org/2001/XMLSchema}date", dateType.get("qname").asText());
         assertTrue(response.get("error").isNull());
     }
 
@@ -102,7 +122,10 @@ class RunQueryTest {
         RunQuery.Result result = this.runQuery.run("xquery version \"3.1\"; (<book/>, \"<book/>\")", DOCUMENT_URI);
         assertNull(result.error());
         assertEquals("node", result.items().get(0).kind());
-        assertEquals("element", assertInstanceOf(QueryResultItem.NodeItem.class, result.items().get(0)).nodeKind());
+        assertEquals(
+                "element",
+                assertInstanceOf(QueryResultItem.NodeItem.class, result.items().get(0))
+                        .nodeKind());
         assertTrue(result.items().get(0).serialized().contains("book"));
         assertEquals("atomic", result.items().get(1).kind());
         assertEquals("\"<book/>\"", result.items().get(1).serialized());
@@ -135,7 +158,8 @@ class RunQueryTest {
         assertProperties(json(stringEntry), "key", "value");
         assertNotNull(map.serialized());
         assertItemProperties(json(map), "entries");
-        var array = assertInstanceOf(QueryResultItem.ArrayItem.class, result.items().get(1));
+        var array =
+                assertInstanceOf(QueryResultItem.ArrayItem.class, result.items().get(1));
         assertEquals(java.util.List.of(), array.members().get(0));
         assertEquals(2, array.members().get(1).size());
         assertEquals("array", array.members().get(2).get(0).kind());
@@ -150,7 +174,8 @@ class RunQueryTest {
     void returningAFunctionDoesNotFailSerialization() throws Exception {
         RunQuery.Result result = this.runQuery.run("xquery version \"3.1\"; fn:concat#2", DOCUMENT_URI);
         assertNull(result.error());
-        var function = assertInstanceOf(QueryResultItem.FunctionItem.class, result.items().get(0));
+        var function = assertInstanceOf(
+                QueryResultItem.FunctionItem.class, result.items().get(0));
         assertEquals("function", function.kind());
         assertEquals(2, function.arity());
         assertTrue(function.name().contains("concat"));
@@ -225,9 +250,22 @@ class RunQueryTest {
         RunQuery.Result result = assertDoesNotThrow(() -> this.runQuery.run("{ \"foo\": \"bar\" }", DOCUMENT_URI));
         assertNull(result.error());
         assertNotNull(result.items());
-        assertEquals("foo", assertInstanceOf(QueryResultItem.ObjectItem.class, result.items().get(0)).fields().get(0).name());
         assertEquals(
-                "\"bar\"", assertInstanceOf(QueryResultItem.ObjectItem.class, result.items().get(0)).fields().get(0).value().get(0).serialized());
+                "foo",
+                assertInstanceOf(
+                                QueryResultItem.ObjectItem.class, result.items().get(0))
+                        .fields()
+                        .get(0)
+                        .name());
+        assertEquals(
+                "\"bar\"",
+                assertInstanceOf(
+                                QueryResultItem.ObjectItem.class, result.items().get(0))
+                        .fields()
+                        .get(0)
+                        .value()
+                        .get(0)
+                        .serialized());
     }
 
     @Test
@@ -337,8 +375,11 @@ class RunQueryTest {
         }
         var result = this.runQuery.run("{" + String.join(",", fields) + "}", DOCUMENT_URI);
         assertNull(result.error());
-        var object = assertInstanceOf(QueryResultItem.ObjectItem.class, result.items().get(0));
-        assertEquals(names, object.fields().stream().map(QueryResultItem.ObjectField::name).toList());
+        var object = assertInstanceOf(
+                QueryResultItem.ObjectItem.class, result.items().get(0));
+        assertEquals(
+                names,
+                object.fields().stream().map(QueryResultItem.ObjectField::name).toList());
         JsonNode objectJson = json(object);
         assertItemProperties(objectJson, "fields");
         for (int index = 0; index < names.size(); index++) {
@@ -358,7 +399,8 @@ class RunQueryTest {
         expected.addAll(List.of(properties));
         assertProperties(item, expected.toArray(String[]::new));
         JsonNode type = item.get("type");
-        assertProperties(type, type.has("qname") ? new String[] {"displayName", "qname"} : new String[] {"displayName"});
+        assertProperties(
+                type, type.has("qname") ? new String[] {"displayName", "qname"} : new String[] {"displayName"});
         assertTrue(type.get("displayName").isTextual());
     }
 

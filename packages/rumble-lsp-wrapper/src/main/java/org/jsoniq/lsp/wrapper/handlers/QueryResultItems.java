@@ -10,17 +10,14 @@ final class QueryResultItems {
     private QueryResultItems() {}
 
     private static List<QueryResultItem> sequence(List<Item> items, Serializer serializer) {
-        return items.stream().map(item -> from(item, serializer, serializer.serialize(item))).toList();
+        return items.stream()
+                .map(item -> from(item, serializer, serializer.serialize(item)))
+                .toList();
     }
 
     static QueryResultItem from(Item item, Serializer serializer, String serialized) {
         var dynamicType = item.getDynamicType();
-        String qname = null;
-        if (dynamicType.hasName()) {
-            var name = dynamicType.getName();
-            qname = "Q{" + (name.getNamespace() == null ? "" : name.getNamespace()) + "}" + name.getLocalName();
-        }
-        var type = new QueryResultItem.ItemType(dynamicType.toString(), qname);
+        var type = QueryResultItem.ItemType.from(dynamicType);
 
         if (item.isNull()) return new QueryResultItem.NullItem(type, serialized);
         // isObject() also accepts object-shaped maps; preserve their actual dynamic kind.

@@ -16,7 +16,16 @@ public sealed interface QueryResultItem {
     String serialized();
 
     @JsonInclude(JsonInclude.Include.NON_NULL)
-    record ItemType(String displayName, String qname) {}
+    record ItemType(String displayName, String qname) {
+        public static ItemType from(org.rumbledb.types.ItemType dynamicType) {
+            String qname = null;
+            if (dynamicType.hasName()) {
+                var name = dynamicType.getName();
+                qname = "Q{" + (name.getNamespace() == null ? "" : name.getNamespace()) + "}" + name.getLocalName();
+            }
+            return new ItemType(dynamicType.toString(), qname);
+        }
+    }
 
     /** The engine permits atomic keys, including its null item, in maps. */
     sealed interface AtomicValue extends QueryResultItem {}
@@ -36,8 +45,7 @@ public sealed interface QueryResultItem {
     }
 
     /** Object fields have literal names, rather than typed map keys. */
-    record ObjectItem(ItemType type, String serialized, List<ObjectField> fields)
-            implements QueryResultItem {
+    record ObjectItem(ItemType type, String serialized, List<ObjectField> fields) implements QueryResultItem {
         @Override
         public String kind() {
             return "object";
@@ -46,8 +54,7 @@ public sealed interface QueryResultItem {
 
     record ObjectField(String name, List<QueryResultItem> value) {}
 
-    record MapItem(ItemType type, String serialized, List<MapEntry> entries)
-            implements QueryResultItem {
+    record MapItem(ItemType type, String serialized, List<MapEntry> entries) implements QueryResultItem {
         @Override
         public String kind() {
             return "map";
@@ -57,8 +64,7 @@ public sealed interface QueryResultItem {
     record MapEntry(AtomicValue key, List<QueryResultItem> value) {}
 
     /** Array members are sequences; an empty member is different from an empty array. */
-    record ArrayItem(ItemType type, String serialized, List<List<QueryResultItem>> members)
-            implements QueryResultItem {
+    record ArrayItem(ItemType type, String serialized, List<List<QueryResultItem>> members) implements QueryResultItem {
         @Override
         public String kind() {
             return "array";

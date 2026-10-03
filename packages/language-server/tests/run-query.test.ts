@@ -2,21 +2,59 @@ import {
     runQuery,
     runQueryFromSource,
 } from "server/integrations/rumble/operations/run-query/service.js";
+import type { RunQueryItem } from "server/lsp/protocol/requests/run-query.js";
 import { describe, expect, it, vi } from "vitest";
 
 import { createMockWrapperClient, testDocument } from "./test-utils.js";
 
 describe("run query service", () => {
-    it("preserves typed mixed items without coercing lexical values", async () => {
-        const items = [
+    it("preserves typed mixed items without coercing serialized values", async () => {
+        const items: RunQueryItem[] = [
             {
                 kind: "atomic",
-                type: "xs:integer",
+                type: {
+                    displayName: "xs:integer",
+                    qname: "Q{http://www.w3.org/2001/XMLSchema}integer",
+                },
                 serialized: "9007199254740993",
-                lexicalValue: "9007199254740993",
             },
-            { kind: "node", type: "element", nodeKind: "element", serialized: "<book/>" },
-            { kind: "array", type: "array(*)", serialized: "[()]", members: [[]] },
+            {
+                kind: "node",
+                type: { displayName: "element" },
+                nodeKind: "element",
+                serialized: "<book/>",
+            },
+            { kind: "array", type: { displayName: "array(*)" }, serialized: "[()]", members: [[]] },
+            { kind: "null", type: { displayName: "js:null" }, serialized: "null" },
+            {
+                kind: "object",
+                type: { displayName: "object" },
+                serialized: '{"a.b": 1}',
+                fields: [{ name: "a.b", value: [] }],
+            },
+            {
+                kind: "map",
+                type: { displayName: "map(*)" },
+                serialized: "map{1: ()}",
+                entries: [
+                    {
+                        key: {
+                            kind: "atomic",
+                            type: { displayName: "xs:integer" },
+                            serialized: "1",
+                        },
+                        value: [],
+                    },
+                ],
+            },
+            {
+                kind: "function",
+                type: { displayName: "function(*)" },
+                serialized: "fn:concat#2",
+                name: "fn:concat",
+                arity: 2,
+                signature: "function(*)",
+            },
         ];
         const body = { error: null, items };
         const wrapper = createMockWrapperClient({
@@ -24,7 +62,7 @@ describe("run query service", () => {
         });
         const result = await runQueryFromSource("file:///test.xq", "mixed result", wrapper);
         expect(result).toEqual(body);
-        expect(result.items?.[0]?.lexicalValue).toBe("9007199254740993");
+        expect(result.items?.[0]?.serialized).toBe("9007199254740993");
     });
 
     it("sends document text and documentUri to wrapper", async () => {
@@ -32,7 +70,7 @@ describe("run query service", () => {
             id: 1,
             responseType: "run-query",
             body: {
-                items: [{ kind: "atomic", type: "xs:integer", serialized: "2", lexicalValue: "2" }],
+                items: [{ kind: "atomic", type: { displayName: "xs:integer" }, serialized: "2" }],
                 error: null,
             },
             error: null,
@@ -51,7 +89,7 @@ describe("run query service", () => {
             undefined,
             undefined,
         );
-        expect(result.items?.[0]?.lexicalValue).toBe("2");
+        expect(result.items?.[0]?.serialized).toBe("2");
         expect(result.error).toBeNull();
     });
 
@@ -116,9 +154,7 @@ describe("run query service", () => {
             id: 2,
             responseType: "run-query",
             body: {
-                items: [
-                    { kind: "atomic", type: "xs:integer", serialized: "42", lexicalValue: "42" },
-                ],
+                items: [{ kind: "atomic", type: { displayName: "xs:integer" }, serialized: "42" }],
                 error: null,
             },
             error: null,
@@ -136,7 +172,7 @@ describe("run query service", () => {
             undefined,
             undefined,
         );
-        expect(result.items?.[0]?.lexicalValue).toBe("42");
+        expect(result.items?.[0]?.serialized).toBe("42");
     });
 
     it("returns an error result when an already-aborted signal is passed", async () => {

@@ -12,7 +12,6 @@ import {
 import type { RunQueryItem } from "@/types.js";
 import { createCopyAction } from "@/utils/clipboard.js";
 import { isExpandable, itemPreview, itemTone } from "@/utils/item-presentation.js";
-import { formatItem } from "@/utils/result-items.js";
 
 import { XmlSource } from "./XmlSource.js";
 
@@ -92,7 +91,7 @@ export function ItemValue(props: ItemValueProps) {
                         previewElement = element;
                     }}
                     class={`font-mono text-xs leading-5 flex-1 min-w-0 break-words line-clamp-2 ${tone()}`}
-                    title={props.item.type}
+                    title={props.item.type.displayName}
                 >
                     {preview()}
                 </span>
@@ -102,7 +101,7 @@ export function ItemValue(props: ItemValueProps) {
                         class={`w-5 h-5 flex items-center justify-center shrink-0 text-secondary hover:text-on-surface hover:bg-action-hover rounded cursor-pointer focus-visible:outline-1 focus-visible:outline-focus group-hover:opacity-100 focus:opacity-100 [@media(hover:none)]:opacity-100 ${copied() ? "opacity-100" : "opacity-0"}`}
                         title={copied() ? "Copied" : "Copy value"}
                         aria-label={copied() ? "Copied" : "Copy value"}
-                        onClick={() => copy(formatItem(props.item))}
+                        onClick={() => copy(props.item.serialized)}
                     >
                         <span
                             class={copied() ? "i-iconoir-check text-success" : "i-iconoir-copy"}
@@ -112,67 +111,101 @@ export function ItemValue(props: ItemValueProps) {
             </div>
             <Show when={expanded()}>
                 <div class="ml-2 pl-3 mt-2 border-l border-outline-variant space-y-2">
-                    <div class="text-2xs text-secondary break-words" title={props.item.typeName}>
-                        {props.item.nodeKind && props.item.nodeKind !== props.item.type
+                    <div class="text-2xs text-secondary break-words" title={props.item.type.qname}>
+                        {props.item.kind === "node" &&
+                        props.item.nodeKind !== props.item.type.displayName
                             ? `${props.item.nodeKind} · `
                             : ""}
-                        {props.item.type}
+                        {props.item.type.displayName}
                     </div>
-                    <Show when={props.item.entries}>
-                        <For each={props.item.entries}>
-                            {(entry) => (
-                                <div class="flex items-start gap-2 min-w-0">
-                                    <div
-                                        class={`font-mono text-xs leading-5 shrink-0 max-w-[40%] result-value-${itemTone(entry.key)} break-words`}
-                                        title={entry.key.type}
-                                    >
-                                        {itemPreview(entry.key)}:
+                    <Show when={props.item.kind === "object" && props.item}>
+                        {(item) => (
+                            <For each={item().fields}>
+                                {(field) => (
+                                    <div class="flex items-start gap-2 min-w-0">
+                                        <div class="font-mono text-xs leading-5 shrink-0 max-w-[40%] result-value-string break-words">
+                                            {JSON.stringify(field.name)}:
+                                        </div>
+                                        <div class="flex-1 min-w-0">
+                                            <SequenceValue
+                                                items={field.value}
+                                                copyable={props.copyable}
+                                                reserveArrowSpace={false}
+                                                clampPreview={props.clampPreview}
+                                            />
+                                        </div>
                                     </div>
-                                    <div class="flex-1 min-w-0">
+                                )}
+                            </For>
+                        )}
+                    </Show>
+                    <Show when={props.item.kind === "map" && props.item}>
+                        {(item) => (
+                            <For each={item().entries}>
+                                {(entry) => (
+                                    <div class="flex items-start gap-2 min-w-0">
+                                        <div
+                                            class={`font-mono text-xs leading-5 shrink-0 max-w-[40%] result-value-${itemTone(entry.key)} break-words`}
+                                            title={entry.key.type.displayName}
+                                        >
+                                            {itemPreview(entry.key)}:
+                                        </div>
+                                        <div class="flex-1 min-w-0">
+                                            <SequenceValue
+                                                items={entry.value}
+                                                copyable={props.copyable}
+                                                reserveArrowSpace={false}
+                                                clampPreview={props.clampPreview}
+                                            />
+                                        </div>
+                                    </div>
+                                )}
+                            </For>
+                        )}
+                    </Show>
+                    <Show when={props.item.kind === "array" && props.item}>
+                        {(item) => (
+                            <For each={item().members}>
+                                {(member, index) => (
+                                    <div class="flex items-start gap-2 min-w-0">
+                                        <span class="font-mono text-2xs leading-5 text-secondary shrink-0">
+                                            [{index() + 1}]
+                                        </span>
                                         <SequenceValue
-                                            items={entry.value}
+                                            items={member}
                                             copyable={props.copyable}
-                                            reserveArrowSpace={false}
                                             clampPreview={props.clampPreview}
                                         />
                                     </div>
-                                </div>
-                            )}
-                        </For>
+                                )}
+                            </For>
+                        )}
                     </Show>
-                    <Show when={props.item.members}>
-                        <For each={props.item.members}>
-                            {(member, index) => (
-                                <div class="flex items-start gap-2 min-w-0">
-                                    <span class="font-mono text-2xs leading-5 text-secondary shrink-0">
-                                        [{index() + 1}]
-                                    </span>
-                                    <SequenceValue
-                                        items={member}
-                                        copyable={props.copyable}
-                                        clampPreview={props.clampPreview}
-                                    />
-                                </div>
-                            )}
-                        </For>
+                    <Show when={props.item.kind === "function" && props.item}>
+                        {(item) => (
+                            <pre class="text-xs font-mono whitespace-pre-wrap break-words text-on-surface">
+                                {item().signature}
+                            </pre>
+                        )}
                     </Show>
-                    <Show when={props.item.function}>
-                        <pre class="text-xs font-mono whitespace-pre-wrap break-words text-on-surface">
-                            {props.item.function?.signature}
-                        </pre>
-                    </Show>
-                    <Show when={!props.item.entries && !props.item.members && !props.item.function}>
+                    <Show
+                        when={
+                            props.item.kind === "atomic" ||
+                            props.item.kind === "null" ||
+                            props.item.kind === "node"
+                        }
+                    >
                         <Show
                             when={props.item.kind === "node"}
                             fallback={
                                 <pre
                                     class={`text-xs font-mono whitespace-pre-wrap break-words ${tone()}`}
                                 >
-                                    {formatItem(props.item)}
+                                    {props.item.serialized}
                                 </pre>
                             }
                         >
-                            <XmlSource source={formatItem(props.item)} />
+                            <XmlSource source={props.item.serialized} />
                         </Show>
                     </Show>
                 </div>
