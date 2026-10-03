@@ -26,6 +26,9 @@ export function createPagination(itemCount: () => number) {
         canNextPage: () => state().pageIndex < pageCount() - 1,
         previousPage: () => setPageIndex(state().pageIndex - 1),
         nextPage: () => setPageIndex(state().pageIndex + 1),
+        firstPage: () => setPageIndex(0),
+        lastPage: () => setPageIndex(pageCount() - 1),
+        setPageIndex,
         reset: () => setPageIndex(0),
         setPageSize: (pageSize: number) =>
             setState((previous) => ({

@@ -119,6 +119,7 @@ export function App() {
                                         canNextPage={results.pagination.canNextPage()}
                                         onPreviousPage={results.pagination.previousPage}
                                         onNextPage={results.pagination.nextPage}
+                                        onPageChange={results.pagination.setPageIndex}
                                         onPageSizeChange={results.pagination.setPageSize}
                                     />
                                 </Show>
