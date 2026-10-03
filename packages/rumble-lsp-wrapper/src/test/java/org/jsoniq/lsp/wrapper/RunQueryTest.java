@@ -5,7 +5,11 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Base64;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 
+import org.jsoniq.lsp.wrapper.handlers.QueryResultItem;
 import org.jsoniq.lsp.wrapper.handlers.RunQuery;
 import org.jsoniq.lsp.wrapper.messages.Request;
 import org.junit.jupiter.api.Test;
@@ -13,9 +17,13 @@ import org.junit.jupiter.api.io.TempDir;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import org.rumbledb.exceptions.ExceptionMetadata;
 import org.rumbledb.exceptions.RumbleException;
@@ -24,106 +32,156 @@ class RunQueryTest {
     private static final URI DOCUMENT_URI = URI.create("file:///run-query");
 
     private final RunQuery runQuery = new RunQuery();
+    private final ObjectMapper mapper = new ObjectMapper();
 
     @Test
-    void preservesMixedJsoniqItemsAndNestedTypes() {
+    void preservesMixedJsoniqItemsAndNestedTypes() throws Exception {
         RunQuery.Result result = this.runQuery.run("(42, \"42\", true, null, {\"n\": 7}, [1, [2]])", DOCUMENT_URI);
         assertNull(result.error());
         assertEquals(
                 java.util.List.of("atomic", "atomic", "atomic", "null", "object", "array"),
                 result.items().stream().map(item -> item.kind()).toList());
-        assertEquals("42", result.items().get(0).lexicalValue());
-        assertEquals("42", result.items().get(1).lexicalValue());
-        assertTrue(!result.items().get(0).type().equals(result.items().get(1).type()));
-        assertEquals("n", result.items().get(4).entries().get(0).key().lexicalValue());
-        assertEquals("7", result.items().get(4).entries().get(0).value().get(0).lexicalValue());
-        assertEquals("array", result.items().get(5).members().get(1).get(0).kind());
-        assertEquals(
-                "2",
-                result.items()
-                        .get(5)
-                        .members()
-                        .get(1)
-                        .get(0)
-                        .members()
-                        .get(0)
-                        .get(0)
-                        .lexicalValue());
+        assertEquals("42", result.items().get(0).serialized());
+        assertEquals("\"42\"", result.items().get(1).serialized());
+        assertTrue(!result.items()
+                .get(0)
+                .type()
+                .displayName()
+                .equals(result.items().get(1).type().displayName()));
+        assertInstanceOf(QueryResultItem.AtomicItem.class, result.items().get(0));
+        assertInstanceOf(QueryResultItem.NullItem.class, result.items().get(3));
+        for (var item : result.items().subList(0, 4)) assertItemProperties(json(item));
+        var object = assertInstanceOf(
+                QueryResultItem.ObjectItem.class, result.items().get(4));
+        assertEquals("n", object.fields().get(0).name());
+        assertEquals("7", object.fields().get(0).value().get(0).serialized());
+        assertItemProperties(json(object), "fields");
+        var array =
+                assertInstanceOf(QueryResultItem.ArrayItem.class, result.items().get(5));
+        var nested = assertInstanceOf(
+                QueryResultItem.ArrayItem.class, array.members().get(1).get(0));
+        assertEquals("2", nested.members().get(0).get(0).serialized());
     }
 
     @Test
-    void distinguishesEmptySequenceNullEmptyStringAndEmptyArray() {
+    void distinguishesEmptySequenceNullEmptyStringAndEmptyContainers() throws Exception {
         RunQuery.Result empty = this.runQuery.run("()", DOCUMENT_URI);
         assertNull(empty.error());
         assertEquals(java.util.List.of(), empty.items());
-        RunQuery.Result result = this.runQuery.run("(null, \"\", [])", DOCUMENT_URI);
+        JsonNode emptyJson = json(empty);
+        assertProperties(emptyJson, "items", "error");
+        assertEquals(0, emptyJson.get("items").size());
+        assertTrue(emptyJson.get("error").isNull());
+        RunQuery.Result result = this.runQuery.run("(null, \"\", [], {})", DOCUMENT_URI);
         assertNull(result.error());
-        assertEquals(3, result.items().size());
+        assertEquals(4, result.items().size());
         assertEquals("null", result.items().get(0).kind());
-        assertEquals("", result.items().get(1).lexicalValue());
-        assertEquals(java.util.List.of(), result.items().get(2).members());
+        assertEquals("\"\"", result.items().get(1).serialized());
+        assertEquals(
+                java.util.List.of(),
+                assertInstanceOf(QueryResultItem.ArrayItem.class, result.items().get(2))
+                        .members());
+        assertEquals(
+                java.util.List.of(),
+                assertInstanceOf(
+                                QueryResultItem.ObjectItem.class, result.items().get(3))
+                        .fields());
+        assertEquals(0, json(result.items().get(2)).get("members").size());
+        assertEquals(0, json(result.items().get(3)).get("fields").size());
     }
 
     @Test
-    void preservesNumericPrecisionAndAtomicTypeNames() {
+    void preservesNumericPrecisionAndAtomicTypeNames() throws Exception {
         RunQuery.Result result = this.runQuery.run(
                 "(xs:integer(\"123456789012345678901234567890\"), xs:decimal(\"0.12345678901234567890123456789\"), xs:date(\"2026-10-02\"))",
                 DOCUMENT_URI);
         assertNull(result.error());
-        assertEquals("123456789012345678901234567890", result.items().get(0).lexicalValue());
-        assertEquals("0.12345678901234567890123456789", result.items().get(1).lexicalValue());
+        assertEquals("123456789012345678901234567890", result.items().get(0).serialized());
+        assertEquals("0.12345678901234567890123456789", result.items().get(1).serialized());
         assertEquals(
-                "Q{http://www.w3.org/2001/XMLSchema}date", result.items().get(2).typeName());
-        assertEquals("2026-10-02", result.items().get(2).lexicalValue());
+                "Q{http://www.w3.org/2001/XMLSchema}date",
+                result.items().get(2).type().qname());
+        assertEquals("xs:date(\"2026-10-02\")", result.items().get(2).serialized());
+        JsonNode response = json(result);
+        assertProperties(response, "items", "error");
+        assertEquals(
+                "123456789012345678901234567890",
+                response.get("items").get(0).get("serialized").asText());
+        JsonNode dateType = response.get("items").get(2).get("type");
+        assertProperties(dateType, "displayName", "qname");
+        assertEquals(
+                result.items().get(2).type().displayName(),
+                dateType.get("displayName").asText());
+        assertEquals(
+                "Q{http://www.w3.org/2001/XMLSchema}date", dateType.get("qname").asText());
+        assertTrue(response.get("error").isNull());
     }
 
     @Test
-    void distinguishesXmlNodesFromStringsContainingXml() {
+    void distinguishesXmlNodesFromStringsContainingXml() throws Exception {
         RunQuery.Result result = this.runQuery.run("xquery version \"3.1\"; (<book/>, \"<book/>\")", DOCUMENT_URI);
         assertNull(result.error());
         assertEquals("node", result.items().get(0).kind());
-        assertEquals("element", result.items().get(0).nodeKind());
+        assertEquals(
+                "element",
+                assertInstanceOf(QueryResultItem.NodeItem.class, result.items().get(0))
+                        .nodeKind());
         assertTrue(result.items().get(0).serialized().contains("book"));
         assertEquals("atomic", result.items().get(1).kind());
-        assertEquals("<book/>", result.items().get(1).lexicalValue());
+        assertEquals("\"<book/>\"", result.items().get(1).serialized());
+        assertItemProperties(json(result.items().get(0)), "nodeKind");
+        assertItemProperties(json(result.items().get(1)));
     }
 
     @Test
-    void preservesTypedMapKeysAndSequenceValuedEntriesAndArrayMembers() {
+    void preservesTypedMapKeysAndSequenceValuedEntriesAndArrayMembers() throws Exception {
         RunQuery.Result result = this.runQuery.run(
                 "xquery version \"3.1\"; (map {1: (\"a\", \"b\"), \"1\": ()}, [(), (1, 2), [3]])", DOCUMENT_URI);
         assertNull(result.error());
-        var map = result.items().get(0);
+        var map = assertInstanceOf(QueryResultItem.MapItem.class, result.items().get(0));
         assertEquals("map", map.kind());
         assertEquals(2, map.entries().size());
         var numericEntry = map.entries().stream()
-                .filter(entry -> entry.key().typeName().endsWith("}int")
-                        || entry.key().typeName().endsWith("}integer"))
+                .filter(entry -> entry.key().type().qname().endsWith("}int")
+                        || entry.key().type().qname().endsWith("}integer"))
                 .findFirst()
                 .orElseThrow();
         assertEquals(2, numericEntry.value().size());
+        assertEquals("1", numericEntry.key().serialized());
+        assertProperties(json(numericEntry), "key", "value");
         var stringEntry = map.entries().stream()
-                .filter(entry -> entry.key().typeName().endsWith("}string"))
+                .filter(entry -> entry.key().type().qname().endsWith("}string"))
                 .findFirst()
                 .orElseThrow();
         assertEquals(java.util.List.of(), stringEntry.value());
+        assertEquals("\"1\"", stringEntry.key().serialized());
+        assertProperties(json(stringEntry), "key", "value");
         assertNotNull(map.serialized());
-        var array = result.items().get(1);
+        assertItemProperties(json(map), "entries");
+        var array =
+                assertInstanceOf(QueryResultItem.ArrayItem.class, result.items().get(1));
         assertEquals(java.util.List.of(), array.members().get(0));
         assertEquals(2, array.members().get(1).size());
         assertEquals("array", array.members().get(2).get(0).kind());
+        JsonNode arrayJson = json(array);
+        assertItemProperties(arrayJson, "members");
+        assertEquals(0, arrayJson.get("members").get(0).size());
+        assertEquals(2, arrayJson.get("members").get(1).size());
+        assertEquals("array", arrayJson.get("members").get(2).get(0).get("kind").asText());
     }
 
     @Test
-    void returningAFunctionDoesNotFailSerialization() {
+    void returningAFunctionDoesNotFailSerialization() throws Exception {
         RunQuery.Result result = this.runQuery.run("xquery version \"3.1\"; fn:concat#2", DOCUMENT_URI);
         assertNull(result.error());
-        var function = result.items().get(0);
+        var function = assertInstanceOf(
+                QueryResultItem.FunctionItem.class, result.items().get(0));
         assertEquals("function", function.kind());
-        assertEquals(2, function.function().arity());
-        assertTrue(function.function().name().contains("concat"));
-        assertNotNull(function.function().signature());
+        assertEquals(2, function.arity());
+        assertTrue(function.name().contains("concat"));
+        assertNotNull(function.signature());
         assertNotNull(function.serialized());
+        assertItemProperties(json(function), "name", "arity", "signature");
     }
 
     @Test
@@ -156,29 +214,6 @@ class RunQueryTest {
     }
 
     @Test
-    void typedItemsAreAbsentOnQueryErrors() {
-        RunQuery.Result result = this.runQuery.run("1 +", DOCUMENT_URI);
-        assertNotNull(result.error());
-        assertNull(result.items());
-    }
-
-    @Test
-    void serializesTypedItemsInTheResponseBody() throws Exception {
-        RunQuery.Result result = this.runQuery.run("(xs:integer(\"9007199254740993\"), [])", DOCUMENT_URI);
-        assertNull(result.error());
-        var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
-        var json = mapper.readTree(mapper.writeValueAsString(result));
-        assertEquals(
-                "9007199254740993", json.get("items").get(0).get("lexicalValue").asText());
-        assertEquals(
-                "9007199254740993", json.get("items").get(0).get("serialized").asText());
-        assertEquals("array", json.get("items").get(1).get("kind").asText());
-        assertEquals(0, json.get("items").get(1).get("members").size());
-        assertTrue(json.get("error").isNull());
-        assertNull(json.get("output"));
-    }
-
-    @Test
     void missingMetadataDoesNotExposePlaceholderLocation() {
         RumbleException exception = new RumbleException("Query failed", ExceptionMetadata.EMPTY_METADATA);
         RunQuery.QueryError error = RunQuery.QueryError.from(exception);
@@ -207,7 +242,7 @@ class RunQueryTest {
         RunQuery.Result result = assertDoesNotThrow(() -> this.runQuery.run("1 + 1", DOCUMENT_URI));
         assertNull(result.error());
         assertNotNull(result.items());
-        assertEquals("2", result.items().get(0).lexicalValue());
+        assertEquals("2", result.items().get(0).serialized());
     }
 
     @Test
@@ -215,9 +250,22 @@ class RunQueryTest {
         RunQuery.Result result = assertDoesNotThrow(() -> this.runQuery.run("{ \"foo\": \"bar\" }", DOCUMENT_URI));
         assertNull(result.error());
         assertNotNull(result.items());
-        assertEquals("foo", result.items().get(0).entries().get(0).key().lexicalValue());
         assertEquals(
-                "bar", result.items().get(0).entries().get(0).value().get(0).lexicalValue());
+                "foo",
+                assertInstanceOf(
+                                QueryResultItem.ObjectItem.class, result.items().get(0))
+                        .fields()
+                        .get(0)
+                        .name());
+        assertEquals(
+                "\"bar\"",
+                assertInstanceOf(
+                                QueryResultItem.ObjectItem.class, result.items().get(0))
+                        .fields()
+                        .get(0)
+                        .value()
+                        .get(0)
+                        .serialized());
     }
 
     @Test
@@ -228,7 +276,7 @@ class RunQueryTest {
         RunQuery.Result result = (RunQuery.Result) this.runQuery.handle(request);
         assertNull(result.error());
         assertNotNull(result.items());
-        assertEquals("6", result.items().get(0).lexicalValue());
+        assertEquals("6", result.items().get(0).serialized());
     }
 
     @Test
@@ -244,13 +292,20 @@ class RunQueryTest {
     }
 
     @Test
-    void runtimeErrorReturnsStructuredError() {
+    void runtimeErrorReturnsStructuredError() throws Exception {
         RunQuery.Result result = this.runQuery.run("1 idiv 0", URI.create("file:///runtime.jq"));
         assertNull(result.items());
         assertNotNull(result.error());
         assertEquals("FOAR0001", result.error().code());
         assertEquals("file:///runtime.jq", result.error().location());
         assertNotNull(result.error().range());
+        JsonNode response = json(result);
+        assertProperties(response, "items", "error");
+        assertTrue(response.get("items").isNull());
+        assertEquals("FOAR0001", response.get("error").get("code").asText());
+        var fallback = this.runQuery.createEmptyResponse();
+        assertNull(fallback.items());
+        assertNotNull(fallback.error());
     }
 
     @Test
@@ -264,7 +319,7 @@ class RunQueryTest {
             RunQuery.Result result = (RunQuery.Result) this.runQuery.handle(request);
             assertNull(result.error());
             assertNotNull(result.items());
-            assertEquals("100", result.items().get(0).lexicalValue());
+            assertEquals("100", result.items().get(0).serialized());
         } finally {
             java.nio.file.Files.deleteIfExists(tempFile);
         }
@@ -286,8 +341,8 @@ class RunQueryTest {
         RunQuery.Result result = (RunQuery.Result) this.runQuery.handle(request);
 
         assertNull(result.error());
-        assertEquals("editor value", result.items().get(0).lexicalValue());
-        assertEquals("Q{urn:test}Code", result.items().get(0).typeName());
+        assertEquals("\"editor value\"", result.items().get(0).serialized());
+        assertEquals("Q{urn:test}Code", result.items().get(0).type().qname());
     }
 
     @Test
@@ -297,7 +352,7 @@ class RunQueryTest {
         RunQuery.Result result = assertDoesNotThrow(() -> this.runQuery.run(query, DOCUMENT_URI));
         assertNull(result.error());
         assertNotNull(result.items());
-        assertEquals("true", result.items().get(0).lexicalValue());
+        assertEquals("true()", result.items().get(0).serialized());
     }
 
     @Test
@@ -309,5 +364,49 @@ class RunQueryTest {
         assertEquals(2, result.items().size());
         assertTrue(result.items().get(0).serialized().contains("<html"));
         assertEquals("node", result.items().get(1).kind());
+    }
+
+    @Test
+    void objectFieldsPreserveLiteralNamesWithoutDuplicatingKeyItems() throws Exception {
+        var names = List.of("", "a.b", "__proto__", "say \"hello\"", "line\nfeed", "😀");
+        var fields = new java.util.ArrayList<String>();
+        for (String name : names) {
+            fields.add(this.mapper.writeValueAsString(name) + ": 1");
+        }
+        var result = this.runQuery.run("{" + String.join(",", fields) + "}", DOCUMENT_URI);
+        assertNull(result.error());
+        var object = assertInstanceOf(
+                QueryResultItem.ObjectItem.class, result.items().get(0));
+        assertEquals(
+                names,
+                object.fields().stream().map(QueryResultItem.ObjectField::name).toList());
+        JsonNode objectJson = json(object);
+        assertItemProperties(objectJson, "fields");
+        for (int index = 0; index < names.size(); index++) {
+            JsonNode field = objectJson.get("fields").get(index);
+            assertProperties(field, "name", "value");
+            assertEquals(names.get(index), field.get("name").asText());
+            assertEquals("1", field.get("value").get(0).get("serialized").asText());
+        }
+    }
+
+    private JsonNode json(Object value) throws Exception {
+        return this.mapper.readTree(this.mapper.writeValueAsString(value));
+    }
+
+    private static void assertItemProperties(JsonNode item, String... properties) {
+        var expected = new HashSet<>(Set.of("kind", "type", "serialized"));
+        expected.addAll(List.of(properties));
+        assertProperties(item, expected.toArray(String[]::new));
+        JsonNode type = item.get("type");
+        assertProperties(
+                type, type.has("qname") ? new String[] {"displayName", "qname"} : new String[] {"displayName"});
+        assertTrue(type.get("displayName").isTextual());
+    }
+
+    private static void assertProperties(JsonNode node, String... properties) {
+        var actual = new HashSet<String>();
+        node.fieldNames().forEachRemaining(actual::add);
+        assertEquals(Set.of(properties), actual);
     }
 }

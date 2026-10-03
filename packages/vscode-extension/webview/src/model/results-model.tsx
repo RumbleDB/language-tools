@@ -5,12 +5,7 @@ import { CellValue } from "@/components/views/table/CellValue.js";
 import type { RunQueryItem } from "@/types.js";
 import { itemPreview } from "@/utils/item-presentation.js";
 import { createPagination } from "@/utils/pagination.js";
-import {
-    formatCell,
-    formatItem,
-    projectTableRows,
-    type ResultSelection,
-} from "@/utils/result-items.js";
+import { formatCell, projectTableRows, type ResultSelection } from "@/utils/result-items.js";
 
 import { features, type TFeatures } from "./table-features.js";
 import type { ResultsModel, TData } from "./types.js";
@@ -102,7 +97,7 @@ export function createResultsModel(items: Accessor<RunQueryItem[]>): ResultsMode
         if (!filterValue || typeof filterValue !== "string") return true;
         const q = filterValue.trim().toLowerCase();
         if (!q) return true;
-        if (formatItem(row.original.item).toLowerCase().includes(q)) return true;
+        if (row.original.item.serialized.toLowerCase().includes(q)) return true;
         for (const val of Object.values(row.original.cells)) {
             if (formatCell(val).toLowerCase().includes(q)) return true;
         }

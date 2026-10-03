@@ -7,6 +7,8 @@ export const RUN_QUERY_LSP_METHOD = "jsoniq/runQuery" as const;
 export interface RunQueryLSPParams {
     uri: string;
     query?: string;
+    /** Base URI for execution when the source is a virtual document, such as a notebook cell. */
+    baseUri?: string;
 }
 
 export interface RunQueryError {
@@ -18,23 +20,45 @@ export interface RunQueryError {
     range: Range | null;
 }
 
-/** Typed inspection data. Numeric lexical values remain strings to preserve precision. */
-export interface RunQueryItem {
-    kind: "atomic" | "null" | "object" | "map" | "array" | "node" | "function";
+export interface RunQueryItemType {
     /** Engine's display name for the dynamic type. */
-    type: string;
+    displayName: string;
     /** Expanded QName for named types, independent of namespace prefixes. */
-    typeName?: string;
+    qname?: string;
+}
+
+interface RunQueryItemBase {
+    type: RunQueryItemType;
     /** Backend adaptive serialization; failures are reported as run-query errors. */
     serialized: string;
-    lexicalValue?: string;
-    nodeKind?: string;
-    /** Entries preserve typed keys and sequence-valued map entries. */
-    entries?: { key: RunQueryItem; value: RunQueryItem[] }[];
-    /** Each array member is a sequence, including empty and multi-item sequences. */
-    members?: RunQueryItem[][];
-    function?: { name: string; arity: number; signature: string };
 }
+
+/** The engine permits atomic keys, including null, in maps. */
+export type RunQueryAtomicItem = RunQueryItemBase & { kind: "atomic" | "null" };
+
+/** Each kind carries its required structure; numeric values stay serialized strings. */
+export type RunQueryItem =
+    | RunQueryAtomicItem
+    | (RunQueryItemBase & {
+          kind: "object";
+          fields: { name: string; value: RunQueryItem[] }[];
+      })
+    | (RunQueryItemBase & {
+          kind: "map";
+          entries: { key: RunQueryAtomicItem; value: RunQueryItem[] }[];
+      })
+    | (RunQueryItemBase & {
+          kind: "array";
+          /** Each member is a sequence, including empty and multi-item sequences. */
+          members: RunQueryItem[][];
+      })
+    | (RunQueryItemBase & { kind: "node"; nodeKind: string })
+    | (RunQueryItemBase & {
+          kind: "function";
+          name: string;
+          arity: number;
+          signature: string;
+      });
 
 export interface RunQueryLSPResult {
     error: RunQueryError | null;

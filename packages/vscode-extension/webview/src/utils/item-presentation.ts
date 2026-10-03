@@ -50,13 +50,7 @@ export function itemTone(item: RunQueryItem): "number" | "string" | "boolean" | 
     if (item.kind === "null") return "null";
     if (item.kind !== "atomic") return "value";
     const prefix = "Q{http://www.w3.org/2001/XMLSchema}";
-    const name = item.typeName
-        ? item.typeName.startsWith(prefix)
-            ? item.typeName.slice(prefix.length)
-            : ""
-        : item.type.startsWith("xs:")
-          ? item.type.slice(3)
-          : "";
+    const name = item.type.qname?.startsWith(prefix) ? item.type.qname.slice(prefix.length) : "";
     if (NUMERIC_TYPES.has(name)) return "number";
     if (name === "boolean") return "boolean";
     if (STRING_TYPES.has(name)) return "string";
@@ -70,9 +64,11 @@ export function itemPreview(item: RunQueryItem, compact = true): string {
     return item.serialized;
 }
 
-function containerPreview(item: RunQueryItem, depth: number): string {
+type ContainerItem = Extract<RunQueryItem, { kind: "object" | "map" | "array" }>;
+
+function containerPreview(item: ContainerItem, depth: number): string {
     if (item.kind === "array") {
-        const members = item.members ?? [];
+        const members = item.members;
         if (members.length === 0) return "[]";
         if (depth >= 2) return "[…]";
         const previews = members
@@ -82,15 +78,23 @@ function containerPreview(item: RunQueryItem, depth: number): string {
         return `[${previews.join(", ")}]`;
     }
     const prefix = item.kind === "map" ? "map" : "";
-    const entries = item.entries ?? [];
+    const entries = item.kind === "object" ? item.fields : item.entries;
     if (entries.length === 0) return `${prefix}{}`;
     if (depth >= 2) return `${prefix}{…}`;
-    const previews = entries
-        .slice(0, 3)
-        .map(
-            (entry) =>
-                `${shortValue(entry.key, depth + 1)}: ${sequencePreview(entry.value, depth + 1)}`,
-        );
+    const previews =
+        item.kind === "object"
+            ? item.fields
+                  .slice(0, 3)
+                  .map(
+                      (field) =>
+                          `${truncatePreview(JSON.stringify(field.name), 40)}: ${sequencePreview(field.value, depth + 1)}`,
+                  )
+            : item.entries
+                  .slice(0, 3)
+                  .map(
+                      (entry) =>
+                          `${shortValue(entry.key, depth + 1)}: ${sequencePreview(entry.value, depth + 1)}`,
+                  );
     if (entries.length > 3) previews.push("…");
     return `${prefix}{${previews.join(", ")}}`;
 }
@@ -103,14 +107,17 @@ function sequencePreview(sequence: RunQueryItem[], depth: number): string {
 }
 
 function shortValue(value: RunQueryItem, depth: number): string {
-    if (["array", "object", "map"].includes(value.kind)) return containerPreview(value, depth);
+    if (value.kind === "array" || value.kind === "object" || value.kind === "map") {
+        return containerPreview(value, depth);
+    }
     const text = itemPreview(value).replace(/\s*\n\s*/g, " ");
     return truncatePreview(text, 40);
 }
 
 export function isExpandable(item: RunQueryItem): boolean {
-    if (item.kind === "object" || item.kind === "map") return Boolean(item.entries?.length);
-    if (item.kind === "array") return Boolean(item.members?.length);
+    if (item.kind === "object") return item.fields.length > 0;
+    if (item.kind === "map") return item.entries.length > 0;
+    if (item.kind === "array") return item.members.length > 0;
     if (item.kind === "node" || item.kind === "function") return true;
     return item.serialized.includes("\n");
 }
