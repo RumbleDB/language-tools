@@ -1,9 +1,10 @@
 import { createMemo, createSignal, For, Show } from "solid-js";
 
-import type { RunQueryItem } from "../../types.js";
-import { createCopyAction } from "../../utils/clipboard.js";
-import { isExpandable, itemPreview, itemTone } from "../../utils/item-presentation.js";
-import { formatItem } from "../../utils/result-items.js";
+import type { RunQueryItem } from "@/types.js";
+import { createCopyAction } from "@/utils/clipboard.js";
+import { isExpandable, itemPreview, itemTone } from "@/utils/item-presentation.js";
+import { formatItem } from "@/utils/result-items.js";
+
 import { XmlSource } from "./XmlSource.js";
 
 interface ItemValueProps {

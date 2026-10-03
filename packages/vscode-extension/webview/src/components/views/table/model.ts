@@ -12,7 +12,7 @@ import {
 } from "@tanstack/solid-table";
 import type { Table } from "@tanstack/solid-table";
 
-import type { ResultTableRow } from "../../../utils/result-items.js";
+import type { ResultTableRow } from "@/utils/result-items.js";
 
 export const features = tableFeatures({
     columnFilteringFeature,

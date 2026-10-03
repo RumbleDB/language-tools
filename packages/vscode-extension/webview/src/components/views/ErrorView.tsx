@@ -1,9 +1,9 @@
 import { createMemo, createSignal, For, onCleanup, Show } from "solid-js";
 
-import type { ExecutionResultData } from "../../types.js";
-import { createCopyAction } from "../../utils/clipboard.js";
-import { formatError } from "../../utils/format-error.js";
-import { vscode } from "../../vscode.js";
+import type { ExecutionResultData } from "@/types.js";
+import { createCopyAction } from "@/utils/clipboard.js";
+import { formatError } from "@/utils/format-error.js";
+import { vscode } from "@/vscode.js";
 
 interface ErrorViewProps {
     error: NonNullable<ExecutionResultData["error"]>;

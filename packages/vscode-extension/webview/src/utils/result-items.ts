@@ -1,4 +1,4 @@
-import type { RunQueryItem } from "../types.js";
+import type { RunQueryItem } from "@/types.js";
 
 /** Use the engine's serialization directly: never reparse values as JavaScript numbers. */
 export function formatRawOutput(items: readonly RunQueryItem[]): string {

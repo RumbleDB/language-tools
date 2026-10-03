@@ -1,4 +1,4 @@
-import type { RunQueryItem } from "../types.js";
+import type { RunQueryItem } from "@/types.js";
 
 const STRING_TYPES = new Set([
     "string",

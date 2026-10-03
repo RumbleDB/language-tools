@@ -1,6 +1,6 @@
 import { For, Show, type JSX } from "solid-js";
 
-import type { ViewMode } from "../types.js";
+import type { ViewMode } from "@/types.js";
 
 interface ResultsHeaderProps {
     isSuccess: boolean;

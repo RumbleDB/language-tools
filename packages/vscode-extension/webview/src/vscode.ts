@@ -1,4 +1,4 @@
-import type { ResultsRequest, ResultsResponse } from "../../src/shared/results-protocol.js";
+import type { ResultsRequest, ResultsResponse } from "@shared/results-protocol.js";
 
 declare global {
     function acquireVsCodeApi(): { postMessage(message: ResultsRequest): void };

@@ -6,6 +6,12 @@ import solidPlugin from "vite-plugin-solid";
 
 export default defineConfig({
     plugins: [solidPlugin(), UnoCSS()],
+    resolve: {
+        alias: {
+            "@": path.resolve(import.meta.dirname, "src"),
+            "@shared": path.resolve(import.meta.dirname, "../src/shared"),
+        },
+    },
     build: {
         outDir: path.resolve(import.meta.dirname, "../dist/webview"),
         emptyOutDir: true,

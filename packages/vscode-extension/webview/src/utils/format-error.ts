@@ -1,4 +1,4 @@
-import type { ExecutionResultData } from "../types.js";
+import type { ExecutionResultData } from "@/types.js";
 
 /**
  * Formats a QueryExecutionError into human-readable text for copying or display.

@@ -1,16 +1,17 @@
 import { createTable, type ColumnDef, type SortingState } from "@tanstack/solid-table";
 import { createSignal, createMemo, createEffect, on } from "solid-js";
 
-import type { RunQueryItem } from "../../../types.js";
-import { itemPreview } from "../../../utils/item-presentation.js";
-import { createPagination } from "../../../utils/pagination.js";
+import { PaginationControls } from "@/components/PaginationControls.js";
+import type { RunQueryItem } from "@/types.js";
+import { itemPreview } from "@/utils/item-presentation.js";
+import { createPagination } from "@/utils/pagination.js";
 import {
     formatCell,
     projectTableRows,
     selectResultItems,
     type ResultSelection,
-} from "../../../utils/result-items.js";
-import { PaginationControls } from "../../PaginationControls.js";
+} from "@/utils/result-items.js";
+
 import { CellValue } from "./CellValue.js";
 import { features, type TFeatures, type TData } from "./model.js";
 import { TableGrid } from "./TableGrid.js";

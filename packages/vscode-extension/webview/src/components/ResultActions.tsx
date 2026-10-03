@@ -1,9 +1,9 @@
 import { createSignal, Show } from "solid-js";
 
-import type { RunQueryItem } from "../types.js";
-import { createCopyAction } from "../utils/clipboard.js";
-import { formatCsv, serializeResultItems, type ResultTableRow } from "../utils/result-items.js";
-import { vscode } from "../vscode.js";
+import type { RunQueryItem } from "@/types.js";
+import { createCopyAction } from "@/utils/clipboard.js";
+import { formatCsv, serializeResultItems, type ResultTableRow } from "@/utils/result-items.js";
+import { vscode } from "@/vscode.js";
 
 export function ResultActions(props: {
     items: RunQueryItem[];

@@ -1,9 +1,9 @@
 import { createEffect, createMemo, For, on } from "solid-js";
 
-import type { RunQueryItem } from "../../types.js";
-import { createPagination } from "../../utils/pagination.js";
-import { PaginationControls } from "../PaginationControls.js";
-import { ItemValue } from "../values/ItemValue.js";
+import { PaginationControls } from "@/components/PaginationControls.js";
+import { ItemValue } from "@/components/values/ItemValue.js";
+import type { RunQueryItem } from "@/types.js";
+import { createPagination } from "@/utils/pagination.js";
 
 export function InspectView(props: { items: RunQueryItem[] }) {
     const pagination = createPagination(() => props.items.length);
