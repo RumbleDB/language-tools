@@ -1,7 +1,7 @@
 import { createSignal, createMemo, For } from "solid-js";
 
-import type { RunQueryItem } from "../types.js";
-import { formatRawOutput } from "../utils/result-items.js";
+import type { RunQueryItem } from "../../types.js";
+import { formatRawOutput } from "../../utils/result-items.js";
 
 interface RawViewProps {
     items: RunQueryItem[];

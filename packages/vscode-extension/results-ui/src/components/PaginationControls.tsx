@@ -1,4 +1,4 @@
-interface FooterProps {
+interface PaginationControlsProps {
     pageIndex: number;
     pageCount: number;
     pageSize: number;
@@ -9,7 +9,7 @@ interface FooterProps {
     onPageSizeChange: (size: number) => void;
 }
 
-export function Footer(props: FooterProps) {
+export function PaginationControls(props: PaginationControlsProps) {
     return (
         <footer class="bg-surface-container-low border-t border-outline-variant min-h-[32px] py-1 px-3 w-full shrink-0 flex items-center justify-between gap-3 flex-wrap text-xs z-10 box-border">
             <div class="flex items-center gap-1">

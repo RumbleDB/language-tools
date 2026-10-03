@@ -195,7 +195,7 @@ test("object previews show fields and maps retain typed keys and sequence values
 
 test("filtered exports follow sorted source indexes across pagination", async () => {
     const { createTable } = await import("@tanstack/solid-table");
-    const { features } = await import("../src/components/table/model.ts");
+    const { features } = await import("../src/components/views/table/model.ts");
     const { selectResultItems, serializeResultItems } =
         await import("../src/utils/result-items.ts");
     const items = Array.from({ length: 80 }, (_, index) =>

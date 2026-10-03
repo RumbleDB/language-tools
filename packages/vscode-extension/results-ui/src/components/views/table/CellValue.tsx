@@ -1,9 +1,9 @@
 import { Show } from "solid-js";
 
-import type { RunQueryItem } from "../types.js";
-import { createCopyAction } from "../utils/clipboard.js";
-import { formatCell } from "../utils/result-items.js";
-import { SequenceValue } from "./ItemValue.js";
+import type { RunQueryItem } from "../../../types.js";
+import { createCopyAction } from "../../../utils/clipboard.js";
+import { formatCell } from "../../../utils/result-items.js";
+import { SequenceValue } from "../../values/ItemValue.js";
 
 export function CellValue(props: { items: RunQueryItem[] | undefined }) {
     const { copy, copied } = createCopyAction();

@@ -1,21 +1,21 @@
 import { createTable, type ColumnDef, type SortingState } from "@tanstack/solid-table";
 import { createSignal, createMemo, createEffect, on } from "solid-js";
 
-import type { RunQueryItem } from "../types.js";
-import { itemPreview } from "../utils/item-presentation.js";
-import { createPagination } from "../utils/pagination.js";
+import type { RunQueryItem } from "../../../types.js";
+import { itemPreview } from "../../../utils/item-presentation.js";
+import { createPagination } from "../../../utils/pagination.js";
 import {
     formatCell,
     projectTableRows,
     selectResultItems,
     type ResultSelection,
-} from "../utils/result-items.js";
+} from "../../../utils/result-items.js";
+import { PaginationControls } from "../../PaginationControls.js";
 import { CellValue } from "./CellValue.js";
-import { Footer } from "./Footer.js";
-import { TableView } from "./Table.js";
-import { features, type TFeatures, type TData } from "./table/model.js";
+import { features, type TFeatures, type TData } from "./model.js";
+import { TableGrid } from "./TableGrid.js";
 
-interface ResultsTableProps {
+interface TableViewProps {
     items: RunQueryItem[];
     onSelectionChange: (selection: ResultSelection) => void;
 }
@@ -49,7 +49,7 @@ function getContentWidth(rows: TData[], key: string, header = key): number {
     return Math.min(450, Math.max(90, length * 8 + 80));
 }
 
-export function ResultsTable(props: ResultsTableProps) {
+export function TableView(props: TableViewProps) {
     const [globalFilter, setGlobalFilter] = createSignal("");
     const [sorting, setSorting] = createSignal<SortingState>([]);
     const pagination = createPagination(() => table.getPrePaginatedRowModel().rows.length);
@@ -145,13 +145,13 @@ export function ResultsTable(props: ResultsTableProps) {
 
     return (
         <>
-            <TableView
+            <TableGrid
                 table={table}
                 totalRows={tableData().length}
                 globalFilter={globalFilter()}
                 onGlobalFilterChange={setGlobalFilter}
             />
-            <Footer
+            <PaginationControls
                 pageIndex={pagination.state().pageIndex}
                 pageCount={pagination.pageCount()}
                 pageSize={pagination.state().pageSize}

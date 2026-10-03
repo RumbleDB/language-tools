@@ -1,11 +1,11 @@
 import { createEffect, createMemo, For, on } from "solid-js";
 
-import type { RunQueryItem } from "../types.js";
-import { createPagination } from "../utils/pagination.js";
-import { Footer } from "./Footer.js";
-import { ItemValue } from "./ItemValue.js";
+import type { RunQueryItem } from "../../types.js";
+import { createPagination } from "../../utils/pagination.js";
+import { PaginationControls } from "../PaginationControls.js";
+import { ItemValue } from "../values/ItemValue.js";
 
-export function SequenceView(props: { items: RunQueryItem[] }) {
+export function InspectView(props: { items: RunQueryItem[] }) {
     const pagination = createPagination(() => props.items.length);
     const startIndex = () => pagination.state().pageIndex * pagination.state().pageSize;
     const pageItems = createMemo(() =>
@@ -42,7 +42,7 @@ export function SequenceView(props: { items: RunQueryItem[] }) {
                     </For>
                 </ol>
             </div>
-            <Footer
+            <PaginationControls
                 pageIndex={pagination.state().pageIndex}
                 pageCount={pagination.pageCount()}
                 pageSize={pagination.state().pageSize}

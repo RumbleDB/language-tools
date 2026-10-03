@@ -2,7 +2,7 @@ import { For, Show, type JSX } from "solid-js";
 
 import type { ViewMode } from "../types.js";
 
-interface HeaderProps {
+interface ResultsHeaderProps {
     isSuccess: boolean;
     hasItems: boolean;
     viewMode: ViewMode;
@@ -20,7 +20,7 @@ const VIEW_MODES = [
     { mode: "raw", label: "Raw Output", icon: "i-iconoir-code" },
 ] as const;
 
-export function Header(props: HeaderProps) {
+export function ResultsHeader(props: ResultsHeaderProps) {
     return (
         <header class="bg-surface border-b border-outline-variant min-h-[36px] py-1 px-4 flex items-center justify-between gap-2 flex-wrap w-full shrink-0 z-10 box-border">
             <div class="flex items-center gap-2 text-secondary min-w-0">

@@ -1,16 +1,16 @@
 import { FlexRender } from "@tanstack/solid-table";
 import { For, Show } from "solid-js";
 
-import type { ResultsTableInstance } from "./table/model.js";
+import type { ResultsTableInstance } from "./model.js";
 
-interface TableProps {
+interface TableGridProps {
     table: ResultsTableInstance;
     totalRows: number;
     globalFilter: string;
     onGlobalFilterChange: (value: string) => void;
 }
 
-export function TableView(props: TableProps) {
+export function TableGrid(props: TableGridProps) {
     const lastDataColumn = () =>
         props.table
             .getAllFlatColumns()
