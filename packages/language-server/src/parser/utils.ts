@@ -21,6 +21,7 @@ export function nextDefaultToken(
 export function findCaretToken(
     tokens: Token[],
     cursorOffset: number,
+    isPartialToken: (token: Token) => boolean = () => false,
 ): { tokenIndex: number; offset: number } {
     if (tokens.length === 0) {
         return { tokenIndex: 0, offset: cursorOffset };
@@ -35,7 +36,12 @@ export function findCaretToken(
 
     if (insertionPoint > 0) {
         const token = tokens[insertionPoint - 1]!;
-        if (token.type !== Token.EOF && token.start <= cursorOffset && cursorOffset <= token.stop) {
+        if (
+            token.type !== Token.EOF &&
+            token.start <= cursorOffset &&
+            (cursorOffset <= token.stop ||
+                (cursorOffset === token.stop + 1 && isPartialToken(token)))
+        ) {
             tokenIndex = token.tokenIndex;
         } else if (insertionPoint < tokens.length) {
             tokenIndex = tokens[insertionPoint]!.tokenIndex;

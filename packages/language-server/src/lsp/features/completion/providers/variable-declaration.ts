@@ -19,7 +19,7 @@ export const provideVariableDeclarationCompletions: CompletionProvider = (contex
     return [
         {
             label: "$",
-            kind: CompletionItemKind.Keyword,
+            kind: CompletionItemKind.Variable,
             detail: "Start a variable declaration",
         },
     ];

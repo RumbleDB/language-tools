@@ -160,9 +160,16 @@ function collectCompletionCandidates<T extends TokenContextAnalyzer>(
         tokenContextAnalyzer: new (tokens: Token[], cursorOffset: number) => T;
         ignoredTokens: Set<number>;
         preferredRules: Set<number>;
+        tokenName(tokenType: number): string | number;
     },
 ): CompletionCandidates {
-    const caret = findCaretToken(parsed.tokens, cursorOffset);
+    // At `re|`, collect candidates before the unfinished identifier so `return`
+    // remains available. Numbers and punctuation still count as consumed input.
+    const caret = findCaretToken(
+        parsed.tokens,
+        cursorOffset,
+        (token) => options.tokenName(token.type) === "NCName",
+    );
 
     const core = new CodeCompletionCore(parsed.parser);
     core.ignoredTokens = options.ignoredTokens;
