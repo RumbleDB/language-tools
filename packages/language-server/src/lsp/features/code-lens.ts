@@ -1,5 +1,6 @@
 import { config } from "server/app/configuration.js";
 import type { ParserService } from "server/parser/index.js";
+import { isNotebookCellDocument } from "server/parser/utils.js";
 import type { CodeLens } from "vscode-languageserver";
 import type { TextDocument } from "vscode-languageserver-textdocument";
 
@@ -19,7 +20,7 @@ export function registerCodeLens({
 }
 
 export function collectCodeLenses(document: TextDocument, parser: ParserService): CodeLens[] {
-    if (document.getText().trim() === "") return [];
+    if (isNotebookCellDocument(document) || document.getText().trim() === "") return [];
 
     const { ast } = parser.parse(document);
     if (ast.children.some((node) => node.kind === "module-declaration")) return [];
