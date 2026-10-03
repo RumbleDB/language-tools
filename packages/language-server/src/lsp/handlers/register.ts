@@ -4,6 +4,7 @@ import type { WorkspaceService } from "server/workspace/service.js";
 import type { TextDocument } from "vscode-languageserver-textdocument";
 import type { Connection, TextDocuments } from "vscode-languageserver/node";
 
+import { registerCodeLens } from "../features/code-lens.js";
 import { registerCompletion } from "../features/completion.js";
 import { createFeatureRegistrationContext } from "../features/context.js";
 import { registerDefinition } from "../features/definition.js";
@@ -27,6 +28,7 @@ export function registerLanguageFeatureHandlers(dependencies: LanguageFeatureDep
         wrapper,
     );
 
+    registerCodeLens(context);
     registerCompletion(context);
     registerDefinition(context);
     registerDocumentLinks(context);
