@@ -60,7 +60,7 @@ class QueryDocumentUriTest {
         for (String query : new String[] {"1 + 2", "xquery version \"3.1\"; 1 + 2"}) {
             RunQuery.Result result = (RunQuery.Result) run.handle(untitledRequest(run.getRequestType(), query));
             assertNull(result.error());
-            assertEquals("3", result.items().get(0).lexicalValue());
+            assertEquals("3", result.items().get(0).serialized());
         }
     }
 

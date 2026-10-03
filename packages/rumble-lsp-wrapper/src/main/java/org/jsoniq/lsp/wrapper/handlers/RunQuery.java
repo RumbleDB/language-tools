@@ -22,7 +22,6 @@ import org.rumbledb.serialization.Serializers;
 
 public final class RunQuery implements RequestHandler {
     public static final String REQUEST_TYPE = "run-query";
-    public static final Result EMPTY_RESULT = new Result(null, null);
 
     public record QueryError(String message, String code, String location, Range range) {
         public static QueryError from(RumbleException exception) {
@@ -38,7 +37,15 @@ public final class RunQuery implements RequestHandler {
         }
     }
 
-    public record Result(List<QueryResultItem> items, QueryError error) implements ResponseBody {}
+    public record Result(List<QueryResultItem> items, QueryError error) implements ResponseBody {
+        public static Result success(List<QueryResultItem> items) {
+            return new Result(List.copyOf(items), null);
+        }
+
+        public static Result failure(QueryError error) {
+            return new Result(null, Objects.requireNonNull(error));
+        }
+    }
 
     private static Rumble RUMBLE_INSTANCE = null;
 
@@ -79,8 +86,7 @@ public final class RunQuery implements RequestHandler {
                             serialized = serializer.serialize(item);
                         } catch (RumbleException exception) {
                             QueryError error = QueryError.from(exception);
-                            return new Result(
-                                    null,
+                            return Result.failure(
                                     new QueryError(
                                             "Query evaluated, but result serialization failed for item "
                                                     + (items.size() + 1)
@@ -90,20 +96,20 @@ public final class RunQuery implements RequestHandler {
                                             error.location(),
                                             error.range()));
                         }
-                        items.add(QueryResultItem.from(item, serializer, serialized));
+                        items.add(QueryResultItems.from(item, serializer, serialized));
                     }
                 }
             } finally {
                 result.close();
             }
 
-            return new Result(List.copyOf(items), null);
+            return Result.success(items);
         } catch (RumbleException exception) {
-            return new Result(null, QueryError.from(exception));
+            return Result.failure(QueryError.from(exception));
         } catch (Throwable throwable) {
             String errorMessage = Objects.toString(
                     throwable.getMessage(), throwable.getClass().getName());
-            return new Result(null, new QueryError(errorMessage, null, null, null));
+            return Result.failure(new QueryError(errorMessage, null, null, null));
         }
     }
 
@@ -115,8 +121,8 @@ public final class RunQuery implements RequestHandler {
     }
 
     @Override
-    public ResponseBody createEmptyResponse() {
-        return EMPTY_RESULT;
+    public Result createEmptyResponse() {
+        return Result.failure(new QueryError("Run-query failed before a result was produced.", null, null, null));
     }
 
     private static String decodeBody(String body) {
