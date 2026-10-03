@@ -2,6 +2,7 @@ import { createMemo, createSignal, For, onCleanup, Show } from "solid-js";
 
 import type { ExecutionResultData } from "@/types.js";
 import { createCopyAction } from "@/utils/clipboard.js";
+import { formatDuration } from "@/utils/format-duration.js";
 import { formatError } from "@/utils/format-error.js";
 import { vscode } from "@/vscode.js";
 
@@ -64,7 +65,9 @@ export function ErrorView(props: ErrorViewProps) {
     return (
         <div class="flex-1 w-full overflow-y-auto box-border">
             <div class="flex items-center justify-between gap-3 px-4 py-2 border-b border-outline-variant text-xs">
-                <span class="text-secondary">Query failed · {props.durationMs}ms</span>
+                <span class="text-secondary" title={`Query execution time: ${props.durationMs} ms`}>
+                    Query failed · {formatDuration(props.durationMs)}
+                </span>
                 <button
                     type="button"
                     onClick={copyErrorDetails}

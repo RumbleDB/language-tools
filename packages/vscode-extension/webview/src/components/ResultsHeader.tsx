@@ -1,6 +1,7 @@
 import { For, Show, type JSX } from "solid-js";
 
 import type { ViewMode } from "@/types.js";
+import { formatDuration } from "@/utils/format-duration.js";
 
 interface ResultsHeaderProps {
     isSuccess: boolean;
@@ -45,9 +46,12 @@ export function ResultsHeader(props: ResultsHeaderProps) {
                 <Show when={props.isSuccess}>
                     <div class="w-px h-3.5 bg-outline-variant shrink-0" />
                     <div class="flex items-center gap-2.5 text-secondary shrink-0">
-                        <span class="flex items-center gap-1 text-2xs">
+                        <span
+                            class="flex items-center gap-1 text-2xs"
+                            title={`Query execution time: ${props.durationMs} ms`}
+                        >
                             <span class="i-iconoir-timer text-xs" />
-                            {props.durationMs}ms
+                            {formatDuration(props.durationMs)}
                         </span>
                         <span class="flex items-center gap-1 text-2xs">
                             <span class="i-iconoir-table-rows text-xs" />
