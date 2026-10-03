@@ -1,6 +1,7 @@
 import type {
     ExportResultsRequest,
     OpenErrorLocationRequest,
+    OpenRawOutputRequest,
     ResultsRequest,
     ResultsResponse,
 } from "../shared/results-protocol.js";
@@ -8,6 +9,7 @@ import type {
 interface ResultsHandlers {
     exportResults: (message: ExportResultsRequest) => Promise<void>;
     openErrorLocation: (message: OpenErrorLocationRequest) => Promise<void>;
+    openRawOutput: (message: OpenRawOutputRequest) => Promise<void>;
     rerunQuery: () => Promise<void>;
 }
 
@@ -32,5 +34,8 @@ export async function handleResultsMessage(
                     message: error instanceof Error ? error.message : String(error),
                 });
             }
+            return;
+        case "OPEN_RAW_OUTPUT":
+            await handlers.openRawOutput(message);
     }
 }

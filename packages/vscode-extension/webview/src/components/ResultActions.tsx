@@ -35,6 +35,17 @@ export function ResultActions(props: {
             setError(error instanceof Error ? error.message : String(error));
         }
     };
+    const openInEditor = () => {
+        setError("");
+        try {
+            vscode.postMessage("OPEN_RAW_OUTPUT", {
+                sequence: serializeResultItems(props.items),
+            });
+        } catch (error) {
+            setError(error instanceof Error ? error.message : String(error));
+        }
+    };
+
     return (
         <div class="flex items-center gap-2 flex-wrap">
             <button
@@ -67,6 +78,16 @@ export function ResultActions(props: {
             >
                 <span class="w-3 h-3 shrink-0 i-iconoir-download" />
                 Export
+            </button>
+            <button
+                type="button"
+                disabled={disabled()}
+                onClick={openInEditor}
+                title="Open the raw result sequence as a text document in the editor"
+                class="px-2 py-1 text-xs flex items-center gap-1 rounded hover:bg-surface-variant hover:text-on-surface cursor-pointer disabled:opacity-30"
+            >
+                <span class="w-3 h-3 shrink-0 i-iconoir-open-new-window" />
+                Open in editor
             </button>
             <Show when={error()}>
                 <span role="alert" class="text-xs text-error">

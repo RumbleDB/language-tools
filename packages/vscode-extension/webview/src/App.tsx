@@ -4,7 +4,6 @@ import { ResultActions } from "@/components/ResultActions.js";
 import { ResultsHeader } from "@/components/ResultsHeader.js";
 import { ErrorView } from "@/components/views/ErrorView.js";
 import { InspectView } from "@/components/views/InspectView.js";
-import { RawView } from "@/components/views/RawView.js";
 import { TableView } from "@/components/views/table/TableView.js";
 import { projectTableRows, type ResultSelection } from "@/utils/result-items.js";
 
@@ -109,10 +108,6 @@ export function App() {
                                             onSelectionChange={setTableSelection}
                                         />
                                     </div>
-
-                                    <Show when={viewMode() === "raw"}>
-                                        <RawView items={res().items!} />
-                                    </Show>
                                 </Show>
                             </Show>
                         </main>

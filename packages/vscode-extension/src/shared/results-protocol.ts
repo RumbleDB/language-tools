@@ -31,10 +31,17 @@ export interface OpenErrorLocationRequest {
     range?: NonNullable<QueryExecutionError["range"]>;
 }
 
+export interface OpenRawOutputRequest {
+    type: "OPEN_RAW_OUTPUT";
+    sequence: string;
+}
+
 export type ResultsRequest =
     | ExportResultsRequest
     | OpenErrorLocationRequest
+    | OpenRawOutputRequest
     | { type: "RERUN_QUERY" };
+
 export type ResultsResponse =
     | { type: "SET_DATA"; data: ExecutionResultData }
     | { type: "SET_RUNNING"; running: boolean }

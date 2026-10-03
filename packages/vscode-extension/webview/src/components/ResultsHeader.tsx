@@ -18,7 +18,6 @@ interface ResultsHeaderProps {
 const VIEW_MODES = [
     { mode: "inspect", label: "Inspect", icon: "i-iconoir-list" },
     { mode: "table", label: "Table", icon: "i-iconoir-table" },
-    { mode: "raw", label: "Raw Output", icon: "i-iconoir-code" },
 ] as const;
 
 export function ResultsHeader(props: ResultsHeaderProps) {

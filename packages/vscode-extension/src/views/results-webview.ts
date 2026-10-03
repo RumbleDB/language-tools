@@ -6,6 +6,7 @@ import type {
     ResultsRequest,
     ExportResultsRequest,
     OpenErrorLocationRequest,
+    OpenRawOutputRequest,
 } from "../shared/results-protocol.js";
 import { sourceLocationUri } from "../source-location.js";
 import { handleResultsMessage } from "./results-message-handler.js";
@@ -30,6 +31,7 @@ export class ResultsWebviewPanel {
             exportResults: (message: ExportResultsRequest) => this.exportResults(message),
             openErrorLocation: (message: OpenErrorLocationRequest) =>
                 this.openErrorLocation(message),
+            openRawOutput: (message: OpenRawOutputRequest) => this.openRawOutput(message),
             rerunQuery: () => this.rerunQuery(),
         };
         this.panel.webview.onDidReceiveMessage(
@@ -78,6 +80,23 @@ export class ResultsWebviewPanel {
             preview: false,
             selection,
         });
+    }
+
+    private async openRawOutput(params: OpenRawOutputRequest): Promise<void> {
+        try {
+            const document = await vscode.workspace.openTextDocument({
+                content: params.sequence,
+                language: "plaintext",
+            });
+            await vscode.window.showTextDocument(document, {
+                viewColumn: vscode.ViewColumn.One,
+                preview: true,
+            });
+        } catch (error) {
+            void vscode.window.showErrorMessage(
+                `Unable to open raw output: ${error instanceof Error ? error.message : String(error)}`,
+            );
+        }
     }
 
     public static show(extensionUri: vscode.Uri, data: ExecutionResultData): void {
