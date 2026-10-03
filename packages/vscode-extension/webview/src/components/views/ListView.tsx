@@ -5,11 +5,11 @@ import { ItemValue } from "@/components/values/ItemValue.js";
 import type { TFeatures } from "@/model/table-features.js";
 import type { ResultRowData } from "@/model/types.js";
 
-interface InspectViewProps {
+interface ListViewProps {
     rows: Row<TFeatures, ResultRowData>[];
 }
 
-export function InspectView(props: InspectViewProps) {
+export function ListView(props: ListViewProps) {
     let list!: HTMLDivElement;
     createEffect(
         on(
@@ -25,7 +25,7 @@ export function InspectView(props: InspectViewProps) {
             ref={(element) => {
                 list = element;
             }}
-            class="flex-1 overflow-auto px-4 py-2"
+            class="flex-1 overflow-auto p-3 sm:p-4"
         >
             <Show
                 when={props.rows.length > 0}

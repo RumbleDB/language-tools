@@ -5,7 +5,7 @@ import { ResultActions } from "@/components/ResultActions.js";
 import { ResultsHeader } from "@/components/ResultsHeader.js";
 import { SearchBar } from "@/components/SearchBar.js";
 import { ErrorView } from "@/components/views/ErrorView.js";
-import { InspectView } from "@/components/views/InspectView.js";
+import { ListView } from "@/components/views/ListView.js";
 import { TableView } from "@/components/views/table/TableView.js";
 import { createResultsModel } from "@/model/results-model.js";
 
@@ -20,7 +20,7 @@ declare global {
 
 export function App() {
     const [data, setData] = createSignal<ExecutionResultData | undefined>(window.__INITIAL_DATA__);
-    const [viewMode, setViewMode] = createSignal<ViewMode>("inspect");
+    const [viewMode, setViewMode] = createSignal<ViewMode>("list");
     const [running, setRunning] = createSignal(false);
 
     onMount(() => {
@@ -95,8 +95,8 @@ export function App() {
                                     </div>
 
                                     {/* View Presentations */}
-                                    <Show when={viewMode() === "inspect"}>
-                                        <InspectView rows={results.table.getRowModel().rows} />
+                                    <Show when={viewMode() === "list"}>
+                                        <ListView rows={results.table.getRowModel().rows} />
                                     </Show>
 
                                     <Show when={viewMode() === "table"}>
