@@ -21,7 +21,7 @@ const INDEX_COLUMN: ColumnDef<TFeatures, TData> = {
     enableResizing: false,
     accessorFn: (row: TData) => row.index + 1,
     cell: (info) => (
-        <span class="text-secondary/60 font-mono text-xs select-none tabular-nums">
+        <span class="text-secondary font-mono text-xs leading-5 select-none tabular-nums">
             {String(info.getValue())}
         </span>
     ),

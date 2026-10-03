@@ -7,6 +7,7 @@ import type { ResultRowData } from "@/model/types.js";
 
 interface ListViewProps {
     rows: Row<TFeatures, ResultRowData>[];
+    indexColumnWidth: number;
 }
 
 export function ListView(props: ListViewProps) {
@@ -25,7 +26,7 @@ export function ListView(props: ListViewProps) {
             ref={(element) => {
                 list = element;
             }}
-            class="flex-1 overflow-auto p-3 sm:p-4"
+            class="flex-1 overflow-auto"
         >
             <Show
                 when={props.rows.length > 0}
@@ -35,12 +36,17 @@ export function ListView(props: ListViewProps) {
                     </div>
                 }
             >
-                <ol class="list-none m-0 p-0 divide-y divide-outline-variant">
+                <ol class="list-none m-0 p-0 divide-y divide-outline-variant/30">
                     <For each={props.rows}>
                         {(row) => (
-                            <li class="flex items-start gap-3 py-3">
+                            <li
+                                class="grid items-start gap-2 pr-2 py-1.5 hover:bg-surface-variant"
+                                style={{
+                                    "grid-template-columns": `${props.indexColumnWidth}px minmax(0, 1fr)`,
+                                }}
+                            >
                                 <span
-                                    class="text-2xs leading-5 font-mono text-secondary tabular-nums shrink-0 min-w-6 text-right"
+                                    class="text-xs leading-5 font-mono text-secondary tabular-nums text-right px-2"
                                     title="Sequence position"
                                 >
                                     {row.original.index + 1}

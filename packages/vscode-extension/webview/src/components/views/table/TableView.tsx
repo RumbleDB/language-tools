@@ -15,8 +15,8 @@ export function TableView(props: TableViewProps) {
             .at(-1);
 
     return (
-        <div class="flex-1 overflow-auto bg-surface-container-lowest p-4">
-            <div class="border border-outline-variant rounded bg-surface overflow-auto max-w-full max-h-full">
+        <div class="flex-1 min-h-0 overflow-hidden bg-surface-container-lowest">
+            <div class="bg-surface overflow-auto w-full h-full">
                 <table
                     class="text-left border-separate border-spacing-0 table-fixed"
                     style={{
@@ -47,10 +47,10 @@ export function TableView(props: TableViewProps) {
                                         {(header) => (
                                             <th
                                                 onClick={header.column.getToggleSortingHandler()}
-                                                class={`sticky top-0 z-20 border-b border-r border-outline-variant py-2.5 text-2xs font-bold tracking-wider select-none last:border-r-0 ${
+                                                class={`sticky top-0 z-20 border-b border-r border-outline-variant py-1.5 text-2xs font-bold tracking-wider select-none last:border-r-0 ${
                                                     header.column.id === "__index"
-                                                        ? "bg-surface-container text-secondary/70 text-center px-0"
-                                                        : "bg-surface-container-high text-on-surface px-4"
+                                                        ? "bg-surface-container text-secondary/70 text-right px-2"
+                                                        : "bg-surface-container-high text-on-surface px-2"
                                                 } ${
                                                     header.column.getCanSort()
                                                         ? "cursor-pointer hover:bg-surface-variant"
@@ -58,7 +58,7 @@ export function TableView(props: TableViewProps) {
                                                 }`}
                                             >
                                                 <div
-                                                    class={`flex items-center gap-1 ${header.column.id === "__index" ? "justify-center" : "justify-between"}`}
+                                                    class={`flex items-center ${header.column.id === "__index" ? "justify-end text-xs tracking-normal" : "justify-between gap-1"}`}
                                                 >
                                                     <span>
                                                         <FlexRender header={header} />
@@ -116,10 +116,10 @@ export function TableView(props: TableViewProps) {
                                         <For each={row.getAllCells()}>
                                             {(cell) => (
                                                 <td
-                                                    class={`border-b border-r border-outline-variant/30 py-2.5 align-top last:border-r-0 ${
+                                                    class={`border-b border-r border-outline-variant/30 py-1.5 align-top last:border-r-0 ${
                                                         cell.column.id === "__index"
-                                                            ? "bg-surface-container/40 text-center whitespace-nowrap px-0"
-                                                            : "text-on-surface break-words overflow-wrap-anywhere px-4"
+                                                            ? "bg-surface-container/40 text-right whitespace-nowrap px-2"
+                                                            : "text-on-surface break-words overflow-wrap-anywhere px-2"
                                                     }`}
                                                 >
                                                     <FlexRender cell={cell} />

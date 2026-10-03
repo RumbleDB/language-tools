@@ -96,7 +96,12 @@ export function App() {
 
                                     {/* View Presentations */}
                                     <Show when={viewMode() === "list"}>
-                                        <ListView rows={results.table.getRowModel().rows} />
+                                        <ListView
+                                            rows={results.table.getRowModel().rows}
+                                            indexColumnWidth={results.table
+                                                .getColumn("__index")!
+                                                .getSize()}
+                                        />
                                     </Show>
 
                                     <Show when={viewMode() === "table"}>
