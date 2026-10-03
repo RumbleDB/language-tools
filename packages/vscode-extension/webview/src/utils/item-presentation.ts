@@ -51,14 +51,8 @@ export function itemTone(item: RunQueryItem): "number" | "string" | "boolean" | 
 }
 
 export function itemPreview(item: RunQueryItem): string {
-    if (item.kind === "object" || item.kind === "map") {
-        const count = item.entries?.length ?? 0;
-        const noun = item.kind === "object" ? "field" : "entry";
-        return `${containerPreview(item, 0)} · ${count} ${count === 1 ? noun : item.kind === "object" ? "fields" : "entries"}`;
-    }
-    if (item.kind === "array") {
-        const count = item.members?.length ?? 0;
-        return `${containerPreview(item, 0)} · ${count} member${count === 1 ? "" : "s"}`;
+    if (item.kind === "object" || item.kind === "map" || item.kind === "array") {
+        return containerPreview(item, 0);
     }
     if (item.kind === "null") return "null";
     if (item.kind === "function" && item.function) {
