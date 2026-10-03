@@ -45,7 +45,7 @@ export function startServer() {
         return {
             capabilities: serverCapabilities,
             serverInfo: {
-                name: "JSONiq Language Server",
+                name: "JSONiq and XQuery Language Server",
                 version: require("../../package.json").version,
             },
         };

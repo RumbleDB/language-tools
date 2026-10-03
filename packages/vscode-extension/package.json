@@ -107,7 +107,7 @@
             {
                 "command": "jsoniq.runQuery",
                 "title": "Execute Query",
-                "category": "JSONiq",
+                "category": "Language Support",
                 "icon": "$(play)"
             }
         ],
@@ -128,7 +128,7 @@
             ]
         },
         "configuration": {
-            "title": "JSONiq Language Support Configuration",
+            "title": "Language Support Configuration",
             "properties": {
                 "jsoniq.lsp.wrapper.enabled": {
                     "type": "boolean",

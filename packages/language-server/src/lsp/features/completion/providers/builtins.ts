@@ -134,7 +134,7 @@ function createBuiltinTypeCompletionItems(): CompletionItem[] {
         return {
             label,
             kind: CompletionItemKind.Class,
-            detail: "Builtin JSONiq type",
+            detail: "Builtin type",
             documentation: {
                 kind: MarkupKind.Markdown,
                 value: `\`\`\`jsoniq\n${expandedName}\n\`\`\``,

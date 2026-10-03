@@ -117,7 +117,7 @@ function toCompletionItem(declaration: ScopeDefinition, functionLabel?: string):
         return {
             label,
             kind: CompletionItemKind.Class,
-            detail: "JSONiq schema type",
+            detail: "Schema type",
             documentation: {
                 kind: MarkupKind.Markdown,
                 value: [
@@ -133,6 +133,6 @@ function toCompletionItem(declaration: ScopeDefinition, functionLabel?: string):
     return {
         label: name,
         kind: CompletionItemKind.Variable,
-        detail: `JSONiq ${declaration.kind}`,
+        detail: declaration.kind,
     };
 }

@@ -162,7 +162,7 @@ export class ResultsWebviewPanel {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src ${webview.cspSource} https: data:; style-src ${webview.cspSource} 'unsafe-inline' https://fonts.googleapis.com; font-src ${webview.cspSource} https://fonts.gstatic.com https://fonts.googleapis.com data:; script-src 'nonce-${nonce}' ${webview.cspSource};">
     <link rel="stylesheet" href="${styleUri}">
-    <title>JSONiq Execution Results</title>
+    <title>Execution Results</title>
 </head>
 <body>
     <div id="root"></div>

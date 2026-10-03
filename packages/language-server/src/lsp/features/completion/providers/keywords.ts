@@ -7,5 +7,5 @@ export const provideKeywordCompletions: CompletionProvider = (context) =>
         label: completion.label,
         ...(completion.insertText === undefined ? {} : { insertText: completion.insertText }),
         kind: CompletionItemKind.Keyword,
-        detail: "JSONiq keyword",
+        detail: "Keyword",
     }));

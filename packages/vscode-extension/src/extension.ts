@@ -63,7 +63,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 
     client = new LanguageClient(
         "jsoniqLanguageServer",
-        "JSONiq Language Server",
+        "JSONiq and XQuery Language Server",
         serverOptions,
         clientOptions,
     );
