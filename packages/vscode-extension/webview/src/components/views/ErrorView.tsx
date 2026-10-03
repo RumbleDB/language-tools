@@ -107,7 +107,7 @@ export function ErrorView(props: ErrorViewProps) {
                             type="button"
                             onClick={handleOpenLocation}
                             title={fullPath()}
-                            class="inline-flex items-center gap-1.5 text-xs text-on-surface hover:underline cursor-pointer shrink-0"
+                            class="inline-flex items-center gap-1.5 text-xs text-link hover:text-link-hover hover:underline cursor-pointer shrink-0"
                         >
                             <span class="i-iconoir-open-new-window w-3 h-3 shrink-0" />
                             {locationLabel()}
@@ -138,7 +138,7 @@ export function ErrorView(props: ErrorViewProps) {
                                             </span>
                                             <code class="whitespace-pre pr-4 flex-1 bg-transparent">
                                                 {line.before}
-                                                <mark class="bg-transparent underline decoration-error decoration-wavy underline-offset-4">
+                                                <mark class="text-inherit bg-transparent underline decoration-error decoration-wavy underline-offset-4">
                                                     {line.selected}
                                                 </mark>
                                                 {line.after}
@@ -154,7 +154,7 @@ export function ErrorView(props: ErrorViewProps) {
                     </section>
                 </Show>
                 <details class="border border-outline-variant rounded-lg overflow-hidden">
-                    <summary class="cursor-pointer px-4 py-3 text-xs font-semibold bg-surface-container">
+                    <summary class="cursor-pointer px-4 py-3 text-xs font-semibold bg-surface-container text-on-container">
                         Error details
                     </summary>
                     <pre class="m-0 p-4 font-mono text-xs whitespace-pre-wrap break-words border-t border-outline-variant">

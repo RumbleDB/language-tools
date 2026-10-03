@@ -113,10 +113,10 @@ function shortValue(value: RunQueryItem, depth: number): string {
     return text.length > 40 ? `${text.slice(0, 40)}…` : text;
 }
 
-export function isExpandable(item: RunQueryItem): boolean {
+export function isExpandable(item: RunQueryItem, previewLength = 120): boolean {
     if (item.kind === "object" || item.kind === "map") return Boolean(item.entries?.length);
     if (item.kind === "array") return Boolean(item.members?.length);
     if (item.kind === "node" || item.kind === "function") return true;
     const value = itemPreview(item);
-    return value.length > 120 || value.includes("\n");
+    return value.length > previewLength || value.includes("\n");
 }

@@ -15,7 +15,7 @@ export function TableView(props: TableViewProps) {
             .at(-1);
 
     return (
-        <div class="flex-1 min-h-0 overflow-hidden bg-surface-container-lowest">
+        <div class="flex-1 min-h-0 overflow-hidden bg-surface">
             <div class="bg-surface overflow-auto w-full h-full">
                 <table
                     class="text-left border-separate border-spacing-0 table-fixed"
@@ -50,10 +50,10 @@ export function TableView(props: TableViewProps) {
                                                 class={`sticky top-0 z-20 border-b border-r border-outline-variant py-1.5 text-2xs font-bold tracking-wider select-none last:border-r-0 ${
                                                     header.column.id === "__index"
                                                         ? "bg-surface-container text-secondary/70 text-right px-2"
-                                                        : "bg-surface-container-high text-on-surface px-2"
+                                                        : "bg-surface-container text-on-container px-2"
                                                 } ${
                                                     header.column.getCanSort()
-                                                        ? "cursor-pointer hover:bg-surface-variant"
+                                                        ? "cursor-pointer hover:bg-row-hover"
                                                         : ""
                                                 }`}
                                             >
@@ -67,10 +67,10 @@ export function TableView(props: TableViewProps) {
                                                         <span class="text-secondary text-xs">
                                                             {header.column.getIsSorted() ===
                                                             "asc" ? (
-                                                                <span class="i-iconoir-arrow-up text-xs text-primary" />
+                                                                <span class="i-iconoir-arrow-up text-xs text-on-container" />
                                                             ) : header.column.getIsSorted() ===
                                                               "desc" ? (
-                                                                <span class="i-iconoir-arrow-down text-xs text-primary" />
+                                                                <span class="i-iconoir-arrow-down text-xs text-on-container" />
                                                             ) : (
                                                                 <span class="i-iconoir-arrow-up-down text-xs opacity-30" />
                                                             )}
@@ -82,9 +82,9 @@ export function TableView(props: TableViewProps) {
                                                         onMouseDown={header.getResizeHandler()}
                                                         onTouchStart={header.getResizeHandler()}
                                                         onClick={(e) => e.stopPropagation()}
-                                                        class={`absolute right-0 top-0 h-full w-1.5 cursor-col-resize select-none touch-none hover:bg-primary/50 transition-colors ${
+                                                        class={`absolute right-0 top-0 h-full w-1.5 cursor-col-resize select-none touch-none hover:bg-resize/50 transition-colors ${
                                                             header.column.getIsResizing()
-                                                                ? "bg-primary w-1 opacity-100"
+                                                                ? "bg-resize w-1 opacity-100"
                                                                 : "opacity-0 hover:opacity-100"
                                                         }`}
                                                     />
@@ -112,13 +112,13 @@ export function TableView(props: TableViewProps) {
                         >
                             <For each={props.table.getRowModel().rows}>
                                 {(row) => (
-                                    <tr class="hover:bg-surface-variant transition-colors">
+                                    <tr class="hover:bg-row-hover transition-colors">
                                         <For each={row.getAllCells()}>
                                             {(cell) => (
                                                 <td
-                                                    class={`border-b border-r border-outline-variant/30 py-1.5 align-top last:border-r-0 ${
+                                                    class={`border-b border-r border-row-divider py-1.5 align-top last:border-r-0 ${
                                                         cell.column.id === "__index"
-                                                            ? "bg-surface-container/40 text-right whitespace-nowrap px-2"
+                                                            ? "text-secondary text-right whitespace-nowrap px-2"
                                                             : "text-on-surface break-words overflow-wrap-anywhere px-2"
                                                     }`}
                                                 >

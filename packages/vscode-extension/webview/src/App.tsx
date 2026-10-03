@@ -82,7 +82,7 @@ export function App() {
                                     }
                                 >
                                     {/* Unified Search Toolbar */}
-                                    <div class="px-4 py-2.5 flex items-center justify-between gap-2 border-b border-outline-variant bg-surface-container-lowest shrink-0 flex-wrap">
+                                    <div class="px-4 py-2.5 flex items-center justify-between gap-2 border-b border-outline-variant bg-surface shrink-0 flex-wrap">
                                         <SearchBar
                                             value={results.globalFilter()}
                                             onChange={results.setGlobalFilter}

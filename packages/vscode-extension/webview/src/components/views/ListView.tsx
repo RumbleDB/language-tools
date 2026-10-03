@@ -36,11 +36,11 @@ export function ListView(props: ListViewProps) {
                     </div>
                 }
             >
-                <ol class="list-none m-0 p-0 divide-y divide-outline-variant/30">
+                <ol class="list-none m-0 p-0 divide-y divide-row-divider">
                     <For each={props.rows}>
                         {(row) => (
                             <li
-                                class="grid items-start gap-2 pr-2 py-1.5 hover:bg-surface-variant"
+                                class="grid items-start gap-2 pr-2 py-1.5 hover:bg-row-hover"
                                 style={{
                                     "grid-template-columns": `${props.indexColumnWidth}px minmax(0, 1fr)`,
                                 }}
@@ -51,7 +51,7 @@ export function ListView(props: ListViewProps) {
                                 >
                                     {row.original.index + 1}
                                 </span>
-                                <ItemValue item={row.original.item} />
+                                <ItemValue item={row.original.item} previewLength={300} />
                             </li>
                         )}
                     </For>

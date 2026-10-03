@@ -27,7 +27,7 @@ export function ResultActions(props: { items: RunQueryItem[] }) {
                 disabled={disabled()}
                 onClick={openInEditor}
                 title="Open the raw result sequence in an editor tab"
-                class="px-2 py-1 text-xs flex items-center gap-1 rounded hover:bg-surface-variant hover:text-on-surface cursor-pointer disabled:opacity-30"
+                class="px-2 py-1 text-xs flex items-center gap-1 rounded hover:bg-action-hover hover:text-on-surface cursor-pointer disabled:opacity-30"
             >
                 <span class="w-3 h-3 shrink-0 i-iconoir-open-new-window" />
                 Open in editor

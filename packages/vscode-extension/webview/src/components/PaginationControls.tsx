@@ -44,14 +44,14 @@ export function PaginationControls(props: PaginationControlsProps) {
     };
 
     return (
-        <footer class="bg-surface-container-low border-t border-outline-variant min-h-[32px] py-1 px-3 w-full shrink-0 flex items-center justify-between gap-3 flex-wrap text-xs z-10 box-border">
+        <footer class="bg-surface border-t border-outline-variant min-h-[32px] py-1 px-3 w-full shrink-0 flex items-center justify-between gap-3 flex-wrap text-xs z-10 box-border">
             <div class="flex items-center gap-1">
                 <button
                     aria-label="First page"
                     title="First page"
                     onClick={() => props.onPageChange(0)}
                     disabled={!props.canPreviousPage}
-                    class="p-1 hover:bg-surface-variant rounded transition-colors disabled:opacity-30 cursor-pointer flex items-center justify-center text-on-surface"
+                    class="p-1 hover:bg-action-hover rounded transition-colors disabled:opacity-30 cursor-pointer flex items-center justify-center text-on-surface"
                 >
                     <span class="i-iconoir-fast-arrow-left text-sm" />
                 </button>
@@ -61,7 +61,7 @@ export function PaginationControls(props: PaginationControlsProps) {
                     title="Previous page"
                     onClick={props.onPreviousPage}
                     disabled={!props.canPreviousPage}
-                    class="p-1 hover:bg-surface-variant rounded transition-colors disabled:opacity-30 cursor-pointer flex items-center justify-center text-on-surface"
+                    class="p-1 hover:bg-action-hover rounded transition-colors disabled:opacity-30 cursor-pointer flex items-center justify-center text-on-surface"
                 >
                     <span class="i-iconoir-nav-arrow-left text-sm" />
                 </button>
@@ -78,7 +78,7 @@ export function PaginationControls(props: PaginationControlsProps) {
                         onBlur={commitPage}
                         onKeyDown={handleKeyDown}
                         disabled={totalPages() <= 1}
-                        class="w-11 px-1 py-0.5 text-center font-mono text-xs bg-input-bg border border-outline-variant rounded text-on-surface focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-colors disabled:opacity-50"
+                        class="w-11 px-1 py-0.5 text-center font-mono text-xs bg-input-bg border border-input-border rounded text-input-fg focus:border-focus focus:ring-1 focus:ring-focus outline-none transition-colors disabled:opacity-50"
                     />
                     <span>of {totalPages()}</span>
                 </div>
@@ -88,7 +88,7 @@ export function PaginationControls(props: PaginationControlsProps) {
                     title="Next page"
                     onClick={props.onNextPage}
                     disabled={!props.canNextPage}
-                    class="p-1 hover:bg-surface-variant rounded transition-colors disabled:opacity-30 cursor-pointer flex items-center justify-center text-on-surface"
+                    class="p-1 hover:bg-action-hover rounded transition-colors disabled:opacity-30 cursor-pointer flex items-center justify-center text-on-surface"
                 >
                     <span class="i-iconoir-nav-arrow-right text-sm" />
                 </button>
@@ -98,7 +98,7 @@ export function PaginationControls(props: PaginationControlsProps) {
                     title="Last page"
                     onClick={() => props.onPageChange(totalPages() - 1)}
                     disabled={!props.canNextPage}
-                    class="p-1 hover:bg-surface-variant rounded transition-colors disabled:opacity-30 cursor-pointer flex items-center justify-center text-on-surface"
+                    class="p-1 hover:bg-action-hover rounded transition-colors disabled:opacity-30 cursor-pointer flex items-center justify-center text-on-surface"
                 >
                     <span class="i-iconoir-fast-arrow-right text-sm" />
                 </button>
@@ -113,18 +113,18 @@ export function PaginationControls(props: PaginationControlsProps) {
                         const size = Number(e.currentTarget.value);
                         props.onPageSizeChange(size);
                     }}
-                    class="bg-transparent border-none p-0 text-2xs font-medium focus:ring-0 cursor-pointer text-on-surface"
+                    class="bg-dropdown-bg border border-dropdown-border rounded px-1 text-2xs font-medium focus:outline-1 focus:outline-focus cursor-pointer text-dropdown-fg"
                 >
-                    <option value={20} class="bg-surface text-on-surface">
+                    <option value={20} class="bg-dropdown-list text-dropdown-fg">
                         20
                     </option>
-                    <option value={50} class="bg-surface text-on-surface">
+                    <option value={50} class="bg-dropdown-list text-dropdown-fg">
                         50
                     </option>
-                    <option value={100} class="bg-surface text-on-surface">
+                    <option value={100} class="bg-dropdown-list text-dropdown-fg">
                         100
                     </option>
-                    <option value={250} class="bg-surface text-on-surface">
+                    <option value={250} class="bg-dropdown-list text-dropdown-fg">
                         250
                     </option>
                 </select>

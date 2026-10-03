@@ -21,34 +21,39 @@ export default defineConfig({
         },
         colors: {
             surface: "var(--vscode-editor-background)",
-            "on-surface": "var(--vscode-editor-foreground)",
+            "on-surface": "var(--vscode-foreground, var(--vscode-editor-foreground))",
             "surface-container":
-                "var(--vscode-editorWidget-background, var(--vscode-sideBar-background))",
-            "surface-container-low":
-                "var(--vscode-sideBar-background, var(--vscode-editorWidget-background))",
-            "surface-container-lowest": "var(--vscode-editor-background)",
-            "surface-container-high":
                 "var(--vscode-editorWidget-background, var(--vscode-editor-background))",
-            "surface-variant":
-                "var(--vscode-editorHoverWidget-background, rgba(128, 128, 128, 0.12))",
-            outline: "var(--vscode-descriptionForeground, rgba(128, 128, 128, 0.6))",
+            "on-container": "var(--vscode-editorWidget-foreground, var(--vscode-foreground))",
+            "row-hover": "var(--vscode-list-hoverBackground, rgba(128, 128, 128, 0.08))",
+            "action-hover": "var(--vscode-toolbar-hoverBackground, rgba(128, 128, 128, 0.12))",
             "outline-variant":
-                "var(--vscode-panel-border, var(--vscode-widget-border, rgba(128, 128, 128, 0.35)))",
+                "var(--vscode-contrastBorder, var(--vscode-panel-border, var(--vscode-widget-border, transparent)))",
+            "row-divider":
+                "var(--vscode-contrastBorder, color-mix(in srgb, var(--vscode-panel-border, var(--vscode-widget-border, transparent)) 30%, transparent))",
+            focus: "var(--vscode-focusBorder)",
             primary: "var(--vscode-button-background)",
+            "primary-hover":
+                "var(--vscode-button-hoverBackground, var(--vscode-button-background))",
             "on-primary": "var(--vscode-button-foreground)",
-            secondary: "var(--vscode-descriptionForeground)",
-            error: "var(--vscode-errorForeground, #f48771)",
-            "error-container":
-                "var(--vscode-inputValidation-errorBackground, rgba(90, 29, 29, 0.4))",
-            "on-error-container": "var(--vscode-errorForeground, #f48771)",
-            success: "var(--vscode-testing-iconPassed, #2ecc71)",
-            "token-number":
-                "var(--vscode-symbolIcon-numberForeground, var(--vscode-editor-foreground))",
-            "token-string":
-                "var(--vscode-symbolIcon-stringForeground, var(--vscode-editor-foreground))",
+            secondary: "var(--vscode-descriptionForeground, var(--vscode-foreground))",
+            error: "var(--vscode-errorForeground, var(--vscode-foreground))",
+            success: "var(--vscode-testing-iconPassed, var(--vscode-foreground))",
+            link: "var(--vscode-textLink-foreground, var(--vscode-foreground))",
+            "link-hover":
+                "var(--vscode-textLink-activeForeground, var(--vscode-textLink-foreground))",
+            resize: "var(--vscode-sash-hoverBorder, var(--vscode-focusBorder))",
             "input-bg": "var(--vscode-input-background, var(--vscode-editor-background))",
+            "input-fg": "var(--vscode-input-foreground, var(--vscode-foreground))",
+            "input-border": "var(--vscode-input-border, var(--vscode-contrastBorder, transparent))",
             "input-placeholder":
-                "var(--vscode-input-placeholderForeground, rgba(204, 204, 204, 0.5))",
+                "var(--vscode-input-placeholderForeground, var(--vscode-descriptionForeground))",
+            "dropdown-bg": "var(--vscode-dropdown-background, var(--vscode-input-background))",
+            "dropdown-fg": "var(--vscode-dropdown-foreground, var(--vscode-input-foreground))",
+            "dropdown-border":
+                "var(--vscode-dropdown-border, var(--vscode-contrastBorder, transparent))",
+            "dropdown-list":
+                "var(--vscode-dropdown-listBackground, var(--vscode-dropdown-background))",
         },
         fontFamily: {
             sans: [

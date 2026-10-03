@@ -11,12 +11,14 @@ interface ItemValueProps {
     item: RunQueryItem;
     copyable?: boolean;
     reserveArrowSpace?: boolean;
+    previewLength?: number;
 }
 
 export function ItemValue(props: ItemValueProps) {
     const [expanded, setExpanded] = createSignal(false);
     const { copy, copied } = createCopyAction();
-    const expandable = createMemo(() => isExpandable(props.item));
+    const previewLength = () => props.previewLength ?? 120;
+    const expandable = createMemo(() => isExpandable(props.item, previewLength()));
     const preview = createMemo(() => itemPreview(props.item));
     const tone = () => `result-value-${itemTone(props.item)}`;
 
@@ -51,12 +53,14 @@ export function ItemValue(props: ItemValueProps) {
                     class={`font-mono text-xs leading-5 flex-1 min-w-0 break-words ${tone()}`}
                     title={props.item.type}
                 >
-                    {preview().length > 120 ? `${preview().slice(0, 120)}…` : preview()}
+                    {preview().length > previewLength()
+                        ? `${preview().slice(0, previewLength())}…`
+                        : preview()}
                 </span>
                 <Show when={props.copyable !== false}>
                     <button
                         type="button"
-                        class={`w-5 h-5 flex items-center justify-center shrink-0 text-secondary hover:text-on-surface hover:bg-surface-variant rounded cursor-pointer focus-visible:outline-1 focus-visible:outline-primary group-hover:opacity-100 focus:opacity-100 group-hover:disabled:opacity-30 disabled:cursor-default [@media(hover:none)]:opacity-100 [@media(hover:none)]:disabled:opacity-30 ${copied() ? "opacity-100" : "opacity-0"}`}
+                        class={`w-5 h-5 flex items-center justify-center shrink-0 text-secondary hover:text-on-surface hover:bg-action-hover rounded cursor-pointer focus-visible:outline-1 focus-visible:outline-focus group-hover:opacity-100 focus:opacity-100 group-hover:disabled:opacity-30 disabled:cursor-default [@media(hover:none)]:opacity-100 [@media(hover:none)]:disabled:opacity-30 ${copied() ? "opacity-100" : "opacity-0"}`}
                         title={
                             props.item.serialized === null
                                 ? "Value cannot be copied: serialization unavailable"
@@ -97,6 +101,7 @@ export function ItemValue(props: ItemValueProps) {
                                             items={entry.value}
                                             copyable={props.copyable}
                                             reserveArrowSpace={false}
+                                            previewLength={props.previewLength}
                                         />
                                     </div>
                                 </div>
@@ -110,7 +115,11 @@ export function ItemValue(props: ItemValueProps) {
                                     <span class="font-mono text-2xs leading-5 text-secondary shrink-0">
                                         [{index() + 1}]
                                     </span>
-                                    <SequenceValue items={member} copyable={props.copyable} />
+                                    <SequenceValue
+                                        items={member}
+                                        copyable={props.copyable}
+                                        previewLength={props.previewLength}
+                                    />
                                 </div>
                             )}
                         </For>
@@ -148,6 +157,7 @@ export function SequenceValue(props: {
     items: RunQueryItem[] | undefined;
     copyable?: boolean;
     reserveArrowSpace?: boolean;
+    previewLength?: number;
 }) {
     return (
         <Show
@@ -190,6 +200,7 @@ export function SequenceValue(props: {
                                     item={item}
                                     copyable={props.copyable}
                                     reserveArrowSpace={props.reserveArrowSpace}
+                                    previewLength={props.previewLength}
                                 />
                             </div>
                         )}

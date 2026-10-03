@@ -15,7 +15,7 @@ export function CellValue(props: { items: RunQueryItem[] | undefined }) {
             <Show when={props.items !== undefined}>
                 <button
                     type="button"
-                    class={`w-5 h-5 flex items-center justify-center shrink-0 text-secondary hover:text-on-surface hover:bg-surface-variant rounded cursor-pointer focus-visible:outline-1 focus-visible:outline-primary group-hover:opacity-100 focus:opacity-100 group-hover:disabled:opacity-30 disabled:cursor-default [@media(hover:none)]:opacity-100 [@media(hover:none)]:disabled:opacity-30 ${copied() ? "opacity-100" : "opacity-0"}`}
+                    class={`w-5 h-5 flex items-center justify-center shrink-0 text-secondary hover:text-on-surface hover:bg-action-hover rounded cursor-pointer focus-visible:outline-1 focus-visible:outline-focus group-hover:opacity-100 focus:opacity-100 group-hover:disabled:opacity-30 disabled:cursor-default [@media(hover:none)]:opacity-100 [@media(hover:none)]:disabled:opacity-30 ${copied() ? "opacity-100" : "opacity-0"}`}
                     aria-label={copied() ? "Cell copied" : "Copy cell"}
                     title={copied() ? "Cell copied" : "Copy cell"}
                     disabled={props.items?.some((item) => item.serialized === null)}

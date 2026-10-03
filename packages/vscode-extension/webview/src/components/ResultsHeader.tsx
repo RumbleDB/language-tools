@@ -34,7 +34,7 @@ export function ResultsHeader(props: ResultsHeaderProps) {
                             ? "Query is running"
                             : "Re-run this query file using its current contents"
                     }
-                    class="px-2 py-1 text-xs flex items-center gap-1 rounded bg-primary text-on-primary cursor-pointer disabled:opacity-30"
+                    class="px-2 py-1 text-xs flex items-center gap-1 rounded bg-primary text-on-primary hover:bg-primary-hover cursor-pointer disabled:opacity-30"
                 >
                     <span
                         class="i-iconoir-refresh w-3 h-3 shrink-0"

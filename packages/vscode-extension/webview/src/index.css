@@ -21,7 +21,7 @@ body {
     height: 100%;
     overflow: hidden;
     background-color: var(--vscode-editor-background);
-    color: var(--vscode-editor-foreground);
+    color: var(--vscode-foreground, var(--vscode-editor-foreground));
 }
 
 /* Minimalist Scrollbar matching VS Code theme */
@@ -45,23 +45,23 @@ body {
 
 /* Tag highlighting for XmlSource */
 .xml-tag {
-    color: var(--vscode-symbolIcon-propertyForeground, #9cdcfe);
+    color: var(--vscode-debugTokenExpression-name, var(--vscode-editor-foreground));
 }
 
 /* Typed value colors come from backend metadata, including in table cells. */
 .result-value-number {
-    color: var(--vscode-debugTokenExpression-number, #b5cea8);
+    color: var(--vscode-debugTokenExpression-number, var(--vscode-editor-foreground));
 }
 .result-value-string {
-    color: var(--vscode-debugTokenExpression-string, #ce9178);
+    color: var(--vscode-debugTokenExpression-string, var(--vscode-editor-foreground));
 }
 .result-value-boolean {
-    color: var(--vscode-debugTokenExpression-boolean, #569cd6);
+    color: var(--vscode-debugTokenExpression-boolean, var(--vscode-editor-foreground));
 }
 .result-value-null {
     color: var(--vscode-descriptionForeground);
     font-style: italic;
 }
 .result-value-value {
-    color: var(--vscode-editor-foreground);
+    color: var(--vscode-debugTokenExpression-value, var(--vscode-editor-foreground));
 }
