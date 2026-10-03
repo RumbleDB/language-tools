@@ -111,13 +111,18 @@ export function ItemValue(props: ItemValueProps) {
             </div>
             <Show when={expanded()}>
                 <div class="ml-2 pl-3 mt-2 border-l border-outline-variant space-y-2">
-                    <div class="text-2xs text-secondary break-words" title={props.item.type.qname}>
-                        {props.item.kind === "node" &&
-                        props.item.nodeKind !== props.item.type.displayName
-                            ? `${props.item.nodeKind} · `
-                            : ""}
-                        {props.item.type.displayName}
-                    </div>
+                    <Show when={props.item.kind !== "function"}>
+                        <div
+                            class="text-2xs text-secondary break-words"
+                            title={props.item.type.qname}
+                        >
+                            {props.item.kind === "node" &&
+                            props.item.nodeKind !== props.item.type.displayName
+                                ? `${props.item.nodeKind} · `
+                                : ""}
+                            {props.item.type.displayName}
+                        </div>
+                    </Show>
                     <Show when={props.item.kind === "object" && props.item}>
                         {(item) => (
                             <For each={item().fields}>
