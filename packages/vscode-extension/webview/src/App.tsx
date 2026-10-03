@@ -1,11 +1,13 @@
 import { createSignal, onMount, onCleanup, createMemo, Show } from "solid-js";
 
+import { PaginationControls } from "@/components/PaginationControls.js";
 import { ResultActions } from "@/components/ResultActions.js";
 import { ResultsHeader } from "@/components/ResultsHeader.js";
+import { SearchBar } from "@/components/SearchBar.js";
 import { ErrorView } from "@/components/views/ErrorView.js";
 import { InspectView } from "@/components/views/InspectView.js";
 import { TableView } from "@/components/views/table/TableView.js";
-import { projectTableRows, type ResultSelection } from "@/utils/result-items.js";
+import { createResultsModel } from "@/model/results-model.js";
 
 import type { ExecutionResultData, ViewMode } from "./types.js";
 import { vscode } from "./vscode.js";
@@ -18,7 +20,6 @@ declare global {
 
 export function App() {
     const [data, setData] = createSignal<ExecutionResultData | undefined>(window.__INITIAL_DATA__);
-    const [tableSelection, setTableSelection] = createSignal<ResultSelection>();
     const [viewMode, setViewMode] = createSignal<ViewMode>("inspect");
     const [running, setRunning] = createSignal(false);
 
@@ -32,12 +33,7 @@ export function App() {
     });
 
     const resultItems = createMemo(() => data()?.items ?? []);
-    const fullSelection = createMemo(() => ({
-        items: resultItems(),
-        ...projectTableRows(resultItems()),
-    }));
-    const actionSelection = () =>
-        viewMode() === "table" ? (tableSelection() ?? fullSelection()) : fullSelection();
+    const results = createResultsModel(resultItems);
 
     const isSuccess = () => {
         const d = data();
@@ -63,9 +59,9 @@ export function App() {
                             onRerun={() => vscode.postMessage("RERUN_QUERY", {})}
                             actions={
                                 <ResultActions
-                                    items={actionSelection().items}
-                                    rows={actionSelection().rows}
-                                    columns={actionSelection().columns}
+                                    items={results.selection().items}
+                                    rows={results.selection().rows}
+                                    columns={results.selection().columns}
                                     tableView={viewMode() === "table"}
                                 />
                             }
@@ -92,22 +88,39 @@ export function App() {
                                         </div>
                                     }
                                 >
-                                    <div
-                                        class="flex-1 flex flex-col overflow-hidden"
-                                        classList={{ hidden: viewMode() !== "inspect" }}
-                                    >
-                                        <InspectView items={res().items!} />
+                                    {/* Unified Search Toolbar */}
+                                    <div class="px-4 py-2.5 flex items-center justify-between gap-2 border-b border-outline-variant bg-surface-container-lowest shrink-0 flex-wrap">
+                                        <SearchBar
+                                            value={results.globalFilter()}
+                                            onChange={results.setGlobalFilter}
+                                        />
+                                        <span class="text-xs text-secondary shrink-0">
+                                            Showing {results.filteredCount()} of{" "}
+                                            {results.totalCount()}{" "}
+                                            {results.totalCount() === 1 ? "item" : "items"}
+                                        </span>
                                     </div>
 
-                                    <div
-                                        class="flex-1 flex flex-col overflow-hidden"
-                                        classList={{ hidden: viewMode() !== "table" }}
-                                    >
-                                        <TableView
-                                            items={res().items!}
-                                            onSelectionChange={setTableSelection}
-                                        />
-                                    </div>
+                                    {/* View Presentations */}
+                                    <Show when={viewMode() === "inspect"}>
+                                        <InspectView rows={results.table.getRowModel().rows} />
+                                    </Show>
+
+                                    <Show when={viewMode() === "table"}>
+                                        <TableView table={results.table} />
+                                    </Show>
+
+                                    {/* Unified Pagination Controls */}
+                                    <PaginationControls
+                                        pageIndex={results.pagination.state().pageIndex}
+                                        pageCount={results.pagination.pageCount()}
+                                        pageSize={results.pagination.state().pageSize}
+                                        canPreviousPage={results.pagination.canPreviousPage()}
+                                        canNextPage={results.pagination.canNextPage()}
+                                        onPreviousPage={results.pagination.previousPage}
+                                        onNextPage={results.pagination.nextPage}
+                                        onPageSizeChange={results.pagination.setPageSize}
+                                    />
                                 </Show>
                             </Show>
                         </main>

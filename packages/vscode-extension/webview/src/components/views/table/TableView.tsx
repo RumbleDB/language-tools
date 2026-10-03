@@ -1,167 +1,138 @@
-import { createTable, type ColumnDef, type SortingState } from "@tanstack/solid-table";
-import { createSignal, createMemo, createEffect, on } from "solid-js";
+import { FlexRender } from "@tanstack/solid-table";
+import { For, Show } from "solid-js";
 
-import { PaginationControls } from "@/components/PaginationControls.js";
-import type { RunQueryItem } from "@/types.js";
-import { itemPreview } from "@/utils/item-presentation.js";
-import { createPagination } from "@/utils/pagination.js";
-import {
-    formatCell,
-    projectTableRows,
-    selectResultItems,
-    type ResultSelection,
-} from "@/utils/result-items.js";
-
-import { CellValue } from "./CellValue.js";
-import { features, type TFeatures, type TData } from "./model.js";
-import { TableGrid } from "./TableGrid.js";
+import type { ResultsTableInstance } from "@/model/types.js";
 
 interface TableViewProps {
-    items: RunQueryItem[];
-    onSelectionChange: (selection: ResultSelection) => void;
-}
-
-const INDEX_COLUMN: ColumnDef<TFeatures, TData> = {
-    id: "__index",
-    header: "#",
-    enableResizing: false,
-    accessorFn: (_: TData, index: number) => index + 1,
-    cell: (info) => (
-        <span class="text-secondary/60 font-mono text-xs select-none tabular-nums">
-            {String(info.getValue())}
-        </span>
-    ),
-};
-
-/** Estimate initial widths from collapsed previews; TanStack handles subsequent resizing. */
-function getContentWidth(rows: TData[], key: string, header = key): number {
-    let length = header.length;
-    const samples = Math.min(rows.length, 50);
-    for (let sample = 0; sample < samples; sample++) {
-        const index = samples === 1 ? 0 : Math.round((sample * (rows.length - 1)) / (samples - 1));
-        const items = rows[index]![key] ?? [];
-        // Sequence members are stacked vertically, so measure the widest preview.
-        if (items.length > 1) length = Math.max(length, `Sequence · ${items.length} items`.length);
-        for (const item of items) {
-            length = Math.max(length, Math.min(itemPreview(item).length, 121));
-        }
-    }
-    // Allow room for padding and cell controls, and wrap especially long values.
-    return Math.min(450, Math.max(90, length * 8 + 80));
+    table: ResultsTableInstance;
 }
 
 export function TableView(props: TableViewProps) {
-    const [globalFilter, setGlobalFilter] = createSignal("");
-    const [sorting, setSorting] = createSignal<SortingState>([]);
-    const pagination = createPagination(() => table.getPrePaginatedRowModel().rows.length);
-
-    createEffect(
-        on(
-            () => props.items,
-            () => {
-                setGlobalFilter("");
-                setSorting([]);
-                table.resetColumnSizing(true);
-                pagination.reset();
-            },
-            { defer: true },
-        ),
-    );
-
-    const resultItems = () => props.items;
-    const projection = createMemo(() => projectTableRows(resultItems()));
-    const tableData = () => projection().rows;
-    const columnKeys = () => projection().columns;
-
-    const tableColumns = createMemo<ColumnDef<TFeatures, TData>[]>(() => {
-        if (resultItems().length === 0) return [];
-        // Digits plus room for the sort indicator.
-        const indexSize = Math.max(36, String(tableData().length).length * 8 + 24);
-        const indexColumn = {
-            ...INDEX_COLUMN,
-            size: indexSize,
-            minSize: indexSize,
-            maxSize: indexSize,
-        };
-        if (projection().objects) {
-            return [
-                indexColumn,
-                ...columnKeys().map((key): ColumnDef<TFeatures, TData> => ({
-                    id: `field:${key}`,
-                    accessorFn: (row) => formatCell(row[key]),
-                    header: key,
-                    size: getContentWidth(tableData(), key),
-                    cell: (info) => <CellValue items={info.row.original[key]} />,
-                })),
-            ];
-        }
-        return [
-            indexColumn,
-            {
-                id: "value",
-                accessorFn: (row) => formatCell(row.value),
-                header: "Value",
-                size: getContentWidth(tableData(), "value", "Value"),
-                cell: (info) => <CellValue items={info.row.original.value} />,
-            },
-        ];
-    });
-
-    const table = createTable({
-        features,
-        get data() {
-            return tableData();
-        },
-        get columns() {
-            return tableColumns();
-        },
-        columnResizeMode: "onChange",
-        defaultColumn: {
-            size: 160,
-            minSize: 90,
-        },
-        get state() {
-            return {
-                sorting: sorting(),
-                globalFilter: globalFilter(),
-                pagination: pagination.state(),
-            };
-        },
-        onSortingChange: setSorting,
-        onGlobalFilterChange: setGlobalFilter,
-        onPaginationChange: pagination.setState,
-    });
-
-    createEffect(() => {
-        const rows = table.getSortedRowModel().rows;
-        props.onSelectionChange({
-            items: selectResultItems(
-                props.items,
-                rows.map((row) => row.index),
-            ),
-            rows: rows.map((row) => row.original),
-            columns: columnKeys(),
-        });
-    });
+    const lastDataColumn = () =>
+        props.table
+            .getAllFlatColumns()
+            .filter((column) => column.id !== "__index")
+            .at(-1);
 
     return (
-        <>
-            <TableGrid
-                table={table}
-                totalRows={tableData().length}
-                globalFilter={globalFilter()}
-                onGlobalFilterChange={setGlobalFilter}
-            />
-            <PaginationControls
-                pageIndex={pagination.state().pageIndex}
-                pageCount={pagination.pageCount()}
-                pageSize={pagination.state().pageSize}
-                canPreviousPage={pagination.canPreviousPage()}
-                canNextPage={pagination.canNextPage()}
-                onPreviousPage={pagination.previousPage}
-                onNextPage={pagination.nextPage}
-                onPageSizeChange={pagination.setPageSize}
-            />
-        </>
+        <div class="flex-1 overflow-auto bg-surface-container-lowest p-4">
+            <div class="border border-outline-variant rounded bg-surface overflow-auto max-w-full max-h-full">
+                <table
+                    class="text-left border-separate border-spacing-0 table-fixed"
+                    style={{
+                        width: lastDataColumn()
+                            ? `max(100%, ${props.table.getTotalSize()}px)`
+                            : `${props.table.getTotalSize()}px`,
+                    }}
+                >
+                    <colgroup>
+                        <For each={props.table.getAllFlatColumns()}>
+                            {(column) => (
+                                <col
+                                    style={{
+                                        width:
+                                            column.id === lastDataColumn()?.id
+                                                ? undefined
+                                                : `${column.getSize()}px`,
+                                    }}
+                                />
+                            )}
+                        </For>
+                    </colgroup>
+                    <thead class="sticky top-0 z-10">
+                        <tr>
+                            <For each={props.table.getHeaderGroups()}>
+                                {(headerGroup) => (
+                                    <For each={headerGroup.headers}>
+                                        {(header) => (
+                                            <th
+                                                onClick={header.column.getToggleSortingHandler()}
+                                                class={`sticky top-0 z-20 border-b border-r border-outline-variant py-2.5 text-2xs font-bold tracking-wider select-none last:border-r-0 ${
+                                                    header.column.id === "__index"
+                                                        ? "bg-surface-container text-secondary/70 text-center px-0"
+                                                        : "bg-surface-container-high text-on-surface px-4"
+                                                } ${
+                                                    header.column.getCanSort()
+                                                        ? "cursor-pointer hover:bg-surface-variant"
+                                                        : ""
+                                                }`}
+                                            >
+                                                <div
+                                                    class={`flex items-center gap-1 ${header.column.id === "__index" ? "justify-center" : "justify-between"}`}
+                                                >
+                                                    <span>
+                                                        <FlexRender header={header} />
+                                                    </span>
+                                                    <Show when={header.column.getCanSort()}>
+                                                        <span class="text-secondary text-xs">
+                                                            {header.column.getIsSorted() ===
+                                                            "asc" ? (
+                                                                <span class="i-iconoir-arrow-up text-xs text-primary" />
+                                                            ) : header.column.getIsSorted() ===
+                                                              "desc" ? (
+                                                                <span class="i-iconoir-arrow-down text-xs text-primary" />
+                                                            ) : (
+                                                                <span class="i-iconoir-arrow-up-down text-xs opacity-30" />
+                                                            )}
+                                                        </span>
+                                                    </Show>
+                                                </div>
+                                                <Show when={header.column.getCanResize()}>
+                                                    <div
+                                                        onMouseDown={header.getResizeHandler()}
+                                                        onTouchStart={header.getResizeHandler()}
+                                                        onClick={(e) => e.stopPropagation()}
+                                                        class={`absolute right-0 top-0 h-full w-1.5 cursor-col-resize select-none touch-none hover:bg-primary/50 transition-colors ${
+                                                            header.column.getIsResizing()
+                                                                ? "bg-primary w-1 opacity-100"
+                                                                : "opacity-0 hover:opacity-100"
+                                                        }`}
+                                                    />
+                                                </Show>
+                                            </th>
+                                        )}
+                                    </For>
+                                )}
+                            </For>
+                        </tr>
+                    </thead>
+                    <tbody class="font-mono text-xs text-on-surface">
+                        <Show
+                            when={props.table.getRowModel().rows.length > 0}
+                            fallback={
+                                <tr>
+                                    <td
+                                        colspan={props.table.getAllFlatColumns().length}
+                                        class="py-8 text-center text-xs text-secondary font-sans"
+                                    >
+                                        No matching items found
+                                    </td>
+                                </tr>
+                            }
+                        >
+                            <For each={props.table.getRowModel().rows}>
+                                {(row) => (
+                                    <tr class="hover:bg-surface-variant transition-colors">
+                                        <For each={row.getAllCells()}>
+                                            {(cell) => (
+                                                <td
+                                                    class={`border-b border-r border-outline-variant/30 py-2.5 align-top last:border-r-0 ${
+                                                        cell.column.id === "__index"
+                                                            ? "bg-surface-container/40 text-center whitespace-nowrap px-0"
+                                                            : "text-on-surface break-words overflow-wrap-anywhere px-4"
+                                                    }`}
+                                                >
+                                                    <FlexRender cell={cell} />
+                                                </td>
+                                            )}
+                                        </For>
+                                    </tr>
+                                )}
+                            </For>
+                        </Show>
+                    </tbody>
+                </table>
+            </div>
+        </div>
     );
 }

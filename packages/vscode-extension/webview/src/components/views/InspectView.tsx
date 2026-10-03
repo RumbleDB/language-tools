@@ -1,57 +1,56 @@
-import { createEffect, createMemo, For, on } from "solid-js";
+import type { Row } from "@tanstack/solid-table";
+import { createEffect, For, on, Show } from "solid-js";
 
-import { PaginationControls } from "@/components/PaginationControls.js";
 import { ItemValue } from "@/components/values/ItemValue.js";
-import type { RunQueryItem } from "@/types.js";
-import { createPagination } from "@/utils/pagination.js";
+import type { TFeatures } from "@/model/table-features.js";
+import type { ResultRowData } from "@/model/types.js";
 
-export function InspectView(props: { items: RunQueryItem[] }) {
-    const pagination = createPagination(() => props.items.length);
-    const startIndex = () => pagination.state().pageIndex * pagination.state().pageSize;
-    const pageItems = createMemo(() =>
-        props.items.slice(startIndex(), startIndex() + pagination.state().pageSize),
-    );
+interface InspectViewProps {
+    rows: Row<TFeatures, ResultRowData>[];
+}
+
+export function InspectView(props: InspectViewProps) {
     let list!: HTMLDivElement;
-    createEffect(on(() => props.items, pagination.reset, { defer: true }));
-    createEffect(() => {
-        pageItems();
-        list.scrollTop = 0;
-    });
+    createEffect(
+        on(
+            () => props.rows,
+            () => {
+                if (list) list.scrollTop = 0;
+            },
+        ),
+    );
 
     return (
-        <>
-            <div
-                ref={(element) => {
-                    list = element;
-                }}
-                class="flex-1 overflow-auto p-3 sm:p-4"
+        <div
+            ref={(element) => {
+                list = element;
+            }}
+            class="flex-1 overflow-auto px-4 py-2"
+        >
+            <Show
+                when={props.rows.length > 0}
+                fallback={
+                    <div class="py-8 text-center text-xs text-secondary font-sans">
+                        No matching items found
+                    </div>
+                }
             >
                 <ol class="list-none m-0 p-0 divide-y divide-outline-variant">
-                    <For each={pageItems()}>
-                        {(item, index) => (
+                    <For each={props.rows}>
+                        {(row) => (
                             <li class="flex items-start gap-3 py-3">
                                 <span
                                     class="text-2xs leading-5 font-mono text-secondary tabular-nums shrink-0 min-w-6 text-right"
                                     title="Sequence position"
                                 >
-                                    {startIndex() + index() + 1}
+                                    {row.original.index + 1}
                                 </span>
-                                <ItemValue item={item} />
+                                <ItemValue item={row.original.item} />
                             </li>
                         )}
                     </For>
                 </ol>
-            </div>
-            <PaginationControls
-                pageIndex={pagination.state().pageIndex}
-                pageCount={pagination.pageCount()}
-                pageSize={pagination.state().pageSize}
-                canPreviousPage={pagination.canPreviousPage()}
-                canNextPage={pagination.canNextPage()}
-                onPreviousPage={pagination.previousPage}
-                onNextPage={pagination.nextPage}
-                onPageSizeChange={pagination.setPageSize}
-            />
-        </>
+            </Show>
+        </div>
     );
 }

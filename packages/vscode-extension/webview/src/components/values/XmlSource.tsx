@@ -9,7 +9,7 @@ export function XmlSource(props: { source: string }) {
     return (
         <pre class="text-xs font-mono whitespace-pre-wrap break-words text-on-surface">
             <For each={tokens()}>
-                {(token, index) => <span class={index() % 2 ? "json-key" : ""}>{token}</span>}
+                {(token, index) => <span class={index() % 2 ? "xml-tag" : ""}>{token}</span>}
             </For>
         </pre>
     );
