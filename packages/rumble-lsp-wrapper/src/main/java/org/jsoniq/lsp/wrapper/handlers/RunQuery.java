@@ -1,5 +1,6 @@
 package org.jsoniq.lsp.wrapper.handlers;
 
+import java.io.IOException;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -12,8 +13,13 @@ import org.jsoniq.lsp.wrapper.messages.Request;
 import org.jsoniq.lsp.wrapper.messages.ResponseBody;
 
 import org.rumbledb.api.Item;
-import org.rumbledb.api.Rumble;
 import org.rumbledb.api.SequenceOfItems;
+import org.rumbledb.bindings.ExternalBindings;
+import org.rumbledb.compiler.CompilationPipeline;
+import org.rumbledb.compiler.DynamicContextVisitor;
+import org.rumbledb.compiler.EffectiveConfigurationVisitor;
+import org.rumbledb.compiler.RuntimeIteratorVisitor;
+import org.rumbledb.config.CompilationConfiguration;
 import org.rumbledb.config.RumbleConfiguration;
 import org.rumbledb.exceptions.ExceptionMetadata;
 import org.rumbledb.exceptions.RumbleException;
@@ -47,13 +53,22 @@ public final class RunQuery implements RequestHandler {
         }
     }
 
-    private static Rumble RUMBLE_INSTANCE = null;
+    private static final CompilationConfiguration CONFIGURATION =
+            new CompilationConfiguration(RumbleConfiguration.defaultConfiguration());
 
-    private static Rumble getRumble() {
-        if (RUMBLE_INSTANCE == null) {
-            RUMBLE_INSTANCE = new Rumble(RumbleConfiguration.defaultConfiguration());
-        }
-        return RUMBLE_INSTANCE;
+    private static SequenceOfItems createSequence(String query, URI documentUri) throws IOException {
+        // Rumble's constructor eagerly starts Spark. Use the same execution pipeline,
+        // allowing engine operations that actually need Spark to initialize it lazily.
+        var bindings = ExternalBindings.empty();
+
+        var module = query == null
+                ? CompilationPipeline.compileMainModuleFromLocation(documentUri, CONFIGURATION, bindings)
+                : CompilationPipeline.compileMainModule(query, documentUri, CONFIGURATION, bindings);
+        var configuration = new EffectiveConfigurationVisitor()
+                .getEffectiveConfiguration(module, CONFIGURATION.runtimeConfiguration().toBuilder());
+        var context = new DynamicContextVisitor(configuration, bindings).visit(module, null);
+        var plan = new RuntimeIteratorVisitor(configuration).generateRuntimePlan(module);
+        return new SequenceOfItems(plan, context, configuration);
     }
 
     @Override
@@ -65,9 +80,7 @@ public final class RunQuery implements RequestHandler {
         Objects.requireNonNull(documentUri, "documentUri is required.");
 
         try {
-            SequenceOfItems result = query == null
-                    ? getRumble().runQuery(documentUri)
-                    : getRumble().runQuery(query, documentUri);
+            SequenceOfItems result = createSequence(query, documentUri);
 
             List<QueryResultItem> items = new ArrayList<>();
 
