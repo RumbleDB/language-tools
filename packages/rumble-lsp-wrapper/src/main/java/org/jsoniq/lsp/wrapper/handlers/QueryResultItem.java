@@ -29,6 +29,10 @@ public record QueryResultItem(
     }
 
     public static QueryResultItem from(Item item, Serializer serializer) {
+        return from(item, serializer, serializer.serialize(item));
+    }
+
+    public static QueryResultItem from(Item item, Serializer serializer, String serialized) {
         String kind = kindOf(item);
         var dynamicType = item.getDynamicType();
         String typeName = null;
@@ -36,8 +40,6 @@ public record QueryResultItem(
             var name = dynamicType.getName();
             typeName = "Q{" + (name.getNamespace() == null ? "" : name.getNamespace()) + "}" + name.getLocalName();
         }
-
-        String serialized = serializer.serialize(item);
 
         List<Entry> entries = null;
         if (item.isMap()) {

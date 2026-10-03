@@ -74,8 +74,9 @@ public final class RunQuery implements RequestHandler {
                 while (result.hasNext()) {
                     Item item = result.next();
                     if (item != null) {
+                        String serialized;
                         try {
-                            items.add(QueryResultItem.from(item, serializer));
+                            serialized = serializer.serialize(item);
                         } catch (RumbleException exception) {
                             QueryError error = QueryError.from(exception);
                             return new Result(
@@ -89,6 +90,7 @@ public final class RunQuery implements RequestHandler {
                                             error.location(),
                                             error.range()));
                         }
+                        items.add(QueryResultItem.from(item, serializer, serialized));
                     }
                 }
             } finally {
