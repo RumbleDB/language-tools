@@ -79,17 +79,18 @@ export function ItemValue(props: ItemValueProps) {
                     <Show when={props.item.entries}>
                         <For each={props.item.entries}>
                             {(entry) => (
-                                <div class="space-y-1">
+                                <div class="flex items-start gap-2 min-w-0">
                                     <div
-                                        class={`font-mono text-xs result-value-${itemTone(entry.key)} break-words`}
+                                        class={`font-mono text-xs leading-5 shrink-0 max-w-[40%] result-value-${itemTone(entry.key)} break-words`}
                                         title={entry.key.type}
                                     >
                                         {itemPreview(entry.key)}:
                                     </div>
-                                    <div class="pl-2">
+                                    <div class="flex-1 min-w-0">
                                         <SequenceValue
                                             items={entry.value}
                                             copyable={props.copyable}
+                                            reserveArrowSpace={false}
                                         />
                                     </div>
                                 </div>
