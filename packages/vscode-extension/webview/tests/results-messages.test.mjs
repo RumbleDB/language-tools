@@ -5,14 +5,14 @@ import { handleResultsMessage } from "../../src/views/results-message-handler.ts
 
 const request = (type, params) => ({ type, ...params });
 
-test("export forwards both formats without sending a reply", async () => {
+test("open raw output forwards sequence without sending a reply", async () => {
     const calls = [];
     const replies = [];
-    const message = request("EXPORT_RESULTS", { csv: "csv data", sequence: "sequence data" });
+    const message = request("OPEN_RAW_OUTPUT", { sequence: "sequence data" });
     await handleResultsMessage(
         message,
         {
-            exportResults: async (message) => {
+            openRawOutput: async (message) => {
                 calls.push(message);
             },
             rerunQuery: async () => {
@@ -37,8 +37,8 @@ test("navigation routes the location and only replies on failure", async () => {
         rerunQuery: async () => {
             throw new Error("Unexpected rerun");
         },
-        exportResults: async () => {
-            throw new Error("Unexpected export");
+        openRawOutput: async () => {
+            throw new Error("Unexpected open raw output");
         },
         openErrorLocation: async (message) => {
             calls.push(message);
@@ -73,8 +73,8 @@ test("rerun routes to the result panel's query handler", async () => {
             rerunQuery: async () => {
                 reruns++;
             },
-            exportResults: async () => {
-                throw new Error("Unexpected export");
+            openRawOutput: async () => {
+                throw new Error("Unexpected open raw output");
             },
             openErrorLocation: async () => {
                 throw new Error("Unexpected navigation");

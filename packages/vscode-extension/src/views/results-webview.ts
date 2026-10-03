@@ -4,7 +4,6 @@ import type {
     ExecutionResultData,
     ResultsResponse,
     ResultsRequest,
-    ExportResultsRequest,
     OpenErrorLocationRequest,
     OpenRawOutputRequest,
 } from "../shared/results-protocol.js";
@@ -18,7 +17,6 @@ export class ResultsWebviewPanel {
     private readonly fileUri: string;
     private disposables: vscode.Disposable[] = [];
     private data: ExecutionResultData | undefined;
-    private exporting = false;
     private running = false;
 
     private constructor(panel: vscode.WebviewPanel, extensionUri: vscode.Uri, fileUri: string) {
@@ -28,7 +26,6 @@ export class ResultsWebviewPanel {
 
         this.panel.onDidDispose(() => this.dispose(), null, this.disposables);
         const handlers = {
-            exportResults: (message: ExportResultsRequest) => this.exportResults(message),
             openErrorLocation: (message: OpenErrorLocationRequest) =>
                 this.openErrorLocation(message),
             openRawOutput: (message: OpenRawOutputRequest) => this.openRawOutput(message),
@@ -125,55 +122,6 @@ export class ResultsWebviewPanel {
         const results = new ResultsWebviewPanel(panel, extensionUri, data.fileUri);
         ResultsWebviewPanel.panels.set(data.fileUri, results);
         results.update(data);
-    }
-
-    private async exportResults(params: ExportResultsRequest): Promise<void> {
-        if (this.exporting) return;
-        this.exporting = true;
-        try {
-            const format = await vscode.window.showQuickPick(
-                [
-                    { label: "CSV", description: "Table data (.csv)", format: "csv" as const },
-                    {
-                        label: "Sequence text",
-                        description: "Serialized result sequence (.txt)",
-                        format: "sequence" as const,
-                    },
-                ],
-                { title: "Export results", placeHolder: "Choose an export format" },
-            );
-            if (!format) return;
-            const extension = format.format === "csv" ? "csv" : "txt";
-            const source = this.data?.fileUri;
-            const sourceUri = source ? vscode.Uri.parse(source) : undefined;
-            const name =
-                sourceUri?.path
-                    .split("/")
-                    .pop()
-                    ?.replace(/\.[^/.]+$/, "") || "query";
-            const defaultUri =
-                sourceUri?.scheme === "file"
-                    ? sourceUri.with({
-                          path: `${sourceUri.path.slice(0, sourceUri.path.lastIndexOf("/") + 1)}${name}-results.${extension}`,
-                      })
-                    : undefined;
-            const uri = await vscode.window.showSaveDialog({
-                saveLabel: "Export results",
-                filters:
-                    format.format === "csv" ? { CSV: ["csv"] } : { "Result sequence": ["txt"] },
-                ...(defaultUri ? { defaultUri } : {}),
-            });
-            if (!uri) return;
-            const content = format.format === "csv" ? params.csv : params.sequence;
-            await vscode.workspace.fs.writeFile(uri, new TextEncoder().encode(content));
-            void vscode.window.showInformationMessage("Results exported.");
-        } catch (error) {
-            void vscode.window.showErrorMessage(
-                `Unable to export results: ${error instanceof Error ? error.message : String(error)}`,
-            );
-        } finally {
-            this.exporting = false;
-        }
     }
 
     private update(data: ExecutionResultData): void {

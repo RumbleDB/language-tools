@@ -1,5 +1,4 @@
 import type {
-    ExportResultsRequest,
     OpenErrorLocationRequest,
     OpenRawOutputRequest,
     ResultsRequest,
@@ -7,7 +6,6 @@ import type {
 } from "../shared/results-protocol.js";
 
 interface ResultsHandlers {
-    exportResults: (message: ExportResultsRequest) => Promise<void>;
     openErrorLocation: (message: OpenErrorLocationRequest) => Promise<void>;
     openRawOutput: (message: OpenRawOutputRequest) => Promise<void>;
     rerunQuery: () => Promise<void>;
@@ -21,9 +19,6 @@ export async function handleResultsMessage(
     switch (message.type) {
         case "RERUN_QUERY":
             await handlers.rerunQuery();
-            return;
-        case "EXPORT_RESULTS":
-            await handlers.exportResults(message);
             return;
         case "OPEN_ERROR_LOCATION":
             try {

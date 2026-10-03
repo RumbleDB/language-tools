@@ -65,38 +65,3 @@ export function serializeResultItems(items: readonly RunQueryItem[]): string {
     }
     return formatRawOutput(items);
 }
-
-export function formatCsv(rows: readonly ResultTableRow[], columns: readonly string[]): string {
-    const quote = (text: string) => `"${text.replace(/"/g, '""')}"`;
-    const safeText = (text: string) => (/^(?:[\t\r\n]|\s*[=+\-@])/.test(text) ? `'${text}` : text);
-    const lines = [columns.map((column) => quote(safeText(column))).join(",")];
-    for (const row of rows) {
-        lines.push(
-            columns
-                .map((column) => {
-                    const sequence = row[column];
-                    if (sequence === undefined) return '""';
-                    let text = formatCell(sequence);
-                    if (sequence.length === 1) {
-                        const item = sequence[0]!;
-                        if (item.serialized === null)
-                            throw new Error("Some cells cannot be serialized.");
-                        text = item.lexicalValue ?? item.serialized;
-                        // Keep spreadsheet programs from executing formula-like text values.
-                        // Numeric values retain their lexical representation, including negative numbers.
-                        const typeName = item.typeName ?? item.type;
-                        const numeric =
-                            /^(?:xs:|Q\{http:\/\/www\.w3\.org\/2001\/XMLSchema\})(?:decimal|double|float|integer|int|long|short|byte|nonPositiveInteger|negativeInteger|nonNegativeInteger|positiveInteger|unsignedLong|unsignedInt|unsignedShort|unsignedByte)$/.test(
-                                typeName,
-                            );
-                        if (!numeric && /^(?:[\t\r\n]|\s*[=+\-@])/.test(text)) text = `'${text}`;
-                    } else if (sequence.some((item) => item.serialized === null)) {
-                        throw new Error("Some cells cannot be serialized.");
-                    }
-                    return quote(text);
-                })
-                .join(","),
-        );
-    }
-    return `${lines.join("\r\n")}\r\n`;
-}

@@ -222,25 +222,8 @@ test("filtered exports follow sorted source indexes across pagination", async ()
     assert.equal(serializeResultItems(selected).split("\n").length, 60);
 });
 
-test("CSV preserves numeric precision, escapes text, and distinguishes missing from null", async () => {
-    const { formatCsv } = await import("../src/utils/result-items.ts");
-    const row = Object.assign(Object.create(null), {
-        name: [{ ...atomic("xs:string", '"Ada, \\"A\\"\\nB"'), lexicalValue: 'Ada, "A"\nB' }],
-        number: [{ ...atomic("xs:integer", "9007199254740993"), lexicalValue: "9007199254740993" }],
-        empty: [],
-        null: [{ kind: "null", type: "js:null", serialized: "null" }],
-        formula: [{ ...atomic("xs:string", '"=1+1"'), lexicalValue: "=1+1" }],
-        negative: [{ ...atomic("xs:integer", "-42"), lexicalValue: "-42" }],
-    });
-    assert.equal(
-        formatCsv([row], ["name", "number", "empty", "null", "missing", "formula", "negative"]),
-        '"name","number","empty","null","missing","formula","negative"\r\n"Ada, ""A""\nB","9007199254740993","()","null","","\'=1+1","-42"\r\n',
-    );
-});
-
-test("exports reject serialization errors instead of writing placeholder values", async () => {
-    const { serializeResultItems, formatCsv } = await import("../src/utils/result-items.ts");
+test("serialization rejects errors instead of writing placeholder values", async () => {
+    const { serializeResultItems } = await import("../src/utils/result-items.ts");
     const bad = { kind: "function", type: "function(*)", serialized: null };
     assert.throws(() => serializeResultItems([bad]), /cannot be serialized/);
-    assert.throws(() => formatCsv([{ value: [bad] }], ["value"]), /cannot be serialized/);
 });

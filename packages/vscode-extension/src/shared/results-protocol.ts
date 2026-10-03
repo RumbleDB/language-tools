@@ -19,12 +19,6 @@ export interface ExecutionResultData {
     timestamp: string;
 }
 
-export interface ExportResultsRequest {
-    type: "EXPORT_RESULTS";
-    csv: string;
-    sequence: string;
-}
-
 export interface OpenErrorLocationRequest {
     type: "OPEN_ERROR_LOCATION";
     location: string;
@@ -37,7 +31,6 @@ export interface OpenRawOutputRequest {
 }
 
 export type ResultsRequest =
-    | ExportResultsRequest
     | OpenErrorLocationRequest
     | OpenRawOutputRequest
     | { type: "RERUN_QUERY" };

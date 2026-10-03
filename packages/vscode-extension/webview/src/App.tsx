@@ -57,14 +57,7 @@ export function App() {
                             rowCount={resultItems().length}
                             running={running()}
                             onRerun={() => vscode.postMessage("RERUN_QUERY", {})}
-                            actions={
-                                <ResultActions
-                                    items={results.selection().items}
-                                    rows={results.selection().rows}
-                                    columns={results.selection().columns}
-                                    tableView={viewMode() === "table"}
-                                />
-                            }
+                            actions={<ResultActions items={results.selection().items} />}
                         />
 
                         <main class="flex-1 flex flex-col bg-surface overflow-hidden relative w-full">
