@@ -190,6 +190,47 @@ test("object previews show fields and maps retain typed keys and sequence values
     );
 });
 
+test("list previews retain all object fields, nested values, and XML before CSS clamping", async () => {
+    const { itemPreview } = await import("../src/utils/item-presentation.ts");
+    const object = (entries) => ({ kind: "object", type: "object", serialized: "{}", entries });
+    const item = object([
+        { key: key("a"), value: [key("a")] },
+        { key: key("b"), value: [object([{ key: key("c"), value: [atomic("xs:integer", "1")] }])] },
+        {
+            key: key("c"),
+            value: [
+                { kind: "array", type: "array(*)", serialized: '["1"]', members: [[key("1")]] },
+            ],
+        },
+        {
+            key: key("ddddddddd"),
+            value: [{ kind: "node", type: "element()", serialized: "<h3><h4>test tag</h4></h3>" }],
+        },
+    ]);
+    assert.equal(
+        itemPreview(item, false),
+        '{"a": "a", "b": {"c": 1}, "c": ["1"], "ddddddddd": <h3><h4>test tag</h4></h3>}',
+    );
+    assert.equal(itemPreview(item), '{"a": "a", "b": {"c": 1}, "c": ["1"], …}');
+});
+
+test("list previews retain long keys and strings, deep arrays, and complete map sequences", async () => {
+    const { itemPreview } = await import("../src/utils/item-presentation.ts");
+    const array = (members) => ({ kind: "array", type: "array(*)", serialized: "[]", members });
+    const one = atomic("xs:integer", "1");
+    assert.equal(itemPreview(array([[array([[array([[one]])]])]]), false), "[[[1]]]");
+    assert.equal(itemPreview(array([[one], [one], [one], [one]]), false), "[1, 1, 1, 1]");
+    const field = "k".repeat(50);
+    const text = "v".repeat(200);
+    const map = {
+        kind: "map",
+        type: "map(*)",
+        serialized: "map{}",
+        entries: [{ key: key(field), value: [key(text), one, one] }],
+    };
+    assert.equal(itemPreview(map, false), `map{"${field}": ("${text}", 1, 1)}`);
+});
+
 test("filtered exports follow sorted source indexes across pagination", async () => {
     const { createTable } = await import("@tanstack/solid-table");
     const { features } = await import("../src/model/table-features.ts");

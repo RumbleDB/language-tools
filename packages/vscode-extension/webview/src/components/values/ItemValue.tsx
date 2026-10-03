@@ -1,4 +1,13 @@
-import { createMemo, createSignal, For, Show } from "solid-js";
+import {
+    createEffect,
+    createMemo,
+    createSignal,
+    For,
+    on,
+    onCleanup,
+    onMount,
+    Show,
+} from "solid-js";
 
 import type { RunQueryItem } from "@/types.js";
 import { createCopyAction } from "@/utils/clipboard.js";
@@ -11,15 +20,36 @@ interface ItemValueProps {
     item: RunQueryItem;
     copyable?: boolean;
     reserveArrowSpace?: boolean;
-    previewLength?: number;
+    clampPreview?: boolean;
 }
 
 export function ItemValue(props: ItemValueProps) {
     const [expanded, setExpanded] = createSignal(false);
     const { copy, copied } = createCopyAction();
-    const previewLength = () => props.previewLength ?? 120;
-    const expandable = createMemo(() => isExpandable(props.item, previewLength()));
-    const preview = createMemo(() => itemPreview(props.item));
+    let previewElement!: HTMLSpanElement;
+    const [previewClipped, setPreviewClipped] = createSignal(false);
+    const preview = createMemo(() => itemPreview(props.item, !props.clampPreview));
+    const expandable = createMemo(
+        () => isExpandable(props.item, props.clampPreview ? Infinity : 120) || previewClipped(),
+    );
+
+    // A short value can still need expansion when the panel or a nested field is narrow.
+    const measurePreview = () => {
+        if (previewElement) {
+            setPreviewClipped(
+                Boolean(
+                    props.clampPreview && previewElement.scrollHeight > previewElement.clientHeight,
+                ),
+            );
+        }
+    };
+    createEffect(on([preview, () => props.clampPreview], () => queueMicrotask(measurePreview)));
+    onMount(() => {
+        if (!props.clampPreview) return;
+        const observer = new ResizeObserver(measurePreview);
+        observer.observe(previewElement);
+        onCleanup(() => observer.disconnect());
+    });
     const tone = () => `result-value-${itemTone(props.item)}`;
 
     return (
@@ -50,12 +80,16 @@ export function ItemValue(props: ItemValueProps) {
                     </button>
                 </Show>
                 <span
+                    ref={(element) => {
+                        previewElement = element;
+                    }}
                     class={`font-mono text-xs leading-5 flex-1 min-w-0 break-words ${tone()}`}
+                    classList={{ "line-clamp-2": props.clampPreview }}
                     title={props.item.type}
                 >
-                    {preview().length > previewLength()
-                        ? `${preview().slice(0, previewLength())}…`
-                        : preview()}
+                    {props.clampPreview || preview().length <= 120
+                        ? preview()
+                        : `${preview().slice(0, 120)}…`}
                 </span>
                 <Show when={props.copyable !== false}>
                     <button
@@ -101,7 +135,7 @@ export function ItemValue(props: ItemValueProps) {
                                             items={entry.value}
                                             copyable={props.copyable}
                                             reserveArrowSpace={false}
-                                            previewLength={props.previewLength}
+                                            clampPreview={props.clampPreview}
                                         />
                                     </div>
                                 </div>
@@ -118,7 +152,7 @@ export function ItemValue(props: ItemValueProps) {
                                     <SequenceValue
                                         items={member}
                                         copyable={props.copyable}
-                                        previewLength={props.previewLength}
+                                        clampPreview={props.clampPreview}
                                     />
                                 </div>
                             )}
@@ -157,7 +191,7 @@ export function SequenceValue(props: {
     items: RunQueryItem[] | undefined;
     copyable?: boolean;
     reserveArrowSpace?: boolean;
-    previewLength?: number;
+    clampPreview?: boolean;
 }) {
     return (
         <Show
@@ -200,7 +234,7 @@ export function SequenceValue(props: {
                                     item={item}
                                     copyable={props.copyable}
                                     reserveArrowSpace={props.reserveArrowSpace}
-                                    previewLength={props.previewLength}
+                                    clampPreview={props.clampPreview}
                                 />
                             </div>
                         )}
