@@ -14,7 +14,7 @@
     "baseBranch": "main",
     "updateInternalDependencies": "patch",
     "bumpVersionsWithWorkspaceProtocolOnly": false,
-    "ignore": ["@jsoniq/results-ui"],
+    "ignore": ["@jsoniq/vscode-webview"],
     "privatePackages": {
         "version": true,
         "tag": false

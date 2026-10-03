@@ -17,8 +17,8 @@
     "scripts": {
         "build": "pnpm run clean && pnpm run build:webview && pnpm run typecheck && pnpm run bundle",
         "build:prod": "pnpm run clean && pnpm run build:webview && pnpm run typecheck && pnpm run bundle:prod",
-        "build:webview": "pnpm --filter @jsoniq/results-ui run build",
-        "watch:webview": "pnpm --filter @jsoniq/results-ui run build:watch",
+        "build:webview": "pnpm --filter @jsoniq/vscode-webview run build",
+        "watch:webview": "pnpm --filter @jsoniq/vscode-webview run build:watch",
         "typecheck": "tsc -p tsconfig.json --noEmit",
         "watch:typecheck": "tsc -p tsconfig.json --noEmit -w",
         "bundle": "rolldown -c",

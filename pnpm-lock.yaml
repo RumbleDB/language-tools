@@ -130,7 +130,7 @@ importers:
         specifier: ^7.0.2
         version: 7.0.2
 
-  packages/vscode-extension/results-ui:
+  packages/vscode-extension/webview:
     dependencies:
       '@iconify-json/iconoir':
         specifier: ^1.2.11

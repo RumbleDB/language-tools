@@ -1,5 +1,5 @@
 {
-    "name": "@jsoniq/results-ui",
+    "name": "@jsoniq/vscode-webview",
     "version": "1.0.0",
     "private": true,
     "type": "module",
