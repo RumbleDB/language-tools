@@ -1,8 +1,9 @@
 package org.jsoniq.lsp.wrapper;
 
 import java.io.BufferedReader;
+import java.io.BufferedWriter;
 import java.io.InputStreamReader;
-import java.io.PrintWriter;
+import java.io.OutputStreamWriter;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.Map;
@@ -23,6 +24,7 @@ import org.jsoniq.lsp.wrapper.messages.Response;
 import org.jsoniq.lsp.wrapper.messages.ResponseBody;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 public class Main {
@@ -90,15 +92,18 @@ public class Main {
 
     private static void runDaemon() {
         try (BufferedReader reader = new BufferedReader(new InputStreamReader(System.in, StandardCharsets.UTF_8));
-                PrintWriter writer = new PrintWriter(System.out, true, StandardCharsets.UTF_8)) {
+                BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(System.out, StandardCharsets.UTF_8));
+                JsonGenerator generator = OBJECT_MAPPER.getFactory().createGenerator(writer)) {
+            // Preserve newline-delimited messages without materializing the entire JSON string.
+            generator.setRootValueSeparator(null);
             String line;
             while ((line = reader.readLine()) != null) {
                 if (line.isBlank()) {
                     continue;
                 }
-                Response response = processDaemonRequest(line);
-                writer.println(OBJECT_MAPPER.writeValueAsString(response));
-                writer.flush();
+                OBJECT_MAPPER.writeValue(generator, processDaemonRequest(line));
+                generator.writeRaw('\n');
+                generator.flush();
             }
             System.exit(0);
         } catch (Throwable throwable) {
