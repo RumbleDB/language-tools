@@ -22,7 +22,7 @@ export function ItemValue(props: ItemValueProps) {
 
     return (
         <div class="min-w-0 w-full">
-            <div class="flex items-start gap-1 min-w-0">
+            <div class="group flex items-start gap-1 min-w-0">
                 <Show
                     when={expandable()}
                     fallback={
@@ -56,8 +56,14 @@ export function ItemValue(props: ItemValueProps) {
                 <Show when={props.copyable !== false}>
                     <button
                         type="button"
-                        class="w-5 h-5 flex items-center justify-center shrink-0 text-secondary hover:text-on-surface rounded cursor-pointer disabled:opacity-30"
-                        title={copied() ? "Copied" : "Copy value"}
+                        class={`w-5 h-5 flex items-center justify-center shrink-0 text-secondary hover:text-on-surface hover:bg-surface-variant rounded cursor-pointer focus-visible:outline-1 focus-visible:outline-primary group-hover:opacity-100 focus:opacity-100 group-hover:disabled:opacity-30 disabled:cursor-default [@media(hover:none)]:opacity-100 [@media(hover:none)]:disabled:opacity-30 ${copied() ? "opacity-100" : "opacity-0"}`}
+                        title={
+                            props.item.serialized === null
+                                ? "Value cannot be copied: serialization unavailable"
+                                : copied()
+                                  ? "Copied"
+                                  : "Copy value"
+                        }
                         aria-label={copied() ? "Copied" : "Copy value"}
                         disabled={props.item.serialized === null}
                         onClick={() => copy(formatItem(props.item))}
