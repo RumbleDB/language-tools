@@ -5,17 +5,15 @@ import java.util.List;
 import com.fasterxml.jackson.annotation.JsonInclude;
 
 import org.rumbledb.api.Item;
-import org.rumbledb.serialization.SerializationParameters;
-import org.rumbledb.serialization.Serializers;
+import org.rumbledb.serialization.Serializer;
 
-/** A typed result item for inspection and serialization. */
+/** A typed result item with successful adaptive serialization. */
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record QueryResultItem(
         String kind,
         String type,
         String typeName,
-        @JsonInclude(JsonInclude.Include.ALWAYS) String serialized,
-        String serializationError,
+        String serialized,
         String lexicalValue,
         String nodeKind,
         List<Entry> entries,
@@ -26,11 +24,11 @@ public record QueryResultItem(
 
     public record FunctionInfo(String name, int arity, String signature) {}
 
-    public static List<QueryResultItem> sequence(List<Item> items) {
-        return items.stream().map(QueryResultItem::from).toList();
+    public static List<QueryResultItem> sequence(List<Item> items, Serializer serializer) {
+        return items.stream().map(item -> from(item, serializer)).toList();
     }
 
-    public static QueryResultItem from(Item item) {
+    public static QueryResultItem from(Item item, Serializer serializer) {
         String kind = kindOf(item);
         var dynamicType = item.getDynamicType();
         String typeName = null;
@@ -39,30 +37,17 @@ public record QueryResultItem(
             typeName = "Q{" + (name.getNamespace() == null ? "" : name.getNamespace()) + "}" + name.getLocalName();
         }
 
-        String serialized = null;
-        String serializationError = null;
-        try {
-            // Adaptive serialization supports heterogeneous XDM values, including function items,
-            // non-string map keys, and array members containing empty or multi-item sequences.
-            var parameters = SerializationParameters.defaults();
-            parameters.setMethod("adaptive");
-            parameters.setIndent(false);
-            serialized = Serializers.from(parameters).serialize(item);
-        } catch (RuntimeException exception) {
-            // A value that cannot be serialized must still be inspectable.
-            serializationError =
-                    exception.getMessage() == null ? exception.getClass().getSimpleName() : exception.getMessage();
-        }
+        String serialized = serializer.serialize(item);
 
         List<Entry> entries = null;
         if (item.isMap()) {
             entries = item.getItemKeys().stream()
-                    .map(key -> new Entry(from(key), sequence(item.getSequenceByKey(key))))
+                    .map(key -> new Entry(from(key, serializer), sequence(item.getSequenceByKey(key), serializer)))
                     .toList();
         }
         List<List<QueryResultItem>> members = item.isArray()
                 ? item.getSequenceMembers().stream()
-                        .map(QueryResultItem::sequence)
+                        .map(sequence -> sequence(sequence, serializer))
                         .toList()
                 : null;
         FunctionInfo function = null;
@@ -78,7 +63,6 @@ public record QueryResultItem(
                 dynamicType.toString(),
                 typeName,
                 serialized,
-                serializationError,
                 item.isAtomic() && !item.isNull() ? item.getStringValue() : null,
                 item.isNode() ? item.nodeKind() : null,
                 entries,

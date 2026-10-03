@@ -11,7 +11,7 @@ import {
 
 import type { RunQueryItem } from "@/types.js";
 import { createCopyAction } from "@/utils/clipboard.js";
-import { isExpandable, itemPreview, itemTone } from "@/utils/item-presentation.js";
+import { isExpandable, itemPreview, itemTone, truncatePreview } from "@/utils/item-presentation.js";
 import { formatItem } from "@/utils/result-items.js";
 
 import { XmlSource } from "./XmlSource.js";
@@ -56,7 +56,7 @@ export function ItemValue(props: ItemValueProps) {
         <div class="min-w-0 w-full">
             <div class="group flex items-start gap-1 min-w-0">
                 <Show
-                    when={expandable()}
+                    when={expandable() || expanded()}
                     fallback={
                         <Show when={props.reserveArrowSpace !== false}>
                             <span class="w-5 h-5 shrink-0" />
@@ -87,23 +87,14 @@ export function ItemValue(props: ItemValueProps) {
                     classList={{ "line-clamp-2": props.clampPreview }}
                     title={props.item.type}
                 >
-                    {props.clampPreview || preview().length <= 120
-                        ? preview()
-                        : `${preview().slice(0, 120)}…`}
+                    {props.clampPreview ? preview() : truncatePreview(preview(), 120)}
                 </span>
                 <Show when={props.copyable !== false}>
                     <button
                         type="button"
-                        class={`w-5 h-5 flex items-center justify-center shrink-0 text-secondary hover:text-on-surface hover:bg-action-hover rounded cursor-pointer focus-visible:outline-1 focus-visible:outline-focus group-hover:opacity-100 focus:opacity-100 group-hover:disabled:opacity-30 disabled:cursor-default [@media(hover:none)]:opacity-100 [@media(hover:none)]:disabled:opacity-30 ${copied() ? "opacity-100" : "opacity-0"}`}
-                        title={
-                            props.item.serialized === null
-                                ? "Value cannot be copied: serialization unavailable"
-                                : copied()
-                                  ? "Copied"
-                                  : "Copy value"
-                        }
+                        class={`w-5 h-5 flex items-center justify-center shrink-0 text-secondary hover:text-on-surface hover:bg-action-hover rounded cursor-pointer focus-visible:outline-1 focus-visible:outline-focus group-hover:opacity-100 focus:opacity-100 [@media(hover:none)]:opacity-100 ${copied() ? "opacity-100" : "opacity-0"}`}
+                        title={copied() ? "Copied" : "Copy value"}
                         aria-label={copied() ? "Copied" : "Copy value"}
-                        disabled={props.item.serialized === null}
                         onClick={() => copy(formatItem(props.item))}
                     >
                         <span
@@ -112,7 +103,7 @@ export function ItemValue(props: ItemValueProps) {
                     </button>
                 </Show>
             </div>
-            <Show when={expanded() && expandable()}>
+            <Show when={expanded()}>
                 <div class="ml-2 pl-3 mt-2 border-l border-outline-variant space-y-2">
                     <div class="text-2xs text-secondary break-words" title={props.item.typeName}>
                         {props.item.nodeKind && props.item.nodeKind !== props.item.type
@@ -176,9 +167,6 @@ export function ItemValue(props: ItemValueProps) {
                         >
                             <XmlSource source={formatItem(props.item)} />
                         </Show>
-                    </Show>
-                    <Show when={props.item.serializationError}>
-                        <p class="text-xs text-error">{props.item.serializationError}</p>
                     </Show>
                 </div>
             </Show>

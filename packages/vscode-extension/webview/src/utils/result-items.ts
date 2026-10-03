@@ -7,10 +7,7 @@ export function formatRawOutput(items: readonly RunQueryItem[]): string {
 }
 
 export function formatItem(item: RunQueryItem): string {
-    return (
-        item.serialized ??
-        `[${item.type}: ${item.serializationError ?? "Serialization unavailable"}]`
-    );
+    return item.serialized;
 }
 
 export type ResultTableRow = Record<string, RunQueryItem[]>;
@@ -54,14 +51,4 @@ export function selectResultItems(
         if (!item) throw new RangeError(`Unknown result index: ${index}`);
         return item;
     });
-}
-
-/** Export must not silently substitute an error message for an unserializable value. */
-export function serializeResultItems(items: readonly RunQueryItem[]): string {
-    if (items.some((item) => item.serialized === null)) {
-        throw new Error(
-            "Some results cannot be serialized. Inspect their error details before exporting.",
-        );
-    }
-    return formatRawOutput(items);
 }

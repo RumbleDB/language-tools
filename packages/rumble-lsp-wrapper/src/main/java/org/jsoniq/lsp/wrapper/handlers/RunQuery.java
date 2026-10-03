@@ -17,6 +17,8 @@ import org.rumbledb.api.SequenceOfItems;
 import org.rumbledb.config.RumbleConfiguration;
 import org.rumbledb.exceptions.ExceptionMetadata;
 import org.rumbledb.exceptions.RumbleException;
+import org.rumbledb.serialization.SerializationParameters;
+import org.rumbledb.serialization.Serializers;
 
 public final class RunQuery implements RequestHandler {
     public static final String REQUEST_TYPE = "run-query";
@@ -64,10 +66,29 @@ public final class RunQuery implements RequestHandler {
 
             result.open();
             try {
+                // Reuse within this query, including nested items; the XML encoder is mutable.
+                var parameters = SerializationParameters.defaults();
+                parameters.setMethod("adaptive");
+                parameters.setIndent(false);
+                var serializer = Serializers.from(parameters);
                 while (result.hasNext()) {
                     Item item = result.next();
                     if (item != null) {
-                        items.add(QueryResultItem.from(item));
+                        try {
+                            items.add(QueryResultItem.from(item, serializer));
+                        } catch (RumbleException exception) {
+                            QueryError error = QueryError.from(exception);
+                            return new Result(
+                                    null,
+                                    new QueryError(
+                                            "Query evaluated, but result serialization failed for item "
+                                                    + (items.size() + 1)
+                                                    + ": "
+                                                    + error.message(),
+                                            error.code(),
+                                            error.location(),
+                                            error.range()));
+                        }
                     }
                 }
             } finally {

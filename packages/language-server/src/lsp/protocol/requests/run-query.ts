@@ -25,9 +25,8 @@ export interface RunQueryItem {
     type: string;
     /** Expanded QName for named types, independent of namespace prefixes. */
     typeName?: string;
-    /** Backend adaptive serialization, or null when serialization is unavailable. */
-    serialized: string | null;
-    serializationError?: string;
+    /** Backend adaptive serialization; failures are reported as run-query errors. */
+    serialized: string;
     lexicalValue?: string;
     nodeKind?: string;
     /** Entries preserve typed keys and sequence-valued map entries. */

@@ -107,7 +107,7 @@ class RunQueryTest {
                 .findFirst()
                 .orElseThrow();
         assertEquals(java.util.List.of(), stringEntry.value());
-        assertNull(map.serializationError());
+        assertNotNull(map.serialized());
         var array = result.items().get(1);
         assertEquals(java.util.List.of(), array.members().get(0));
         assertEquals(2, array.members().get(1).size());
@@ -123,7 +123,36 @@ class RunQueryTest {
         assertEquals(2, function.function().arity());
         assertTrue(function.function().name().contains("concat"));
         assertNotNull(function.function().signature());
-        assertNull(function.serializationError());
+        assertNotNull(function.serialized());
+    }
+
+    @Test
+    void serializationFailureReturnsQueryErrorWithoutPartialResults() {
+        String invalidCharacter = String.valueOf((char) 0xFFFF);
+        String query = "xquery version \"3.1\"; (42, text { \"" + invalidCharacter + "\" }, 7)";
+
+        RunQuery.Result result = this.runQuery.run(query, DOCUMENT_URI);
+
+        assertNull(result.items());
+        assertNotNull(result.error());
+        assertEquals("FOCH0001", result.error().code());
+        assertTrue(result.error().message().contains("result serialization failed for item 2"));
+        assertTrue(result.error().message().contains("Character #65535 is not representable in XML 1.0"));
+        assertNull(result.error().location());
+        assertNull(result.error().range());
+    }
+
+    @Test
+    void nestedSerializationFailureReturnsQueryError() {
+        String invalidCharacter = String.valueOf((char) 0xFFFF);
+        String query = "xquery version \"3.1\"; [text { \"" + invalidCharacter + "\" }]";
+
+        RunQuery.Result result = this.runQuery.run(query, DOCUMENT_URI);
+
+        assertNull(result.items());
+        assertNotNull(result.error());
+        assertEquals("FOCH0001", result.error().code());
+        assertTrue(result.error().message().contains("result serialization failed for item 1"));
     }
 
     @Test

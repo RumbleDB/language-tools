@@ -67,20 +67,6 @@ test("object projection preserves literal field names and does not inherit missi
     }
 });
 
-test("serialization errors are visible instead of silently becoming null", () => {
-    assert.equal(
-        formatRawOutput([
-            {
-                kind: "function",
-                type: "function(*)",
-                serialized: null,
-                serializationError: "Unavailable",
-            },
-        ]),
-        "[function(*): Unavailable]",
-    );
-});
-
 test("presentation uses backend types, not string contents", async () => {
     const { itemTone, itemPreview, isExpandable } =
         await import("../src/utils/item-presentation.ts");
@@ -131,6 +117,31 @@ test("container summaries distinguish arrays, objects, maps, and functions", asy
     );
 });
 
+test("atomic previews and compact map keys preserve backend syntax", async () => {
+    const { itemPreview } = await import("../src/utils/item-presentation.ts");
+    const values = [
+        { ...atomic("xs:boolean", "true()"), lexicalValue: "true" },
+        { ...atomic("xs:date", 'xs:date("2026-10-03")'), lexicalValue: "2026-10-03" },
+        { ...atomic("xs:float", 'xs:float("1.5")'), lexicalValue: "1.5" },
+        { ...atomic("xs:double", "1.5e0"), lexicalValue: "1.5" },
+        { ...atomic("xs:string", "'say \"hello\"'"), lexicalValue: 'say "hello"' },
+        { ...atomic("xs:string", '"first\nsecond"'), lexicalValue: "first\nsecond" },
+    ];
+    for (const value of values) {
+        assert.equal(itemPreview(value), value.serialized);
+        assert.equal(itemPreview(value, false), value.serialized);
+    }
+    assert.equal(
+        itemPreview({
+            kind: "map",
+            type: "map(*)",
+            serialized: 'map{xs:date("2026-10-03"):(true(), \'say "hello"\')}',
+            entries: [{ key: values[1], value: [values[0], values[4]] }],
+        }),
+        `map{xs:date("2026-10-03"): (true(), 'say "hello"')}`,
+    );
+});
+
 test("long strings remain complete when copied, and string-derived types retain quotes", async () => {
     const { itemPreview, isExpandable, itemTone } =
         await import("../src/utils/item-presentation.ts");
@@ -161,12 +172,12 @@ test("array previews preserve nested arrays and member sequence boundaries", asy
 test("object previews show fields and maps retain typed keys and sequence values", async () => {
     const { itemPreview } = await import("../src/utils/item-presentation.ts");
     const entries = [
-        { key: key("a"), value: [atomic("xs:boolean", "true")] },
-        { key: key("b"), value: [atomic("xs:boolean", "false")] },
+        { key: key("a"), value: [atomic("xs:boolean", "true()")] },
+        { key: key("b"), value: [atomic("xs:boolean", "false()")] },
     ];
     assert.equal(
         itemPreview({ kind: "object", type: "object", serialized: "map{}", entries }),
-        '{"a": true, "b": false}',
+        '{"a": true(), "b": false()}',
     );
     assert.equal(
         itemPreview({
@@ -186,56 +197,74 @@ test("object previews show fields and maps retain typed keys and sequence values
     const four = [...entries, { key: key("c"), value: [] }, { key: key("d"), value: [] }];
     assert.equal(
         itemPreview({ kind: "object", type: "object", serialized: "map{}", entries: four }),
-        '{"a": true, "b": false, "c": (), …}',
+        '{"a": true(), "b": false(), "c": (), …}',
     );
 });
 
-test("list previews retain all object fields, nested values, and XML before CSS clamping", async () => {
+test("full previews use backend serialization without changing quoting, whitespace, or types", async () => {
     const { itemPreview } = await import("../src/utils/item-presentation.ts");
-    const object = (entries) => ({ kind: "object", type: "object", serialized: "{}", entries });
-    const item = object([
-        { key: key("a"), value: [key("a")] },
-        { key: key("b"), value: [object([{ key: key("c"), value: [atomic("xs:integer", "1")] }])] },
-        {
-            key: key("c"),
-            value: [
-                { kind: "array", type: "array(*)", serialized: '["1"]', members: [[key("1")]] },
-            ],
-        },
-        {
-            key: key("ddddddddd"),
-            value: [{ kind: "node", type: "element()", serialized: "<h3><h4>test tag</h4></h3>" }],
-        },
-    ]);
-    assert.equal(
-        itemPreview(item, false),
-        '{"a": "a", "b": {"c": 1}, "c": ["1"], "ddddddddd": <h3><h4>test tag</h4></h3>}',
-    );
-    assert.equal(itemPreview(item), '{"a": "a", "b": {"c": 1}, "c": ["1"], …}');
-});
-
-test("list previews retain long keys and strings, deep arrays, and complete map sequences", async () => {
-    const { itemPreview } = await import("../src/utils/item-presentation.ts");
-    const array = (members) => ({ kind: "array", type: "array(*)", serialized: "[]", members });
-    const one = atomic("xs:integer", "1");
-    assert.equal(itemPreview(array([[array([[array([[one]])]])]]), false), "[[[1]]]");
-    assert.equal(itemPreview(array([[one], [one], [one], [one]]), false), "[1, 1, 1, 1]");
-    const field = "k".repeat(50);
-    const text = "v".repeat(200);
-    const map = {
+    const serialized =
+        'map{"a": "say ""hello""", "b": <p>first\n    second</p>, "c": [(), (1, 2)], "d": 9007199254740993}';
+    const item = {
         kind: "map",
         type: "map(*)",
-        serialized: "map{}",
-        entries: [{ key: key(field), value: [key(text), one, one] }],
+        serialized,
+        entries: [
+            { key: key("a"), value: [{ ...key('say "hello"'), serialized: '"say ""hello"""' }] },
+        ],
     };
-    assert.equal(itemPreview(map, false), `map{"${field}": ("${text}", 1, 1)}`);
+    assert.equal(itemPreview(item, false), serialized);
+    assert.equal(itemPreview(item), 'map{"a": "say ""hello"""}');
+    assert.equal(itemPreview(item.entries[0].value[0], false), '"say ""hello"""');
+    assert.equal(itemPreview({ kind: "node", type: "text()", serialized: "" }, false), "");
+    assert.equal(
+        itemPreview(
+            {
+                kind: "atomic",
+                type: "xs:date",
+                serialized: 'xs:date("2026-10-03")',
+                lexicalValue: "2026-10-03",
+            },
+            false,
+        ),
+        'xs:date("2026-10-03")',
+    );
+});
+
+test("preview character limits preserve emoji and combining-character boundaries", async () => {
+    const { truncatePreview, itemPreview } = await import("../src/utils/item-presentation.ts");
+    for (const [limit, character] of [
+        [32, "😀"],
+        [40, "🇨🇭"],
+        [120, "👩‍💻"],
+        [32, "e\u0301"],
+    ]) {
+        const prefix = "a".repeat(limit - 1);
+        assert.equal(truncatePreview(prefix + character + "tail", limit), `${prefix}…`);
+        assert.equal(truncatePreview(character + "tail", limit), character + "tail");
+        assert.equal(truncatePreview(prefix + "b", limit), prefix + "b");
+    }
+    const text = "a".repeat(38) + "😀";
+    const item = {
+        kind: "object",
+        type: "object",
+        serialized: `{"value": "${text}"}`,
+        entries: [{ key: key("value"), value: [key(text)] }],
+    };
+    assert.equal(itemPreview(item), `{"value": "${"a".repeat(38)}…}`);
+    assert.equal(itemPreview(item, false), `{"value": "${text}"}`);
+    assert.equal(formatRawOutput([key(text)]), JSON.stringify(text));
+    const node = { kind: "node", type: "element()", serialized: "a".repeat(39) + "😀" };
+    assert.equal(
+        itemPreview({ ...item, entries: [{ key: key("node"), value: [node] }] }),
+        `{"node": ${"a".repeat(39)}…}`,
+    );
 });
 
 test("filtered exports follow sorted source indexes across pagination", async () => {
     const { createTable } = await import("@tanstack/solid-table");
     const { features } = await import("../src/model/table-features.ts");
-    const { selectResultItems, serializeResultItems } =
-        await import("../src/utils/result-items.ts");
+    const { selectResultItems } = await import("../src/utils/result-items.ts");
     const items = Array.from({ length: 80 }, (_, index) =>
         key(`${index < 60 ? "keep" : "skip"}${String(index).padStart(2, "0")}`),
     );
@@ -257,11 +286,5 @@ test("filtered exports follow sorted source indexes across pagination", async ()
     assert.equal(selected.length, 60);
     assert.equal(selected[0].lexicalValue, "keep59");
     assert.equal(selected.at(-1).lexicalValue, "keep00");
-    assert.equal(serializeResultItems(selected).split("\n").length, 60);
-});
-
-test("serialization rejects errors instead of writing placeholder values", async () => {
-    const { serializeResultItems } = await import("../src/utils/result-items.ts");
-    const bad = { kind: "function", type: "function(*)", serialized: null };
-    assert.throws(() => serializeResultItems([bad]), /cannot be serialized/);
+    assert.equal(formatRawOutput(selected).split("\n").length, 60);
 });
