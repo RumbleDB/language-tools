@@ -7,10 +7,13 @@ import java.util.Base64;
 import org.jsoniq.lsp.wrapper.handlers.TypeAtPosition;
 import org.jsoniq.lsp.wrapper.messages.Request;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class TypeAtPositionTest {
     private static final URI DOCUMENT_URI = URI.create("file:///type-at-position.jq");
@@ -48,6 +51,130 @@ class TypeAtPositionTest {
                         positionAtOffset(query, query.indexOf("$a")),
                         positionAtOffset(query, query.indexOf("$a") + "$a".length())),
                 result.range());
+    }
+
+    @Test
+    void returnsForBindingTypeInsteadOfFlworResultType() {
+        String query =
+                """
+                for $i in 1 to 10
+                return {
+                    "a": $i
+                }
+                """;
+        assertVariableType(query, DOCUMENT_URI, "$i", 0, "xs:integer");
+        assertVariableType(query, DOCUMENT_URI, "$i", 1, "xs:integer");
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"jq", "xq"})
+    void returnsTypesAtMultipleShadowedForBindingsAndPosition(String extension) {
+        String query = "for $i at $pos in 1 to 3, $i in string($i) return ($i, $pos)";
+        URI uri = URI.create("file:///same-clause-shadowing." + extension);
+        assertVariableType(query, uri, "$i", 0, "xs:integer");
+        assertVariableType(query, uri, "$i", 1, "xs:string");
+        // The new binding is not in scope in its own input expression.
+        assertVariableType(query, uri, "$i", 2, "xs:integer");
+        assertVariableType(query, uri, "$i", 3, "xs:string");
+        assertVariableType(query, uri, "$pos", 0, "xs:integer");
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"jq", "xq"})
+    void returnsLetSequenceTypeAndRespectsShadowing(String extension) {
+        String query = "for $i in 1 to 10 return (let $i := (\"a\", \"b\") return $i)";
+        URI uri = URI.create("file:///shadowed-bindings." + extension);
+        assertVariableType(query, uri, "$i", 0, "xs:integer");
+        assertVariableType(query, uri, "$i", 1, "xs:string+");
+        assertVariableType(query, uri, "$i", 2, "xs:string+");
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"jq", "xq"})
+    void returnsTypesAtMultipleGroupingBindings(String extension) {
+        String query =
+                "for $i at $pos in 1 to 10 group by $key := $i mod 2, $label := string($i mod 2), $pos return ($key, $label, $i, $pos)";
+        URI uri = URI.create("file:///group-bindings." + extension);
+        assertVariableType(query, uri, "$key", 0, "xs:integer");
+        assertVariableType(query, uri, "$label", 0, "xs:string");
+        assertVariableType(query, uri, "$pos", 1, "xs:integer");
+        assertVariableType(query, uri, "$i", 0, "xs:integer");
+        assertVariableType(query, uri, "$i", 3, "xs:integer+");
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"jq", "xq"})
+    void returnsWindowAndCountBindingTypes(String extension) {
+        String query =
+                """
+                for tumbling window $w as xs:integer+ in 1 to 4
+                    start $s at $sp previous $prev next $next when true()
+                    end $e at $ep previous $eprev next $enext when true()
+                count $count
+                return ($w, $s, $sp, $prev, $next, $e, $ep, $eprev, $enext, $count)
+                """;
+        URI uri = URI.create("file:///window-bindings." + extension);
+        assertVariableType(query, uri, "$w", 0, "xs:integer+");
+        for (String name : new String[] {"$s", "$prev", "$next", "$e", "$eprev", "$enext"}) {
+            assertVariableType(query, uri, name, 0, "xs:integer?");
+        }
+        for (String name : new String[] {"$sp", "$ep", "$count"}) {
+            assertVariableType(query, uri, name, 0, "xs:integer");
+        }
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"jq", "xq"})
+    void returnsParameterAndQuantifiedBindingTypes(String extension) {
+        String query =
+                """
+                declare function local:f($arg as xs:integer) {
+                    let $fn := function($arg as xs:string) {
+                        some $v in $arg satisfies $v eq "a"
+                    }
+                    return $fn("a")
+                };
+                local:f(1)
+                """;
+        URI uri = URI.create("file:///function-bindings." + extension);
+        assertVariableType(query, uri, "$arg", 0, "xs:integer");
+        assertVariableType(query, uri, "$arg", 1, "xs:string");
+        assertVariableType(query, uri, "$v", 0, "xs:string");
+        assertVariableType(query, uri, "$v", 1, "xs:string");
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"jq", "xq"})
+    void distinguishesTypeswitchCaseAndDefaultBindings(String extension) {
+        String query =
+                """
+                typeswitch(1)
+                case $v as xs:string return string($v)
+                case $v as xs:integer return string($v)
+                default $v return string($v)
+                """;
+        URI uri = URI.create("file:///typeswitch-bindings." + extension);
+        assertVariableType(query, uri, "$v", 0, "xs:string");
+        assertVariableType(query, uri, "$v", 2, "xs:integer");
+        assertVariableType(query, uri, "$v", 4, "xs:integer");
+    }
+
+    @Test
+    void returnsScriptTypeswitchAndCopyBindingTypes() {
+        String query =
+                """
+                variable $value as xs:integer := 1;
+                typeswitch($value)
+                case $branch as xs:string return $value := string-length($branch);
+                default $branch return $value := $branch;
+                copy $obj := {"a": $value}
+                modify delete json $obj.missing
+                return $value
+                """;
+        assertVariableType(query, DOCUMENT_URI, "$value", 0, "xs:integer");
+        assertVariableType(query, DOCUMENT_URI, "$branch", 0, "xs:string");
+        assertVariableType(query, DOCUMENT_URI, "$branch", 2, "xs:integer");
+        assertVariableType(query, DOCUMENT_URI, "$obj", 0, "{ a: xs:integer }");
     }
 
     @Test
@@ -209,5 +336,19 @@ class TypeAtPositionTest {
             }
         }
         return new Position(line, character);
+    }
+
+    private void assertVariableType(String query, URI uri, String name, int occurrence, String expectedType) {
+        int offset = -1;
+        for (int i = 0; i <= occurrence; i++) {
+            offset = query.indexOf(name, offset + 1);
+            assertTrue(offset >= 0, "Variable occurrence " + i + " must exist");
+        }
+        Range expectedRange =
+                new Range(positionAtOffset(query, offset), positionAtOffset(query, offset + name.length()));
+        TypeAtPosition.Result result = this.typeAtPosition.findType(query, uri, positionAtOffset(query, offset + 1));
+        assertNotNull(result.sequenceType(), name + " occurrence " + occurrence);
+        assertEquals(expectedType, result.sequenceType().toString());
+        assertEquals(expectedRange, result.range());
     }
 }

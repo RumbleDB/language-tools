@@ -21,11 +21,24 @@ import org.rumbledb.exceptions.ExceptionMetadata;
 import org.rumbledb.expressions.AbstractNodeVisitor;
 import org.rumbledb.expressions.Expression;
 import org.rumbledb.expressions.Node;
+import org.rumbledb.expressions.control.TypeSwitchExpression;
+import org.rumbledb.expressions.control.TypeswitchCase;
+import org.rumbledb.expressions.flowr.CountClause;
+import org.rumbledb.expressions.flowr.ForClause;
+import org.rumbledb.expressions.flowr.GroupByClause;
+import org.rumbledb.expressions.flowr.GroupByVariableDeclaration;
+import org.rumbledb.expressions.flowr.LetClause;
+import org.rumbledb.expressions.flowr.WindowClause;
 import org.rumbledb.expressions.module.FunctionDeclaration;
 import org.rumbledb.expressions.module.MainModule;
 import org.rumbledb.expressions.module.VariableDeclaration;
 import org.rumbledb.expressions.postfix.ObjectLookupExpression;
 import org.rumbledb.expressions.primary.InlineFunctionExpression;
+import org.rumbledb.expressions.scripting.control.TypeSwitchStatement;
+import org.rumbledb.expressions.scripting.control.TypeSwitchStatementCase;
+import org.rumbledb.expressions.scripting.declaration.VariableDeclStatement;
+import org.rumbledb.expressions.update.CopyDeclaration;
+import org.rumbledb.expressions.update.TransformExpression;
 
 public final class TypeAtPosition implements RequestHandler {
     public static final String REQUEST_TYPE = "type-at-position";
@@ -193,14 +206,103 @@ public final class TypeAtPosition implements RequestHandler {
 
         @Override
         public List<Candidate> visitVariableDeclaration(VariableDeclaration declaration, List<Candidate> candidates) {
-            addCandidate(
-                    candidates,
-                    Candidate.create(
-                            CandidateKind.EXPLICIT,
-                            declaration.getVariableMetadata(),
-                            declaration.getVariableMetadata(),
-                            declaration.getSequenceType()));
+            addBindingCandidate(candidates, declaration.getVariableMetadata(), declaration.getSequenceType());
             return defaultAction(declaration, candidates);
+        }
+
+        @Override
+        public List<Candidate> visitForClause(ForClause clause, List<Candidate> candidates) {
+            addBindingCandidate(candidates, clause.getVariableMetadata(), clause.getVariableSequenceType());
+            addBindingCandidate(
+                    candidates, clause.getPositionalVariableMetadata(), clause.getPositionalVariableSequenceType());
+            return defaultAction(clause, candidates);
+        }
+
+        @Override
+        public List<Candidate> visitLetClause(LetClause clause, List<Candidate> candidates) {
+            addBindingCandidate(candidates, clause.getVariableMetadata(), clause.getVariableSequenceType());
+            return defaultAction(clause, candidates);
+        }
+
+        @Override
+        public List<Candidate> visitGroupByClause(GroupByClause clause, List<Candidate> candidates) {
+            for (GroupByVariableDeclaration variable : clause.getGroupVariables()) {
+                addBindingCandidate(candidates, variable.getVariableMetadata(), variable.getVariableSequenceType());
+            }
+            return defaultAction(clause, candidates);
+        }
+
+        @Override
+        public List<Candidate> visitCountClause(CountClause clause, List<Candidate> candidates) {
+            addBindingCandidate(candidates, clause.getVariableMetadata(), clause.getVariableSequenceType());
+            return defaultAction(clause, candidates);
+        }
+
+        @Override
+        public List<Candidate> visitWindowClause(WindowClause clause, List<Candidate> candidates) {
+            addBindingCandidate(
+                    candidates, clause.getVariableMetadata(clause.getWindowVariable()), clause.getSequenceType());
+            addWindowConditionCandidates(candidates, clause, clause.getStartCondition());
+            if (clause.getEndCondition() != null) {
+                addWindowConditionCandidates(candidates, clause, clause.getEndCondition());
+            }
+            return defaultAction(clause, candidates);
+        }
+
+        private static void addWindowConditionCandidates(
+                List<Candidate> candidates, WindowClause clause, WindowClause.WindowCondition condition) {
+            for (var name : condition.variables().names()) {
+                addBindingCandidate(
+                        candidates, clause.getVariableMetadata(name), clause.getConditionVariableSequenceType(name));
+            }
+        }
+
+        @Override
+        public List<Candidate> visitInlineFunctionExpr(InlineFunctionExpression function, List<Candidate> candidates) {
+            for (var parameter : function.getParams().entrySet()) {
+                addBindingCandidate(
+                        candidates, function.getParameterMetadata().get(parameter.getKey()), parameter.getValue());
+            }
+            return defaultAction(function, candidates);
+        }
+
+        @Override
+        public List<Candidate> visitTypeSwitchExpression(TypeSwitchExpression expression, List<Candidate> candidates) {
+            for (TypeswitchCase variable : expression.getCases()) {
+                addBindingCandidate(candidates, variable.getVariableMetadata(), variable.getVariableSequenceType());
+            }
+            TypeswitchCase variable = expression.getDefaultCase();
+            addBindingCandidate(candidates, variable.getVariableMetadata(), variable.getVariableSequenceType());
+            return defaultAction(expression, candidates);
+        }
+
+        @Override
+        public List<Candidate> visitTypeSwitchStatement(TypeSwitchStatement statement, List<Candidate> candidates) {
+            for (TypeSwitchStatementCase variable : statement.getCases()) {
+                addBindingCandidate(candidates, variable.getVariableMetadata(), variable.getVariableSequenceType());
+            }
+            TypeSwitchStatementCase variable = statement.getDefaultCase();
+            addBindingCandidate(candidates, variable.getVariableMetadata(), variable.getVariableSequenceType());
+            return defaultAction(statement, candidates);
+        }
+
+        @Override
+        public List<Candidate> visitTransformExpression(TransformExpression expression, List<Candidate> candidates) {
+            for (CopyDeclaration variable : expression.getCopyDeclarations()) {
+                addBindingCandidate(candidates, variable.getVariableMetadata(), variable.getSourceSequenceType());
+            }
+            return defaultAction(expression, candidates);
+        }
+
+        @Override
+        public List<Candidate> visitVariableDeclStatement(VariableDeclStatement statement, List<Candidate> candidates) {
+            addBindingCandidate(candidates, statement.getVariableMetadata(), statement.getStaticSequenceType());
+            return defaultAction(statement, candidates);
+        }
+
+        private static void addBindingCandidate(
+                List<Candidate> candidates, ExceptionMetadata metadata, org.rumbledb.types.SequenceType sequenceType) {
+            addCandidate(candidates, Candidate.create(CandidateKind.EXPLICIT, metadata, metadata, sequenceType));
         }
 
         @Override
