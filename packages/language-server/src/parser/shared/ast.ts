@@ -372,7 +372,7 @@ export class CommonAstBuilder {
         return this.declarationsBeforeChildren(node, [
             this.buildVariableDeclaration(
                 node._var_ref,
-                rangeFromNode(expression, this.document).end,
+                expression ? rangeFromNode(expression, this.document).end : null,
             ),
         ]);
     };
