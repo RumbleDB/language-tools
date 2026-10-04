@@ -368,17 +368,21 @@ describe("JSONiq completion", () => {
 
     it("suggests object fields after the dot operator using real type inference", async () => {
         const document = testDocument("completion-dot-object", [
-            "declare variable $a := {",
-            '  "name": "Ada",',
-            '  "age": 42',
-            "};",
-            "",
+            `declare variable $a := ${JSON.stringify({
+                name: "Ada",
+                age: 42,
+                "full name": "Ada Lovelace",
+                "a.b": true,
+                "1st": 1,
+                'say "hi"\\there': "hello",
+            })};`,
             "$a.",
         ]);
 
+        const position = document.positionAt(document.getText().length);
         const items = await findCompletions(
             document,
-            { line: 5, character: 3 },
+            position,
             parserService,
             workspaceService,
             wrapperClient,
@@ -386,19 +390,25 @@ describe("JSONiq completion", () => {
 
         expect(labels(items)).toContain("age");
         expect(labels(items)).toContain("name");
-        expect(items.find((item) => item.label === "name")?.textEdit).toEqual({
-            range: {
-                start: { line: 5, character: 3 },
-                end: { line: 5, character: 3 },
-            },
-            newText: "name",
-        });
+        for (const [label, newText] of [
+            ["name", "name"],
+            ["full name", '"full name"'],
+            ["a.b", '"a.b"'],
+            ["1st", '"1st"'],
+            ['say "hi"\\there', '"say \\"hi\\"\\\\there"'],
+        ]) {
+            expect(items.find((item) => item.label === label)?.textEdit).toEqual({
+                range: { start: position, end: position },
+                newText,
+            });
+        }
     }, 45_000);
 
     it("filters real object field completions by the prefix typed after dot", async () => {
         const document = testDocument("completion-dot-object-prefix", [
             "declare variable $a := {",
             '  "name": "Ada",',
+            '  "name with spaces": "Ada Lovelace",',
             '  "age": 42',
             "};",
             "",
@@ -407,7 +417,7 @@ describe("JSONiq completion", () => {
 
         const items = await findCompletions(
             document,
-            { line: 5, character: 5 },
+            { line: 6, character: 5 },
             parserService,
             workspaceService,
             wrapperClient,
@@ -416,10 +426,17 @@ describe("JSONiq completion", () => {
         expect(labels(items)).toContain("name");
         expect(items.find((item) => item.label === "name")?.textEdit).toEqual({
             range: {
-                start: { line: 5, character: 3 },
-                end: { line: 5, character: 5 },
+                start: { line: 6, character: 3 },
+                end: { line: 6, character: 5 },
             },
             newText: "name",
+        });
+        expect(items.find((item) => item.label === "name with spaces")?.textEdit).toEqual({
+            range: {
+                start: { line: 6, character: 3 },
+                end: { line: 6, character: 5 },
+            },
+            newText: '"name with spaces"',
         });
     }, 45_000);
 
