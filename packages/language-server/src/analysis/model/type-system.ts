@@ -1,5 +1,6 @@
 import type { SequenceType, TypeDefinition } from "server/types/type-system.js";
 
+import { DEFAULT_TYPE_NAMESPACE } from "./constants.js";
 import { QNameToString, type FunctionName } from "./names.js";
 
 export type {
@@ -25,12 +26,21 @@ export interface StaticFunctionSignature {
 export function formatTypeDefinition(type: TypeDefinition): string {
     switch (type.kind) {
         case "named":
+            if (
+                type.name.namespaceUri === DEFAULT_TYPE_NAMESPACE &&
+                type.name.localName === "map"
+            ) {
+                return "map(*)";
+            }
             return QNameToString(type.name, false);
         case "opaque":
             return type.displayName;
         case "union":
             return `(${type.members.map(formatTypeDefinition).join(" | ")})`;
         case "object": {
+            if (Object.keys(type.fields).length === 0 && type.name !== undefined) {
+                return QNameToString(type.name, false);
+            }
             const fields = Object.entries(type.fields)
                 .map(([name, fieldType]) => `${name}: ${formatTypeDefinition(fieldType)}`)
                 .join(", ");
