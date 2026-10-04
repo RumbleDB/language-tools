@@ -27,6 +27,12 @@ describe("JSONiq completion", () => {
         expect(labels(items)).toContain("$x");
         expect(labels(items)).toContain("$y");
         expect(labels(items)).toContain("$global");
+        expect(items.find((item) => item.label === "$y")?.labelDetails?.description).toBe(
+            "Variable",
+        );
+        expect(items.find((item) => item.label === "$x")?.labelDetails?.description).toBe(
+            "Parameter",
+        );
     });
 
     it("suggests '$' before typing a variable declaration prefix", async () => {
@@ -44,7 +50,11 @@ describe("JSONiq completion", () => {
         );
 
         expect(items).toEqual([
-            expect.objectContaining({ label: "$", kind: CompletionItemKind.Variable }),
+            expect.objectContaining({
+                label: "$",
+                kind: CompletionItemKind.Variable,
+                labelDetails: { description: "Variable" },
+            }),
         ]);
     });
 
@@ -425,6 +435,13 @@ describe("JSONiq completion", () => {
 
         expect(labels(items)).toContain("fn:string-join");
         expect(labels(items)).toContain("fn:concat");
+        expect(items.find((item) => item.label === "fn:true")).toMatchObject({
+            labelDetails: { detail: "() as xs:boolean" },
+            detail: expect.stringContaining("fn:true() as xs:boolean"),
+        });
+        expect(items.find((item) => item.label === "fn:concat")?.detail).toMatch(
+            /^fn:concat\(.+\) as /,
+        );
         // No item from a different namespace should appear
         expect(labels(items).every((label) => label.startsWith("fn:"))).toBe(true);
     });

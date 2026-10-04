@@ -14,6 +14,7 @@ export const provideSchemaConstructorCompletions: CompletionProvider = async (co
     const items: CompletionItem[] = [];
     for (const definition of await context.getVisibleDeclarations()) {
         if (definition.kind !== "function" || definition.origin !== "schema") continue;
+        const signatureSuffix = `(${definition.signature.parameterTypes.map((parameter) => formatSequenceType(parameter.type)).join(", ")}) as ${formatSequenceType(definition.signature.returnType)}`;
         for (const label of getQNameCompletionLabels(
             definition.name.qname,
             namespaces,
@@ -22,7 +23,8 @@ export const provideSchemaConstructorCompletions: CompletionProvider = async (co
             items.push({
                 label,
                 kind: CompletionItemKind.Function,
-                detail: `${label}(${definition.signature.parameterTypes.map((parameter) => formatSequenceType(parameter.type)).join(", ")}) as ${formatSequenceType(definition.signature.returnType)}`,
+                labelDetails: { detail: signatureSuffix },
+                detail: `${label}${signatureSuffix}`,
                 insertText: createFunctionCallSnippet(label, ["$value"]),
                 insertTextFormat: InsertTextFormat.Snippet,
             });

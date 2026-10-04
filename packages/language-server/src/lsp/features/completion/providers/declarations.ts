@@ -90,11 +90,13 @@ function toCompletionItem(declaration: ScopeDefinition, functionLabel?: string):
         const parameterNames = declaration.parameters.map((parameter) =>
             definitionNameToString(parameter),
         );
-        const signature = `${label}(${parameterNames.join(", ")})`;
+        const signatureSuffix = `(${parameterNames.join(", ")})`;
+        const signature = `${label}${signatureSuffix}`;
 
         return {
             label,
             kind: CompletionItemKind.Function,
+            labelDetails: { detail: signatureSuffix },
             detail: signature,
             insertText: createFunctionCallSnippet(label, parameterNames),
             insertTextFormat: InsertTextFormat.Snippet,
@@ -117,7 +119,7 @@ function toCompletionItem(declaration: ScopeDefinition, functionLabel?: string):
         return {
             label,
             kind: CompletionItemKind.Class,
-            detail: "Schema type",
+            labelDetails: { description: "Schema type" },
             documentation: {
                 kind: MarkupKind.Markdown,
                 value: [
@@ -133,6 +135,8 @@ function toCompletionItem(declaration: ScopeDefinition, functionLabel?: string):
     return {
         label: name,
         kind: CompletionItemKind.Variable,
-        detail: declaration.kind,
+        labelDetails: {
+            description: declaration.kind.charAt(0).toUpperCase() + declaration.kind.slice(1),
+        },
     };
 }

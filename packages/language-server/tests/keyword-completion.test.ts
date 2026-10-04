@@ -35,7 +35,13 @@ describe.each(["jsoniq", "xquery"])("%s query keyword completion", (languageId) 
     }
 
     it("filters name keywords while preserving expression starters and references", async () => {
-        const items = await completions("declare variable $global := 1;\nlet $x := ");
+        const items = await completions(
+            "declare variable $global := 1;\ndeclare function local:f($arg) { $arg };\nlet $x := ",
+        );
+        expect(items.find((item) => item.label === "local:f")).toMatchObject({
+            labelDetails: { detail: "($arg)" },
+            detail: "local:f($arg)",
+        });
         const labels = items.map((item) => item.label);
         expect(labels).toEqual(expect.arrayContaining(["if", "for", "$global", "fn:concat"]));
         for (const label of [
@@ -53,7 +59,10 @@ describe.each(["jsoniq", "xquery"])("%s query keyword completion", (languageId) 
         }
         // JSONiq has a unary keyword; XQuery uses the not() function.
         expect(labels.includes("not")).toBe(languageId === "jsoniq");
-        expect(items.find((item) => item.label === "if")?.kind).toBe(CompletionItemKind.Keyword);
+        expect(items.find((item) => item.label === "if")).toMatchObject({
+            kind: CompletionItemKind.Keyword,
+            labelDetails: { description: "Keyword" },
+        });
         if (languageId === "jsoniq") {
             expect(items.find((item) => item.label === "not")?.kind).toBe(
                 CompletionItemKind.Operator,
@@ -165,7 +174,9 @@ describe.each(["jsoniq", "xquery"])("%s query keyword completion", (languageId) 
     it("continues a type operation and then switches to type suggestions", async () => {
         expect(await syntaxLabels("1 instance ")).toContain("of");
         const items = await completions("1 instance of ");
-        expect(items.map((item) => item.label)).toContain("xs:string");
+        expect(items.find((item) => item.label === "xs:string")).toMatchObject({
+            labelDetails: { description: "Builtin type" },
+        });
         expect(items.some((item) => item.kind === CompletionItemKind.Keyword)).toBe(false);
         expect(items.some((item) => item.kind === CompletionItemKind.Function)).toBe(false);
     });

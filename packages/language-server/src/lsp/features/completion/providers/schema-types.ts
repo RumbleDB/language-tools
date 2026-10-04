@@ -18,7 +18,7 @@ export const provideSchemaTypeCompletions: CompletionProvider = async (context) 
             items.push({
                 label,
                 kind: CompletionItemKind.Class,
-                detail: "XML Schema type",
+                labelDetails: { description: "XML Schema type" },
                 insertText: label,
             });
         }

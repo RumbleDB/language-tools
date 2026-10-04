@@ -1,4 +1,4 @@
-import { CompletionItemKind } from "vscode-languageserver";
+import { CompletionItemKind, type CompletionItem } from "vscode-languageserver";
 
 import type { CompletionProvider } from "../types.js";
 
@@ -74,17 +74,17 @@ export const provideKeywordCompletions: CompletionProvider = (context) => {
     });
 };
 
-function classifyKeyword(label: string): { kind: CompletionItemKind; detail: string } {
+function classifyKeyword(label: string): Pick<CompletionItem, "kind" | "labelDetails"> {
     if (label === "$") {
-        return { kind: CompletionItemKind.Variable, detail: "Start a variable declaration" };
+        return { kind: CompletionItemKind.Variable, labelDetails: { description: "Variable" } };
     }
     if (WORD_OPERATORS.has(label) || label === "not") {
-        return { kind: CompletionItemKind.Operator, detail: "Operator" };
+        return { kind: CompletionItemKind.Operator, labelDetails: { description: "Operator" } };
     }
     if (LITERAL_VALUES.has(label)) {
-        return { kind: CompletionItemKind.Value, detail: "Literal" };
+        return { kind: CompletionItemKind.Value, labelDetails: { description: "Literal" } };
     }
-    return { kind: CompletionItemKind.Keyword, detail: "Keyword" };
+    return { kind: CompletionItemKind.Keyword, labelDetails: { description: "Keyword" } };
 }
 
 function keywordSortText(label: string, preferred: string[]): string {

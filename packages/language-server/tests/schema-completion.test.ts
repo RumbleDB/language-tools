@@ -74,7 +74,9 @@ describe("schema constructor completion", () => {
         const types = await complete(header + "declare variable $value as ", "xquery");
         // A function default must not change type completion.
         expect(types.items.some((item) => item.label === "Code")).toBe(false);
-        expect(types.items.find((item) => item.label === "s:Code")).toBeDefined();
+        expect(types.items.find((item) => item.label === "s:Code")).toMatchObject({
+            labelDetails: { description: "XML Schema type" },
+        });
     });
 
     it.each(["jsoniq", "xquery"])(
@@ -89,6 +91,7 @@ describe("schema constructor completion", () => {
             expect(items[0]).toMatchObject({
                 label: "alias:Code",
                 kind: CompletionItemKind.Function,
+                labelDetails: { detail: "(xs:anyAtomicType?) as Code?" },
                 insertTextFormat: InsertTextFormat.Snippet,
             });
             expect(items[0]!.detail).toContain("alias:Code(xs:anyAtomicType?) as");

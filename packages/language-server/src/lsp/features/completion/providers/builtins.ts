@@ -91,16 +91,18 @@ function createBuiltinFunctionCompletionItems(
             const parameterTypes = definition.signature.parameterTypes
                 .map((parameter) => formatSequenceType(parameter.type))
                 .join(", ");
-            const signature = `${functionName}(${parameterTypes}) as ${formatSequenceType(definition.signature.returnType)}`;
+            const signatureSuffix = `(${parameterTypes}) as ${formatSequenceType(definition.signature.returnType)}`;
+            const signature = `${functionName}${signatureSuffix}`;
             const documentation = getBuiltinFunctionDocumentation(definition.name.qname);
             const item: CompletionItem = {
                 label: functionName,
                 kind: CompletionItemKind.Function,
+                labelDetails: { detail: signatureSuffix },
                 insertText: createFunctionCallSnippet(functionName, parameterNames),
                 insertTextFormat: InsertTextFormat.Snippet,
                 detail:
                     overloadCount !== undefined && overloadCount > 1
-                        ? `${functionName}(...) • ${overloadCount} overloads`
+                        ? `${signature} • ${overloadCount} overloads`
                         : arity === undefined
                           ? signature
                           : `${signature} / ${arity}`,
@@ -134,7 +136,7 @@ function createBuiltinTypeCompletionItems(): CompletionItem[] {
         return {
             label,
             kind: CompletionItemKind.Class,
-            detail: "Builtin type",
+            labelDetails: { description: "Builtin type" },
             documentation: {
                 kind: MarkupKind.Markdown,
                 value: `\`\`\`jsoniq\n${expandedName}\n\`\`\``,
