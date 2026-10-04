@@ -34,7 +34,16 @@ export const PREFERRED_COMPLETION_RULES = new Set([
     XQueryParser.RULE_ncName,
 ]);
 
+// Prefer query clauses when their opening keyword is also a legal name.
+export const CLAUSE_START_RULES = new Map([
+    [XQueryLexer.KW_FOR, XQueryParser.RULE_flworExpr],
+    [XQueryLexer.KW_LET, XQueryParser.RULE_flworExpr],
+    [XQueryLexer.KW_SOME, XQueryParser.RULE_quantifiedExpr],
+    [XQueryLexer.KW_EVERY, XQueryParser.RULE_quantifiedExpr],
+]);
+
 export const KEYWORD_COMPLETIONS: LanguageKeywordCompletion[] = [
+    keyword(XQueryLexer.DOLLAR),
     ...[
         XQueryLexer.KW_EVERY,
         XQueryLexer.KW_FOR,
@@ -90,7 +99,16 @@ export const KEYWORD_COMPLETIONS: LanguageKeywordCompletion[] = [
         XQueryLexer.KW_UNION,
         XQueryLexer.KW_VALIDATE,
         XQueryLexer.KW_WHERE,
+        XQueryLexer.KW_WINDOW,
+        XQueryLexer.KW_START,
+        XQueryLexer.KW_WHEN,
+        XQueryLexer.KW_END,
+        XQueryLexer.KW_PREVIOUS,
+        XQueryLexer.KW_NEXT,
     ].map((tokenType) => keyword(tokenType)),
+    keyword(XQueryLexer.KW_TUMBLING, "tumbling window"),
+    keyword(XQueryLexer.KW_SLIDING, "sliding window"),
+    keyword(XQueryLexer.KW_ONLY, "only end"),
     keyword(XQueryLexer.KW_ALLOWING, "allowing empty"),
     keyword(XQueryLexer.KW_CAST, "cast as"),
     keyword(XQueryLexer.KW_CASTABLE, "castable as"),

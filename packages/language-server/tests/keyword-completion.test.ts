@@ -65,6 +65,7 @@ describe.each(["jsoniq", "xquery"])("%s query keyword completion", (languageId) 
     });
 
     it("offers satisfies after a quantified binding", async () => {
+        expect((await completions("some ")).map((item) => item.label)).toEqual(["$"]);
         expect((await syntaxLabels("some $x in (1, 2) "))[0]).toBe("satisfies");
     });
 
@@ -100,6 +101,52 @@ describe.each(["jsoniq", "xquery"])("%s query keyword completion", (languageId) 
         );
         expect((await syntaxLabels("if (1) "))[0]).toBe("then");
         expect((await syntaxLabels("if (1) then 2 "))[0]).toBe("else");
+    });
+
+    it("offers window clauses alongside ordinary for bindings", async () => {
+        const items = await completions("for ");
+        expect(items.map((item) => item.label)).toEqual(["$", "sliding window", "tumbling window"]);
+        expect(items[0]?.kind).toBe(CompletionItemKind.Variable);
+        expect((await completions("for tum")).map((item) => item.label)).toContain(
+            "tumbling window",
+        );
+        expect(await syntaxLabels("for tumbling ")).toEqual(["window"]);
+        expect((await completions("for tumbling window ")).map((item) => item.label)).toEqual([
+            "$",
+        ]);
+        expect(await completions("for tumbling window $")).toEqual([]);
+    });
+
+    it("offers window condition bindings and syntax together", async () => {
+        const source = "for tumbling window $w in (1 to 10) ";
+        expect((await syntaxLabels(source))[0]).toBe("start");
+        const items = await completions(`${source}start `);
+        expect(items.map((item) => item.label).sort()).toEqual([
+            "$",
+            "at",
+            "next",
+            "previous",
+            "when",
+        ]);
+        expect((await completions(`${source}start $s at `)).map((item) => item.label)).toEqual([
+            "$",
+        ]);
+        expect(await syntaxLabels(`${source}start $s when fn:true() `)).toEqual(
+            expect.arrayContaining(["end", "only end", "return"]),
+        );
+    });
+
+    it("requires an end condition for sliding windows and preserves variable references", async () => {
+        const source = "for sliding window $w in (1 to 10) start $s when fn:true() ";
+        const labels = await syntaxLabels(source);
+        expect(labels.slice(0, 2)).toEqual(["end", "only end"]);
+        expect(labels).not.toContain("return");
+        expect(await syntaxLabels(`${source}only `)).toEqual(["end"]);
+        expect(
+            (await completions(`${source}only end $e when fn:true() return $`)).map(
+                (item) => item.label,
+            ),
+        ).toEqual(["$e", "$s", "$w"]);
     });
 
     it("offers word operators after an operand", async () => {

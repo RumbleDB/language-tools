@@ -5,7 +5,6 @@ export interface KeywordCompletion {
 
 export interface CompletionIntent {
     allowVariableReferences: boolean;
-    allowVariableDeclarations: boolean;
     allowFunctions: boolean;
     allowTypes: boolean;
     allowObjectLookup: boolean;
@@ -18,8 +17,7 @@ export type CompletionTokenContextKind =
     | "default"
     | "function-name"
     | "type-name"
-    | "top-level-prolog"
-    | "variable-declaration";
+    | "top-level-prolog";
 
 export interface CompletionTokenContext {
     kind: CompletionTokenContextKind;
@@ -27,7 +25,6 @@ export interface CompletionTokenContext {
     allowPrologKeywords: boolean;
     allowReferences: boolean;
     allowTypeReferences: boolean;
-    allowVariableDeclarations: boolean;
     /** True when the last two tokens before the cursor are `SomeName ':'`, i.e. a QName
      * prefix that hasn't been completed yet (e.g. the user typed `fn:`). In this case
      * c3 may not find function/type candidates due to the broken parse, but the intent

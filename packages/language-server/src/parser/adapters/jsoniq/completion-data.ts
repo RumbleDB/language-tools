@@ -37,7 +37,16 @@ export const PREFERRED_COMPLETION_RULES = new Set([
     JsoniqParser.RULE_objectLookup,
 ]);
 
+// Prefer query clauses when their opening keyword is also a legal name.
+export const CLAUSE_START_RULES = new Map([
+    [JsoniqLexer.KW_FOR, JsoniqParser.RULE_flworExpr],
+    [JsoniqLexer.KW_LET, JsoniqParser.RULE_flworExpr],
+    [JsoniqLexer.KW_SOME, JsoniqParser.RULE_quantifiedExpr],
+    [JsoniqLexer.KW_EVERY, JsoniqParser.RULE_quantifiedExpr],
+]);
+
 export const KEYWORD_COMPLETIONS: LanguageKeywordCompletion[] = [
+    createLanguageKeyword(JsoniqLexer.DOLLAR),
     ...[
         JsoniqLexer.KW_EVERY,
         JsoniqLexer.KW_FOR,
@@ -98,7 +107,16 @@ export const KEYWORD_COMPLETIONS: LanguageKeywordCompletion[] = [
         JsoniqLexer.KW_UNION,
         JsoniqLexer.KW_VALIDATE,
         JsoniqLexer.KW_WHERE,
+        JsoniqLexer.KW_WINDOW,
+        JsoniqLexer.KW_START,
+        JsoniqLexer.KW_WHEN,
+        JsoniqLexer.KW_END,
+        JsoniqLexer.KW_PREVIOUS,
+        JsoniqLexer.KW_NEXT,
     ].map((tokenType) => createLanguageKeyword(tokenType)),
+    createLanguageKeyword(JsoniqLexer.KW_TUMBLING, "tumbling window"),
+    createLanguageKeyword(JsoniqLexer.KW_SLIDING, "sliding window"),
+    createLanguageKeyword(JsoniqLexer.KW_ONLY, "only end"),
     createLanguageKeyword(JsoniqLexer.KW_ALLOWING, "allowing empty"),
     createLanguageKeyword(JsoniqLexer.KW_CAST, "cast as"),
     createLanguageKeyword(JsoniqLexer.KW_CASTABLE, "castable as"),

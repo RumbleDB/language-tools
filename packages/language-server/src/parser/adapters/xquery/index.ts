@@ -4,6 +4,7 @@ import { getActiveParserId } from "server/parser/utils.js";
 import { TextDocument } from "vscode-languageserver-textdocument";
 
 import {
+    CLAUSE_START_RULES,
     IGNORED_COMPLETION_TOKENS,
     KEYWORD_COMPLETIONS,
     PREFERRED_COMPLETION_RULES,
@@ -20,6 +21,7 @@ export const xqueryParserAdapter: ParserAdapter = {
         getCompletionIntent(parsed, cursorOffset, {
             tokenContextAnalyzer: XQueryTokenContextAnalyzer,
             ignoredTokens: IGNORED_COMPLETION_TOKENS,
+            clauseStartRules: CLAUSE_START_RULES,
             preferredRules: PREFERRED_COMPLETION_RULES,
             languageKeywords: KEYWORD_COMPLETIONS,
             isFunctionCallRule: (ruleIndex) => ruleIndex === XQueryParser.RULE_functionCall,

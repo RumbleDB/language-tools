@@ -13,6 +13,10 @@ const CONTINUATIONS = [
     "catch",
     "case",
     "default",
+    "start",
+    "when",
+    "end",
+    "only end",
 ];
 const FLWOR_CLAUSES = ["return", "where", "let", "group by", "order by", "for", "count"];
 const SORT_DIRECTIONS = ["ascending", "descending"];
@@ -71,6 +75,9 @@ export const provideKeywordCompletions: CompletionProvider = (context) => {
 };
 
 function classifyKeyword(label: string): { kind: CompletionItemKind; detail: string } {
+    if (label === "$") {
+        return { kind: CompletionItemKind.Variable, detail: "Start a variable declaration" };
+    }
     if (WORD_OPERATORS.has(label) || label === "not") {
         return { kind: CompletionItemKind.Operator, detail: "Operator" };
     }
