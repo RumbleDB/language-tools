@@ -1,14 +1,34 @@
 package org.jsoniq.lsp.wrapper.types;
 
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 import org.rumbledb.types.FieldDescriptor;
 import org.rumbledb.types.ItemType;
 
-public record TypeDefinition(String kind, ResolvedQName name, Map<String, TypeDefinition> fields) {
+public record TypeDefinition(
+        String kind,
+        ResolvedQName name,
+        Map<String, TypeDefinition> fields,
+        List<TypeDefinition> members,
+        TypeDefinition content) {
+
+    public TypeDefinition(String kind, ResolvedQName name, Map<String, TypeDefinition> fields) {
+        this(kind, name, fields, null, null);
+    }
 
     public static TypeDefinition fromItemType(ItemType itemType) {
+        if (itemType.isUnionType() && !itemType.hasName()) {
+            return new TypeDefinition(
+                    "union",
+                    null,
+                    null,
+                    itemType.getTypes().stream()
+                            .map(TypeDefinition::fromItemType)
+                            .toList(),
+                    null);
+        }
         if (itemType.isObjectItemType()) {
             Map<String, TypeDefinition> fields = new LinkedHashMap<>();
             for (FieldDescriptor fieldDescriptor : itemType.getObjectContentFacet()) {
@@ -20,7 +40,11 @@ public record TypeDefinition(String kind, ResolvedQName name, Map<String, TypeDe
 
         if (itemType.isArrayItemType()) {
             return new TypeDefinition(
-                    "array", itemType.hasName() ? ResolvedQName.fromName(itemType.getName()) : null, null);
+                    "array",
+                    itemType.hasName() ? ResolvedQName.fromName(itemType.getName()) : null,
+                    null,
+                    null,
+                    itemType.hasName() ? null : fromItemType(itemType.getArrayContentFacet()));
         }
 
         return new TypeDefinition(
@@ -29,6 +53,15 @@ public record TypeDefinition(String kind, ResolvedQName name, Map<String, TypeDe
 
     @Override
     public String toString() {
+        if (this.kind.equals("union")) {
+            return "("
+                    + String.join(
+                            " | ",
+                            this.members.stream().map(TypeDefinition::toString).toList()) + ")";
+        }
+        if (this.kind.equals("array") && this.name == null && this.content != null) {
+            return "[" + this.content + "]";
+        }
         if (this.kind.equals("object")) {
             String fieldsString = this.fields == null
                     ? ""

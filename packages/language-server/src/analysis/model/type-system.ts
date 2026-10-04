@@ -14,9 +14,20 @@ export interface ObjectTypeDefinition {
 export interface ArrayTypeDefinition {
     kind: "array";
     name?: QName;
+    content?: TypeDefinition;
 }
 
-export type TypeDefinition = NamedTypeDefinition | ObjectTypeDefinition | ArrayTypeDefinition;
+export interface UnionTypeDefinition {
+    kind: "union";
+    name?: QName;
+    members: TypeDefinition[];
+}
+
+export type TypeDefinition =
+    | NamedTypeDefinition
+    | ObjectTypeDefinition
+    | ArrayTypeDefinition
+    | UnionTypeDefinition;
 
 export interface SequenceType {
     itemType: TypeDefinition;
@@ -34,6 +45,12 @@ export interface StaticFunctionSignature {
 }
 
 export function formatTypeDefinition(type: TypeDefinition): string {
+    if (type.kind === "union") {
+        return `(${type.members.map(formatTypeDefinition).join(" | ")})`;
+    }
+    if (type.kind === "array" && type.name === undefined && type.content !== undefined) {
+        return `[${formatTypeDefinition(type.content)}]`;
+    }
     if (type.kind === "object") {
         const fields = Object.entries(type.fields)
             .map(([name, fieldType]) => `${name}: ${formatTypeDefinition(fieldType)}`)

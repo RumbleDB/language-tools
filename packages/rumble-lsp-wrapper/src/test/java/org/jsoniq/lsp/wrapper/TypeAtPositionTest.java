@@ -66,6 +66,38 @@ class TypeAtPositionTest {
         assertVariableType(query, DOCUMENT_URI, "$i", 1, "xs:integer");
     }
 
+    @Test
+    void preservesObjectFieldsWithOptionalMathResult() {
+        String query = "for $i in 1 to 10 return {\"i\": $i, \"power_of_two\": math:pow($i, 2)}";
+        TypeAtPosition.Result result =
+                this.typeAtPosition.findType(query, DOCUMENT_URI, new Position(0, query.indexOf('{')));
+
+        assertNotNull(result.sequenceType());
+        assertEquals("object", result.sequenceType().itemType().kind());
+        assertEquals(
+                "xs:integer", result.sequenceType().itemType().fields().get("i").toString());
+        assertEquals(
+                "(xs:double | js:null)",
+                result.sequenceType().itemType().fields().get("power_of_two").toString());
+        assertEquals("", result.sequenceType().arity());
+    }
+
+    @Test
+    void representsWrappedSequenceAlternativesInObjectFields() {
+        String query = "declare variable $values as xs:integer* := (); {\"value\": $values, \"known\": 1}";
+        TypeAtPosition.Result result =
+                this.typeAtPosition.findType(query, DOCUMENT_URI, new Position(0, query.indexOf('{')));
+
+        assertNotNull(result.sequenceType());
+        assertEquals(
+                "{ value: (xs:integer | [xs:integer] | js:null), known: xs:integer }",
+                result.sequenceType().toString());
+        var union = result.sequenceType().itemType().fields().get("value");
+        assertEquals("union", union.kind());
+        assertEquals(3, union.members().size());
+        assertEquals("xs:integer", union.members().get(1).content().toString());
+    }
+
     @ParameterizedTest
     @ValueSource(strings = {"jq", "xq"})
     void returnsTypesAtMultipleShadowedForBindingsAndPosition(String extension) {
