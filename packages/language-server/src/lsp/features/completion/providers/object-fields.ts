@@ -40,7 +40,7 @@ export const provideObjectFieldCompletions: CompletionProvider = async (context)
         ([fieldName, fieldType]) => ({
             label: fieldName,
             kind: CompletionItemKind.Field,
-            detail: formatTypeDefinition(fieldType),
+            labelDetails: { detail: `: ${formatTypeDefinition(fieldType)}` },
             textEdit: replaceTypedPrefix(
                 context.document,
                 dotContext.dotOffset + 1 + dotContext.fieldPrefix.length,
