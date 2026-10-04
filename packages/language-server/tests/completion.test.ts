@@ -1,6 +1,6 @@
 import { findCompletions } from "server/lsp/features/completion.js";
 import { describe, expect, it } from "vitest";
-import { type CompletionItem, type Position } from "vscode-languageserver";
+import { CompletionItemKind, type CompletionItem, type Position } from "vscode-languageserver";
 import { type TextDocument } from "vscode-languageserver-textdocument";
 
 import { parserService, workspaceService, wrapperClient } from "./services.js";
@@ -35,12 +35,17 @@ describe("JSONiq completion", () => {
             "declare variable ",
         ]);
 
-        const labelsAtCursor = await completionLabels(document, {
-            line: 1,
-            character: "declare variable ".length,
-        });
+        const items = await findCompletions(
+            document,
+            { line: 1, character: "declare variable ".length },
+            parserService,
+            workspaceService,
+            wrapperClient,
+        );
 
-        expect(labelsAtCursor).toEqual(["$"]);
+        expect(items).toEqual([
+            expect.objectContaining({ label: "$", kind: CompletionItemKind.Variable }),
+        ]);
     });
 
     it("does not suggest anything after typing a variable declaration prefix", async () => {

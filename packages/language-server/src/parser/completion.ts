@@ -1,5 +1,5 @@
 import { CodeCompletionCore } from "antlr4-c3";
-import { Token } from "antlr4ng";
+import { ParserRuleContext, Token } from "antlr4ng";
 import { createLogger } from "server/utils/logger.js";
 
 import { getCompletionTokenContext, TokenContextAnalyzer } from "./completion-context.js";
@@ -23,6 +23,7 @@ type CompletionOptions<T extends TokenContextAnalyzer> = {
     tokenContextAnalyzer: new (tokens: Token[], cursorOffset: number) => T;
     ignoredTokens: Set<number>;
     preferredRules: Set<number>;
+    clauseStartRules: ReadonlyMap<number, number>;
     languageKeywords: LanguageKeywordCompletion[];
     isFunctionCallRule(ruleIndex: number): boolean;
     isObjectLookupRule(ruleIndex: number): boolean;
@@ -47,7 +48,6 @@ export function getCompletionIntent<T extends TokenContextAnalyzer>(
 ): CompletionIntent | null {
     const candidates = collectCompletionCandidates(parsed, cursorOffset, options);
 
-    const allowVariableDeclarations = candidates.tokenContext.allowVariableDeclarations;
     const qnamePrefix = candidates.tokenContext.qnamePrefix;
     const allowFunctions =
         candidates.tokenContext.allowReferences &&
@@ -78,7 +78,6 @@ export function getCompletionIntent<T extends TokenContextAnalyzer>(
         allowVariables,
         allowObjectLookup,
         allowTypes,
-        allowVariableDeclarations,
         objectLookupDotOffset,
         keywords,
         expectedTokens,
@@ -88,7 +87,6 @@ export function getCompletionIntent<T extends TokenContextAnalyzer>(
 
     return {
         allowVariableReferences: allowVariables,
-        allowVariableDeclarations,
         allowFunctions,
         allowObjectLookup,
         ...(objectLookupDotOffset === undefined ? {} : { objectLookupDotOffset }),
@@ -160,15 +158,45 @@ function collectCompletionCandidates<T extends TokenContextAnalyzer>(
         tokenContextAnalyzer: new (tokens: Token[], cursorOffset: number) => T;
         ignoredTokens: Set<number>;
         preferredRules: Set<number>;
+        clauseStartRules: ReadonlyMap<number, number>;
+        tokenName(tokenType: number): string | number;
     },
 ): CompletionCandidates {
-    const caret = findCaretToken(parsed.tokens, cursorOffset);
+    // At `re|`, collect candidates before the unfinished identifier so `return`
+    // remains available. Numbers and punctuation still count as consumed input.
+    const caret = findCaretToken(
+        parsed.tokens,
+        cursorOffset,
+        (token) => options.tokenName(token.type) === "NCName",
+    );
 
     const core = new CodeCompletionCore(parsed.parser);
     core.ignoredTokens = options.ignoredTokens;
     core.preferredRules = options.preferredRules;
 
-    const candidates = core.collectCandidates(caret.tokenIndex);
+    let candidates = core.collectCandidates(caret.tokenIndex);
+    const previous = parsed.tokens
+        .filter(
+            (token) =>
+                token.tokenIndex < caret.tokenIndex && token.channel === Token.DEFAULT_CHANNEL,
+        )
+        .at(-1);
+    const clauseRule =
+        previous === undefined ? undefined : options.clauseStartRules.get(previous.type);
+    // `for` and `let` can also be path/function names. If the grammar expects a
+    // binding here, collect within the query clause to exclude those name paths.
+    // This preserves all clause alternatives (including window clauses) and lets
+    // the grammar supply `$` just like any other syntax token.
+    if (
+        previous !== undefined &&
+        clauseRule !== undefined &&
+        [...candidates.tokens.keys()].some((tokenType) => options.tokenName(tokenType) === "DOLLAR")
+    ) {
+        candidates = core.collectCandidates(
+            caret.tokenIndex,
+            new CompletionRuleContext(clauseRule, previous),
+        );
+    }
     const candidateRules = new Map<number, RuleCandidateInfo>();
     for (const [ruleIndex, candidate] of candidates.rules.entries()) {
         candidateRules.set(ruleIndex, {
@@ -189,4 +217,19 @@ function collectCompletionCandidates<T extends TokenContextAnalyzer>(
             options.tokenContextAnalyzer,
         ),
     };
+}
+
+/** A grammar entry point for collecting a clause's candidates before its CST exists. */
+class CompletionRuleContext extends ParserRuleContext {
+    public constructor(
+        private readonly completionRuleIndex: number,
+        start: Token,
+    ) {
+        super(null);
+        this.start = start;
+    }
+
+    public override get ruleIndex(): number {
+        return this.completionRuleIndex;
+    }
 }

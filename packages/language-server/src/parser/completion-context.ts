@@ -8,7 +8,6 @@ const DEFAULT_CONTEXT: CompletionTokenContext = {
     allowPrologKeywords: false,
     allowReferences: true,
     allowTypeReferences: false,
-    allowVariableDeclarations: false,
     qnamePrefix: false,
 };
 
@@ -18,7 +17,6 @@ const FUNCTION_NAME_CONTEXT: CompletionTokenContext = {
     allowPrologKeywords: false,
     allowReferences: false,
     allowTypeReferences: false,
-    allowVariableDeclarations: false,
     qnamePrefix: false,
 };
 
@@ -28,7 +26,6 @@ const TYPE_NAME_CONTEXT: CompletionTokenContext = {
     allowPrologKeywords: false,
     allowReferences: false,
     allowTypeReferences: true,
-    allowVariableDeclarations: false,
     qnamePrefix: false,
 };
 
@@ -38,27 +35,10 @@ const TOP_LEVEL_PROLOG_CONTEXT: CompletionTokenContext = {
     allowPrologKeywords: true,
     allowReferences: true,
     allowTypeReferences: false,
-    allowVariableDeclarations: false,
     qnamePrefix: false,
 };
 
-const VARIABLE_DECLARATION_CONTEXT: CompletionTokenContext = {
-    kind: "variable-declaration",
-    allowKeywords: false,
-    allowPrologKeywords: false,
-    allowReferences: false,
-    allowTypeReferences: false,
-    allowVariableDeclarations: true,
-    qnamePrefix: false,
-};
-
-export {
-    DEFAULT_CONTEXT,
-    FUNCTION_NAME_CONTEXT,
-    TYPE_NAME_CONTEXT,
-    TOP_LEVEL_PROLOG_CONTEXT,
-    VARIABLE_DECLARATION_CONTEXT,
-};
+export { DEFAULT_CONTEXT, FUNCTION_NAME_CONTEXT, TYPE_NAME_CONTEXT, TOP_LEVEL_PROLOG_CONTEXT };
 
 export abstract class TokenContextAnalyzer {
     protected readonly tokensBeforeCursor: Token[];
@@ -73,7 +53,6 @@ export abstract class TokenContextAnalyzer {
     }
 
     public abstract isAfterDeclareFunction(): boolean;
-    public abstract isAtVariableDeclarationName(): boolean;
     public abstract isAtTopLevelProlog(): boolean;
 
     /**
@@ -133,16 +112,6 @@ export abstract class TokenContextAnalyzer {
         return this.beforePrevious?.type === tokenType;
     }
 
-    protected lastIndexOf(tokenType: number): number {
-        for (let index = this.tokensBeforeCursor.length - 1; index >= 0; index -= 1) {
-            if (this.tokensBeforeCursor[index]?.type === tokenType) {
-                return index;
-            }
-        }
-
-        return -1;
-    }
-
     /** Token type for a bare NCName in this grammar (e.g. `JsoniqLexer.NCName`). */
     protected abstract get ncNameTokenType(): number;
 
@@ -194,10 +163,6 @@ export function getCompletionTokenContext<T extends TokenContextAnalyzer>(
 
     if (cursor.isAtTypeName()) {
         return { ...TYPE_NAME_CONTEXT, qnamePrefix: cursor.isAfterQNamePrefix() };
-    }
-
-    if (cursor.isAtVariableDeclarationName()) {
-        return VARIABLE_DECLARATION_CONTEXT;
     }
 
     if (cursor.isAtTopLevelProlog()) {
