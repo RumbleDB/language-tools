@@ -13,6 +13,12 @@ describe("run query service", () => {
             {
                 kind: "atomic",
                 type: {
+                    kind: "named",
+                    name: {
+                        localName: "integer",
+                        prefix: "xs",
+                        namespaceUri: "http://www.w3.org/2001/XMLSchema",
+                    },
                     displayName: "xs:integer",
                     qname: "Q{http://www.w3.org/2001/XMLSchema}integer",
                 },
@@ -20,27 +26,54 @@ describe("run query service", () => {
             },
             {
                 kind: "node",
-                type: { displayName: "element" },
+                type: { kind: "named", name: { localName: "element" }, displayName: "element" },
                 nodeKind: "element",
                 serialized: "<book/>",
             },
-            { kind: "array", type: { displayName: "array(*)" }, serialized: "[()]", members: [[]] },
-            { kind: "null", type: { displayName: "js:null" }, serialized: "null" },
+            {
+                kind: "array",
+                type: { kind: "array", displayName: "array(*)" },
+                serialized: "[()]",
+                members: [[]],
+            },
+            {
+                kind: "null",
+                type: {
+                    kind: "named",
+                    name: { localName: "null", prefix: "js" },
+                    displayName: "js:null",
+                },
+                serialized: "null",
+            },
             {
                 kind: "object",
-                type: { displayName: "object" },
+                type: {
+                    kind: "object",
+                    displayName: "object",
+                    fields: {
+                        "a.b": {
+                            kind: "named",
+                            name: { localName: "integer", prefix: "xs" },
+                            displayName: "xs:integer",
+                        },
+                    },
+                },
                 serialized: '{"a.b": 1}',
                 fields: [{ name: "a.b", value: [] }],
             },
             {
                 kind: "map",
-                type: { displayName: "map(*)" },
+                type: { kind: "opaque", displayName: "map(xs:integer, item()*)" },
                 serialized: "map{1: ()}",
                 entries: [
                     {
                         key: {
                             kind: "atomic",
-                            type: { displayName: "xs:integer" },
+                            type: {
+                                kind: "named",
+                                name: { localName: "integer", prefix: "xs" },
+                                displayName: "xs:integer",
+                            },
                             serialized: "1",
                         },
                         value: [],
@@ -49,7 +82,7 @@ describe("run query service", () => {
             },
             {
                 kind: "function",
-                type: { displayName: "function(*)" },
+                type: { kind: "opaque", displayName: "function(*)" },
                 serialized: "fn:concat#2",
                 name: "fn:concat",
                 arity: 2,
@@ -70,7 +103,17 @@ describe("run query service", () => {
             id: 1,
             responseType: "run-query",
             body: {
-                items: [{ kind: "atomic", type: { displayName: "xs:integer" }, serialized: "2" }],
+                items: [
+                    {
+                        kind: "atomic",
+                        type: {
+                            kind: "named",
+                            name: { localName: "integer", prefix: "xs" },
+                            displayName: "xs:integer",
+                        },
+                        serialized: "2",
+                    },
+                ],
                 error: null,
             },
             error: null,
@@ -154,7 +197,17 @@ describe("run query service", () => {
             id: 2,
             responseType: "run-query",
             body: {
-                items: [{ kind: "atomic", type: { displayName: "xs:integer" }, serialized: "42" }],
+                items: [
+                    {
+                        kind: "atomic",
+                        type: {
+                            kind: "named",
+                            name: { localName: "integer", prefix: "xs" },
+                            displayName: "xs:integer",
+                        },
+                        serialized: "42",
+                    },
+                ],
                 error: null,
             },
             error: null,

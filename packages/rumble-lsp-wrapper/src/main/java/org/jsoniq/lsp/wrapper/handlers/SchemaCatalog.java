@@ -52,10 +52,10 @@ public final class SchemaCatalog implements RequestHandler {
 
     /** A global named type and its XSD source, when Xerces retains the source location. */
     @JsonInclude(JsonInclude.Include.NON_NULL)
-    public record TypeDefinition(ResolvedQName name, String sourceUri) {}
+    public record SchemaTypeEntry(ResolvedQName name, String sourceUri) {}
 
     public record Result(
-            List<TypeDefinition> types,
+            List<SchemaTypeEntry> types,
             List<FunctionDefinition> constructors,
             List<String> dependencies,
             List<StaticTypeChecker.StaticTypeError> errors)
@@ -104,7 +104,7 @@ public final class SchemaCatalog implements RequestHandler {
                     .toList();
             return new Result(
                     names.stream()
-                            .map(name -> new TypeDefinition(
+                            .map(name -> new SchemaTypeEntry(
                                     ResolvedQName.fromName(name),
                                     findTypeSource(catalog, name).orElse(null)))
                             .toList(),

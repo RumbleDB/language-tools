@@ -3,75 +3,148 @@ package org.jsoniq.lsp.wrapper.types;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.stream.Collectors;
+
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonProperty;
 
 import org.rumbledb.types.FieldDescriptor;
 import org.rumbledb.types.ItemType;
 
-public record TypeDefinition(
-        String kind,
-        ResolvedQName name,
-        Map<String, TypeDefinition> fields,
-        List<TypeDefinition> members,
-        TypeDefinition content) {
+/** Shared descriptors for inferred static types and query-result dynamic types. */
+@JsonInclude(JsonInclude.Include.NON_NULL)
+public sealed interface TypeDefinition {
+    @JsonProperty("kind")
+    String kind();
 
-    public TypeDefinition(String kind, ResolvedQName name, Map<String, TypeDefinition> fields) {
-        this(kind, name, fields, null, null);
+    @JsonProperty("name")
+    default ResolvedQName name() {
+        return null;
     }
 
-    public static TypeDefinition fromItemType(ItemType itemType) {
-        if (itemType.isUnionType() && !itemType.hasName()) {
-            return new TypeDefinition(
-                    "union",
+    String displayName();
+
+    @JsonProperty("qname")
+    default String qname() {
+        return name() == null ? null : name().expandedName();
+    }
+
+    static TypeDefinition fromItemType(ItemType itemType) {
+        ResolvedQName name = itemType.hasName() ? ResolvedQName.fromName(itemType.getName()) : null;
+        // Keep the engine's display text, including types whose structure we do not yet model.
+        String displayName = itemType.toString();
+        // Named unions retain their public alias (for example xs:numeric).
+        if (itemType.isUnionType() && name == null) {
+            return new UnionTypeDefinition(
                     null,
-                    null,
+                    displayName,
                     itemType.getTypes().stream()
                             .map(TypeDefinition::fromItemType)
-                            .toList(),
-                    null);
+                            .toList());
         }
         if (itemType.isObjectItemType()) {
             Map<String, TypeDefinition> fields = new LinkedHashMap<>();
             for (FieldDescriptor fieldDescriptor : itemType.getObjectContentFacet()) {
-                fields.put(fieldDescriptor.getName(), TypeDefinition.fromItemType(fieldDescriptor.getType()));
+                fields.put(fieldDescriptor.getName(), fromItemType(fieldDescriptor.getType()));
             }
-            return new TypeDefinition(
-                    "object", itemType.hasName() ? ResolvedQName.fromName(itemType.getName()) : null, fields);
+            return new ObjectTypeDefinition(name, displayName, fields);
         }
-
         if (itemType.isArrayItemType()) {
-            return new TypeDefinition(
-                    "array",
-                    itemType.hasName() ? ResolvedQName.fromName(itemType.getName()) : null,
-                    null,
-                    null,
-                    itemType.hasName() ? null : fromItemType(itemType.getArrayContentFacet()));
+            return new ArrayTypeDefinition(
+                    name, displayName, name == null ? fromItemType(itemType.getArrayContentFacet()) : null);
         }
-
-        return new TypeDefinition(
-                "named", itemType.hasName() ? ResolvedQName.fromName(itemType.getName()) : null, null);
+        return name == null ? new OpaqueTypeDefinition(displayName) : new NamedTypeDefinition(name, displayName);
     }
 
-    @Override
-    public String toString() {
-        if (this.kind.equals("union")) {
-            return "("
-                    + String.join(
-                            " | ",
-                            this.members.stream().map(TypeDefinition::toString).toList()) + ")";
-        }
-        if (this.kind.equals("array") && this.name == null && this.content != null) {
-            return "[" + this.content + "]";
-        }
-        if (this.kind.equals("object")) {
-            String fieldsString = this.fields == null
-                    ? ""
-                    : this.fields.entrySet().stream()
-                            .map(field -> field.getKey() + ": " + field.getValue())
-                            .reduce((left, right) -> left + ", " + right)
-                            .orElse("");
-            return "{ " + fieldsString + " }";
+    record NamedTypeDefinition(ResolvedQName name, String displayName) implements TypeDefinition {
+        public NamedTypeDefinition {
+            Objects.requireNonNull(name, "name");
+            Objects.requireNonNull(displayName, "displayName");
         }
 
-        return this.name() != null ? this.name().toString() : "anonymous type";
+        @Override
+        public String kind() {
+            return "named";
+        }
+
+        @Override
+        public String toString() {
+            return this.name.toString();
+        }
+    }
+
+    /** Anonymous types keep their structure; a QName is optional metadata. */
+    record ObjectTypeDefinition(ResolvedQName name, String displayName, Map<String, TypeDefinition> fields)
+            implements TypeDefinition {
+        public ObjectTypeDefinition {
+            Objects.requireNonNull(displayName, "displayName");
+            Objects.requireNonNull(fields, "fields");
+        }
+
+        @Override
+        public String kind() {
+            return "object";
+        }
+
+        @Override
+        public String toString() {
+            return this.fields.entrySet().stream()
+                    .map(field -> field.getKey() + ": " + field.getValue())
+                    .collect(Collectors.joining(", ", "{ ", " }"));
+        }
+    }
+
+    record ArrayTypeDefinition(ResolvedQName name, String displayName, TypeDefinition content)
+            implements TypeDefinition {
+        public ArrayTypeDefinition {
+            Objects.requireNonNull(displayName, "displayName");
+        }
+
+        @Override
+        public String kind() {
+            return "array";
+        }
+
+        @Override
+        public String toString() {
+            if (this.name != null) return this.name.toString();
+            return this.content == null ? this.displayName : "[" + this.content + "]";
+        }
+    }
+
+    record UnionTypeDefinition(ResolvedQName name, String displayName, List<TypeDefinition> members)
+            implements TypeDefinition {
+        public UnionTypeDefinition {
+            Objects.requireNonNull(displayName, "displayName");
+            Objects.requireNonNull(members, "members");
+        }
+
+        @Override
+        public String kind() {
+            return "union";
+        }
+
+        @Override
+        public String toString() {
+            return this.members.stream().map(TypeDefinition::toString).collect(Collectors.joining(" | ", "(", ")"));
+        }
+    }
+
+    /** Display-only fallback for anonymous types whose structure is not represented yet. */
+    record OpaqueTypeDefinition(String displayName) implements TypeDefinition {
+        public OpaqueTypeDefinition {
+            Objects.requireNonNull(displayName, "displayName");
+        }
+
+        @Override
+        public String kind() {
+            return "opaque";
+        }
+
+        @Override
+        public String toString() {
+            return this.displayName;
+        }
     }
 }

@@ -18,6 +18,7 @@ describe("inferred object type formatting", () => {
     it("shows nullable fields and scalar/array alternatives", () => {
         const type: TypeDefinition = {
             kind: "object",
+            displayName: "engine object description",
             fields: {
                 known: integer,
                 optional: { kind: "union", members: [integer, nullType] },
@@ -49,6 +50,12 @@ describe("inferred object type formatting", () => {
                 content: { kind: "object", fields: { value: integer } },
             }),
         ).toBe("[{ value: xs:integer }]");
+    });
+
+    it("uses the engine display for types without a structured representation", () => {
+        expect(
+            formatTypeDefinition({ kind: "opaque", displayName: "map(xs:string, xs:integer?)" }),
+        ).toBe("map(xs:string, xs:integer?)");
     });
 
     it("preserves the display of named array types", () => {

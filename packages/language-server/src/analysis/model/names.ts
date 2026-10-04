@@ -1,10 +1,7 @@
-import { type LocalName, type Prefix } from "server/parser/types/name.js";
+import type { Prefix } from "server/parser/types/name.js";
+import type { QName } from "server/types/type-system.js";
 
-export type QName = {
-    readonly localName: LocalName;
-    readonly namespaceUri?: string;
-    readonly prefix?: Prefix;
-};
+export type { QName } from "server/types/type-system.js";
 
 export type FunctionName = {
     readonly qname: QName;

@@ -12,6 +12,10 @@ public record ResolvedQName(String localName, String namespaceUri, String prefix
         return value == null || value.isBlank() ? null : value;
     }
 
+    public String expandedName() {
+        return "Q{" + (this.namespaceUri == null ? "" : this.namespaceUri) + "}" + this.localName;
+    }
+
     @Override
     public String toString() {
         if (this.prefix() != null) {

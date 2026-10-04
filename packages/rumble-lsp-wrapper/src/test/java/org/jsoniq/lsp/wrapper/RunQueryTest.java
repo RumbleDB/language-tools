@@ -108,7 +108,9 @@ class RunQueryTest {
                 "123456789012345678901234567890",
                 response.get("items").get(0).get("serialized").asText());
         JsonNode dateType = response.get("items").get(2).get("type");
-        assertProperties(dateType, "displayName", "qname");
+        assertProperties(dateType, "kind", "name", "displayName", "qname");
+        assertEquals("named", dateType.get("kind").asText());
+        assertEquals("date", dateType.get("name").get("localName").asText());
         assertEquals(
                 result.items().get(2).type().displayName(),
                 dateType.get("displayName").asText());
@@ -181,6 +183,9 @@ class RunQueryTest {
         assertTrue(function.name().contains("concat"));
         assertNotNull(function.signature());
         assertNotNull(function.serialized());
+        assertEquals("opaque", function.type().kind());
+        assertNull(function.type().name());
+        assertEquals(function.type().displayName(), function.type().toString());
         assertItemProperties(json(function), "name", "arity", "signature");
     }
 
@@ -399,8 +404,16 @@ class RunQueryTest {
         expected.addAll(List.of(properties));
         assertProperties(item, expected.toArray(String[]::new));
         JsonNode type = item.get("type");
-        assertProperties(
-                type, type.has("qname") ? new String[] {"displayName", "qname"} : new String[] {"displayName"});
+        var expectedType = new HashSet<>(Set.of("kind", "displayName"));
+        if (type.has("name")) expectedType.addAll(Set.of("name", "qname"));
+        switch (type.get("kind").asText()) {
+            case "object" -> expectedType.add("fields");
+            case "union" -> expectedType.add("members");
+            case "array" -> {
+                if (type.has("content")) expectedType.add("content");
+            }
+        }
+        assertProperties(type, expectedType.toArray(String[]::new));
         assertTrue(type.get("displayName").isTextual());
     }
 

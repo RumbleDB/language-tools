@@ -2,6 +2,8 @@ package org.jsoniq.lsp.wrapper.handlers;
 
 import java.util.List;
 
+import org.jsoniq.lsp.wrapper.types.TypeDefinition;
+
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
@@ -11,33 +13,21 @@ public sealed interface QueryResultItem {
     @JsonProperty("kind")
     String kind();
 
-    ItemType type();
+    TypeDefinition type();
 
     String serialized();
-
-    @JsonInclude(JsonInclude.Include.NON_NULL)
-    record ItemType(String displayName, String qname) {
-        public static ItemType from(org.rumbledb.types.ItemType dynamicType) {
-            String qname = null;
-            if (dynamicType.hasName()) {
-                var name = dynamicType.getName();
-                qname = "Q{" + (name.getNamespace() == null ? "" : name.getNamespace()) + "}" + name.getLocalName();
-            }
-            return new ItemType(dynamicType.toString(), qname);
-        }
-    }
 
     /** The engine permits atomic keys, including its null item, in maps. */
     sealed interface AtomicValue extends QueryResultItem {}
 
-    record AtomicItem(ItemType type, String serialized) implements AtomicValue {
+    record AtomicItem(TypeDefinition type, String serialized) implements AtomicValue {
         @Override
         public String kind() {
             return "atomic";
         }
     }
 
-    record NullItem(ItemType type, String serialized) implements AtomicValue {
+    record NullItem(TypeDefinition type, String serialized) implements AtomicValue {
         @Override
         public String kind() {
             return "null";
@@ -45,7 +35,7 @@ public sealed interface QueryResultItem {
     }
 
     /** Object fields have literal names, rather than typed map keys. */
-    record ObjectItem(ItemType type, String serialized, List<ObjectField> fields) implements QueryResultItem {
+    record ObjectItem(TypeDefinition type, String serialized, List<ObjectField> fields) implements QueryResultItem {
         @Override
         public String kind() {
             return "object";
@@ -54,7 +44,7 @@ public sealed interface QueryResultItem {
 
     record ObjectField(String name, List<QueryResultItem> value) {}
 
-    record MapItem(ItemType type, String serialized, List<MapEntry> entries) implements QueryResultItem {
+    record MapItem(TypeDefinition type, String serialized, List<MapEntry> entries) implements QueryResultItem {
         @Override
         public String kind() {
             return "map";
@@ -64,21 +54,22 @@ public sealed interface QueryResultItem {
     record MapEntry(AtomicValue key, List<QueryResultItem> value) {}
 
     /** Array members are sequences; an empty member is different from an empty array. */
-    record ArrayItem(ItemType type, String serialized, List<List<QueryResultItem>> members) implements QueryResultItem {
+    record ArrayItem(TypeDefinition type, String serialized, List<List<QueryResultItem>> members)
+            implements QueryResultItem {
         @Override
         public String kind() {
             return "array";
         }
     }
 
-    record NodeItem(ItemType type, String serialized, String nodeKind) implements QueryResultItem {
+    record NodeItem(TypeDefinition type, String serialized, String nodeKind) implements QueryResultItem {
         @Override
         public String kind() {
             return "node";
         }
     }
 
-    record FunctionItem(ItemType type, String serialized, String name, int arity, String signature)
+    record FunctionItem(TypeDefinition type, String serialized, String name, int arity, String signature)
             implements QueryResultItem {
         @Override
         public String kind() {

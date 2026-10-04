@@ -6,11 +6,15 @@ import java.util.Base64;
 
 import org.jsoniq.lsp.wrapper.handlers.TypeAtPosition;
 import org.jsoniq.lsp.wrapper.messages.Request;
+import org.jsoniq.lsp.wrapper.types.TypeDefinition.ArrayTypeDefinition;
+import org.jsoniq.lsp.wrapper.types.TypeDefinition.ObjectTypeDefinition;
+import org.jsoniq.lsp.wrapper.types.TypeDefinition.UnionTypeDefinition;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -73,12 +77,12 @@ class TypeAtPositionTest {
                 this.typeAtPosition.findType(query, DOCUMENT_URI, new Position(0, query.indexOf('{')));
 
         assertNotNull(result.sequenceType());
-        assertEquals("object", result.sequenceType().itemType().kind());
+        var objectType = assertInstanceOf(
+                ObjectTypeDefinition.class, result.sequenceType().itemType());
+        assertEquals("object", objectType.kind());
+        assertEquals("xs:integer", objectType.fields().get("i").toString());
         assertEquals(
-                "xs:integer", result.sequenceType().itemType().fields().get("i").toString());
-        assertEquals(
-                "(xs:double | js:null)",
-                result.sequenceType().itemType().fields().get("power_of_two").toString());
+                "(xs:double | js:null)", objectType.fields().get("power_of_two").toString());
         assertEquals("", result.sequenceType().arity());
     }
 
@@ -89,13 +93,20 @@ class TypeAtPositionTest {
                 this.typeAtPosition.findType(query, DOCUMENT_URI, new Position(0, query.indexOf('{')));
 
         assertNotNull(result.sequenceType());
+        var objectType = assertInstanceOf(
+                ObjectTypeDefinition.class, result.sequenceType().itemType());
         assertEquals(
                 "{ value: (xs:integer | [xs:integer] | js:null), known: xs:integer }",
                 result.sequenceType().toString());
-        var union = result.sequenceType().itemType().fields().get("value");
+        var union =
+                assertInstanceOf(UnionTypeDefinition.class, objectType.fields().get("value"));
         assertEquals("union", union.kind());
         assertEquals(3, union.members().size());
-        assertEquals("xs:integer", union.members().get(1).content().toString());
+        assertEquals(
+                "xs:integer",
+                assertInstanceOf(ArrayTypeDefinition.class, union.members().get(1))
+                        .content()
+                        .toString());
     }
 
     @ParameterizedTest
@@ -248,10 +259,10 @@ class TypeAtPositionTest {
                 this.typeAtPosition.findType(query, DOCUMENT_URI, positionAtOffset(query, expressionEnd));
 
         assertNotNull(result.sequenceType());
-        assertEquals("object", result.sequenceType().itemType().kind());
-        assertEquals(
-                "xs:integer",
-                result.sequenceType().itemType().fields().get("value").toString());
+        var objectType = assertInstanceOf(
+                ObjectTypeDefinition.class, result.sequenceType().itemType());
+        assertEquals("object", objectType.kind());
+        assertEquals("xs:integer", objectType.fields().get("value").toString());
     }
 
     @Test
@@ -272,10 +283,10 @@ class TypeAtPositionTest {
                 this.typeAtPosition.findType(query, DOCUMENT_URI, positionAtOffset(query, detailsOffset));
 
         assertNotNull(result.sequenceType());
-        assertEquals("object", result.sequenceType().itemType().kind());
-        assertEquals(
-                "xs:decimal",
-                result.sequenceType().itemType().fields().get("tlf").toString());
+        var objectType = assertInstanceOf(
+                ObjectTypeDefinition.class, result.sequenceType().itemType());
+        assertEquals("object", objectType.kind());
+        assertEquals("xs:decimal", objectType.fields().get("tlf").toString());
         assertEquals(
                 new Range(
                         positionAtOffset(query, query.indexOf("$a.details")),

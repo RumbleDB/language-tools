@@ -164,6 +164,8 @@ describe("schema catalog", () => {
                                     type: {
                                         itemType: {
                                             kind: "named",
+                                            displayName: "xs:anyAtomicType",
+                                            qname: "Q{http://www.w3.org/2001/XMLSchema}anyAtomicType",
                                             name: {
                                                 localName: "anyAtomicType",
                                                 namespaceUri: "http://www.w3.org/2001/XMLSchema",
@@ -177,6 +179,8 @@ describe("schema catalog", () => {
                             returnType: {
                                 itemType: {
                                     kind: "named",
+                                    displayName: "{urn:test}Code",
+                                    qname: "Q{urn:test}Code",
                                     name: { localName: "Code", namespaceUri: "urn:test" },
                                 },
                                 arity: "?",

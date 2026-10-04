@@ -1,3 +1,4 @@
+import type { TypeDefinition } from "server/types/type-system.js";
 import type { Range } from "vscode-languageserver";
 
 import { defineRequest } from "./types.js";
@@ -20,12 +21,8 @@ export interface RunQueryError {
     range: Range | null;
 }
 
-export interface RunQueryItemType {
-    /** Engine's display name for the dynamic type. */
-    displayName: string;
-    /** Expanded QName for named types, independent of namespace prefixes. */
-    qname?: string;
-}
+/** Runtime descriptors use the shared type model and always include the engine's display name. */
+export type RunQueryItemType = TypeDefinition & { displayName: string };
 
 interface RunQueryItemBase {
     type: RunQueryItemType;

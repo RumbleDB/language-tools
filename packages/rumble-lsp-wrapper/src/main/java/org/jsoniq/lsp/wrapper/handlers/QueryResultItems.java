@@ -2,6 +2,8 @@ package org.jsoniq.lsp.wrapper.handlers;
 
 import java.util.List;
 
+import org.jsoniq.lsp.wrapper.types.TypeDefinition;
+
 import org.rumbledb.api.Item;
 import org.rumbledb.serialization.Serializer;
 
@@ -17,7 +19,7 @@ final class QueryResultItems {
 
     static QueryResultItem from(Item item, Serializer serializer, String serialized) {
         var dynamicType = item.getDynamicType();
-        var type = QueryResultItem.ItemType.from(dynamicType);
+        var type = TypeDefinition.fromItemType(dynamicType);
 
         if (item.isNull()) return new QueryResultItem.NullItem(type, serialized);
         // isObject() also accepts object-shaped maps; preserve their actual dynamic kind.

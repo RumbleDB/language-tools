@@ -2,6 +2,7 @@ package org.jsoniq.lsp.wrapper.handlers;
 
 import java.util.List;
 
+import org.jsoniq.lsp.wrapper.types.SequenceType;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -37,6 +38,26 @@ class QueryResultItemsTest {
             assertTrue(json.has("entries"));
             assertFalse(json.has("fields"));
         }
+    }
+
+    @Test
+    void staticAndDynamicTypesUseTheSameDescriptor() throws Exception {
+        var item = ItemFactory.getInstance().createIntItem(42);
+        var serializer = Serializers.from(SerializationParameters.defaults());
+        var result = QueryResultItems.from(item, serializer, serializer.serialize(item));
+        var staticType = SequenceType.fromSequenceType(
+                new org.rumbledb.types.SequenceType(item.getDynamicType(), org.rumbledb.types.SequenceType.Arity.One));
+
+        assertEquals(staticType.itemType(), result.type());
+        var mapper = new ObjectMapper();
+        var json = mapper.readTree(mapper.writeValueAsString(result.type()));
+        assertEquals("named", json.get("kind").asText());
+        assertEquals(item.getDynamicType().toString(), json.get("displayName").asText());
+        assertEquals("Q{http://www.w3.org/2001/XMLSchema}int", json.get("qname").asText());
+        assertEquals("int", json.get("name").get("localName").asText());
+        assertFalse(json.has("fields"));
+        assertFalse(json.has("members"));
+        assertFalse(json.has("content"));
     }
 
     @Test
