@@ -53,6 +53,14 @@ export class CommonAstBuilder {
         },
     ];
 
+    public visitProlog = (node: ctx.PrologContext): AstVisitResult => [
+        {
+            kind: "prolog",
+            range: rangeFromNode(node, this.document),
+            children: this.traversal.visitChildren(node),
+        },
+    ];
+
     public visitLibraryModule = (node: ctx.LibraryModuleContext): AstVisitResult => {
         const prefix = node.ncName();
         const namespace = node.uriLiteral();

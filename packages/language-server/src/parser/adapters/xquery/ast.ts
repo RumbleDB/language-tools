@@ -32,6 +32,9 @@ class XQueryAstBuilder extends XQueryParserVisitor<AstVisitResult> {
     public override visitModuleAndThisIsIt = (node: ctx.ModuleAndThisIsItContext): AstVisitResult =>
         this.common.visitModuleAndThisIsIt(node);
 
+    public override visitProlog = (node: ctx.PrologContext): AstVisitResult =>
+        this.common.visitProlog(node);
+
     public override visitLibraryModule = (node: ctx.LibraryModuleContext): AstVisitResult =>
         this.common.visitLibraryModule(node);
 

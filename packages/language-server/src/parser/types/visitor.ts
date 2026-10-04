@@ -11,6 +11,7 @@ import type {
     FunctionCallAstNode,
     FunctionDeclarationAstNode,
     ModuleAstNode,
+    PrologAstNode,
     ModuleDeclarationAstNode,
     ModuleImportAstNode,
     SchemaImportAstNode,
@@ -28,6 +29,8 @@ export abstract class ParserAstVisitor<R = void> {
         switch (node.kind) {
             case "module":
                 return this.visitModule(node);
+            case "prolog":
+                return this.visitProlog(node);
             case "module-declaration":
                 return this.visitModuleDeclaration(node);
             case "module-import":
@@ -87,6 +90,10 @@ export abstract class ParserAstVisitor<R = void> {
     }
 
     protected visitModule(node: ModuleAstNode): R {
+        return this.defaultVisit(node);
+    }
+
+    protected visitProlog(node: PrologAstNode): R {
         return this.defaultVisit(node);
     }
 

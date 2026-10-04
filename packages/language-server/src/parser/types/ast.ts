@@ -9,6 +9,7 @@ import type {
 
 export type AstNodeKind =
     | "module"
+    | "prolog"
     | "module-declaration"
     | "module-import"
     | "base-uri-declaration"
@@ -39,6 +40,8 @@ export interface AstNodeBase<K extends AstNodeKind> {
 }
 
 export interface ModuleAstNode extends AstNodeBase<"module"> {}
+
+export interface PrologAstNode extends AstNodeBase<"prolog"> {}
 
 export interface ModuleDeclarationAstNode extends AstNodeBase<"module-declaration"> {
     readonly prefix: Prefix;
@@ -155,6 +158,7 @@ export interface ArgumentAstNode extends AstNodeBase<"argument"> {
 
 export type AstNode =
     | ModuleAstNode
+    | PrologAstNode
     | ModuleDeclarationAstNode
     | ModuleImportAstNode
     | BaseUriDeclarationAstNode

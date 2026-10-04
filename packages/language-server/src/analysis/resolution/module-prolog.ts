@@ -1,8 +1,7 @@
 import type {
     AstNode as ParserAstNode,
-    CatchClauseAstNode,
-    FlowrExpressionAstNode,
-    QuantifiedExpressionAstNode,
+    ModuleAstNode,
+    PrologAstNode,
     FunctionDeclarationAstNode,
     ModuleDeclarationAstNode,
     ModuleImportAstNode,
@@ -123,6 +122,24 @@ class ModulePrologCollector extends ParserAstVisitor<void> {
         };
     }
 
+    // Only module containers and prologs are traversed. Declaration visitors
+    // register their own nodes without walking initializer or function bodies.
+    protected override defaultVisit(_node: ParserAstNode): void {}
+
+    protected override visitModule(node: ModuleAstNode): void {
+        for (const child of node.children) {
+            if (child.kind === "prolog") {
+                this.visitProlog(child);
+            } else if (child.kind === "module-declaration") {
+                this.visitModuleDeclaration(child);
+            }
+        }
+    }
+
+    protected override visitProlog(node: PrologAstNode): void {
+        this.visitChildren(node);
+    }
+
     protected override visitBaseUriDeclaration(node: BaseUriDeclarationAstNode): void {
         this.baseUri ??= node.uri;
     }
@@ -146,7 +163,11 @@ class ModulePrologCollector extends ParserAstVisitor<void> {
         }
         this.targetNamespace = node.namespaceUri;
         this.bindNamespace(node);
-        this.visitChildren(node);
+        for (const child of node.children) {
+            if (child.kind === "prolog") {
+                this.visitProlog(child);
+            }
+        }
     }
 
     protected override visitModuleImport(node: ModuleImportAstNode): void {
@@ -245,12 +266,6 @@ class ModulePrologCollector extends ParserAstVisitor<void> {
         this.declarations.types.set(node, definition);
         this.checkDeclaration(node, definition);
     }
-
-    // Do not descend into expressions (such as FLWOR let/for bindings or catch clauses)
-    // to prevent local variables from being indexed as module prolog declarations.
-    protected override visitFlowrExpression(_node: FlowrExpressionAstNode): void {}
-    protected override visitQuantifiedExpression(_node: QuantifiedExpressionAstNode): void {}
-    protected override visitCatchClause(_node: CatchClauseAstNode): void {}
 
     private bindNamespace(
         node:
