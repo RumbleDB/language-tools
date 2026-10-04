@@ -1,5 +1,51 @@
 # jsoniq-language-server
 
+## 2.15.0
+
+### Minor Changes
+
+- [`77c4449`](https://github.com/RumbleDB/language-tools/commit/77c444997ba9f78a494dff626e181ad29fff859c) - feat: display object field completion type in labelDetails
+
+- [`cbd9e3b`](https://github.com/RumbleDB/language-tools/commit/cbd9e3b60fefde87e1e21d763d76fec815b39273) - fix: variable declaration hovers not showing correct static type
+  
+  Fixed by adding ExceptionMetadata to variable bindings in RumbleDB. Changed the commit to https://github.com/RumbleDB/rumble/commit/dd824427c8e199eccfd6c26db0e8ec8ce85c1abc.
+  
+  Cover FLWOR and window variables, function parameters, quantified expressions, typeswitch cases, copy bindings, and scripting declarations in JSONiq and XQuery. Handle multiple bindings and shadowed variables correctly.
+
+- [`6df9f7f`](https://github.com/RumbleDB/language-tools/commit/6df9f7f3f9e8107aaf1df8745dc550943fc77f74) - Show short completion categories such as variables, keywords, and types using label descriptions, reserving completion details for signatures and type information.
+  
+  Show function signature suffixes beside completion names, while keeping full signatures in completion details.
+
+- [`c6d9018`](https://github.com/RumbleDB/language-tools/commit/c6d9018aa00240b51d1d999023a7ad06da8ed1cc) - feat: add union type support and enhance array type handling in type system
+  
+  Display nullable and array alternatives in inferred object field types without losing known fields.
+  
+  Upgraded RumbleDB to commit https://github.com/RumbleDB/rumble/pull/1877/changes/f39afa1dfb2e79d0bb3a7dce2d331f3e71815aa0
+
+- [`10fe4f3`](https://github.com/RumbleDB/language-tools/commit/10fe4f313c58a8add3719e83aaa8fbe29fd6816d) - feat: add support for quantified expressions in analysis and completion and avoid suggesting the own variable being initialized in its own initializer
+
+- [#85](https://github.com/RumbleDB/language-tools/pull/85) [`ed0c63c`](https://github.com/RumbleDB/language-tools/commit/ed0c63cb860d8bceeca321895637e1aeae68a4e5) - Add ordinary JSONiq and XQuery keyword completions for window clause, quantified expressions, sorting modifiers, word operators, and type operations. Filter keywords accepted as names out of syntax suggestions and support manually typed phrase continuations.
+  
+  Remove scripting and update keyword suggestions, and rank structural continuations ahead of optional operators and uncommon constructs.
+  
+  Distinguish operators, literal values, and variable declaration starters with their corresponding completion kinds.
+  
+  Offer keywords while typing an identifier prefix, such as `re` for `return` after a FLWOR binding.
+  
+  Suggest `$` through the normal grammar token completion pipeline alongside valid clause alternatives. Remove the exclusive variable declaration provider and its token context heuristics, while keeping unrelated name and operator suggestions out of clause starts.
+
+- [`c4b6e70`](https://github.com/RumbleDB/language-tools/commit/c4b6e70198355910ef6d72888938ff0cc505cce4) - feat: add support for prolog nodes in AST and visitor patterns
+
+- [`a3d7c4c`](https://github.com/RumbleDB/language-tools/commit/a3d7c4c01a7c4aa79be6e8fd5e5dc8bf4543774a) - refacrtor: shared type descriptor for static inference and runtime query results, exposing type kind and structure alongside the existing display name and expanded QName metadata
+  
+  Represent type kinds with discriminated variants. Named descriptors require a QName, while anonymous types retain their structure or use an opaque descriptor with the engine display text.
+
+### Patch Changes
+
+- [`6a550e3`](https://github.com/RumbleDB/language-tools/commit/6a550e31f115db0844bd38bbc97772c28e6a093a) - fix(ast): handle potential null value for expression in visitQuantifiedExprVar
+
+- [`17cda47`](https://github.com/RumbleDB/language-tools/commit/17cda471a909958ad31a8edfc3e609141d22012e) - fix: quote and escape object-field completions when the key requires a JSONiq string literal
+
 ## 2.14.0
 
 ### Minor Changes

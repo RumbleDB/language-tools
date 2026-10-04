@@ -1,5 +1,33 @@
 # rumble-lsp-wrapper
 
+## 0.11.0
+
+### Minor Changes
+
+- [`cbd9e3b`](https://github.com/RumbleDB/language-tools/commit/cbd9e3b60fefde87e1e21d763d76fec815b39273) - fix: variable declaration hovers not showing correct static type
+  
+  Fixed by adding ExceptionMetadata to variable bindings in RumbleDB. Changed the commit to https://github.com/RumbleDB/rumble/commit/dd824427c8e199eccfd6c26db0e8ec8ce85c1abc.
+  
+  Cover FLWOR and window variables, function parameters, quantified expressions, typeswitch cases, copy bindings, and scripting declarations in JSONiq and XQuery. Handle multiple bindings and shadowed variables correctly.
+
+- [`c6d9018`](https://github.com/RumbleDB/language-tools/commit/c6d9018aa00240b51d1d999023a7ad06da8ed1cc) - feat: add union type support and enhance array type handling in type system
+  
+  Display nullable and array alternatives in inferred object field types without losing known fields.
+  
+  Upgraded RumbleDB to commit https://github.com/RumbleDB/rumble/pull/1877/changes/f39afa1dfb2e79d0bb3a7dce2d331f3e71815aa0
+
+- [`a3d7c4c`](https://github.com/RumbleDB/language-tools/commit/a3d7c4c01a7c4aa79be6e8fd5e5dc8bf4543774a) - refacrtor: shared type descriptor for static inference and runtime query results, exposing type kind and structure alongside the existing display name and expanded QName metadata
+  
+  Represent type kinds with discriminated variants. Named descriptors require a QName, while anonymous types retain their structure or use an opaque descriptor with the engine display text.
+
+### Patch Changes
+
+- [`6bf9d88`](https://github.com/RumbleDB/language-tools/commit/6bf9d88b29f5d01088387c2332cba26ff82a7bca) - chore: upgrade RumbleDB to commit https://github.com/RumbleDB/rumble/commit/1edd792a18efe6d86be77a0474884be58203f4da
+
+- [`bf0ec93`](https://github.com/RumbleDB/language-tools/commit/bf0ec93e6e0e8b83ca63e1290b306a91bd33fe7d) - chore: upgrade RumbleDB to commit https://github.com/RumbleDB/rumble/commit/2f8467d74a906405cecbc43a9f55c13ad78b0b60
+
+- [`2a48795`](https://github.com/RumbleDB/language-tools/commit/2a4879591dc06fb7cb186bc15912933ea78a1bd7) - chore: upgrade RumbleDB to commit https://github.com/RumbleDB/rumble/commit/b3b5a795a191c6866ec00e1e714da5ff9dd3a812
+
 ## 0.10.0
 
 ### Minor Changes
