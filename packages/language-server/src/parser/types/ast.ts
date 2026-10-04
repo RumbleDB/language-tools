@@ -20,6 +20,7 @@ export type AstNodeKind =
     | "function-declaration"
     | "variable-declaration"
     | "flowr-expression"
+    | "quantified-expression"
     | "catch-clause"
     | "catch-error-target"
     | "declaration"
@@ -112,6 +113,8 @@ export interface VariableDeclarationAstNode extends AstNodeBase<"variable-declar
 
 export interface FlowrExpressionAstNode extends AstNodeBase<"flowr-expression"> {}
 
+export interface QuantifiedExpressionAstNode extends AstNodeBase<"quantified-expression"> {}
+
 export interface CatchClauseAstNode extends AstNodeBase<"catch-clause"> {
     readonly bodyStart: Position;
 }
@@ -163,6 +166,7 @@ export type AstNode =
     | FunctionDeclarationAstNode
     | VariableDeclarationAstNode
     | FlowrExpressionAstNode
+    | QuantifiedExpressionAstNode
     | CatchClauseAstNode
     | CatchErrorTargetAstNode
     | FunctionCallAstNode

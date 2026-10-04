@@ -647,6 +647,115 @@ describe("XQuery completion", () => {
     });
 });
 
+describe.each(["jsoniq", "xquery"])("%s binding completion scope", (languageId) => {
+    it.each([
+        ["let $i := 1\nlet $a := $i|, $b := $a\nreturn $b", ["$i"]],
+        ["for $i in 1 to 10\nfor $a at $pos in $i|, $b in $a\nreturn $b", ["$i"]],
+        ["let $a := 1, $b := $a|\nreturn $b", ["$a"]],
+        ["some $a in 1 to 10, $b in $a| satisfies $b eq 1", ["$a"]],
+    ] as const)(
+        "keeps a binding hidden just before its delimiter in '%s'",
+        async (markedSource, expected) => {
+            const offset = markedSource.indexOf("|");
+            const source = markedSource.replace("|", "");
+            const document = testDocumentFromUri(source, {
+                uri: `file:///completion-binding-delimiter-${encodeURIComponent(markedSource)}.${languageId}`,
+                languageId,
+            });
+            const items = await findCompletions(
+                document,
+                document.positionAt(offset),
+                parserService,
+                workspaceService,
+                wrapperClient,
+            );
+
+            expect(
+                items
+                    .filter((item) => item.kind === CompletionItemKind.Variable)
+                    .map((item) => item.label)
+                    .sort(),
+            ).toEqual([...expected].sort());
+        },
+    );
+
+    it.each([
+        ["let $a := $", []],
+        ["for $a in $", []],
+        ["for $a at $pos in $", []],
+        ["for $i in 1 to 10\nlet $a := $", ["$i"]],
+        ["for $i in 1 to 10\nfor $a at $pos in $", ["$i"]],
+        ["let $a := 1, $b := $", ["$a"]],
+        ["for $a at $pos in 1 to 10, $b at $other in $", ["$a", "$pos"]],
+        ["let $a := 1\nlet $a := $", ["$a"]],
+        ["some $a in $", []],
+        ["some $a in 1 to 10, $b in $", ["$a"]],
+        ["some $a in 1 to 10 satisfies $", ["$a"]],
+        ["every $a in 1 to 10, $b in $", ["$a"]],
+        ["(some $a in 1 satisfies $a eq 1), $", []],
+        ["(every $a in 1 satisfies $a eq 1), $", []],
+    ] as const)("offers only variables already in scope in '%s'", async (source, expected) => {
+        const document = testDocumentFromUri(source, {
+            uri: `file:///completion-binding-${encodeURIComponent(source)}.${languageId}`,
+            languageId,
+        });
+        const items = await findCompletions(
+            document,
+            document.positionAt(source.length),
+            parserService,
+            workspaceService,
+            wrapperClient,
+        );
+
+        expect(
+            items
+                .filter((item) => item.kind === CompletionItemKind.Variable)
+                .map((item) => item.label)
+                .sort(),
+        ).toEqual([...expected].sort());
+    });
+
+    it.each(["$", "$i", "$i + $", "$i, $other := $"])(
+        "keeps grouping variables out of an initializer ending in '%s'",
+        async (initializer) => {
+            const source = `for $i in 1 to 10\ngroup by $mod := ${initializer}`;
+            const document = testDocumentFromUri(source, {
+                uri: `file:///completion-group-initializer-${encodeURIComponent(initializer)}.${languageId}`,
+                languageId,
+            });
+
+            const labelsAtCursor = await completionLabels(
+                document,
+                document.positionAt(source.length),
+            );
+
+            expect(labelsAtCursor).toContain("$i");
+            expect(labelsAtCursor).not.toContain("$mod");
+            expect(labelsAtCursor).not.toContain("$other");
+        },
+    );
+
+    it.each(["return $", "where $", "let $next := $"])(
+        "makes grouping variables available in '%s'",
+        async (followingClause) => {
+            const source = `for $i in 1 to 10\ngroup by $mod := $i mod 2, $other := $i mod 3\n${followingClause}`;
+            const document = testDocumentFromUri(source, {
+                uri: `file:///completion-after-group-${encodeURIComponent(followingClause)}.${languageId}`,
+                languageId,
+            });
+
+            const labelsAtCursor = await completionLabels(
+                document,
+                document.positionAt(source.length),
+            );
+
+            expect(labelsAtCursor).toContain("$i");
+            expect(labelsAtCursor).toContain("$mod");
+            expect(labelsAtCursor).toContain("$other");
+        },
+    );
+});
+
 function labels(items: CompletionItem[]): string[] {
     return items.map((item) => item.label);
 }

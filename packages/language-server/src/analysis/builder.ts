@@ -6,6 +6,7 @@ import type {
     ContextItemDeclarationAstNode,
     ContextItemExpressionAstNode,
     FlowrExpressionAstNode,
+    QuantifiedExpressionAstNode,
     FunctionCallAstNode,
     FunctionDeclarationAstNode,
     NamespaceDeclarationAstNode,
@@ -198,6 +199,10 @@ class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
     }
 
     protected override visitFlowrExpression(node: FlowrExpressionAstNode): AstNode[] {
+        return this.enterScope(node.range, () => this.visitChildrenAsNodes(node));
+    }
+
+    protected override visitQuantifiedExpression(node: QuantifiedExpressionAstNode): AstNode[] {
         return this.enterScope(node.range, () => this.visitChildrenAsNodes(node));
     }
 

@@ -1,5 +1,6 @@
 import {
     definitionNameToString,
+    getVisibleDeclarationsAtPosition,
     QNameToString,
     type ScopeDefinition,
 } from "server/analysis/index.js";
@@ -32,7 +33,18 @@ export const provideVariableCompletions: CompletionProvider = async (context) =>
         VARIABLE_PREFIX_PATTERN,
     );
 
-    return (await context.getVisibleDeclarations())
+    // Resolve at the reference's start, just like normal variable resolution.
+    // The cursor can equal a recovered initializer's end and incorrectly
+    // include the variable being initialized in completion suggestions.
+    const declarations =
+        variablePrefix === null
+            ? await context.getVisibleDeclarations()
+            : getVisibleDeclarationsAtPosition(
+                  await context.getAnalysis(),
+                  context.cursorOffset - variablePrefix.length,
+              );
+
+    return declarations
         .filter((definition) => definition.kind === "variable" || definition.kind === "parameter")
         .map((definition) => {
             const name = definitionNameToString(definition);

@@ -109,6 +109,9 @@ class JsoniqAstBuilder extends JsoniqParserVisitor<AstVisitResult> {
     public override visitGroupByClause = (node: ctx.GroupByClauseContext): AstVisitResult =>
         this.common.visitGroupByClause(node);
 
+    public override visitQuantifiedExpr = (node: ctx.QuantifiedExprContext): AstVisitResult =>
+        this.common.visitQuantifiedExpr(node);
+
     public override visitQuantifiedExprVar = (node: ctx.QuantifiedExprVarContext): AstVisitResult =>
         this.common.visitQuantifiedExprVar(node);
 

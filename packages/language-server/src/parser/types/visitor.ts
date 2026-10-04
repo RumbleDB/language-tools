@@ -7,6 +7,7 @@ import type {
     ContextItemDeclarationAstNode,
     ContextItemExpressionAstNode,
     FlowrExpressionAstNode,
+    QuantifiedExpressionAstNode,
     FunctionCallAstNode,
     FunctionDeclarationAstNode,
     ModuleAstNode,
@@ -49,6 +50,8 @@ export abstract class ParserAstVisitor<R = void> {
                 return this.visitVariableDeclaration(node);
             case "flowr-expression":
                 return this.visitFlowrExpression(node);
+            case "quantified-expression":
+                return this.visitQuantifiedExpression(node);
             case "catch-clause":
                 return this.visitCatchClause(node);
             case "catch-error-target":
@@ -124,6 +127,10 @@ export abstract class ParserAstVisitor<R = void> {
     }
 
     protected visitFlowrExpression(node: FlowrExpressionAstNode): R {
+        return this.defaultVisit(node);
+    }
+
+    protected visitQuantifiedExpression(node: QuantifiedExpressionAstNode): R {
         return this.defaultVisit(node);
     }
 

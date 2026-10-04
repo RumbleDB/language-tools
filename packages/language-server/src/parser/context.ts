@@ -84,6 +84,7 @@ export type PrologContext = jsoniq.PrologContext | xquery.PrologContext;
 export type QuantifiedExprVarContext =
     | jsoniq.QuantifiedExprVarContext
     | xquery.QuantifiedExprVarContext;
+export type QuantifiedExprContext = jsoniq.QuantifiedExprContext | xquery.QuantifiedExprContext;
 export type SchemaImportContext = jsoniq.SchemaImportContext | xquery.SchemaImportContext;
 export type SequenceTypeContext = jsoniq.SequenceTypeContext | xquery.SequenceTypeContext;
 export type SlidingWindowClauseContext =

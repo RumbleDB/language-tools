@@ -351,6 +351,14 @@ export class CommonAstBuilder {
         ]);
     }
 
+    public visitQuantifiedExpr = (node: ctx.QuantifiedExprContext): AstVisitResult => [
+        {
+            kind: "quantified-expression",
+            range: rangeFromNode(node, this.document),
+            children: this.traversal.visitChildren(node),
+        },
+    ];
+
     public visitQuantifiedExprVar = (node: ctx.QuantifiedExprVarContext): AstVisitResult => {
         const expression = node.exprSingle();
         return this.declarationsBeforeChildren(node, [

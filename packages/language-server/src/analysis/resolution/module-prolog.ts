@@ -2,6 +2,7 @@ import type {
     AstNode as ParserAstNode,
     CatchClauseAstNode,
     FlowrExpressionAstNode,
+    QuantifiedExpressionAstNode,
     FunctionDeclarationAstNode,
     ModuleDeclarationAstNode,
     ModuleImportAstNode,
@@ -248,6 +249,7 @@ class ModulePrologCollector extends ParserAstVisitor<void> {
     // Do not descend into expressions (such as FLWOR let/for bindings or catch clauses)
     // to prevent local variables from being indexed as module prolog declarations.
     protected override visitFlowrExpression(_node: FlowrExpressionAstNode): void {}
+    protected override visitQuantifiedExpression(_node: QuantifiedExpressionAstNode): void {}
     protected override visitCatchClause(_node: CatchClauseAstNode): void {}
 
     private bindNamespace(
