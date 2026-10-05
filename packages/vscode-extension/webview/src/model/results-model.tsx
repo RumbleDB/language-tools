@@ -74,7 +74,7 @@ export function createResultsModel(items: Accessor<RunQueryItem[]>): ResultsMode
     const tableColumns = createMemo<ColumnDef<TFeatures, TData>[]>(() => {
         if (items().length === 0) return [];
         const data = tableData();
-        const indexSize = Math.max(36, String(data.length).length * 8 + 24);
+        const indexSize = Math.max(48, String(data.length).length * 8 + 32);
         const indexColumn = {
             ...INDEX_COLUMN,
             size: indexSize,

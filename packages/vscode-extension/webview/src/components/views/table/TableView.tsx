@@ -50,7 +50,7 @@ export function TableView(props: TableViewProps) {
                                                 onClick={header.column.getToggleSortingHandler()}
                                                 class={`sticky top-0 z-20 border-b border-r border-outline-variant py-1.5 text-2xs font-bold tracking-wider select-none last:border-r-0 ${
                                                     header.column.id === "__index"
-                                                        ? "bg-surface-container text-secondary/70 text-right px-2"
+                                                        ? "bg-surface-container text-secondary/70 text-right px-3"
                                                         : "bg-surface-container text-on-container px-2"
                                                 } ${
                                                     header.column.getCanSort()
@@ -124,7 +124,7 @@ export function TableView(props: TableViewProps) {
                                                 <td
                                                     class={`border-b border-r border-row-divider py-1.5 align-top last:border-r-0 ${
                                                         cell.column.id === "__index"
-                                                            ? "text-secondary text-right whitespace-nowrap px-2"
+                                                            ? "text-secondary text-right whitespace-nowrap px-3"
                                                             : "text-on-surface break-words overflow-wrap-anywhere px-2"
                                                     }`}
                                                 >

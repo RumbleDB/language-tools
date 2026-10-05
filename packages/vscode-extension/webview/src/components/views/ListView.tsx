@@ -48,7 +48,7 @@ export function ListView(props: ListViewProps) {
                                 }}
                             >
                                 <span
-                                    class="text-xs leading-5 font-mono text-secondary tabular-nums text-right px-2"
+                                    class="text-xs leading-5 font-mono text-secondary tabular-nums text-right px-3"
                                     title="Sequence position"
                                 >
                                     {row.original.index + 1}
