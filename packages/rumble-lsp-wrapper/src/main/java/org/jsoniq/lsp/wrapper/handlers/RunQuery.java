@@ -23,8 +23,6 @@ import org.rumbledb.config.CompilationConfiguration;
 import org.rumbledb.config.RumbleConfiguration;
 import org.rumbledb.exceptions.ExceptionMetadata;
 import org.rumbledb.exceptions.RumbleException;
-import org.rumbledb.serialization.SerializationParameters;
-import org.rumbledb.serialization.Serializers;
 
 public final class RunQuery implements RequestHandler {
     public static final String REQUEST_TYPE = "run-query";
@@ -87,10 +85,7 @@ public final class RunQuery implements RequestHandler {
             result.open();
             try {
                 // Reuse within this query, including nested items; the XML encoder is mutable.
-                var parameters = SerializationParameters.defaults();
-                parameters.setMethod("adaptive");
-                parameters.setIndent(false);
-                var serializer = Serializers.from(parameters);
+                var serializer = new QueryResultSerializer();
                 while (result.hasNext()) {
                     Item item = result.next();
                     if (item != null) {
