@@ -1,5 +1,11 @@
 # jsoniq-language-server
 
+## 2.15.1
+
+### Patch Changes
+
+- [`239d275`](https://github.com/RumbleDB/language-tools/commit/239d27523c4a18cb2a21d8cf8d2d9ada81e4beed) - feat: upgrade RumbleDB to https://github.com/RumbleDB/rumble/commit/7f14c5f2efada2df58838edaf1c9891429d29a61 for a better JSON error message
+
 ## 2.15.0
 
 ### Minor Changes
