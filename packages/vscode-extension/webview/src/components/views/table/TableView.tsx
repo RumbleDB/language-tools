@@ -82,7 +82,7 @@ export function TableView(props: TableViewProps) {
                                                         onMouseDown={header.getResizeHandler()}
                                                         onTouchStart={header.getResizeHandler()}
                                                         onClick={(e) => e.stopPropagation()}
-                                                        class={`absolute right-0 top-0 h-full w-1.5 cursor-col-resize select-none touch-none hover:bg-resize/50 transition-colors ${
+                                                        class={`absolute right-0 top-0 h-full w-1.5 cursor-col-resize select-none touch-none hover:bg-resize/50 ${
                                                             header.column.getIsResizing()
                                                                 ? "bg-resize w-1 opacity-100"
                                                                 : "opacity-0 hover:opacity-100"
@@ -112,7 +112,7 @@ export function TableView(props: TableViewProps) {
                         >
                             <For each={props.table.getRowModel().rows}>
                                 {(row) => (
-                                    <tr class="hover:bg-row-hover transition-colors">
+                                    <tr class="hover:bg-row-hover">
                                         <For each={row.getAllCells()}>
                                             {(cell) => (
                                                 <td

@@ -68,7 +68,7 @@ export function ResultsHeader(props: ResultsHeaderProps) {
                                 <button
                                     onClick={() => props.onViewModeChange(item.mode)}
                                     aria-pressed={props.viewMode === item.mode}
-                                    class={`px-2 py-0.5 rounded-sm text-2xs font-medium flex items-center gap-1 cursor-pointer transition-colors ${
+                                    class={`px-2 py-0.5 rounded-sm text-2xs font-medium flex items-center gap-1 cursor-pointer ${
                                         props.viewMode === item.mode
                                             ? "bg-primary text-on-primary font-semibold"
                                             : "text-secondary hover:text-on-surface"

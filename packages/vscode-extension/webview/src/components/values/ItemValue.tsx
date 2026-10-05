@@ -107,7 +107,7 @@ export function ItemValue(props: ItemValueProps) {
                 </span>
                 <span
                     id={typeLabelId}
-                    class="shrink-0 max-w-[30%] mt-px px-[5px] rounded-[3px] bg-badge-bg text-badge-fg text-[10px] leading-[18px] truncate opacity-0 transition-opacity group-hover:opacity-100 group-hover:pointer-events-auto group-focus-within:opacity-100 group-focus-within:pointer-events-auto"
+                    class="shrink-0 max-w-[30%] mt-px px-[5px] rounded-[3px] bg-badge-bg text-badge-fg text-[10px] leading-[18px] truncate opacity-0 group-hover:opacity-100 group-hover:pointer-events-auto group-focus-within:opacity-100 group-focus-within:pointer-events-auto"
                 >
                     {props.item.type.displayName}
                 </span>

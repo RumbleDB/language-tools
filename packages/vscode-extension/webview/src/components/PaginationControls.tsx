@@ -51,7 +51,7 @@ export function PaginationControls(props: PaginationControlsProps) {
                     title="First page"
                     onClick={() => props.onPageChange(0)}
                     disabled={!props.canPreviousPage}
-                    class="p-1 hover:bg-action-hover rounded transition-colors disabled:opacity-30 cursor-pointer flex items-center justify-center text-on-surface"
+                    class="p-1 hover:bg-action-hover rounded disabled:opacity-30 cursor-pointer flex items-center justify-center text-on-surface"
                 >
                     <span class="i-iconoir-fast-arrow-left text-sm" />
                 </button>
@@ -61,7 +61,7 @@ export function PaginationControls(props: PaginationControlsProps) {
                     title="Previous page"
                     onClick={props.onPreviousPage}
                     disabled={!props.canPreviousPage}
-                    class="p-1 hover:bg-action-hover rounded transition-colors disabled:opacity-30 cursor-pointer flex items-center justify-center text-on-surface"
+                    class="p-1 hover:bg-action-hover rounded disabled:opacity-30 cursor-pointer flex items-center justify-center text-on-surface"
                 >
                     <span class="i-iconoir-nav-arrow-left text-sm" />
                 </button>
@@ -78,7 +78,7 @@ export function PaginationControls(props: PaginationControlsProps) {
                         onBlur={commitPage}
                         onKeyDown={handleKeyDown}
                         disabled={totalPages() <= 1}
-                        class="w-11 px-1 py-0.5 text-center font-mono text-xs bg-input-bg border border-input-border rounded text-input-fg focus:border-focus focus:ring-1 focus:ring-focus outline-none transition-colors disabled:opacity-50"
+                        class="w-11 px-1 py-0.5 text-center font-mono text-xs bg-input-bg border border-input-border rounded text-input-fg focus:border-focus focus:ring-1 focus:ring-focus outline-none disabled:opacity-50"
                     />
                     <span>of {totalPages()}</span>
                 </div>
@@ -88,7 +88,7 @@ export function PaginationControls(props: PaginationControlsProps) {
                     title="Next page"
                     onClick={props.onNextPage}
                     disabled={!props.canNextPage}
-                    class="p-1 hover:bg-action-hover rounded transition-colors disabled:opacity-30 cursor-pointer flex items-center justify-center text-on-surface"
+                    class="p-1 hover:bg-action-hover rounded disabled:opacity-30 cursor-pointer flex items-center justify-center text-on-surface"
                 >
                     <span class="i-iconoir-nav-arrow-right text-sm" />
                 </button>
@@ -98,7 +98,7 @@ export function PaginationControls(props: PaginationControlsProps) {
                     title="Last page"
                     onClick={() => props.onPageChange(totalPages() - 1)}
                     disabled={!props.canNextPage}
-                    class="p-1 hover:bg-action-hover rounded transition-colors disabled:opacity-30 cursor-pointer flex items-center justify-center text-on-surface"
+                    class="p-1 hover:bg-action-hover rounded disabled:opacity-30 cursor-pointer flex items-center justify-center text-on-surface"
                 >
                     <span class="i-iconoir-fast-arrow-right text-sm" />
                 </button>

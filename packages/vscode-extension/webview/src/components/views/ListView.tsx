@@ -40,7 +40,7 @@ export function ListView(props: ListViewProps) {
                     <For each={props.rows}>
                         {(row) => (
                             <li
-                                class="grid items-start gap-2 pr-2 py-1.5 hover:bg-row-hover transition-colors"
+                                class="grid items-start gap-2 pr-2 py-1.5 hover:bg-row-hover"
                                 style={{
                                     "grid-template-columns": `${props.indexColumnWidth}px minmax(0, 1fr)`,
                                 }}
