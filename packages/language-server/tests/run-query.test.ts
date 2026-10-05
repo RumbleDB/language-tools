@@ -167,6 +167,24 @@ describe("run query service", () => {
         expect(result).toEqual({ items: null, error });
     });
 
+    it("preserves an external JSON resource URI and EOF range", async () => {
+        const error = {
+            message: "fn:json-doc: JSON input at line 2, column 1: Unexpected end of input",
+            code: "FOJS0001",
+            location: "file:///data/incomplete.json",
+            range: { start: { line: 1, character: 0 }, end: { line: 1, character: 0 } },
+        };
+        const wrapper = createMockWrapperClient({
+            sendRequest: vi.fn().mockResolvedValue({ body: { items: null, error } }),
+        });
+        const result = await runQueryFromSource(
+            "file:///query.jq",
+            "json-doc('data/incomplete.json')",
+            wrapper,
+        );
+        expect(result.error).toEqual(error);
+    });
+
     it("rejects a missing URI even when source is provided", async () => {
         const wrapper = createMockWrapperClient({ sendRequest: vi.fn() });
         // Exercise malformed input from a client that bypasses the TypeScript contract.

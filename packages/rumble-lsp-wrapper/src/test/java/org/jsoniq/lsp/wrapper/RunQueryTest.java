@@ -236,6 +236,41 @@ class RunQueryTest {
     }
 
     @Test
+    void jsonDocDuplicateKeyErrorUsesResourceUriAndKeyRange(@TempDir Path directory) throws Exception {
+        var file = directory.resolve("duplicates.json");
+        Files.writeString(file, "{\r\n  \"a\":1,\r\n  \"\\u0061\":2\r\n}");
+        RunQuery.Result result = this.runQuery.run(
+                "json-doc('duplicates.json', {\"duplicates\":\"reject\"})",
+                directory.resolve("query.jq").toUri());
+        assertNull(result.items());
+        assertEquals("FOJS0003", result.error().code());
+        assertEquals(
+                directory.toUri().resolve("duplicates.json").toString(),
+                result.error().location());
+        assertEquals(
+                new Range(new Position(2, 2), new Position(2, 10)),
+                result.error().range());
+        assertProperties(json(result).path("error"), "message", "code", "location", "range");
+    }
+
+    @Test
+    void jsonDocEofUsesResolvedResourceUriAndEmptyRange(@TempDir Path directory) throws Exception {
+        var file = directory.resolve("incomplete.json");
+        Files.writeString(file, "[\r\n");
+        RunQuery.Result result = this.runQuery.run(
+                "json-doc('incomplete.json')", directory.resolve("query.jq").toUri());
+        assertNull(result.items());
+        assertEquals("FOJS0001", result.error().code());
+        assertEquals(
+                directory.toUri().resolve("incomplete.json").toString(),
+                result.error().location());
+        assertEquals(
+                new Range(new Position(1, 0), new Position(1, 0)),
+                result.error().range());
+        assertProperties(json(result).path("error"), "message", "code", "location", "range");
+    }
+
+    @Test
     void emptyQueryReturnsEmptyResult() {
         RunQuery.Result result = this.runQuery.run("", DOCUMENT_URI);
         assertNotNull(result.items());
