@@ -595,6 +595,20 @@ export class CommonAstBuilder {
             : [];
     };
 
+    public visitItemType = (node: ctx.ItemTypeContext): AstVisitResult => {
+        const name = node.eqName();
+        if (name === null) return this.traversal.visitChildren(node);
+
+        return [
+            {
+                kind: "type-reference",
+                name: parseQNameText(name.getText()),
+                range: rangeFromNode(name, this.document),
+                children: [],
+            },
+        ];
+    };
+
     private buildCatchClause(
         node: ctx.CatchCaseStatementContext | ctx.CatchClauseContext,
         bodyStart: TerminalNode | null | undefined,

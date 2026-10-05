@@ -166,24 +166,8 @@ class JsoniqAstBuilder extends JsoniqParserVisitor<AstVisitResult> {
     public override visitArgumentList = (node: ctx.ArgumentListContext): AstVisitResult =>
         this.common.visitArgumentList(node);
 
-    public override visitSequenceType = (node: ctx.SequenceTypeContext): AstVisitResult => {
-        /// The grammar rule of sequenceType between JSONiq and XQuery is slightly different
-        const item = node.itemType();
-        const name = item?.eqName();
-
-        if (name === null || name === undefined) {
-            return this.visitChildren(node) ?? [];
-        }
-
-        return [
-            {
-                kind: "type-reference",
-                name: parseQNameText(name.getText()),
-                children: this.visitChildren(node) ?? [],
-                range: rangeFromNode(node, this.document),
-            },
-        ];
-    };
+    public override visitItemType = (node: ctx.ItemTypeContext): AstVisitResult =>
+        this.common.visitItemType(node);
 }
 
 export function buildJsoniqAst(

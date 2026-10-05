@@ -1,7 +1,5 @@
 import { CommonAstBuilder, type AstVisitResult } from "server/parser/shared/ast.js";
 import type { ModuleAstNode } from "server/parser/types/ast.js";
-import { parseQNameText } from "server/parser/types/name.js";
-import { rangeFromNode } from "server/utils/range.js";
 import type { TextDocument } from "vscode-languageserver-textdocument";
 
 import type * as ctx from "./grammar/XQueryParser.js";
@@ -10,7 +8,7 @@ import { XQueryParserVisitor } from "./grammar/XQueryParserVisitor.js";
 class XQueryAstBuilder extends XQueryParserVisitor<AstVisitResult> {
     private readonly common: CommonAstBuilder;
 
-    public constructor(private readonly document: TextDocument) {
+    public constructor(document: TextDocument) {
         super();
         this.common = new CommonAstBuilder(document, {
             visit: (node) => (node == null ? [] : (this.visit(node) ?? [])),
@@ -148,18 +146,8 @@ class XQueryAstBuilder extends XQueryParserVisitor<AstVisitResult> {
     public override visitArgumentList = (node: ctx.ArgumentListContext): AstVisitResult =>
         this.common.visitArgumentList(node);
 
-    public override visitItemType = (node: ctx.ItemTypeContext): AstVisitResult => {
-        const name = node.eqName();
-        if (name === null) return this.visitChildren(node) ?? [];
-        return [
-            {
-                kind: "type-reference",
-                name: parseQNameText(name.getText()),
-                range: rangeFromNode(name, this.document),
-                children: [],
-            },
-        ];
-    };
+    public override visitItemType = (node: ctx.ItemTypeContext): AstVisitResult =>
+        this.common.visitItemType(node);
 }
 
 export function buildXQueryAst(

@@ -56,6 +56,7 @@ export type IfStatementContext = jsoniq.IfStatementContext | xquery.IfStatementC
 export type InlineFunctionExprContext =
     | jsoniq.InlineFunctionExprContext
     | xquery.InlineFunctionExprContext;
+export type ItemTypeContext = jsoniq.ItemTypeContext | xquery.ItemTypeContext;
 export type LetClauseContext = jsoniq.LetClauseContext | xquery.LetClauseContext;
 export type LetVarContext = jsoniq.LetVarContext | xquery.LetVarContext;
 export type LibraryModuleContext = jsoniq.LibraryModuleContext | xquery.LibraryModuleContext;
