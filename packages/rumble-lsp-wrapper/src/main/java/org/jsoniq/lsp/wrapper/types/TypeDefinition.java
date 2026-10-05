@@ -30,9 +30,9 @@ public sealed interface TypeDefinition {
         return name() == null ? null : name().expandedName();
     }
 
+    /** Preserve engine display notation, including prefixes retained on schema types. */
     static TypeDefinition fromItemType(ItemType itemType) {
         ResolvedQName name = itemType.hasName() ? ResolvedQName.fromName(itemType.getName()) : null;
-        // Keep the engine's display text, including types whose structure we do not yet model.
         String displayName = itemType.toString();
         // Named unions retain their public alias (for example xs:numeric).
         if (itemType.isUnionType() && name == null) {

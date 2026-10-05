@@ -383,6 +383,8 @@ class RunQueryTest {
         assertNull(result.error());
         assertEquals("\"editor value\"", result.items().get(0).serialized());
         assertEquals("Q{urn:test}Code", result.items().get(0).type().qname());
+        assertEquals("t:Code", result.items().get(0).type().displayName());
+        assertEquals("t", result.items().get(0).type().name().prefix());
     }
 
     @Test
