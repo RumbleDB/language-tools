@@ -79,17 +79,14 @@ test("object projection preserves literal field names and does not inherit missi
     }
 });
 
-test("presentation uses backend types, not string contents", async () => {
-    const { itemTone, itemPreview, isExpandable } =
-        await import("../src/utils/item-presentation.ts");
+test("presentation preserves backend serialization and expansion behavior", async () => {
+    const { itemPreview, isExpandable } = await import("../src/utils/item-presentation.ts");
     const number = {
         ...atomic("xs:integer", "9007199254740993"),
     };
     const string = {
         ...atomic("xs:string", '"9007199254740993"'),
     };
-    assert.equal(itemTone(number), "number");
-    assert.equal(itemTone(string), "string");
     assert.equal(itemPreview(number), "9007199254740993");
     assert.equal(itemPreview(string), '"9007199254740993"');
     const xmlString = { ...atomic("xs:string", '"<book/>"') };
@@ -102,11 +99,6 @@ test("presentation uses backend types, not string contents", async () => {
             serialized: "<book/>",
         }),
         true,
-    );
-    // A custom QName that happens to end in 'integer' is not a built-in integer type.
-    assert.equal(
-        itemTone({ ...number, type: { ...number.type, qname: "Q{urn:custom}integer" } }),
-        "value",
     );
 });
 
@@ -152,7 +144,7 @@ test("atomic previews and compact map keys preserve backend syntax", async () =>
     ];
     for (const value of values) {
         assert.equal(itemPreview(value), value.serialized);
-        assert.equal(itemPreview(value, false), value.serialized);
+        assert.equal(formatRawOutput([value]), value.serialized);
     }
     assert.equal(
         itemPreview({
@@ -166,8 +158,7 @@ test("atomic previews and compact map keys preserve backend syntax", async () =>
 });
 
 test("long strings remain complete when copied, and string-derived types retain quotes", async () => {
-    const { itemPreview, isExpandable, itemTone } =
-        await import("../src/utils/item-presentation.ts");
+    const { itemPreview, isExpandable } = await import("../src/utils/item-presentation.ts");
     const value = "x".repeat(500);
     const item = { ...atomic("xs:string", JSON.stringify(value)) };
     // Atomic disclosure depends on measured clipping, not a character count.
@@ -177,7 +168,6 @@ test("long strings remain complete when copied, and string-derived types retain 
     const token = {
         ...atomic("xs:token", '"42"'),
     };
-    assert.equal(itemTone(token), "string");
     assert.equal(itemPreview(token), '"42"');
 });
 
@@ -228,7 +218,7 @@ test("object previews show fields and maps retain typed keys and sequence values
     );
 });
 
-test("full previews use backend serialization without changing quoting, whitespace, or types", async () => {
+test("raw exports use backend serialization without changing quoting, whitespace, or types", async () => {
     const { itemPreview } = await import("../src/utils/item-presentation.ts");
     const serialized =
         'map{"a": "say ""hello""", "b": <p>first\n    second</p>, "c": [(), (1, 2)], "d": 9007199254740993}';
@@ -240,25 +230,21 @@ test("full previews use backend serialization without changing quoting, whitespa
             { key: key("a"), value: [{ ...key('say "hello"'), serialized: '"say ""hello"""' }] },
         ],
     };
-    assert.equal(itemPreview(item, false), serialized);
+    assert.equal(formatRawOutput([item]), serialized);
     assert.equal(itemPreview(item), 'map{"a": "say ""hello"""}');
-    assert.equal(itemPreview(item.entries[0].value[0], false), '"say ""hello"""');
+    assert.equal(formatRawOutput([item.entries[0].value[0]]), '"say ""hello"""');
     assert.equal(
-        itemPreview(
-            { kind: "node", type: type("text()"), nodeKind: "text", serialized: "" },
-            false,
-        ),
+        formatRawOutput([{ kind: "node", type: type("text()"), nodeKind: "text", serialized: "" }]),
         "",
     );
     assert.equal(
-        itemPreview(
+        formatRawOutput([
             {
                 kind: "atomic",
                 type: type("xs:date"),
                 serialized: 'xs:date("2026-10-03")',
             },
-            false,
-        ),
+        ]),
         'xs:date("2026-10-03")',
     );
 });
@@ -284,7 +270,7 @@ test("preview character limits preserve emoji and combining-character boundaries
         fields: [{ name: "value", value: [key(text)] }],
     };
     assert.equal(itemPreview(item), `{"value": "${"a".repeat(38)}…}`);
-    assert.equal(itemPreview(item, false), `{"value": "${text}"}`);
+    assert.equal(formatRawOutput([item]), `{"value": "${text}"}`);
     assert.equal(formatRawOutput([key(text)]), JSON.stringify(text));
     const node = {
         kind: "node",

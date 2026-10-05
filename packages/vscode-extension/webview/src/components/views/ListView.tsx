@@ -51,7 +51,7 @@ export function ListView(props: ListViewProps) {
                                 >
                                     {row.original.index + 1}
                                 </span>
-                                <ItemValue item={row.original.item} clampPreview />
+                                <ItemValue item={row.original.item} />
                             </li>
                         )}
                     </For>

@@ -43,25 +43,17 @@ body {
     background-color: var(--vscode-scrollbarSlider-hoverBackground, rgba(100, 100, 100, 0.7));
 }
 
-/* Tag highlighting for XmlSource */
-.xml-tag {
-    color: var(--vscode-debugTokenExpression-name, var(--vscode-editor-foreground));
-}
-
-/* Typed value colors come from backend metadata, including in table cells. */
-.result-value-number {
-    color: var(--vscode-debugTokenExpression-number, var(--vscode-editor-foreground));
-}
-.result-value-string {
-    color: var(--vscode-debugTokenExpression-string, var(--vscode-editor-foreground));
-}
-.result-value-boolean {
-    color: var(--vscode-debugTokenExpression-boolean, var(--vscode-editor-foreground));
-}
+/* Structural preview colors complement Shiki tokens in both list and table views. */
 .result-value-null {
     color: var(--vscode-descriptionForeground);
     font-style: italic;
 }
 .result-value-value {
     color: var(--vscode-debugTokenExpression-value, var(--vscode-editor-foreground));
+}
+.result-value-key {
+    color: var(--vscode-debugTokenExpression-name, var(--vscode-editor-foreground));
+}
+.result-value-punctuation {
+    color: var(--vscode-editor-foreground);
 }

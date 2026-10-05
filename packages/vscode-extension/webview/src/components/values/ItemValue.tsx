@@ -11,15 +11,15 @@ import {
 
 import type { RunQueryItem } from "@/types.js";
 import { createCopyAction } from "@/utils/clipboard.js";
-import { isExpandable, itemPreview, itemTone } from "@/utils/item-presentation.js";
+import { isExpandable, itemPreviewParts } from "@/utils/item-presentation.js";
 
-import { XmlSource } from "./XmlSource.js";
+import { ItemPreview } from "./ItemPreview.js";
+import { SourceTokens } from "./SourceTokens.js";
 
 interface ItemValueProps {
     item: RunQueryItem;
     copyable?: boolean;
     reserveArrowSpace?: boolean;
-    clampPreview?: boolean;
 }
 
 export function ItemValue(props: ItemValueProps) {
@@ -27,8 +27,16 @@ export function ItemValue(props: ItemValueProps) {
     const { copy, copied } = createCopyAction();
     let previewElement!: HTMLSpanElement;
     const [previewClipped, setPreviewClipped] = createSignal(false);
-    const preview = createMemo(() => itemPreview(props.item, !props.clampPreview));
-    const expandable = createMemo(() => isExpandable(props.item) || previewClipped());
+    const parts = createMemo(() => itemPreviewParts(props.item));
+    const preview = createMemo(() =>
+        parts()
+            .map((part) => part.content)
+            .join(""),
+    );
+    const expandable = createMemo(
+        () =>
+            isExpandable(props.item) || parts().some((part) => part.truncated) || previewClipped(),
+    );
 
     // A short value can still need expansion when the panel or a nested field is narrow.
     const measurePreview = () => {
@@ -41,7 +49,7 @@ export function ItemValue(props: ItemValueProps) {
             );
         }
     };
-    createEffect(on([preview, () => props.clampPreview], () => queueMicrotask(measurePreview)));
+    createEffect(on(preview, () => queueMicrotask(measurePreview)));
     onMount(() => {
         let measurementFrame: number | undefined;
         const observer = new ResizeObserver(() => {
@@ -57,7 +65,6 @@ export function ItemValue(props: ItemValueProps) {
             if (measurementFrame !== undefined) cancelAnimationFrame(measurementFrame);
         });
     });
-    const tone = () => `result-value-${itemTone(props.item)}`;
 
     return (
         <div class="min-w-0 w-full">
@@ -90,10 +97,10 @@ export function ItemValue(props: ItemValueProps) {
                     ref={(element) => {
                         previewElement = element;
                     }}
-                    class={`font-mono text-xs leading-5 flex-1 min-w-0 break-words line-clamp-2 ${tone()}`}
+                    class={`font-mono text-xs leading-5 flex-1 min-w-0 break-words line-clamp-2 result-value-value`}
                     title={props.item.type.displayName}
                 >
-                    {preview()}
+                    <ItemPreview parts={parts()} />
                 </span>
                 <Show when={props.copyable !== false}>
                     <button
@@ -128,7 +135,7 @@ export function ItemValue(props: ItemValueProps) {
                             <For each={item().fields}>
                                 {(field) => (
                                     <div class="flex items-start gap-2 min-w-0">
-                                        <div class="font-mono text-xs leading-5 shrink-0 max-w-[40%] result-value-string break-words">
+                                        <div class="font-mono text-xs leading-5 shrink-0 max-w-[40%] result-value-key break-words">
                                             {JSON.stringify(field.name)}:
                                         </div>
                                         <div class="flex-1 min-w-0">
@@ -136,7 +143,6 @@ export function ItemValue(props: ItemValueProps) {
                                                 items={field.value}
                                                 copyable={props.copyable}
                                                 reserveArrowSpace={false}
-                                                clampPreview={props.clampPreview}
                                             />
                                         </div>
                                     </div>
@@ -150,17 +156,16 @@ export function ItemValue(props: ItemValueProps) {
                                 {(entry) => (
                                     <div class="flex items-start gap-2 min-w-0">
                                         <div
-                                            class={`font-mono text-xs leading-5 shrink-0 max-w-[40%] result-value-${itemTone(entry.key)} break-words`}
+                                            class="font-mono text-xs leading-5 shrink-0 max-w-[40%] result-value-value break-words"
                                             title={entry.key.type.displayName}
                                         >
-                                            {itemPreview(entry.key)}:
+                                            <SourceTokens source={entry.key.serialized} />:
                                         </div>
                                         <div class="flex-1 min-w-0">
                                             <SequenceValue
                                                 items={entry.value}
                                                 copyable={props.copyable}
                                                 reserveArrowSpace={false}
-                                                clampPreview={props.clampPreview}
                                             />
                                         </div>
                                     </div>
@@ -176,42 +181,31 @@ export function ItemValue(props: ItemValueProps) {
                                         <span class="font-mono text-2xs leading-5 text-secondary shrink-0">
                                             [{index() + 1}]
                                         </span>
-                                        <SequenceValue
-                                            items={member}
-                                            copyable={props.copyable}
-                                            clampPreview={props.clampPreview}
-                                        />
+                                        <SequenceValue items={member} copyable={props.copyable} />
                                     </div>
                                 )}
                             </For>
                         )}
                     </Show>
-                    <Show when={props.item.kind === "function" && props.item}>
-                        {(item) => (
-                            <pre class="text-xs font-mono whitespace-pre-wrap break-words text-on-surface">
-                                {item().signature}
-                            </pre>
-                        )}
-                    </Show>
                     <Show
                         when={
-                            props.item.kind === "atomic" ||
-                            props.item.kind === "null" ||
-                            props.item.kind === "node"
+                            props.item.kind !== "object" &&
+                            props.item.kind !== "map" &&
+                            props.item.kind !== "array"
                         }
                     >
-                        <Show
-                            when={props.item.kind === "node"}
-                            fallback={
-                                <pre
-                                    class={`text-xs font-mono whitespace-pre-wrap break-words ${tone()}`}
-                                >
-                                    {props.item.serialized}
-                                </pre>
-                            }
+                        <pre
+                            class={`text-xs font-mono whitespace-pre-wrap break-words result-value-value`}
                         >
-                            <XmlSource source={props.item.serialized} />
-                        </Show>
+                            <SourceTokens
+                                language={props.item.kind === "node" ? "xml" : "xquery"}
+                                source={
+                                    props.item.kind === "function"
+                                        ? props.item.signature
+                                        : props.item.serialized
+                                }
+                            />
+                        </pre>
                     </Show>
                 </div>
             </Show>
@@ -224,7 +218,6 @@ export function SequenceValue(props: {
     items: RunQueryItem[] | undefined;
     copyable?: boolean;
     reserveArrowSpace?: boolean;
-    clampPreview?: boolean;
 }) {
     return (
         <Show
@@ -242,7 +235,7 @@ export function SequenceValue(props: {
                 when={props.items!.length > 0}
                 fallback={
                     <span
-                        class="text-secondary/50 italic font-mono text-xs leading-5"
+                        class="result-value-null font-mono text-xs leading-5"
                         title="Empty sequence"
                     >
                         ()
@@ -267,7 +260,6 @@ export function SequenceValue(props: {
                                     item={item}
                                     copyable={props.copyable}
                                     reserveArrowSpace={props.reserveArrowSpace}
-                                    clampPreview={props.clampPreview}
                                 />
                             </div>
                         )}
