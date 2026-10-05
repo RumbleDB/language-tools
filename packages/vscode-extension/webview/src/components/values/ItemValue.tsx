@@ -2,6 +2,7 @@ import {
     createEffect,
     createMemo,
     createSignal,
+    createUniqueId,
     For,
     on,
     onCleanup,
@@ -24,6 +25,7 @@ interface ItemValueProps {
 
 export function ItemValue(props: ItemValueProps) {
     const [expanded, setExpanded] = createSignal(false);
+    const typeLabelId = createUniqueId();
     const { copy, copied } = createCopyAction();
     let previewElement!: HTMLSpanElement;
     const [previewClipped, setPreviewClipped] = createSignal(false);
@@ -98,9 +100,16 @@ export function ItemValue(props: ItemValueProps) {
                         previewElement = element;
                     }}
                     class={`font-mono text-xs leading-5 flex-1 min-w-0 break-words line-clamp-2 result-value-value`}
-                    title={props.item.type.displayName}
+                    tabIndex={0}
+                    aria-describedby={typeLabelId}
                 >
                     <ItemPreview parts={parts()} />
+                </span>
+                <span
+                    id={typeLabelId}
+                    class="shrink-0 max-w-[30%] mt-px px-[5px] rounded-[3px] bg-badge-bg text-badge-fg text-[10px] leading-[18px] truncate opacity-0 transition-opacity group-hover:opacity-100 group-hover:pointer-events-auto group-focus-within:opacity-100 group-focus-within:pointer-events-auto"
+                >
+                    {props.item.type.displayName}
                 </span>
                 <Show when={props.copyable !== false}>
                     <button
@@ -118,18 +127,6 @@ export function ItemValue(props: ItemValueProps) {
             </div>
             <Show when={expanded()}>
                 <div class="ml-2 pl-3 mt-2 border-l border-outline-variant space-y-2">
-                    <Show when={props.item.kind !== "function"}>
-                        <div
-                            class="text-2xs text-secondary break-words"
-                            title={props.item.type.qname}
-                        >
-                            {props.item.kind === "node" &&
-                            props.item.nodeKind !== props.item.type.displayName
-                                ? `${props.item.nodeKind} · `
-                                : ""}
-                            {props.item.type.displayName}
-                        </div>
-                    </Show>
                     <Show when={props.item.kind === "object" && props.item}>
                         {(item) => (
                             <For each={item().fields}>

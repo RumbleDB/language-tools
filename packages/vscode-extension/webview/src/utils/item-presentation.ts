@@ -115,7 +115,6 @@ function typedPreview(item: RunQueryItem, depth: number, limit: number): Preview
     if (item.kind !== "object" && item.kind !== "map" && item.kind !== "array") {
         const attributes: Omit<PreviewPart, "content"> = {
             tone: item.kind === "null" ? "null" : "value",
-            title: item.type.displayName,
             language: item.kind === "node" ? "xml" : "xquery",
         };
         // Bound work before collapsing multiline text in nested summaries.
