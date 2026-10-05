@@ -1,10 +1,8 @@
 import {
-    definitionNameToString,
     findSymbolAtPosition,
     formatSequenceType,
-    QNameToString,
-    type Definition,
-    type SequenceType,
+    type BuiltinFunctionDefinition,
+    type SchemaConstructorDefinition,
 } from "server/analysis/index.js";
 import { getTypeAtPosition } from "server/integrations/rumble/operations/type-at-position/service.js";
 import {
@@ -17,10 +15,36 @@ import type { HoverProvider } from "../types.js";
 
 export const provideSemanticHover: HoverProvider = async (context) => {
     const occurrence = findSymbolAtPosition(await context.getAnalysis(), context.position);
-    const type = await getTypeAtPosition(context.document, context.position, context.wrapper);
 
-    const range = occurrence?.range ?? type?.range;
-    if (range === undefined) {
+    const declaration = occurrence?.declaration;
+    if (declaration?.kind === "type" || declaration?.kind === "namespace") {
+        // No symbol documentation yet;
+        return null;
+    }
+
+    if (
+        occurrence !== undefined &&
+        declaration?.kind === "function" &&
+        declaration.origin !== "source"
+    ) {
+        return {
+            range: occurrence.range,
+            contents: {
+                kind: MarkupKind.Markdown,
+                value: createFunctionHoverContent(
+                    declaration,
+                    context.document.getText(occurrence.range),
+                ),
+            },
+        };
+    }
+
+    const { range, sequenceType } = await getTypeAtPosition(
+        context.document,
+        context.position,
+        context.wrapper,
+    );
+    if (range === undefined || sequenceType === undefined) {
         return null;
     }
 
@@ -28,50 +52,34 @@ export const provideSemanticHover: HoverProvider = async (context) => {
         range,
         contents: {
             kind: MarkupKind.Markdown,
-            value: createHoverContent({
-                declaration: occurrence?.declaration,
-                codeSnippet: context.document.getText(range),
-                inferredType: type.sequenceType,
-                functionName:
-                    occurrence?.reference?.kind === "function"
-                        ? context.document.getText(occurrence.reference.range)
-                        : undefined,
-            }),
+            value: codeBlock(
+                `${context.document.getText(range)} as ${formatSequenceType(sequenceType)}`,
+            ),
         },
     };
 };
 
-interface HoverContentOptions {
-    declaration?: Definition | undefined;
-    codeSnippet?: string | undefined;
-    inferredType?: SequenceType | undefined;
-    functionName?: string | undefined;
-}
-
-function createHoverContent(options: HoverContentOptions): string {
-    const { declaration, codeSnippet, inferredType, functionName } = options;
-
-    if (declaration?.kind === "function" && declaration.origin !== "source") {
-        const doc =
-            declaration.origin === "builtin"
-                ? getBuiltinFunctionDocumentation(declaration.name.qname)
-                : undefined;
-        if (doc !== undefined) {
-            return formatFunctionDocEntry(doc, declaration.name.arity);
-        }
-        const parameters = declaration.signature.parameterTypes
-            .map((parameter) => formatSequenceType(parameter.type))
-            .join(", ");
-        // Catalog names are canonical; the reference retains the alias used in this query.
-        const name = functionName ?? QNameToString(declaration.name.qname, false);
-        const signature = `${name}(${parameters}) as ${formatSequenceType(declaration.signature.returnType)}`;
-        return ["```jsoniq", signature, "```"].join("\n");
+function createFunctionHoverContent(
+    declaration: BuiltinFunctionDefinition | SchemaConstructorDefinition,
+    name: string,
+): string {
+    const doc =
+        declaration.origin === "builtin"
+            ? getBuiltinFunctionDocumentation(declaration.name.qname)
+            : undefined;
+    if (doc !== undefined) {
+        return formatFunctionDocEntry(doc, declaration.name.arity);
     }
 
-    const code = declaration ? definitionNameToString(declaration) : codeSnippet;
-    const typeStr = inferredType ? formatSequenceType(inferredType) : undefined;
+    const parameters = declaration.signature.parameterTypes
+        .map((parameter) => formatSequenceType(parameter.type))
+        .join(", ");
 
-    return ["```jsoniq", code + (typeStr ? ` as ${typeStr}` : ""), "```"]
-        .filter(Boolean)
-        .join("\n");
+    return codeBlock(
+        `${name}(${parameters}) as ${formatSequenceType(declaration.signature.returnType)}`,
+    );
+}
+
+function codeBlock(code: string): string {
+    return `\`\`\`jsoniq\n${code}\n\`\`\``;
 }
