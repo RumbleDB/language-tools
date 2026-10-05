@@ -21,6 +21,7 @@ interface ItemValueProps {
     item: RunQueryItem;
     copyable?: boolean;
     reserveArrowSpace?: boolean;
+    onExpandabilityChange?: (id: string, required: boolean) => void;
 }
 
 export function ItemValue(props: ItemValueProps) {
@@ -39,6 +40,8 @@ export function ItemValue(props: ItemValueProps) {
         () =>
             isExpandable(props.item) || parts().some((part) => part.truncated) || previewClipped(),
     );
+    createEffect(() => props.onExpandabilityChange?.(typeLabelId, expandable() || expanded()));
+    onCleanup(() => props.onExpandabilityChange?.(typeLabelId, false));
 
     // A short value can still need expansion when the panel or a nested field is narrow.
     const measurePreview = () => {
@@ -215,6 +218,7 @@ export function SequenceValue(props: {
     items: RunQueryItem[] | undefined;
     copyable?: boolean;
     reserveArrowSpace?: boolean;
+    onExpandabilityChange?: (id: string, required: boolean) => void;
 }) {
     return (
         <Show
@@ -222,6 +226,7 @@ export function SequenceValue(props: {
             fallback={
                 <span
                     class="text-secondary/50 italic font-mono text-xs leading-5"
+                    classList={{ "pl-6": props.reserveArrowSpace !== false }}
                     title="Missing field"
                 >
                     —
@@ -233,6 +238,7 @@ export function SequenceValue(props: {
                 fallback={
                     <span
                         class="result-value-null font-mono text-xs leading-5"
+                        classList={{ "pl-6": props.reserveArrowSpace !== false }}
                         title="Empty sequence"
                     >
                         ()
@@ -257,6 +263,7 @@ export function SequenceValue(props: {
                                     item={item}
                                     copyable={props.copyable}
                                     reserveArrowSpace={props.reserveArrowSpace}
+                                    onExpandabilityChange={props.onExpandabilityChange}
                                 />
                             </div>
                         )}

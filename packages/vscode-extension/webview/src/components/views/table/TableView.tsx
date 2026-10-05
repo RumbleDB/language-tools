@@ -5,6 +5,7 @@ import type { ResultsTableInstance } from "@/model/types.js";
 
 interface TableViewProps {
     table: ResultsTableInstance;
+    reserveArrowSpace: (columnId: string) => boolean;
 }
 
 export function TableView(props: TableViewProps) {
@@ -59,6 +60,11 @@ export function TableView(props: TableViewProps) {
                                             >
                                                 <div
                                                     class={`flex items-center ${header.column.id === "__index" ? "justify-end text-xs tracking-normal" : "justify-between gap-1"}`}
+                                                    classList={{
+                                                        "pl-6": props.reserveArrowSpace(
+                                                            header.column.id,
+                                                        ),
+                                                    }}
                                                 >
                                                     <span>
                                                         <FlexRender header={header} />

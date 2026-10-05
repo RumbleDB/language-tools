@@ -5,12 +5,21 @@ import type { RunQueryItem } from "@/types.js";
 import { createCopyAction } from "@/utils/clipboard.js";
 import { formatCell } from "@/utils/result-items.js";
 
-export function CellValue(props: { items: RunQueryItem[] | undefined }) {
+export function CellValue(props: {
+    items: RunQueryItem[] | undefined;
+    reserveArrowSpace: boolean;
+    onExpandabilityChange: (id: string, required: boolean) => void;
+}) {
     const { copy, copied } = createCopyAction();
     return (
         <div class="group flex items-start gap-1 min-w-0">
             <div class="flex-1 min-w-0">
-                <SequenceValue items={props.items} copyable={false} reserveArrowSpace={false} />
+                <SequenceValue
+                    items={props.items}
+                    copyable={false}
+                    reserveArrowSpace={props.reserveArrowSpace}
+                    onExpandabilityChange={props.onExpandabilityChange}
+                />
             </div>
             <Show when={props.items !== undefined}>
                 <button

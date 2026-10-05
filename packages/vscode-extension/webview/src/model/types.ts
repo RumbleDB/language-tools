@@ -18,6 +18,8 @@ export type ResultsTableInstance = Table<TFeatures, TData>;
 
 export interface ResultsModel {
     table: ResultsTableInstance;
+    reserveArrowSpace: (groupId: string) => boolean;
+    onExpandabilityChange: (groupId: string, id: string, required: boolean) => void;
     pagination: ReturnType<typeof createPagination>;
     globalFilter: Accessor<string>;
     setGlobalFilter: (value: string) => void;

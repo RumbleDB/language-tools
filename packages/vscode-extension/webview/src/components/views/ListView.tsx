@@ -8,6 +8,8 @@ import type { ResultRowData } from "@/model/types.js";
 interface ListViewProps {
     rows: Row<TFeatures, ResultRowData>[];
     indexColumnWidth: number;
+    reserveArrowSpace: boolean;
+    onExpandabilityChange: (id: string, required: boolean) => void;
 }
 
 export function ListView(props: ListViewProps) {
@@ -51,7 +53,11 @@ export function ListView(props: ListViewProps) {
                                 >
                                     {row.original.index + 1}
                                 </span>
-                                <ItemValue item={row.original.item} />
+                                <ItemValue
+                                    item={row.original.item}
+                                    reserveArrowSpace={props.reserveArrowSpace}
+                                    onExpandabilityChange={props.onExpandabilityChange}
+                                />
                             </li>
                         )}
                     </For>

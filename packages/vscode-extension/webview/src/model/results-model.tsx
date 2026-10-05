@@ -39,6 +39,22 @@ function getContentWidth(rows: TData[], key: string, header = key): number {
 export function createResultsModel(items: Accessor<RunQueryItem[]>): ResultsModel {
     const [globalFilter, setGlobalFilter] = createSignal("");
     const [sorting, setSorting] = createSignal<SortingState>([]);
+    const expandableItems = new Map<string, Set<string>>();
+    const [columnNeedsArrowSpace, setColumnNeedsArrowSpace] = createSignal<Record<string, boolean>>(
+        {},
+    );
+    const reserveArrowSpace = (groupId: string) => columnNeedsArrowSpace()[groupId] === true;
+    const onExpandabilityChange = (groupId: string, id: string, required: boolean) => {
+        const items = expandableItems.get(groupId) ?? new Set<string>();
+        if (required) items.add(id);
+        else items.delete(id);
+        if (items.size > 0) expandableItems.set(groupId, items);
+        else expandableItems.delete(groupId);
+        const reserved = items.size > 0;
+        setColumnNeedsArrowSpace((columns) =>
+            columns[groupId] === reserved ? columns : { ...columns, [groupId]: reserved },
+        );
+    };
 
     const projection = createMemo(() => projectTableRows(items()));
     const columnKeys = () => projection().columns;
@@ -73,7 +89,15 @@ export function createResultsModel(items: Accessor<RunQueryItem[]>): ResultsMode
                     accessorFn: (row) => formatCell(row.cells[key]),
                     header: key,
                     size: getContentWidth(data, key),
-                    cell: (info) => <CellValue items={info.row.original.cells[key]} />,
+                    cell: (info) => (
+                        <CellValue
+                            items={info.row.original.cells[key]}
+                            reserveArrowSpace={reserveArrowSpace(info.column.id)}
+                            onExpandabilityChange={(id, required) =>
+                                onExpandabilityChange(info.column.id, id, required)
+                            }
+                        />
+                    ),
                 })),
             ];
         }
@@ -84,7 +108,15 @@ export function createResultsModel(items: Accessor<RunQueryItem[]>): ResultsMode
                 accessorFn: (row) => formatCell(row.cells.value),
                 header: "Value",
                 size: getContentWidth(data, "value", "Value"),
-                cell: (info) => <CellValue items={info.row.original.cells.value} />,
+                cell: (info) => (
+                    <CellValue
+                        items={info.row.original.cells.value}
+                        reserveArrowSpace={reserveArrowSpace(info.column.id)}
+                        onExpandabilityChange={(id, required) =>
+                            onExpandabilityChange(info.column.id, id, required)
+                        }
+                    />
+                ),
             },
         ];
     });
@@ -166,6 +198,8 @@ export function createResultsModel(items: Accessor<RunQueryItem[]>): ResultsMode
 
     return {
         table,
+        reserveArrowSpace,
+        onExpandabilityChange,
         pagination,
         globalFilter,
         setGlobalFilter,

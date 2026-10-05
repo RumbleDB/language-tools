@@ -98,6 +98,10 @@ export function App() {
                                     <Show when={viewMode() === "list"}>
                                         <ListView
                                             rows={results.table.getRowModel().rows}
+                                            reserveArrowSpace={results.reserveArrowSpace("list")}
+                                            onExpandabilityChange={(id, required) =>
+                                                results.onExpandabilityChange("list", id, required)
+                                            }
                                             indexColumnWidth={results.table
                                                 .getColumn("__index")!
                                                 .getSize()}
@@ -105,7 +109,10 @@ export function App() {
                                     </Show>
 
                                     <Show when={viewMode() === "table"}>
-                                        <TableView table={results.table} />
+                                        <TableView
+                                            table={results.table}
+                                            reserveArrowSpace={results.reserveArrowSpace}
+                                        />
                                     </Show>
 
                                     {/* Unified Pagination Controls */}
