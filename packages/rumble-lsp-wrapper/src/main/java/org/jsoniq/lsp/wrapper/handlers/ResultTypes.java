@@ -19,18 +19,19 @@ final class ResultTypes {
         return previous == null ? type : previous.findLeastCommonSuperTypeLax(type);
     }
 
-    /** Objects are described by their fields, since their dynamic type is just js:object. */
+    /**
+     * Objects are described by their fields, recursively for nested objects, since their dynamic type is just
+     * js:object.
+     */
     private static ItemType structuralType(Item item) {
         ItemType type = item.getDynamicType();
         if (!type.isObjectItemType()) {
             return type;
         }
-        // An object field holds exactly one item, so its value's dynamic type is the field's type.
+        // An object field holds exactly one item, so its value's structural type is the field's type.
         List<Item> keys = item.getItemKeys();
         return ItemTypeFactory.createAnonymousObjectType(
                 keys.stream().map(Item::getStringValue).toList(),
-                keys.stream()
-                        .map(key -> item.getItemByKey(key).getDynamicType())
-                        .toList());
+                keys.stream().map(key -> structuralType(item.getItemByKey(key))).toList());
     }
 }

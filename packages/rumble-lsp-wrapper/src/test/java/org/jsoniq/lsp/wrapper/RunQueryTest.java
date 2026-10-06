@@ -103,6 +103,12 @@ class RunQueryTest {
         assertEquals(List.of("a", "b"), List.copyOf(objectType.fields().keySet()));
         assertTrue(objectType.fields().get("a").required());
 
+        // Nested objects keep their fields, and their field types join too.
+        RunQuery.Result nested =
+                this.runQuery.run("({\"o\": {\"id\": 1, \"vip\": true}}, {\"o\": {\"id\": 2.5}})", DOCUMENT_URI);
+        assertEquals(
+                "{ o: { id: xs:decimal, vip?: xs:boolean } }", nested.itemType().displayName());
+
         RunQuery.Result atomics = this.runQuery.run("(1, \"a\")", DOCUMENT_URI);
         assertEquals("xs:anyAtomicType", atomics.itemType().displayName());
 
