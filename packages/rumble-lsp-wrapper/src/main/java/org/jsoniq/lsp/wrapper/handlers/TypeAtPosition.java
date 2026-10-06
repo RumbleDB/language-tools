@@ -17,6 +17,8 @@ import org.rumbledb.bindings.ExternalBindings;
 import org.rumbledb.compiler.CompilationPipeline;
 import org.rumbledb.config.CompilationConfiguration;
 import org.rumbledb.config.RumbleConfiguration;
+import org.rumbledb.context.Name;
+import org.rumbledb.context.StaticContext;
 import org.rumbledb.exceptions.ExceptionMetadata;
 import org.rumbledb.expressions.AbstractNodeVisitor;
 import org.rumbledb.expressions.Expression;
@@ -212,36 +214,52 @@ public final class TypeAtPosition implements RequestHandler {
 
         @Override
         public List<Candidate> visitForClause(ForClause clause, List<Candidate> candidates) {
-            addBindingCandidate(candidates, clause.getVariableMetadata(), clause.getVariableSequenceType());
+            StaticContext scope = clause.getNextClause().getStaticContext();
+            addBindingCandidate(candidates, clause.getVariableMetadata(), scope, clause.getVariableName());
             addBindingCandidate(
-                    candidates, clause.getPositionalVariableMetadata(), clause.getPositionalVariableSequenceType());
+                    candidates, clause.getPositionalVariableMetadata(), scope, clause.getPositionalVariableName());
             return defaultAction(clause, candidates);
         }
 
         @Override
         public List<Candidate> visitLetClause(LetClause clause, List<Candidate> candidates) {
-            addBindingCandidate(candidates, clause.getVariableMetadata(), clause.getVariableSequenceType());
+            addBindingCandidate(
+                    candidates,
+                    clause.getVariableMetadata(),
+                    clause.getNextClause().getStaticContext(),
+                    clause.getVariableName());
             return defaultAction(clause, candidates);
         }
 
         @Override
         public List<Candidate> visitGroupByClause(GroupByClause clause, List<Candidate> candidates) {
             for (GroupByVariableDeclaration variable : clause.getGroupVariables()) {
-                addBindingCandidate(candidates, variable.getVariableMetadata(), variable.getVariableSequenceType());
+                addBindingCandidate(
+                        candidates,
+                        variable.getVariableMetadata(),
+                        clause.getNextClause().getStaticContext(),
+                        variable.getVariableName());
             }
             return defaultAction(clause, candidates);
         }
 
         @Override
         public List<Candidate> visitCountClause(CountClause clause, List<Candidate> candidates) {
-            addBindingCandidate(candidates, clause.getVariableMetadata(), clause.getVariableSequenceType());
+            addBindingCandidate(
+                    candidates,
+                    clause.getVariableMetadata(),
+                    clause.getNextClause().getStaticContext(),
+                    clause.getCountVariableName());
             return defaultAction(clause, candidates);
         }
 
         @Override
         public List<Candidate> visitWindowClause(WindowClause clause, List<Candidate> candidates) {
             addBindingCandidate(
-                    candidates, clause.getVariableMetadata(clause.getWindowVariable()), clause.getSequenceType());
+                    candidates,
+                    clause.getVariableMetadata().get(clause.getWindowVariable()),
+                    clause.getNextClause().getStaticContext(),
+                    clause.getWindowVariable());
             addWindowConditionCandidates(candidates, clause, clause.getStartCondition());
             if (clause.getEndCondition() != null) {
                 addWindowConditionCandidates(candidates, clause, clause.getEndCondition());
@@ -253,7 +271,10 @@ public final class TypeAtPosition implements RequestHandler {
                 List<Candidate> candidates, WindowClause clause, WindowClause.WindowCondition condition) {
             for (var name : condition.variables().names()) {
                 addBindingCandidate(
-                        candidates, clause.getVariableMetadata(name), clause.getConditionVariableSequenceType(name));
+                        candidates,
+                        clause.getVariableMetadata().get(name),
+                        clause.getNextClause().getStaticContext(),
+                        name);
             }
         }
 
@@ -269,20 +290,36 @@ public final class TypeAtPosition implements RequestHandler {
         @Override
         public List<Candidate> visitTypeSwitchExpression(TypeSwitchExpression expression, List<Candidate> candidates) {
             for (TypeswitchCase variable : expression.getCases()) {
-                addBindingCandidate(candidates, variable.getVariableMetadata(), variable.getVariableSequenceType());
+                addBindingCandidate(
+                        candidates,
+                        variable.getVariableMetadata(),
+                        variable.getReturnExpression().getStaticContext(),
+                        variable.getVariableName());
             }
             TypeswitchCase variable = expression.getDefaultCase();
-            addBindingCandidate(candidates, variable.getVariableMetadata(), variable.getVariableSequenceType());
+            addBindingCandidate(
+                    candidates,
+                    variable.getVariableMetadata(),
+                    variable.getReturnExpression().getStaticContext(),
+                    variable.getVariableName());
             return defaultAction(expression, candidates);
         }
 
         @Override
         public List<Candidate> visitTypeSwitchStatement(TypeSwitchStatement statement, List<Candidate> candidates) {
             for (TypeSwitchStatementCase variable : statement.getCases()) {
-                addBindingCandidate(candidates, variable.getVariableMetadata(), variable.getVariableSequenceType());
+                addBindingCandidate(
+                        candidates,
+                        variable.getVariableMetadata(),
+                        variable.getReturnStatement().getStaticContext(),
+                        variable.getVariableName());
             }
             TypeSwitchStatementCase variable = statement.getDefaultCase();
-            addBindingCandidate(candidates, variable.getVariableMetadata(), variable.getVariableSequenceType());
+            addBindingCandidate(
+                    candidates,
+                    variable.getVariableMetadata(),
+                    variable.getReturnStatement().getStaticContext(),
+                    variable.getVariableName());
             return defaultAction(statement, candidates);
         }
 
@@ -303,6 +340,15 @@ public final class TypeAtPosition implements RequestHandler {
         private static void addBindingCandidate(
                 List<Candidate> candidates, ExceptionMetadata metadata, org.rumbledb.types.SequenceType sequenceType) {
             addCandidate(candidates, Candidate.create(CandidateKind.EXPLICIT, metadata, metadata, sequenceType));
+        }
+
+        /** Adds a binding whose type is the one inferred in the scope where the variable is visible. */
+        private static void addBindingCandidate(
+                List<Candidate> candidates, ExceptionMetadata metadata, StaticContext context, Name variable) {
+            if (context == null || variable == null || !context.isInScope(variable)) {
+                return;
+            }
+            addBindingCandidate(candidates, metadata, context.getVariableSequenceType(variable));
         }
 
         @Override
