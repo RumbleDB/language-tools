@@ -20,9 +20,6 @@ export default defineConfig({
             "2xs": ["11px", "14px"],
         },
         colors: {
-            "badge-bg":
-                "var(--vscode-textCodeBlock-background, color-mix(in srgb, var(--vscode-editor-foreground) 8%, var(--vscode-editor-background)))",
-            "badge-fg": "var(--vscode-descriptionForeground, var(--vscode-editor-foreground))",
             surface: "var(--vscode-editor-background)",
             "on-surface": "var(--vscode-foreground, var(--vscode-editor-foreground))",
             "surface-container":

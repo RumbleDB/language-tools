@@ -1,7 +1,12 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { formatCell, formatRawOutput, projectTableRows } from "../src/utils/result-items.ts";
+import {
+    formatCell,
+    formatRawOutput,
+    projectTableRows,
+    summarizeSequenceType,
+} from "../src/utils/result-items.ts";
 
 const type = (displayName) => ({
     displayName,
@@ -77,6 +82,21 @@ test("object projection preserves literal field names and does not inherit missi
         assert.equal(projection.rows[0][name], value);
         assert.equal(projection.rows[1][name], undefined);
     }
+});
+
+test("column types summarize item types and occurrence as JSONiq sequence types", () => {
+    const one = atomic("xs:integer", "1");
+    const text = atomic("xs:string", '"a"');
+
+    assert.equal(summarizeSequenceType([[one], [one]]), "xs:integer");
+    assert.equal(summarizeSequenceType([[one], []]), "xs:integer?");
+    assert.equal(summarizeSequenceType([[one], undefined]), "xs:integer?");
+    assert.equal(summarizeSequenceType([[one, one], [one]]), "xs:integer+");
+    assert.equal(summarizeSequenceType([[one, one], undefined]), "xs:integer*");
+    assert.equal(summarizeSequenceType([[one], [text]]), "item()");
+    assert.equal(summarizeSequenceType([[one, text], []]), "item()*");
+    assert.equal(summarizeSequenceType([[], undefined]), "empty-sequence()");
+    assert.equal(summarizeSequenceType([]), "empty-sequence()");
 });
 
 test("presentation preserves backend serialization and expansion behavior", async () => {

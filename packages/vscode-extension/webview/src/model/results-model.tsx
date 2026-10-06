@@ -2,10 +2,16 @@ import { createTable, type ColumnDef, type SortingState } from "@tanstack/solid-
 import { createSignal, createMemo, createEffect, on, type Accessor } from "solid-js";
 
 import { CellValue } from "@/components/views/table/CellValue.js";
+import { ColumnHeader } from "@/components/views/table/ColumnHeader.js";
 import type { RunQueryItem } from "@/types.js";
 import { itemPreview } from "@/utils/item-presentation.js";
 import { createPagination } from "@/utils/pagination.js";
-import { formatCell, projectTableRows, type ResultSelection } from "@/utils/result-items.js";
+import {
+    formatCell,
+    projectTableRows,
+    summarizeSequenceType,
+    type ResultSelection,
+} from "@/utils/result-items.js";
 
 import { features, type TFeatures } from "./table-features.js";
 import type { ResultsModel, TData } from "./types.js";
@@ -22,8 +28,8 @@ const INDEX_COLUMN: ColumnDef<TFeatures, TData> = {
     ),
 };
 
-function getContentWidth(rows: TData[], key: string, header = key): number {
-    let length = header.length;
+function getContentWidth(rows: TData[], key: string, headerLength: number): number {
+    let length = headerLength;
     const samples = Math.min(rows.length, 50);
     for (let sample = 0; sample < samples; sample++) {
         const index = samples === 1 ? 0 : Math.round((sample * (rows.length - 1)) / (samples - 1));
@@ -81,43 +87,29 @@ export function createResultsModel(items: Accessor<RunQueryItem[]>): ResultsMode
             minSize: indexSize,
             maxSize: indexSize,
         };
-        if (projection().objects) {
-            return [
-                indexColumn,
-                ...columnKeys().map((key): ColumnDef<TFeatures, TData> => ({
-                    id: `field:${key}`,
+        const columns = projection().objects
+            ? columnKeys().map((key) => ({ id: `field:${key}`, key, name: key }))
+            : [{ id: "value", key: "value", name: "Value" }];
+        return [
+            indexColumn,
+            ...columns.map(({ id, key, name }): ColumnDef<TFeatures, TData> => {
+                const type = summarizeSequenceType(data.map((row) => row.cells[key]));
+                return {
+                    id,
                     accessorFn: (row) => formatCell(row.cells[key]),
-                    header: key,
-                    size: getContentWidth(data, key),
+                    header: () => <ColumnHeader name={name} type={type} />,
+                    size: getContentWidth(data, key, Math.max(name.length, type.length)),
                     cell: (info) => (
                         <CellValue
                             items={info.row.original.cells[key]}
-                            reserveArrowSpace={reserveArrowSpace(info.column.id)}
-                            onExpandabilityChange={(id, required) =>
-                                onExpandabilityChange(info.column.id, id, required)
+                            reserveArrowSpace={reserveArrowSpace(id)}
+                            onExpandabilityChange={(itemId, required) =>
+                                onExpandabilityChange(id, itemId, required)
                             }
                         />
                     ),
-                })),
-            ];
-        }
-        return [
-            indexColumn,
-            {
-                id: "value",
-                accessorFn: (row) => formatCell(row.cells.value),
-                header: "Value",
-                size: getContentWidth(data, "value", "Value"),
-                cell: (info) => (
-                    <CellValue
-                        items={info.row.original.cells.value}
-                        reserveArrowSpace={reserveArrowSpace(info.column.id)}
-                        onExpandabilityChange={(id, required) =>
-                            onExpandabilityChange(info.column.id, id, required)
-                        }
-                    />
-                ),
-            },
+                };
+            }),
         ];
     });
 

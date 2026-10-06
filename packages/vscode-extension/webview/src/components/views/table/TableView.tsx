@@ -66,7 +66,7 @@ export function TableView(props: TableViewProps) {
                                                         ),
                                                     }}
                                                 >
-                                                    <span>
+                                                    <span class="min-w-0">
                                                         <FlexRender header={header} />
                                                     </span>
                                                     <Show when={header.column.getCanSort()}>

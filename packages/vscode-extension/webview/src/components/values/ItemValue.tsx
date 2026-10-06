@@ -17,17 +17,23 @@ import { isExpandable, itemPreviewParts } from "@/utils/item-presentation.js";
 import { ItemPreview } from "./ItemPreview.js";
 import { SourceTokens } from "./SourceTokens.js";
 
+/** Nested values reveal their type on hover to keep expanded structures readable. */
+type TypeLabel = "visible" | "hover";
+
 interface ItemValueProps {
     item: RunQueryItem;
     copyable?: boolean;
+    /** Show the item's type after the preview; requires an `@container` ancestor. */
+    typeLabel?: TypeLabel;
     reserveArrowSpace?: boolean;
     onExpandabilityChange?: (id: string, required: boolean) => void;
 }
 
 export function ItemValue(props: ItemValueProps) {
     const [expanded, setExpanded] = createSignal(false);
-    const typeLabelId = createUniqueId();
+    const itemId = createUniqueId();
     const { copy, copied } = createCopyAction();
+    const nestedTypeLabel = () => (props.typeLabel ? "hover" : undefined);
     let previewElement!: HTMLSpanElement;
     const [previewClipped, setPreviewClipped] = createSignal(false);
     const parts = createMemo(() => itemPreviewParts(props.item));
@@ -40,8 +46,8 @@ export function ItemValue(props: ItemValueProps) {
         () =>
             isExpandable(props.item) || parts().some((part) => part.truncated) || previewClipped(),
     );
-    createEffect(() => props.onExpandabilityChange?.(typeLabelId, expandable() || expanded()));
-    onCleanup(() => props.onExpandabilityChange?.(typeLabelId, false));
+    createEffect(() => props.onExpandabilityChange?.(itemId, expandable() || expanded()));
+    onCleanup(() => props.onExpandabilityChange?.(itemId, false));
 
     // A short value can still need expansion when the panel or a nested field is narrow.
     const measurePreview = () => {
@@ -102,18 +108,23 @@ export function ItemValue(props: ItemValueProps) {
                     ref={(element) => {
                         previewElement = element;
                     }}
-                    class={`font-mono text-xs leading-5 flex-1 min-w-0 break-words line-clamp-2 result-value-value`}
-                    tabIndex={0}
-                    aria-describedby={typeLabelId}
+                    class="font-mono text-xs leading-5 flex-1 min-w-0 break-words line-clamp-2 result-value-value"
+                    title={props.item.type.displayName}
                 >
                     <ItemPreview parts={parts()} />
                 </span>
-                <span
-                    id={typeLabelId}
-                    class="shrink-0 max-w-[30%] mt-px px-[5px] rounded-[3px] bg-badge-bg text-badge-fg text-[10px] leading-[18px] truncate opacity-0 group-hover:opacity-100 group-hover:pointer-events-auto group-focus-within:opacity-100 group-focus-within:pointer-events-auto"
-                >
-                    {props.item.type.displayName}
-                </span>
+                <Show when={props.typeLabel}>
+                    <span
+                        class="hidden @xs:block shrink-0 max-w-[30%] ml-1 font-mono text-xs leading-5 text-secondary truncate select-none"
+                        classList={{
+                            "opacity-0 group-hover:opacity-100 [@media(hover:none)]:opacity-100":
+                                props.typeLabel === "hover",
+                        }}
+                        title={props.item.type.displayName}
+                    >
+                        {props.item.type.displayName}
+                    </span>
+                </Show>
                 <Show when={props.copyable !== false}>
                     <button
                         type="button"
@@ -142,6 +153,7 @@ export function ItemValue(props: ItemValueProps) {
                                             <SequenceValue
                                                 items={field.value}
                                                 copyable={props.copyable}
+                                                typeLabel={nestedTypeLabel()}
                                                 reserveArrowSpace={false}
                                             />
                                         </div>
@@ -165,6 +177,7 @@ export function ItemValue(props: ItemValueProps) {
                                             <SequenceValue
                                                 items={entry.value}
                                                 copyable={props.copyable}
+                                                typeLabel={nestedTypeLabel()}
                                                 reserveArrowSpace={false}
                                             />
                                         </div>
@@ -181,7 +194,11 @@ export function ItemValue(props: ItemValueProps) {
                                         <span class="font-mono text-2xs leading-5 text-secondary shrink-0">
                                             [{index() + 1}]
                                         </span>
-                                        <SequenceValue items={member} copyable={props.copyable} />
+                                        <SequenceValue
+                                            items={member}
+                                            copyable={props.copyable}
+                                            typeLabel={nestedTypeLabel()}
+                                        />
                                     </div>
                                 )}
                             </For>
@@ -217,6 +234,7 @@ export function ItemValue(props: ItemValueProps) {
 export function SequenceValue(props: {
     items: RunQueryItem[] | undefined;
     copyable?: boolean;
+    typeLabel?: TypeLabel;
     reserveArrowSpace?: boolean;
     onExpandabilityChange?: (id: string, required: boolean) => void;
 }) {
@@ -262,6 +280,7 @@ export function SequenceValue(props: {
                                 <ItemValue
                                     item={item}
                                     copyable={props.copyable}
+                                    typeLabel={props.typeLabel}
                                     reserveArrowSpace={props.reserveArrowSpace}
                                     onExpandabilityChange={props.onExpandabilityChange}
                                 />

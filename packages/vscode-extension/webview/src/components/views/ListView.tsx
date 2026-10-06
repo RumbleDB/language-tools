@@ -28,7 +28,7 @@ export function ListView(props: ListViewProps) {
             ref={(element) => {
                 list = element;
             }}
-            class="flex-1 overflow-auto"
+            class="@container flex-1 overflow-auto"
         >
             <Show
                 when={props.rows.length > 0}
@@ -55,6 +55,7 @@ export function ListView(props: ListViewProps) {
                                 </span>
                                 <ItemValue
                                     item={row.original.item}
+                                    typeLabel="visible"
                                     reserveArrowSpace={props.reserveArrowSpace}
                                     onExpandabilityChange={props.onExpandabilityChange}
                                 />
