@@ -1,5 +1,23 @@
 # jsoniq-language-server
 
+## 2.16.0
+
+### Minor Changes
+
+- [`e6c5c22`](https://github.com/RumbleDB/language-tools/commit/e6c5c2290c4a982ca7d25021d85751e6fe61ce92) - feat(run-query): report the engine-computed `itemType` of query results and use it for table column headers
+  
+  **Breaking:** object type `fields` now map each name to `{ type, required }` instead of a type, so optional fields are marked (shown as `name?: type`).
+
+- [`886f03a`](https://github.com/RumbleDB/language-tools/commit/886f03ab4a2be698a59b36589b99dcd3bc3c5a08) - feat(hover): enhance semantic hover functionality and improve type inference handling
+
+### Patch Changes
+
+- [`d3e75f7`](https://github.com/RumbleDB/language-tools/commit/d3e75f72fab8b4ef93f615a0bd094bc38e5b31ee) - fix(hover): show schema constructor return types with their import prefix (e.g. `demo:Count?` instead of `Count?`)
+
+- [`772dc75`](https://github.com/RumbleDB/language-tools/commit/772dc757db90cee90974c7ba73374a4384203194) - refactor: unify item type handling in JSONiq and XQuery AST builders
+
+- [`95fb38b`](https://github.com/RumbleDB/language-tools/commit/95fb38bef11b504f5941663cacfd46dcfcacdcbc) - chore: include the Apache-2.0 LICENSE file in the VS Code extension and npm package, and third-party licence notices for bundled dependencies and attribute the W3C-derived function and error documentation
+
 ## 2.15.1
 
 ### Patch Changes

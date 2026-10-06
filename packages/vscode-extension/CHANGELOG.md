@@ -1,5 +1,27 @@
 # jsoniq-vscode
 
+## 1.11.0
+
+### Minor Changes
+
+- [`bc6e48c`](https://github.com/RumbleDB/language-tools/commit/bc6e48c34c6ab84fd35e9d6747a7b5d6d277df81) - feat(webview): display type of each value in the result
+
+- [`e6c5c22`](https://github.com/RumbleDB/language-tools/commit/e6c5c2290c4a982ca7d25021d85751e6fe61ce92) - feat(run-query): report the engine-computed `itemType` of query results and use it for table column headers
+  
+  **Breaking:** object type `fields` now map each name to `{ type, required }` instead of a type, so optional fields are marked (shown as `name?: type`).
+
+- [`69e5b23`](https://github.com/RumbleDB/language-tools/commit/69e5b2332a406a0f4d184033ca3f1d1fe4d541ab) - feat(webview): show item types in list view and column types in table headers
+
+- [`8a4caaa`](https://github.com/RumbleDB/language-tools/commit/8a4caaa86322f05296889786ec3f12cf35270ec1) - feat: add syntax highlighting for item preview using Shinki
+
+### Patch Changes
+
+- [`e767080`](https://github.com/RumbleDB/language-tools/commit/e76708098e65900c5c04877d6dfa18e4453ccc5f) - refactor(webview): remove unnecessary transition classes from various components
+
+- [`95fb38b`](https://github.com/RumbleDB/language-tools/commit/95fb38bef11b504f5941663cacfd46dcfcacdcbc) - chore: include the Apache-2.0 LICENSE file in the VS Code extension and npm package, and third-party licence notices for bundled dependencies and attribute the W3C-derived function and error documentation
+- Updated dependencies [[`e6c5c22`](https://github.com/RumbleDB/language-tools/commit/e6c5c2290c4a982ca7d25021d85751e6fe61ce92), [`d3e75f7`](https://github.com/RumbleDB/language-tools/commit/d3e75f72fab8b4ef93f615a0bd094bc38e5b31ee), [`772dc75`](https://github.com/RumbleDB/language-tools/commit/772dc757db90cee90974c7ba73374a4384203194), [`95fb38b`](https://github.com/RumbleDB/language-tools/commit/95fb38bef11b504f5941663cacfd46dcfcacdcbc), [`886f03a`](https://github.com/RumbleDB/language-tools/commit/886f03ab4a2be698a59b36589b99dcd3bc3c5a08)]:
+  - jsoniq-language-server@2.16.0
+
 ## 1.10.2
 
 ### Patch Changes

@@ -1,5 +1,25 @@
 # rumble-lsp-wrapper
 
+## 0.12.0
+
+### Minor Changes
+
+- [`e6c5c22`](https://github.com/RumbleDB/language-tools/commit/e6c5c2290c4a982ca7d25021d85751e6fe61ce92) - feat(run-query): report the engine-computed `itemType` of query results and use it for table column headers
+  
+  **Breaking:** object type `fields` now map each name to `{ type, required }` instead of a type, so optional fields are marked (shown as `name?: type`).
+
+- [`2399c74`](https://github.com/RumbleDB/language-tools/commit/2399c744bc3508b730eeedb0a789dadfad4e405d) - feat: add XML indentation to output
+
+### Patch Changes
+
+- [`d3e75f7`](https://github.com/RumbleDB/language-tools/commit/d3e75f72fab8b4ef93f615a0bd094bc38e5b31ee) - fix(hover): show schema constructor return types with their import prefix (e.g. `demo:Count?` instead of `Count?`)
+
+- [`4c24637`](https://github.com/RumbleDB/language-tools/commit/4c24637391c5ad8e87f7796937f25151a9cd7b34) - fix: show readable names for anonymous array types (e.g. `[]` for an empty array result, `[xs:integer]`) instead of the engine's internal JSON
+
+- [`bdd48f8`](https://github.com/RumbleDB/language-tools/commit/bdd48f88673ca5a36ae0a8fd7ef6a8341c8cc576) - fix(hover): show `empty-sequence()` for empty sequence types instead of the engine's internal `item<void>`
+
+- [`c0cbe2e`](https://github.com/RumbleDB/language-tools/commit/c0cbe2e125c45dab729e83bb4bbdf12da3378cb0) - feat: update RumbleDB to commit 29cd8ed for improved schema constructor support
+
 ## 0.11.1
 
 ### Patch Changes
