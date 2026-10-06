@@ -1,5 +1,7 @@
 import { defineConfig } from "tsdown";
 
+import { thirdPartyNotices } from "../../scripts/build/third-party-notices.mjs";
+
 export default defineConfig([
     {
         entry: [
@@ -25,6 +27,7 @@ export default defineConfig([
         entry: "src/main.ts",
         root: "src",
         outDir: "dist/bundled",
+        plugins: [thirdPartyNotices()],
 
         format: "esm",
         platform: "node",

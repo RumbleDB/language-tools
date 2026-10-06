@@ -1,5 +1,7 @@
 import { defineConfig } from "rolldown";
 
+import { thirdPartyNotices } from "../../scripts/build/third-party-notices.mjs";
+
 export default defineConfig({
     input: "./src/extension.ts",
     output: {
@@ -11,4 +13,5 @@ export default defineConfig({
     external: ["vscode"],
     platform: "node",
     treeshake: true,
+    plugins: [thirdPartyNotices()],
 });

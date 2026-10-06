@@ -1,0 +1,17 @@
+jsoniq-language-server
+Licensed under the Apache License, Version 2.0 (see LICENSE).
+
+This package includes material derived from the following W3C documents:
+
+- XPath and XQuery Functions and Operators 3.1, W3C Recommendation 21 March 2017
+  https://www.w3.org/TR/2017/REC-xpath-functions-31-20170321/
+  Function names, signatures and summaries in assets/function-doc/w3-functions.json.
+
+- Namespace document for the XPath and XQuery error codes
+  https://www.w3.org/2005/xqt-errors/
+  Error codes and descriptions in assets/error-doc/w3-errors.json.
+
+Copyright © World Wide Web Consortium (W3C). W3C liability, trademark and document use rules apply:
+https://www.w3.org/copyright/
+
+dist/bundled/THIRD-PARTY-NOTICES.txt lists the third-party packages inlined into dist/bundled/main.mjs and their licences.

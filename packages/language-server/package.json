@@ -9,7 +9,8 @@
     },
     "files": [
         "dist",
-        "assets"
+        "assets",
+        "NOTICE"
     ],
     "type": "module",
     "exports": {
