@@ -49,6 +49,11 @@ class TypeDefinitionTest {
                         ItemTypeFactory.createAnonymousArrayType(BuiltinTypesCatalogue.integerItem)));
         assertNull(array.name());
         assertEquals("[xs:integer]", array.toString());
+        assertEquals("[xs:integer]", array.displayName());
+        assertEquals(
+                "[]",
+                TypeDefinition.fromItemType(ItemTypeFactory.createEmptyArrayType())
+                        .displayName());
         assertProperties(array, "kind", "displayName", "content");
 
         var union = assertInstanceOf(

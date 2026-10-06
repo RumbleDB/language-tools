@@ -78,6 +78,7 @@ class RunQueryTest {
         assertNull(result.error());
         assertEquals(4, result.items().size());
         assertEquals("null", result.items().get(0).kind());
+        assertEquals("[]", result.items().get(2).type().displayName());
         assertEquals("\"\"", result.items().get(1).serialized());
         assertEquals(
                 java.util.List.of(),
@@ -110,6 +111,11 @@ class RunQueryTest {
             assertEquals(
                     "item", this.runQuery.run(query, DOCUMENT_URI).itemType().displayName());
         }
+
+        // Empty and non-empty arrays join to an array of any content.
+        assertEquals(
+                "[item]",
+                this.runQuery.run("([], [1])", DOCUMENT_URI).itemType().displayName());
 
         RunQuery.Result nullable = this.runQuery.run("(\"a\", null)", DOCUMENT_URI);
         assertEquals("(xs:string | js:null)", nullable.itemType().displayName());

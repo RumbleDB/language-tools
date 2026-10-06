@@ -30,7 +30,10 @@ public sealed interface TypeDefinition {
         return name() == null ? null : name().expandedName();
     }
 
-    /** Preserve engine display notation, including prefixes retained on schema types. */
+    /**
+     * Preserve engine display notation, including prefixes retained on schema types. The engine renders anonymous
+     * unions, objects and arrays as internal JSON, so those display their descriptor's notation instead.
+     */
     static TypeDefinition fromItemType(ItemType itemType) {
         ResolvedQName name = itemType.hasName() ? ResolvedQName.fromName(itemType.getName()) : null;
         String displayName = itemType.toString();
@@ -39,7 +42,6 @@ public sealed interface TypeDefinition {
             List<TypeDefinition> members = itemType.getTypes().stream()
                     .map(TypeDefinition::fromItemType)
                     .toList();
-            // The engine renders anonymous types as internal JSON; use the descriptors' notation instead.
             return new UnionTypeDefinition(null, UnionTypeDefinition.notation(members), members);
         }
         if (itemType.isObjectItemType()) {
@@ -53,8 +55,13 @@ public sealed interface TypeDefinition {
                     name, name == null ? ObjectTypeDefinition.notation(fields) : displayName, fields);
         }
         if (itemType.isArrayItemType()) {
-            return new ArrayTypeDefinition(
-                    name, displayName, name == null ? fromItemType(itemType.getArrayContentFacet()) : null);
+            if (name != null) {
+                return new ArrayTypeDefinition(name, displayName, null);
+            }
+            TypeDefinition content = fromItemType(itemType.getArrayContentFacet());
+            // An empty array literal's dynamic type is an anonymous array restricted to length 0.
+            boolean empty = Integer.valueOf(0).equals(itemType.getMaxLengthFacet());
+            return new ArrayTypeDefinition(null, empty ? "[]" : "[" + content + "]", content);
         }
         return name == null ? new OpaqueTypeDefinition(displayName) : new NamedTypeDefinition(name, displayName);
     }
@@ -119,7 +126,7 @@ public sealed interface TypeDefinition {
         @Override
         public String toString() {
             if (this.name != null) return this.name.toString();
-            return this.content == null ? this.displayName : "[" + this.content + "]";
+            return this.displayName;
         }
     }
 
