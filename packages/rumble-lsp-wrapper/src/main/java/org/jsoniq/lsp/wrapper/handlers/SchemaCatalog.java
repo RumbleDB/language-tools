@@ -31,7 +31,8 @@ import org.rumbledb.xml.schema.XmlSchemaCatalogLoader;
 
 /** Exports schema names and constructors without compiling a query. */
 public final class SchemaCatalog implements RequestHandler {
-    public record Import(String namespaceUri, List<String> locations) {
+    /** prefix is the query's binding for the namespace, which Rumble retains on the exported names. */
+    public record Import(String namespaceUri, String prefix, List<String> locations) {
         public Import {
             if (namespaceUri == null || locations == null) {
                 throw new IllegalArgumentException("Schema imports require namespaceUri and locations.");
@@ -78,8 +79,8 @@ public final class SchemaCatalog implements RequestHandler {
             var imports = input.imports().stream()
                     .map(imported -> new SchemaImport(
                             imported.namespaceUri(),
-                            SchemaImport.BindingKind.NONE,
-                            null,
+                            imported.prefix() == null ? SchemaImport.BindingKind.NONE : SchemaImport.BindingKind.PREFIX,
+                            imported.prefix(),
                             imported.locations(),
                             metadata))
                     .toList();
@@ -90,7 +91,7 @@ public final class SchemaCatalog implements RequestHandler {
                     uri -> dependencies.add(uri.toString()));
             if (loaded.isEmpty()) return EMPTY_RESULT;
             var catalog = loaded.get();
-            // Built-in constructors are exported separately. Prefixes belong to the query, not the schema.
+            // Built-in constructors are exported separately.
             List<Name> names = catalog.getNamedTypeNames().stream()
                     .filter(name -> !Name.XS_NS.equals(name.getNamespace()))
                     .sorted()

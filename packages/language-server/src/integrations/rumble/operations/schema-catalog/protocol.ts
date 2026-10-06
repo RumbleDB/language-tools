@@ -7,7 +7,8 @@ import type { StaticTypecheckError } from "../static-typecheck/types.js";
 export const REQUEST_TYPE_SCHEMA_CATALOG = "schema-catalog" as const;
 
 export interface SchemaCatalogInput {
-    imports: { namespaceUri: string; locations: string[] }[];
+    /** A prefix binding is retained on the names of the exported types and constructors. */
+    imports: { namespaceUri: string; prefix?: string; locations: string[] }[];
     baseUri?: string;
 }
 

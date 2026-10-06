@@ -209,7 +209,7 @@ describe("workspace schema catalog cache", () => {
         expect(sendRequest).toHaveBeenCalledTimes(2);
     });
 
-    it("reuses the catalog for body edits and prefix aliases, including an incomplete body", async () => {
+    it("reuses the catalog for body edits and reloads it for prefix aliases", async () => {
         const { workspace, sendRequest } = setup();
         const document = testDocument("schema-cache-body", source);
         await workspace.getAnalysis(document);
@@ -219,7 +219,7 @@ describe("workspace schema catalog cache", () => {
             findSymbolAtPosition(edited, positionAt(document, 's:Code("b")'))?.declaration?.origin,
         ).toBe("schema");
 
-        // Prefixes affect presentation and name resolution, but not the schema catalog.
+        // The catalog names carry the import prefix, so a renamed prefix needs a new catalog.
         update(document, 'import schema namespace alias = "urn:test" at "types.xsd"; alias:');
         const incomplete = await workspace.getAnalysis(document);
         expect(
@@ -229,7 +229,7 @@ describe("workspace schema catalog cache", () => {
             kind: "function",
             origin: "schema",
         });
-        expect(sendRequest).toHaveBeenCalledTimes(1);
+        expect(sendRequest).toHaveBeenCalledTimes(2);
     });
 
     it("shares a pending catalog between different document versions", async () => {

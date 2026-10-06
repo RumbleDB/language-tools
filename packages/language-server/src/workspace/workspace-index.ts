@@ -213,12 +213,13 @@ export class WorkspaceIndex {
         const input: SchemaCatalogInput = {
             imports: prolog.schemaImports.map((imported) => ({
                 namespaceUri: imported.namespaceUri,
+                ...(imported.prefix === undefined ? {} : { prefix: imported.prefix }),
                 locations: imported.locations.map((location) => location.uri),
             })),
             ...(prolog.baseUri === undefined ? {} : { baseUri: prolog.baseUri }),
         };
 
-        // The URI is the map key; query text and prefix aliases do not affect this key.
+        // The URI is the map key; query text does not affect this key, but import prefixes do.
         const key = JSON.stringify(input);
         const cached = this.schemaCatalogs.get(uri);
         if (cached?.key === key) return cached.catalog;

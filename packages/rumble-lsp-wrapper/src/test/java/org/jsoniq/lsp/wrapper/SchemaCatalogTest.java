@@ -51,7 +51,7 @@ class SchemaCatalogTest {
     }
 
     private static SchemaCatalog.Input input(String namespace, String... locations) {
-        return new SchemaCatalog.Input(List.of(new SchemaCatalog.Import(namespace, List.of(locations))), null);
+        return new SchemaCatalog.Input(List.of(new SchemaCatalog.Import(namespace, null, List.of(locations))), null);
     }
 
     @Test
@@ -103,6 +103,21 @@ class SchemaCatalogTest {
     }
 
     @Test
+    void retainsTheQueryPrefixOnExportedNames(@TempDir Path directory) throws Exception {
+        SchemaCatalog.Result result = this.catalog.resolve(
+                new SchemaCatalog.Input(
+                        List.of(new SchemaCatalog.Import("urn:test", "demo", List.of("types.xsd"))), null),
+                writeSchema(directory));
+
+        assertTrue(result.errors().isEmpty(), result.errors().toString());
+        assertTrue(result.types().stream()
+                .allMatch(type -> "demo".equals(type.name().prefix())));
+        FunctionDefinition code = result.constructors().get(0);
+        assertEquals("demo:Code", code.name().qname().toString());
+        assertEquals("demo:Code?", code.signature().returnType().toString());
+    }
+
+    @Test
     void keepsTypesWithTheSameLocalNameInDifferentNamespaces(@TempDir Path directory) throws Exception {
         URI documentUri = writeSchema(directory);
         Files.writeString(
@@ -115,8 +130,8 @@ class SchemaCatalogTest {
         SchemaCatalog.Result result = this.catalog.resolve(
                 new SchemaCatalog.Input(
                         List.of(
-                                new SchemaCatalog.Import("urn:test", List.of("types.xsd")),
-                                new SchemaCatalog.Import("urn:other", List.of("other.xsd"))),
+                                new SchemaCatalog.Import("urn:test", null, List.of("types.xsd")),
+                                new SchemaCatalog.Import("urn:other", null, List.of("other.xsd"))),
                         null),
                 documentUri);
 
@@ -145,7 +160,7 @@ class SchemaCatalogTest {
         writeSchema(schemas);
         // Includes are still resolved relative to the XSD, after applying the query's base URI.
         SchemaCatalog.Input input = new SchemaCatalog.Input(
-                List.of(new SchemaCatalog.Import("urn:test", List.of("types.xsd"))), "schemas/");
+                List.of(new SchemaCatalog.Import("urn:test", null, List.of("types.xsd"))), "schemas/");
         SchemaCatalog.Result result =
                 this.catalog.resolve(input, directory.resolve("query.xq").toUri());
         assertTrue(result.errors().isEmpty(), result.errors().toString());

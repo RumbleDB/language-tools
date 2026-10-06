@@ -126,7 +126,9 @@ describe("schema catalog", () => {
                 const result = await getSchemaCatalog(
                     document.uri,
                     {
-                        imports: [{ namespaceUri: "urn:test", locations: ["types.xsd"] }],
+                        imports: [
+                            { namespaceUri: "urn:test", prefix: "t", locations: ["types.xsd"] },
+                        ],
                         baseUri: "schemas/",
                     },
                     client,
@@ -150,14 +152,17 @@ describe("schema catalog", () => {
                     })),
                 ).toEqual([
                     {
-                        name: { localName: "Code", namespaceUri: "urn:test" },
+                        name: { localName: "Code", namespaceUri: "urn:test", prefix: "t" },
                         sourceUri: pathToFileURL(path.join(directory, "schemas", "common.xsd"))
                             .href,
                     },
                 ]);
                 expect(result.constructors).toEqual([
                     {
-                        name: { qname: { localName: "Code", namespaceUri: "urn:test" }, arity: 1 },
+                        name: {
+                            qname: { localName: "Code", namespaceUri: "urn:test", prefix: "t" },
+                            arity: 1,
+                        },
                         signature: {
                             parameterTypes: [
                                 {
@@ -179,9 +184,13 @@ describe("schema catalog", () => {
                             returnType: {
                                 itemType: {
                                     kind: "named",
-                                    displayName: "{urn:test}Code",
+                                    displayName: "t:Code",
                                     qname: "Q{urn:test}Code",
-                                    name: { localName: "Code", namespaceUri: "urn:test" },
+                                    name: {
+                                        localName: "Code",
+                                        namespaceUri: "urn:test",
+                                        prefix: "t",
+                                    },
                                 },
                                 arity: "?",
                             },
@@ -207,7 +216,7 @@ describe("schema catalog", () => {
                     workspace,
                 );
                 expect(signature?.signatures[0]?.label).toBe(
-                    "Code($arg1 as xs:anyAtomicType?) as Code?",
+                    "Code($arg1 as xs:anyAtomicType?) as t:Code?",
                 );
                 // Verify hover renders the signature supplied by the real schema catalog.
                 const hover = await findHover(
@@ -217,7 +226,7 @@ describe("schema catalog", () => {
                     client,
                 );
                 expect(hover?.contents).toMatchObject({
-                    value: expect.stringContaining("Code(xs:anyAtomicType?) as Code?"),
+                    value: expect.stringContaining("Code(xs:anyAtomicType?) as t:Code?"),
                 });
                 expect(
                     findSymbolAtPosition(analysis, positionAt(document, 'Code("a")'))?.declaration,
@@ -313,7 +322,10 @@ describe("schema catalog", () => {
                         definition.kind === "function" && definition.origin === "schema",
                 );
                 expect(constructors.map((definition) => definition.name)).toEqual([
-                    { qname: { localName: "NewCode", namespaceUri: "urn:test" }, arity: 1 },
+                    {
+                        qname: { localName: "NewCode", namespaceUri: "urn:test", prefix: "t" },
+                        arity: 1,
+                    },
                 ]);
                 const updatedTypeCompletions = await findCompletions(
                     document,
