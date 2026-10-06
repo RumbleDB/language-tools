@@ -26,6 +26,7 @@ export async function runQueryFromSource(
         const unavailableErr = client.getUnavailableError();
         return {
             items: null,
+            itemType: null,
             error: {
                 message: unavailableErr
                     ? `Rumble wrapper is unavailable: ${unavailableErr.message}`
@@ -58,6 +59,7 @@ export async function runQueryFromSource(
         logger.warn(`Run-query failed for ${documentUri}: ${message}`);
         return {
             items: null,
+            itemType: null,
             error: { message, code: null, location: null, range: null },
         };
     }

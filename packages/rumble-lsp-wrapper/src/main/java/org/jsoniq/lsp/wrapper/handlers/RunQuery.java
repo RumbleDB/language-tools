@@ -11,6 +11,7 @@ import java.util.Objects;
 import org.jsoniq.lsp.wrapper.Range;
 import org.jsoniq.lsp.wrapper.messages.Request;
 import org.jsoniq.lsp.wrapper.messages.ResponseBody;
+import org.jsoniq.lsp.wrapper.types.TypeDefinition;
 
 import org.rumbledb.api.Item;
 import org.rumbledb.api.SequenceOfItems;
@@ -23,6 +24,7 @@ import org.rumbledb.config.CompilationConfiguration;
 import org.rumbledb.config.RumbleConfiguration;
 import org.rumbledb.exceptions.ExceptionMetadata;
 import org.rumbledb.exceptions.RumbleException;
+import org.rumbledb.types.ItemType;
 
 public final class RunQuery implements RequestHandler {
     public static final String REQUEST_TYPE = "run-query";
@@ -41,13 +43,16 @@ public final class RunQuery implements RequestHandler {
         }
     }
 
-    public record Result(List<QueryResultItem> items, QueryError error) implements ResponseBody {
-        public static Result success(List<QueryResultItem> items) {
-            return new Result(List.copyOf(items), null);
+    /** {@code itemType} is the least common supertype of all items, or null for an empty result. */
+    public record Result(List<QueryResultItem> items, TypeDefinition itemType, QueryError error)
+            implements ResponseBody {
+        public static Result success(List<QueryResultItem> items, ItemType itemType) {
+            return new Result(
+                    List.copyOf(items), itemType == null ? null : TypeDefinition.fromItemType(itemType), null);
         }
 
         public static Result failure(QueryError error) {
-            return new Result(null, Objects.requireNonNull(error));
+            return new Result(null, null, Objects.requireNonNull(error));
         }
     }
 
@@ -81,6 +86,7 @@ public final class RunQuery implements RequestHandler {
             SequenceOfItems result = createSequence(query, documentUri);
 
             List<QueryResultItem> items = new ArrayList<>();
+            ItemType itemType = null;
 
             result.open();
             try {
@@ -104,13 +110,14 @@ public final class RunQuery implements RequestHandler {
                                     error.range()));
                         }
                         items.add(QueryResultItems.from(item, serializer, serialized));
+                        itemType = ResultTypes.join(itemType, item);
                     }
                 }
             } finally {
                 result.close();
             }
 
-            return Result.success(items);
+            return Result.success(items, itemType);
         } catch (RumbleException exception) {
             return Result.failure(QueryError.from(exception));
         } catch (Throwable throwable) {

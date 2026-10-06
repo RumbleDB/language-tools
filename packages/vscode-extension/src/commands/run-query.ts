@@ -63,6 +63,7 @@ export function registerRunQueryCommand(
                                 fileUri: uri,
                                 error: { ...error, sourceLines },
                                 items: null,
+                                itemType: null,
                                 durationMs,
                                 timestamp,
                             });
@@ -70,6 +71,7 @@ export function registerRunQueryCommand(
                             ResultsWebviewPanel.show(context.extensionUri, {
                                 fileUri: uri,
                                 items: response.items,
+                                itemType: response.itemType,
                                 durationMs,
                                 timestamp,
                             });
@@ -83,6 +85,7 @@ export function registerRunQueryCommand(
                             fileUri: uri,
                             error: { message: errorMsg, code: null, location: null, range: null },
                             items: null,
+                            itemType: null,
                             durationMs,
                             timestamp,
                         });

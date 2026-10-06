@@ -58,12 +58,14 @@ class TypeDefinitionTest {
         assertNull(union.name());
         assertEquals(3, union.members().size());
         assertEquals("(xs:integer | [xs:integer] | js:null)", union.toString());
+        assertEquals("(xs:integer | [xs:integer] | js:null)", union.displayName());
         assertProperties(union, "kind", "displayName", "members");
     }
 
     @Test
     void objectsAllowNamesWithoutChangingTheirStructure() throws Exception {
-        var integer = TypeDefinition.fromItemType(BuiltinTypesCatalogue.integerItem);
+        var integer =
+                new TypeDefinition.ObjectField(TypeDefinition.fromItemType(BuiltinTypesCatalogue.integerItem), true);
         for (var descriptor : List.of(
                 new TypeDefinition.ObjectTypeDefinition(null, "object", Map.of("value", integer)),
                 new TypeDefinition.ObjectTypeDefinition(
@@ -76,6 +78,19 @@ class TypeDefinitionTest {
                 assertProperties(descriptor, "kind", "displayName", "fields", "name", "qname");
             }
         }
+    }
+
+    @Test
+    void optionalObjectFieldsAreMarked() throws Exception {
+        var objects = ItemTypeFactory.createAnonymousObjectType(
+                        List.of("a", "b"), List.of(BuiltinTypesCatalogue.integerItem, BuiltinTypesCatalogue.stringItem))
+                .findLeastCommonSuperTypeLax(ItemTypeFactory.createAnonymousObjectType(
+                        List.of("a"), List.of(BuiltinTypesCatalogue.decimalItem)));
+        var merged = assertInstanceOf(TypeDefinition.ObjectTypeDefinition.class, TypeDefinition.fromItemType(objects));
+        assertEquals("{ a: xs:decimal, b?: xs:string }", merged.displayName());
+        var json = this.mapper.valueToTree(merged).get("fields");
+        assertEquals(true, json.get("a").get("required").asBoolean());
+        assertEquals("xs:string", json.get("b").get("type").get("displayName").asText());
     }
 
     @Test

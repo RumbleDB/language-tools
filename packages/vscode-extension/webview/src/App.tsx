@@ -1,4 +1,4 @@
-import { createSignal, onMount, onCleanup, createMemo, Show } from "solid-js";
+import { createSignal, onMount, onCleanup, Show } from "solid-js";
 
 import { PaginationControls } from "@/components/PaginationControls.js";
 import { ResultActions } from "@/components/ResultActions.js";
@@ -32,8 +32,7 @@ export function App() {
         onCleanup(vscode.onMessage("SET_RUNNING", (message) => setRunning(message.running)));
     });
 
-    const resultItems = createMemo(() => data()?.items ?? []);
-    const results = createResultsModel(resultItems);
+    const results = createResultsModel(data);
 
     const isSuccess = () => {
         const d = data();
@@ -50,11 +49,11 @@ export function App() {
                     <>
                         <ResultsHeader
                             isSuccess={isSuccess()}
-                            hasItems={resultItems().length > 0}
+                            hasItems={results.totalCount() > 0}
                             viewMode={viewMode()}
                             onViewModeChange={setViewMode}
                             durationMs={res().durationMs}
-                            rowCount={resultItems().length}
+                            rowCount={results.totalCount()}
                             running={running()}
                             onRerun={() => vscode.postMessage("RERUN_QUERY", {})}
                             actions={<ResultActions items={results.selection().items} />}
@@ -71,7 +70,7 @@ export function App() {
 
                             <Show when={!res().error && res().items !== null}>
                                 <Show
-                                    when={resultItems().length > 0}
+                                    when={results.totalCount() > 0}
                                     fallback={
                                         <div class="p-4 sm:p-6">
                                             <div class="inline-flex items-center gap-1.5 text-xs bg-surface-container px-3 py-1.5 rounded border border-outline-variant text-secondary">

@@ -2,10 +2,10 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import {
+    fieldTypeLabel,
     formatCell,
     formatRawOutput,
     projectTableRows,
-    summarizeSequenceType,
 } from "../src/utils/result-items.ts";
 
 const type = (displayName) => ({
@@ -84,19 +84,20 @@ test("object projection preserves literal field names and does not inherit missi
     }
 });
 
-test("column types summarize item types and occurrence as JSONiq sequence types", () => {
-    const one = atomic("xs:integer", "1");
-    const text = atomic("xs:string", '"a"');
-
-    assert.equal(summarizeSequenceType([[one], [one]]), "xs:integer");
-    assert.equal(summarizeSequenceType([[one], []]), "xs:integer?");
-    assert.equal(summarizeSequenceType([[one], undefined]), "xs:integer?");
-    assert.equal(summarizeSequenceType([[one, one], [one]]), "xs:integer+");
-    assert.equal(summarizeSequenceType([[one, one], undefined]), "xs:integer*");
-    assert.equal(summarizeSequenceType([[one], [text]]), "item()");
-    assert.equal(summarizeSequenceType([[one, text], []]), "item()*");
-    assert.equal(summarizeSequenceType([[], undefined]), "empty-sequence()");
-    assert.equal(summarizeSequenceType([]), "empty-sequence()");
+test("field type labels mark optional fields and need an object result type", () => {
+    const objectType = {
+        kind: "object",
+        displayName: "{ a: xs:decimal, b?: xs:string }",
+        fields: {
+            a: { type: type("xs:decimal"), required: true },
+            b: { type: type("xs:string"), required: false },
+        },
+    };
+    assert.equal(fieldTypeLabel(objectType, "a"), "xs:decimal");
+    assert.equal(fieldTypeLabel(objectType, "b"), "xs:string?");
+    assert.equal(fieldTypeLabel(objectType, "c"), undefined);
+    assert.equal(fieldTypeLabel(type("item"), "a"), undefined);
+    assert.equal(fieldTypeLabel(undefined, "a"), undefined);
 });
 
 test("presentation preserves backend serialization and expansion behavior", async () => {

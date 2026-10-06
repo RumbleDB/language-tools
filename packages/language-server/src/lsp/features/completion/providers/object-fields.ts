@@ -1,4 +1,4 @@
-import { formatTypeDefinition, type ObjectTypeDefinition } from "server/analysis/index.js";
+import { formatObjectField, type ObjectTypeDefinition } from "server/analysis/index.js";
 import { getTypeAtPositionFromSource } from "server/integrations/rumble/operations/type-at-position/service.js";
 import { CompletionItemKind } from "vscode-languageserver";
 
@@ -36,19 +36,17 @@ export const provideObjectFieldCompletions: CompletionProvider = async (context)
         return [];
     }
 
-    return objectFieldCompletions(objectType, dotContext.fieldPrefix).map(
-        ([fieldName, fieldType]) => ({
-            label: fieldName,
-            kind: CompletionItemKind.Field,
-            labelDetails: { detail: `: ${formatTypeDefinition(fieldType)}` },
-            textEdit: replaceTypedPrefix(
-                context.document,
-                dotContext.dotOffset + 1 + dotContext.fieldPrefix.length,
-                dotContext.fieldPrefix,
-                UNQUOTED_FIELD_NAME_PATTERN.test(fieldName) ? fieldName : JSON.stringify(fieldName),
-            ),
-        }),
-    );
+    return objectFieldCompletions(objectType, dotContext.fieldPrefix).map(([fieldName, field]) => ({
+        label: fieldName,
+        kind: CompletionItemKind.Field,
+        labelDetails: { detail: formatObjectField(field) },
+        textEdit: replaceTypedPrefix(
+            context.document,
+            dotContext.dotOffset + 1 + dotContext.fieldPrefix.length,
+            dotContext.fieldPrefix,
+            UNQUOTED_FIELD_NAME_PATTERN.test(fieldName) ? fieldName : JSON.stringify(fieldName),
+        ),
+    }));
 };
 
 function getDotCompletionContext(context: CompletionContext): DotCompletionContext | null {

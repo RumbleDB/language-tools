@@ -12,6 +12,7 @@ import java.util.Set;
 import org.jsoniq.lsp.wrapper.handlers.QueryResultItem;
 import org.jsoniq.lsp.wrapper.handlers.RunQuery;
 import org.jsoniq.lsp.wrapper.messages.Request;
+import org.jsoniq.lsp.wrapper.types.TypeDefinition.ObjectTypeDefinition;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -69,7 +70,8 @@ class RunQueryTest {
         assertNull(empty.error());
         assertEquals(java.util.List.of(), empty.items());
         JsonNode emptyJson = json(empty);
-        assertProperties(emptyJson, "items", "error");
+        assertProperties(emptyJson, "items", "itemType", "error");
+        assertTrue(emptyJson.get("itemType").isNull());
         assertEquals(0, emptyJson.get("items").size());
         assertTrue(emptyJson.get("error").isNull());
         RunQuery.Result result = this.runQuery.run("(null, \"\", [], {})", DOCUMENT_URI);
@@ -91,6 +93,29 @@ class RunQueryTest {
     }
 
     @Test
+    void summarizesResultTypesWithEngineJoins() {
+        RunQuery.Result objects = this.runQuery.run("({\"a\": 1, \"b\": \"x\"}, {\"a\": 2.5})", DOCUMENT_URI);
+        assertNull(objects.error());
+        // Field types join to their common supertype; a field some object lacks becomes optional.
+        var objectType = assertInstanceOf(ObjectTypeDefinition.class, objects.itemType());
+        assertEquals("{ a: xs:decimal, b?: xs:string }", objectType.displayName());
+        assertEquals(List.of("a", "b"), List.copyOf(objectType.fields().keySet()));
+        assertTrue(objectType.fields().get("a").required());
+
+        RunQuery.Result atomics = this.runQuery.run("(1, \"a\")", DOCUMENT_URI);
+        assertEquals("xs:anyAtomicType", atomics.itemType().displayName());
+
+        // The engine dispatches the join on the first type, so check both orders.
+        for (String query : List.of("({\"a\": 1}, 2)", "(2, {\"a\": 1})")) {
+            assertEquals(
+                    "item", this.runQuery.run(query, DOCUMENT_URI).itemType().displayName());
+        }
+
+        RunQuery.Result nullable = this.runQuery.run("(\"a\", null)", DOCUMENT_URI);
+        assertEquals("(xs:string | js:null)", nullable.itemType().displayName());
+    }
+
+    @Test
     void preservesNumericPrecisionAndAtomicTypeNames() throws Exception {
         RunQuery.Result result = this.runQuery.run(
                 "(xs:integer(\"123456789012345678901234567890\"), xs:decimal(\"0.12345678901234567890123456789\"), xs:date(\"2026-10-02\"))",
@@ -103,7 +128,7 @@ class RunQueryTest {
                 result.items().get(2).type().qname());
         assertEquals("xs:date(\"2026-10-02\")", result.items().get(2).serialized());
         JsonNode response = json(result);
-        assertProperties(response, "items", "error");
+        assertProperties(response, "items", "itemType", "error");
         assertEquals(
                 "123456789012345678901234567890",
                 response.get("items").get(0).get("serialized").asText());
@@ -340,7 +365,7 @@ class RunQueryTest {
         assertEquals("file:///runtime.jq", result.error().location());
         assertNotNull(result.error().range());
         JsonNode response = json(result);
-        assertProperties(response, "items", "error");
+        assertProperties(response, "items", "itemType", "error");
         assertTrue(response.get("items").isNull());
         assertEquals("FOAR0001", response.get("error").get("code").asText());
         var fallback = this.runQuery.createEmptyResponse();

@@ -3,13 +3,13 @@ import { createSignal, createMemo, createEffect, on, type Accessor } from "solid
 
 import { CellValue } from "@/components/views/table/CellValue.js";
 import { ColumnHeader } from "@/components/views/table/ColumnHeader.js";
-import type { RunQueryItem } from "@/types.js";
+import type { ExecutionResultData } from "@/types.js";
 import { itemPreview } from "@/utils/item-presentation.js";
 import { createPagination } from "@/utils/pagination.js";
 import {
+    fieldTypeLabel,
     formatCell,
     projectTableRows,
-    summarizeSequenceType,
     type ResultSelection,
 } from "@/utils/result-items.js";
 
@@ -42,7 +42,10 @@ function getContentWidth(rows: TData[], key: string, headerLength: number): numb
     return Math.min(450, Math.max(90, length * 8 + 80));
 }
 
-export function createResultsModel(items: Accessor<RunQueryItem[]>): ResultsModel {
+export function createResultsModel(
+    result: Accessor<ExecutionResultData | undefined>,
+): ResultsModel {
+    const items = createMemo(() => result()?.items ?? []);
     const [globalFilter, setGlobalFilter] = createSignal("");
     const [sorting, setSorting] = createSignal<SortingState>([]);
     const expandableItems = new Map<string, Set<string>>();
@@ -87,29 +90,32 @@ export function createResultsModel(items: Accessor<RunQueryItem[]>): ResultsMode
             minSize: indexSize,
             maxSize: indexSize,
         };
+        const itemType = result()?.itemType;
         const columns = projection().objects
-            ? columnKeys().map((key) => ({ id: `field:${key}`, key, name: key }))
-            : [{ id: "value", key: "value", name: "Value" }];
+            ? columnKeys().map((key) => ({
+                  id: `field:${key}`,
+                  key,
+                  name: key,
+                  type: fieldTypeLabel(itemType, key),
+              }))
+            : [{ id: "value", key: "value", name: "Value", type: itemType?.displayName }];
         return [
             indexColumn,
-            ...columns.map(({ id, key, name }): ColumnDef<TFeatures, TData> => {
-                const type = summarizeSequenceType(data.map((row) => row.cells[key]));
-                return {
-                    id,
-                    accessorFn: (row) => formatCell(row.cells[key]),
-                    header: () => <ColumnHeader name={name} type={type} />,
-                    size: getContentWidth(data, key, Math.max(name.length, type.length)),
-                    cell: (info) => (
-                        <CellValue
-                            items={info.row.original.cells[key]}
-                            reserveArrowSpace={reserveArrowSpace(id)}
-                            onExpandabilityChange={(itemId, required) =>
-                                onExpandabilityChange(id, itemId, required)
-                            }
-                        />
-                    ),
-                };
-            }),
+            ...columns.map(({ id, key, name, type }): ColumnDef<TFeatures, TData> => ({
+                id,
+                accessorFn: (row) => formatCell(row.cells[key]),
+                header: () => <ColumnHeader name={name} type={type} />,
+                size: getContentWidth(data, key, Math.max(name.length, type?.length ?? 0)),
+                cell: (info) => (
+                    <CellValue
+                        items={info.row.original.cells[key]}
+                        reserveArrowSpace={reserveArrowSpace(id)}
+                        onExpandabilityChange={(itemId, required) =>
+                            onExpandabilityChange(id, itemId, required)
+                        }
+                    />
+                ),
+            })),
         ];
     });
 

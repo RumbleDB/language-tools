@@ -1,4 +1,8 @@
-import type { RunQueryError, RunQueryItem } from "jsoniq-language-server/requests";
+import type {
+    RunQueryError,
+    RunQueryItem,
+    RunQueryItemType,
+} from "jsoniq-language-server/requests";
 
 export interface QueryExecutionError extends RunQueryError {
     /** Bounded source excerpt, prepared by the extension for display. */
@@ -14,6 +18,7 @@ export interface QueryExecutionError extends RunQueryError {
 export interface ExecutionResultData {
     fileUri: string;
     items: RunQueryItem[] | null;
+    itemType: RunQueryItemType | null;
     error?: QueryExecutionError;
     durationMs: number;
     timestamp: string;

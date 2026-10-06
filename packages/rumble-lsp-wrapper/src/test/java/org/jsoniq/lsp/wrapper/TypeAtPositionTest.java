@@ -80,9 +80,10 @@ class TypeAtPositionTest {
         var objectType = assertInstanceOf(
                 ObjectTypeDefinition.class, result.sequenceType().itemType());
         assertEquals("object", objectType.kind());
-        assertEquals("xs:integer", objectType.fields().get("i").toString());
+        assertEquals("xs:integer", objectType.fields().get("i").type().toString());
         assertEquals(
-                "(xs:double | js:null)", objectType.fields().get("power_of_two").toString());
+                "(xs:double | js:null)",
+                objectType.fields().get("power_of_two").type().toString());
         assertEquals("", result.sequenceType().arity());
     }
 
@@ -98,8 +99,8 @@ class TypeAtPositionTest {
         assertEquals(
                 "{ value: (xs:integer | [xs:integer] | js:null), known: xs:integer }",
                 result.sequenceType().toString());
-        var union =
-                assertInstanceOf(UnionTypeDefinition.class, objectType.fields().get("value"));
+        var union = assertInstanceOf(
+                UnionTypeDefinition.class, objectType.fields().get("value").type());
         assertEquals("union", union.kind());
         assertEquals(3, union.members().size());
         assertEquals(
@@ -262,7 +263,7 @@ class TypeAtPositionTest {
         var objectType = assertInstanceOf(
                 ObjectTypeDefinition.class, result.sequenceType().itemType());
         assertEquals("object", objectType.kind());
-        assertEquals("xs:integer", objectType.fields().get("value").toString());
+        assertEquals("xs:integer", objectType.fields().get("value").type().toString());
     }
 
     @Test
@@ -286,7 +287,7 @@ class TypeAtPositionTest {
         var objectType = assertInstanceOf(
                 ObjectTypeDefinition.class, result.sequenceType().itemType());
         assertEquals("object", objectType.kind());
-        assertEquals("xs:decimal", objectType.fields().get("tlf").toString());
+        assertEquals("xs:decimal", objectType.fields().get("tlf").type().toString());
         assertEquals(
                 new Range(
                         positionAtOffset(query, query.indexOf("$a.details")),

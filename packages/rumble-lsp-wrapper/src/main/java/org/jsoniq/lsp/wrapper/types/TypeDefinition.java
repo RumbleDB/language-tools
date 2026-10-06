@@ -36,19 +36,21 @@ public sealed interface TypeDefinition {
         String displayName = itemType.toString();
         // Named unions retain their public alias (for example xs:numeric).
         if (itemType.isUnionType() && name == null) {
-            return new UnionTypeDefinition(
-                    null,
-                    displayName,
-                    itemType.getTypes().stream()
-                            .map(TypeDefinition::fromItemType)
-                            .toList());
+            List<TypeDefinition> members = itemType.getTypes().stream()
+                    .map(TypeDefinition::fromItemType)
+                    .toList();
+            // The engine renders anonymous types as internal JSON; use the descriptors' notation instead.
+            return new UnionTypeDefinition(null, UnionTypeDefinition.notation(members), members);
         }
         if (itemType.isObjectItemType()) {
-            Map<String, TypeDefinition> fields = new LinkedHashMap<>();
+            Map<String, ObjectField> fields = new LinkedHashMap<>();
             for (FieldDescriptor fieldDescriptor : itemType.getObjectContentFacet()) {
-                fields.put(fieldDescriptor.getName(), fromItemType(fieldDescriptor.getType()));
+                fields.put(
+                        fieldDescriptor.getName(),
+                        new ObjectField(fromItemType(fieldDescriptor.getType()), fieldDescriptor.isRequired()));
             }
-            return new ObjectTypeDefinition(name, displayName, fields);
+            return new ObjectTypeDefinition(
+                    name, name == null ? ObjectTypeDefinition.notation(fields) : displayName, fields);
         }
         if (itemType.isArrayItemType()) {
             return new ArrayTypeDefinition(
@@ -74,8 +76,11 @@ public sealed interface TypeDefinition {
         }
     }
 
+    /** An optional field may be absent from an object; when present, it holds one item of its type. */
+    record ObjectField(TypeDefinition type, boolean required) {}
+
     /** Anonymous types keep their structure; a QName is optional metadata. */
-    record ObjectTypeDefinition(ResolvedQName name, String displayName, Map<String, TypeDefinition> fields)
+    record ObjectTypeDefinition(ResolvedQName name, String displayName, Map<String, ObjectField> fields)
             implements TypeDefinition {
         public ObjectTypeDefinition {
             Objects.requireNonNull(displayName, "displayName");
@@ -89,8 +94,13 @@ public sealed interface TypeDefinition {
 
         @Override
         public String toString() {
-            return this.fields.entrySet().stream()
-                    .map(field -> field.getKey() + ": " + field.getValue())
+            return notation(this.fields);
+        }
+
+        static String notation(Map<String, ObjectField> fields) {
+            return fields.entrySet().stream()
+                    .map(field -> field.getKey() + (field.getValue().required() ? "" : "?") + ": "
+                            + field.getValue().type())
                     .collect(Collectors.joining(", ", "{ ", " }"));
         }
     }
@@ -127,7 +137,11 @@ public sealed interface TypeDefinition {
 
         @Override
         public String toString() {
-            return this.members.stream().map(TypeDefinition::toString).collect(Collectors.joining(" | ", "(", ")"));
+            return notation(this.members);
+        }
+
+        static String notation(List<TypeDefinition> members) {
+            return members.stream().map(TypeDefinition::toString).collect(Collectors.joining(" | ", "(", ")"));
         }
     }
 

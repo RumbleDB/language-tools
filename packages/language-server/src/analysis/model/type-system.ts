@@ -1,4 +1,8 @@
-import type { SequenceType, TypeDefinition } from "server/types/type-system.js";
+import type {
+    ObjectFieldDefinition,
+    SequenceType,
+    TypeDefinition,
+} from "server/types/type-system.js";
 
 import { DEFAULT_TYPE_NAMESPACE } from "./constants.js";
 import { QNameToString, type FunctionName } from "./names.js";
@@ -6,6 +10,7 @@ import { QNameToString, type FunctionName } from "./names.js";
 export type {
     ArrayTypeDefinition,
     NamedTypeDefinition,
+    ObjectFieldDefinition,
     ObjectTypeDefinition,
     OpaqueTypeDefinition,
     SequenceType,
@@ -42,7 +47,7 @@ export function formatTypeDefinition(type: TypeDefinition): string {
                 return QNameToString(type.name, false);
             }
             const fields = Object.entries(type.fields)
-                .map(([name, fieldType]) => `${name}: ${formatTypeDefinition(fieldType)}`)
+                .map(([name, field]) => `${name}${formatObjectField(field)}`)
                 .join(", ");
             return `{ ${fields} }`;
         }
@@ -54,6 +59,11 @@ export function formatTypeDefinition(type: TypeDefinition): string {
         default:
             throw type satisfies never;
     }
+}
+
+/** Formats a field after its name, e.g. `?: xs:string` for an optional field. */
+export function formatObjectField(field: ObjectFieldDefinition): string {
+    return `${field.required ? "" : "?"}: ${formatTypeDefinition(field.type)}`;
 }
 
 export function formatSequenceType(type: SequenceType): string {

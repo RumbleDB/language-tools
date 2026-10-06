@@ -61,6 +61,11 @@ export interface RunQueryLSPResult {
     error: RunQueryError | null;
     /** Ordered sequence; [] means an empty result, null means no result is available. */
     items: RunQueryItem[] | null;
+    /**
+     * The engine's least common supertype of all items; null for an empty result. A result of objects
+     * yields an object type whose fields are optional when some object lacks them.
+     */
+    itemType: RunQueryItemType | null;
 }
 
 export const RUN_QUERY_REQUEST = defineRequest<

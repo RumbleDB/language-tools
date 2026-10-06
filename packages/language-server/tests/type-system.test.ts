@@ -20,17 +20,21 @@ describe("inferred object type formatting", () => {
             kind: "object",
             displayName: "engine object description",
             fields: {
-                known: integer,
-                optional: { kind: "union", members: [integer, nullType] },
+                known: { type: integer, required: true },
+                nullable: { type: { kind: "union", members: [integer, nullType] }, required: true },
                 sequence: {
-                    kind: "union",
-                    members: [integer, { kind: "array", content: integer }, nullType],
+                    type: {
+                        kind: "union",
+                        members: [integer, { kind: "array", content: integer }, nullType],
+                    },
+                    required: true,
                 },
+                missing: { type: integer, required: false },
             },
         };
 
         expect(formatSequenceType({ itemType: type, arity: "*" })).toBe(
-            "{ known: xs:integer, optional: (xs:integer | js:null), sequence: (xs:integer | [xs:integer] | js:null) }*",
+            "{ known: xs:integer, nullable: (xs:integer | js:null), sequence: (xs:integer | [xs:integer] | js:null), missing?: xs:integer }*",
         );
     });
 
@@ -47,7 +51,7 @@ describe("inferred object type formatting", () => {
         expect(
             formatTypeDefinition({
                 kind: "array",
-                content: { kind: "object", fields: { value: integer } },
+                content: { kind: "object", fields: { value: { type: integer, required: true } } },
             }),
         ).toBe("[{ value: xs:integer }]");
     });

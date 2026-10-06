@@ -1,4 +1,4 @@
-import type { RunQueryItem } from "@/types.js";
+import type { RunQueryItem, RunQueryItemType } from "@/types.js";
 
 /** Use the engine's serialization directly: never reparse values as JavaScript numbers. */
 export function formatRawOutput(items: readonly RunQueryItem[]): string {
@@ -22,25 +22,14 @@ export function formatCell(items: RunQueryItem[] | undefined): string {
         : `(${items.map((item) => item.serialized).join(", ")})`;
 }
 
-/**
- * Summarize the values of a table column as a JSONiq sequence type, e.g. `xs:integer?`.
- * Missing fields count as empty sequences; differing item types widen to `item()`.
- */
-export function summarizeSequenceType(cells: readonly (RunQueryItem[] | undefined)[]): string {
-    const itemTypes = new Set<string>();
-    let minLength = Infinity;
-    let maxLength = 0;
-    for (const cell of cells) {
-        const items = cell ?? [];
-        for (const item of items) itemTypes.add(item.type.displayName);
-        minLength = Math.min(minLength, items.length);
-        maxLength = Math.max(maxLength, items.length);
-    }
-    if (itemTypes.size === 0) return "empty-sequence()";
-
-    const itemType = itemTypes.size === 1 ? [...itemTypes][0]! : "item()";
-    if (maxLength > 1) return itemType + (minLength === 0 ? "*" : "+");
-    return itemType + (minLength === 0 ? "?" : "");
+/** The type label of a projected field, e.g. `xs:string?` when some objects lack the field. */
+export function fieldTypeLabel(
+    itemType: RunQueryItemType | null | undefined,
+    field: string,
+): string | undefined {
+    if (itemType?.kind !== "object") return undefined;
+    const { type, required } = itemType.fields[field] ?? {};
+    return type?.displayName && type.displayName + (required ? "" : "?");
 }
 
 /** Only JSONiq object sequences are projected into fields; mixed items retain their full value. */

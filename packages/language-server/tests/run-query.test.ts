@@ -52,9 +52,12 @@ describe("run query service", () => {
                     displayName: "object",
                     fields: {
                         "a.b": {
-                            kind: "named",
-                            name: { localName: "integer", prefix: "xs" },
-                            displayName: "xs:integer",
+                            type: {
+                                kind: "named",
+                                name: { localName: "integer", prefix: "xs" },
+                                displayName: "xs:integer",
+                            },
+                            required: true,
                         },
                     },
                 },
@@ -160,11 +163,12 @@ describe("run query service", () => {
             location: "file:///library.jq",
             range: { start: { line: 2, character: 4 }, end: { line: 2, character: 12 } },
         };
+        const body = { items: null, itemType: null, error };
         const wrapper = createMockWrapperClient({
-            sendRequest: vi.fn().mockResolvedValue({ body: { items: null, error } }),
+            sendRequest: vi.fn().mockResolvedValue({ body }),
         });
         const result = await runQueryFromSource("file:///test.jq", "1 div 0", wrapper);
-        expect(result).toEqual({ items: null, error });
+        expect(result).toEqual(body);
     });
 
     it("preserves an external JSON resource URI and EOF range", async () => {

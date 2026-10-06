@@ -26,9 +26,15 @@ export interface OpaqueTypeDefinition extends TypeMetadata {
     displayName: string;
 }
 
+/** An optional field may be absent from an object; when present, it holds one item of its type. */
+export interface ObjectFieldDefinition {
+    type: TypeDefinition;
+    required: boolean;
+}
+
 export interface ObjectTypeDefinition extends TypeMetadata {
     kind: "object";
-    fields: Record<string, TypeDefinition>;
+    fields: Record<string, ObjectFieldDefinition>;
 }
 
 export interface ArrayTypeDefinition extends TypeMetadata {
