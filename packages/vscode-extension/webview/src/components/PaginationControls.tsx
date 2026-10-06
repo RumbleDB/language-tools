@@ -105,7 +105,7 @@ export function PaginationControls(props: PaginationControlsProps) {
             </div>
 
             <div class="flex items-center gap-1.5 text-secondary">
-                <span class="text-2xs">Show:</span>
+                <span>Show:</span>
                 <select
                     aria-label="Items per page"
                     value={props.pageSize}
@@ -113,7 +113,7 @@ export function PaginationControls(props: PaginationControlsProps) {
                         const size = Number(e.currentTarget.value);
                         props.onPageSizeChange(size);
                     }}
-                    class="bg-dropdown-bg border border-dropdown-border rounded px-1 text-2xs font-medium focus:outline-1 focus:outline-focus cursor-pointer text-dropdown-fg"
+                    class="bg-dropdown-bg border border-dropdown-border rounded px-1 font-medium focus:outline-1 focus:outline-focus cursor-pointer text-dropdown-fg"
                 >
                     <option value={20} class="bg-dropdown-list text-dropdown-fg">
                         20

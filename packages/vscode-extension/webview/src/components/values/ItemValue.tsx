@@ -191,7 +191,7 @@ export function ItemValue(props: ItemValueProps) {
                             <For each={item().members}>
                                 {(member, index) => (
                                     <div class="flex items-start gap-2 min-w-0">
-                                        <span class="font-mono text-2xs leading-5 text-secondary shrink-0">
+                                        <span class="font-mono leading-5 text-secondary shrink-0">
                                             [{index() + 1}]
                                         </span>
                                         <SequenceValue
@@ -265,7 +265,7 @@ export function SequenceValue(props: {
             >
                 <div class="min-w-0 flex-1 space-y-1">
                     <Show when={props.items!.length > 1}>
-                        <div class="text-2xs leading-5 text-secondary">
+                        <div class="leading-5 text-secondary">
                             Sequence · {props.items!.length} items
                         </div>
                     </Show>
@@ -273,7 +273,7 @@ export function SequenceValue(props: {
                         {(item, index) => (
                             <div class="flex items-start gap-2 min-w-0">
                                 <Show when={props.items!.length > 1}>
-                                    <span class="text-2xs leading-5 text-secondary font-mono shrink-0">
+                                    <span class="leading-5 text-secondary font-mono shrink-0">
                                         {index() + 1}.
                                     </span>
                                 </Show>

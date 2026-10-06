@@ -48,7 +48,7 @@ export function TableView(props: TableViewProps) {
                                         {(header) => (
                                             <th
                                                 onClick={header.column.getToggleSortingHandler()}
-                                                class={`sticky top-0 z-20 border-b border-r border-outline-variant py-1.5 text-2xs font-bold tracking-wider select-none last:border-r-0 ${
+                                                class={`sticky top-0 z-20 border-b border-r border-outline-variant py-1.5 font-bold tracking-wider select-none last:border-r-0 ${
                                                     header.column.id === "__index"
                                                         ? "bg-surface-container text-secondary/70 text-right px-3"
                                                         : "bg-surface-container text-on-container px-2"

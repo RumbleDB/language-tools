@@ -46,13 +46,13 @@ export function ResultsHeader(props: ResultsHeaderProps) {
                     <div class="w-px h-3.5 bg-outline-variant shrink-0" />
                     <div class="flex items-center gap-2.5 text-secondary shrink-0">
                         <span
-                            class="flex items-center gap-1 text-2xs"
+                            class="flex items-center gap-1"
                             title={`Query execution time: ${props.durationMs} ms`}
                         >
                             <span class="i-iconoir-timer text-xs" />
                             {formatDuration(props.durationMs)}
                         </span>
-                        <span class="flex items-center gap-1 text-2xs">
+                        <span class="flex items-center gap-1">
                             <span class="i-iconoir-table-rows text-xs" />
                             {props.rowCount} item{props.rowCount === 1 ? "" : "s"}
                         </span>
@@ -68,7 +68,7 @@ export function ResultsHeader(props: ResultsHeaderProps) {
                                 <button
                                     onClick={() => props.onViewModeChange(item.mode)}
                                     aria-pressed={props.viewMode === item.mode}
-                                    class={`px-2 py-0.5 rounded-sm text-2xs font-medium flex items-center gap-1 cursor-pointer ${
+                                    class={`px-2 py-0.5 rounded-sm font-medium flex items-center gap-1 cursor-pointer ${
                                         props.viewMode === item.mode
                                             ? "bg-primary text-on-primary font-semibold"
                                             : "text-secondary hover:text-on-surface"
