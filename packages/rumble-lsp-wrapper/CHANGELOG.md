@@ -1,5 +1,11 @@
 # rumble-lsp-wrapper
 
+## 0.12.1
+
+### Patch Changes
+
+- [`df1f2a6`](https://github.com/RumbleDB/language-tools/commit/df1f2a6bb3eab670c1ba7921113001ff81095be5) - fix: describe nested objects in query result types by their fields (e.g. `{ order: { id: xs:integer } }`) instead of an empty `{ }`
+
 ## 0.12.0
 
 ### Minor Changes
