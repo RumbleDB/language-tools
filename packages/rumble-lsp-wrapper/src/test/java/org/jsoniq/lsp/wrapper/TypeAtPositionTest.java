@@ -37,6 +37,14 @@ class TypeAtPositionTest {
     }
 
     @Test
+    void returnsEmptySequenceTypeInStandardSyntax() {
+        TypeAtPosition.Result result = this.typeAtPosition.findType("()", DOCUMENT_URI, new Position(0, 0));
+
+        assertNotNull(result.sequenceType());
+        assertEquals("empty-sequence()", result.sequenceType().toString());
+    }
+
+    @Test
     void returnsTypeAtVariableDeclarationName() {
         String query = """
                 declare variable $a := 1;
