@@ -105,6 +105,33 @@ describe("path step completion", () => {
         expect(items.map((item) => item.label)).toContain("id");
     }, 45_000);
 
+    it("only suggests path steps when triggered by a path step character", async () => {
+        const items = await completeAtEnd("return $order[", "]", "[");
+
+        expect(items.map((item) => item.label)).toEqual(
+            expect.arrayContaining(["o:price", "o:paid"]),
+        );
+        expect(items).toHaveLength(2);
+    }, 45_000);
+
+    it("suggests nothing for a path step character outside a schema-typed path", async () => {
+        const document = testDocumentFromUri("let $values := [", {
+            uri: "file:///path-step-trigger.jq",
+            languageId: "jsoniq",
+        });
+
+        await expect(
+            findCompletions(
+                document,
+                document.positionAt(document.getText().length),
+                parserService,
+                workspaceService,
+                wrapperClient,
+                "[",
+            ),
+        ).resolves.toEqual([]);
+    });
+
     it("replaces the part of a step name typed so far", async () => {
         const items = await completeAtEnd("return $order/o:pr");
 
@@ -121,7 +148,11 @@ describe("path step completion", () => {
 });
 
 /** Completes at the end of lastLine, before any text that follows the cursor. */
-async function completeAtEnd(lastLine: string, afterCursor = ""): Promise<CompletionItem[]> {
+async function completeAtEnd(
+    lastLine: string,
+    afterCursor = "",
+    triggerCharacter?: string,
+): Promise<CompletionItem[]> {
     const directory = mkdtempSync(join(tmpdir(), "path-step-completion-"));
     writeFileSync(join(directory, "order.xsd"), SCHEMA);
     const document = testDocumentFromUri([...QUERY_PREFIX, lastLine + afterCursor], {
@@ -134,5 +165,6 @@ async function completeAtEnd(lastLine: string, afterCursor = ""): Promise<Comple
         parserService,
         workspaceService,
         wrapperClient,
+        triggerCharacter,
     );
 }
