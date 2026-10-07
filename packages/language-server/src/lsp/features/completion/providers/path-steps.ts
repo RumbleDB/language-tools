@@ -1,15 +1,17 @@
 import { formatSequenceType } from "server/analysis/index.js";
+import type { PathStepScope } from "server/integrations/rumble/operations/type-at-position/protocol.js";
 import { getTypeAtPositionFromSource } from "server/integrations/rumble/operations/type-at-position/service.js";
 import { CompletionItemKind, type CompletionItem } from "vscode-languageserver";
 
 import { getQNameCompletionLabels, replaceTypedPrefix } from "../context.js";
 import type { CompletionContext, CompletionProvider } from "../types.js";
 
-/** A `/` or `/@` (but not `//`) before the cursor, followed by the part of a name typed so far. */
-const PATH_STEP_PATTERN = /(?<!\/)\/(@?)((?:[A-Za-z_][\w.-]*:)?[\w.-]*)$/;
+/** A `/` or `//`, optionally followed by `@`, before the cursor and the part of a name typed so far. */
+const PATH_STEP_PATTERN = /(?<!\/)(\/\/?)(@?)((?:[A-Za-z_][\w.-]*:)?[\w.-]*)$/;
 
 interface PathStepCompletionContext {
     slashOffset: number;
+    scope: PathStepScope;
     attributeAxis: boolean;
     namePrefix: string;
     syntheticSource: string;
@@ -28,6 +30,7 @@ export const providePathStepCompletions: CompletionProvider = async (context) =>
         stepContext.syntheticSource,
         context.document.positionAt(stepContext.slashOffset),
         context.wrapper,
+        stepContext.scope,
     );
     const steps = stepContext.attributeAxis ? result.attributes : result.children;
     if (steps === undefined) {
@@ -58,7 +61,7 @@ export const providePathStepCompletions: CompletionProvider = async (context) =>
     );
 };
 
-/** Whether an expression can start right after the slash, which excludes strings and comments. */
+/** Whether an expression can start right after the first slash, which excludes strings and comments. */
 function allowsStepAfterSlash(context: CompletionContext, slashOffset: number): boolean {
     const intent = context.getIntentAt(slashOffset + 1);
     return intent !== null && (intent.allowVariableReferences || intent.allowFunctions);
@@ -69,9 +72,11 @@ function getPathStepContext(context: CompletionContext): PathStepCompletionConte
     if (match?.index === undefined) {
         return null;
     }
-    const [, attributeMarker = "", namePrefix = ""] = match;
+    const [, slashes = "/", attributeMarker = "", namePrefix = ""] = match;
     return {
         slashOffset: match.index,
+        // E//S applies S to E and to each of its descendants.
+        scope: slashes === "//" ? "descendants" : "children",
         attributeAxis: attributeMarker === "@",
         namePrefix,
         syntheticSource:

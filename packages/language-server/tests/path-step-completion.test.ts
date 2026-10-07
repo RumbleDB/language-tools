@@ -51,6 +51,26 @@ describe("path step completion", () => {
         ]);
     }, 45_000);
 
+    it("suggests the elements below each descendant after '//'", async () => {
+        const items = await completeAtEnd("return $order//");
+
+        expect(items.map((item) => [item.label, item.labelDetails?.description])).toEqual(
+            expect.arrayContaining([
+                ["o:price", "element(o:price, xs:decimal)*"],
+                ["o:paid", "element(o:paid, xs:boolean)*"],
+            ]),
+        );
+        expect(items).toHaveLength(2);
+    }, 45_000);
+
+    it("suggests the attributes of the path and its descendants after '//@'", async () => {
+        const items = await completeAtEnd("return $order//@");
+
+        expect(items.map((item) => [item.label, item.labelDetails?.description])).toEqual([
+            ["id", "attribute(id, xs:integer)*"],
+        ]);
+    }, 45_000);
+
     it("replaces the part of a step name typed so far", async () => {
         const items = await completeAtEnd("return $order/o:pr");
 

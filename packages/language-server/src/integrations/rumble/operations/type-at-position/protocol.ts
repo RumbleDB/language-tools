@@ -9,14 +9,21 @@ export interface TypeAtPositionRequest {
     body: string;
     documentUri: string;
     position: Position;
+    pathSteps?: PathStepScope;
 }
+
+/**
+ * Which path steps to list: those that select children or attributes of each item, as after `/`, or also of each of
+ * its descendants, as after `//`.
+ */
+export type PathStepScope = "children" | "descendants";
 
 export interface TypeAtPositionWireResult {
     sequenceType?: SequenceType;
     range?: Range;
-    /** Child elements that the schema declares for the type's items, when it describes all of them. */
+    /** Child elements that the schema declares for the requested path steps, ignoring wildcards. */
     children?: PathStep[];
-    /** Attributes that the schema declares for the type's items, when it describes all of them. */
+    /** Attributes that the schema declares for the requested path steps, ignoring wildcards. */
     attributes?: PathStep[];
 }
 
