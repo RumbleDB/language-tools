@@ -1,7 +1,9 @@
 import {
+    collectModuleProlog,
     getVisibleDeclarationsAtPosition,
     QNameToString,
     type AnalysisResult,
+    type ModuleProlog,
     type ScopeDefinition,
     type QName,
 } from "server/analysis/index.js";
@@ -31,6 +33,7 @@ export function createCompletionContext(
 
     let visibleDeclarations: Promise<ScopeDefinition[]> | undefined;
     let analysis: Promise<AnalysisResult> | undefined;
+    let prolog: ModuleProlog | undefined;
 
     return {
         document,
@@ -45,6 +48,9 @@ export function createCompletionContext(
         },
         getAnalysis() {
             return (analysis ??= workspace.getAnalysis(document));
+        },
+        getModuleProlog() {
+            return (prolog ??= collectModuleProlog(document.uri, parser.parse(document).ast));
         },
         getVisibleDeclarations() {
             visibleDeclarations ??= this.getAnalysis().then((analysis) =>

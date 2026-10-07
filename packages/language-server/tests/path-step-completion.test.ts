@@ -71,6 +71,40 @@ describe("path step completion", () => {
         ]);
     }, 45_000);
 
+    it("suggests the children of the context item in a predicate", async () => {
+        // Editors close the bracket when it is typed.
+        const items = await completeAtEnd("return $order[o:pr", "]");
+
+        const line = QUERY_PREFIX.length;
+        expect(items).toContainEqual(
+            expect.objectContaining({
+                label: "o:price",
+                labelDetails: { description: "element(o:price, xs:decimal)+" },
+                textEdit: {
+                    range: {
+                        start: { line, character: "return $order[".length },
+                        end: { line, character: "return $order[o:pr".length },
+                    },
+                    newText: "o:price",
+                },
+            }),
+        );
+    }, 45_000);
+
+    it("suggests the children of the context item on the right of '!'", async () => {
+        const items = await completeAtEnd("return $order ! o:");
+
+        expect(items.map((item) => item.label)).toEqual(
+            expect.arrayContaining(["o:price", "o:paid"]),
+        );
+    }, 45_000);
+
+    it("suggests the attributes of the context item after '@' in a predicate", async () => {
+        const items = await completeAtEnd("return $order[@", "]");
+
+        expect(items.map((item) => item.label)).toContain("id");
+    }, 45_000);
+
     it("replaces the part of a step name typed so far", async () => {
         const items = await completeAtEnd("return $order/o:pr");
 
@@ -86,16 +120,17 @@ describe("path step completion", () => {
     }, 45_000);
 });
 
-async function completeAtEnd(lastLine: string): Promise<CompletionItem[]> {
+/** Completes at the end of lastLine, before any text that follows the cursor. */
+async function completeAtEnd(lastLine: string, afterCursor = ""): Promise<CompletionItem[]> {
     const directory = mkdtempSync(join(tmpdir(), "path-step-completion-"));
     writeFileSync(join(directory, "order.xsd"), SCHEMA);
-    const document = testDocumentFromUri([...QUERY_PREFIX, lastLine], {
+    const document = testDocumentFromUri([...QUERY_PREFIX, lastLine + afterCursor], {
         uri: pathToFileURL(join(directory, "query.xq")).toString(),
         languageId: "xquery",
     });
     return findCompletions(
         document,
-        document.positionAt(document.getText().length),
+        document.positionAt(document.getText().length - afterCursor.length),
         parserService,
         workspaceService,
         wrapperClient,
