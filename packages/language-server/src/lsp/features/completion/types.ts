@@ -9,6 +9,8 @@ export interface CompletionContext {
     source: string;
     cursorOffset: number;
     intent: CompletionIntent;
+    /** The intent at another offset in the document, for providers that inspect text before the cursor. */
+    getIntentAt(offset: number): CompletionIntent | null;
     wrapper: WrapperClient;
 
     // This is a lazy getter, because computing visible declarations can be expensive and is not always needed.

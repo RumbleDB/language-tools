@@ -1,4 +1,5 @@
-import { readFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 
@@ -10,6 +11,35 @@ import { describe, expect, it, vi } from "vitest";
 import { createMockWrapperClient, testDocument, testDocumentFromUri } from "./test-utils.js";
 
 describe("static typecheck diagnostics", () => {
+    it("reports a child step that the imported schema does not declare", async () => {
+        const directory = mkdtempSync(path.join(tmpdir(), "static-typecheck-schema-"));
+        writeFileSync(
+            path.join(directory, "order.xsd"),
+            `<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" targetNamespace="urn:order"
+                       elementFormDefault="qualified">
+                <xs:element name="order">
+                    <xs:complexType><xs:sequence><xs:element name="price" type="xs:decimal"/></xs:sequence></xs:complexType>
+                </xs:element>
+            </xs:schema>`,
+        );
+        const document = testDocumentFromUri(
+            [
+                'import schema namespace o = "urn:order" at "order.xsd";',
+                "let $order := validate { <o:order><o:price>1</o:price></o:order> }",
+                "return $order/o:prices",
+            ],
+            {
+                uri: pathToFileURL(path.join(directory, "query.xq")).toString(),
+                languageId: "xquery",
+            },
+        );
+        clearStaticTypecheckCache(document.uri);
+
+        await expect(
+            collectStaticTypecheckDiagnostics(document, new RumbleWrapperClient()),
+        ).resolves.toEqual([expect.objectContaining({ code: "XPST0005" })]);
+    }, 45_000);
+
     it("does not attach imported module errors to the importing document", async () => {
         const document = testDocument("static-typecheck-main", "1");
         const importedModuleUri = "file:///static-typecheck-library.jq";
