@@ -50,8 +50,9 @@ public final class TypeAtPosition implements RequestHandler {
     public static final Result EMPTY_RESULT = new Result(null, null, null, null);
 
     /**
-     * children and attributes list the steps that the schema declares for the type's items, when it describes all of
-     * them, so that editors can suggest path steps.
+     * When requested, children and attributes list the child and attribute steps that the schema declares for the
+     * type's items, or for them and each of their descendants, so that editors can suggest path steps. They may omit
+     * names that a wildcard allows.
      */
     public record Result(SequenceType sequenceType, Range range, List<PathStep> children, List<PathStep> attributes)
             implements ResponseBody {}
@@ -78,7 +79,7 @@ public final class TypeAtPosition implements RequestHandler {
         }
 
         String query = new String(Base64.getDecoder().decode(request.body()), StandardCharsets.UTF_8);
-        return findType(query, documentUri, request.position());
+        return findType(query, documentUri, request.position(), request.pathSteps());
     }
 
     @Override
@@ -87,6 +88,10 @@ public final class TypeAtPosition implements RequestHandler {
     }
 
     public Result findType(String query, URI documentUri, Position position) {
+        return findType(query, documentUri, position, null);
+    }
+
+    public Result findType(String query, URI documentUri, Position position, Request.PathSteps pathSteps) {
         Objects.requireNonNull(documentUri, "documentUri is required.");
         if (query == null || query.isEmpty() || position == null) {
             return EMPTY_RESULT;
@@ -104,25 +109,29 @@ public final class TypeAtPosition implements RequestHandler {
             return new Result(
                     SequenceType.fromSequenceType(candidate.sequenceType()),
                     candidate.resultRange(),
-                    pathSteps(module, itemType, false),
-                    pathSteps(module, itemType, true));
+                    pathSteps(module, itemType, false, pathSteps),
+                    pathSteps(module, itemType, true, pathSteps));
         } catch (Throwable throwable) {
             return EMPTY_RESULT;
         }
     }
 
-    private static List<PathStep> pathSteps(MainModule module, ItemType itemType, boolean attributeAxis) {
-        // Only load the schema catalog for schema-typed nodes.
-        if (!XmlSchemaCatalog.isSchemaTyped(itemType)) {
+    private static List<PathStep> pathSteps(
+            MainModule module, ItemType itemType, boolean attributeAxis, Request.PathSteps pathSteps) {
+        // Only load the schema catalog when steps are requested for schema-typed nodes.
+        if (pathSteps == null || !XmlSchemaCatalog.isSchemaTyped(itemType)) {
             return null;
         }
         XmlSchemaCatalog catalog =
                 module.getStaticContext().getInScopeSchemaTypes().getXmlSchemaCatalog();
-        return catalog.getStepNames(itemType, attributeAxis)
+        boolean descendants = pathSteps == Request.PathSteps.DESCENDANTS;
+        return catalog.getStepNames(itemType, attributeAxis, descendants)
                 .map(names -> names.stream()
                         .map(name -> new PathStep(
                                 ResolvedQName.fromName(name),
-                                catalog.getStepType(itemType, attributeAxis, name)
+                                (descendants
+                                                ? catalog.getDescendantStepType(itemType, attributeAxis, name)
+                                                : catalog.getStepType(itemType, attributeAxis, name))
                                         .map(SequenceType::fromSequenceType)
                                         .orElse(null)))
                         .toList())

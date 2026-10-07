@@ -41,47 +41,79 @@ class TypeAtPositionTest {
         assertEquals(new Range(new Position(0, 0), new Position(0, query.length())), result.range());
     }
 
+    private static final String ORDER_SCHEMA =
+            """
+            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:o="urn:order"
+                       targetNamespace="urn:order" elementFormDefault="qualified">
+                <xs:element name="order">
+                    <xs:complexType>
+                        <xs:sequence>
+                            <xs:element name="line" maxOccurs="unbounded">
+                                <xs:complexType>
+                                    <xs:sequence><xs:element name="price" type="xs:decimal"/></xs:sequence>
+                                    <xs:attribute name="sku" type="xs:string"/>
+                                </xs:complexType>
+                            </xs:element>
+                        </xs:sequence>
+                        <xs:attribute name="id" type="xs:integer" use="required"/>
+                    </xs:complexType>
+                </xs:element>
+            </xs:schema>
+            """;
+
+    private static final String ORDER_QUERY =
+            "import schema namespace o = \"urn:order\" at \"order.xsd\";\n(validate { <o:order/> })";
+
     @Test
     void listsPathStepsThatTheSchemaDeclares(@TempDir Path directory) throws IOException {
-        Files.writeString(
-                directory.resolve("order.xsd"),
-                """
-                <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:o="urn:order"
-                           targetNamespace="urn:order" elementFormDefault="qualified">
-                    <xs:element name="order">
-                        <xs:complexType>
-                            <xs:sequence>
-                                <xs:element name="price" type="xs:decimal" maxOccurs="unbounded"/>
-                            </xs:sequence>
-                            <xs:attribute name="id" type="xs:integer" use="required"/>
-                        </xs:complexType>
-                    </xs:element>
-                </xs:schema>
-                """);
-        String query = "import schema namespace o = \"urn:order\" at \"order.xsd\";\n(validate { <o:order/> })";
+        TypeAtPosition.Result result = findOrderType(directory, Request.PathSteps.CHILDREN);
 
-        TypeAtPosition.Result result = this.typeAtPosition.findType(
-                query, directory.resolve("query.xq").toUri(), positionAtOffset(query, query.length()));
+        assertEquals(List.of("o:line: element(o:line, <anonymous>)+"), describe(result.children()));
+        assertEquals(List.of("id: attribute(id, xs:integer)"), describe(result.attributes()));
+    }
+
+    @Test
+    void listsPathStepsBelowDescendants(@TempDir Path directory) throws IOException {
+        TypeAtPosition.Result result = findOrderType(directory, Request.PathSteps.DESCENDANTS);
 
         assertEquals(
-                List.of("o:price: element(o:price, xs:decimal)+"),
-                result.children().stream()
-                        .map(step -> step.name() + ": " + step.sequenceType())
-                        .toList());
+                List.of("o:line: element(o:line, <anonymous>)*", "o:price: element(o:price, xs:decimal)*"),
+                describe(result.children()));
         assertEquals(
-                List.of("id: attribute(id, xs:integer)"),
-                result.attributes().stream()
-                        .map(step -> step.name() + ": " + step.sequenceType())
-                        .toList());
+                List.of("id: attribute(id, xs:integer)*", "sku: attribute(sku, xs:string)*"),
+                describe(result.attributes()));
+    }
+
+    @Test
+    void listsPathStepsOnlyWhenRequested(@TempDir Path directory) throws IOException {
+        TypeAtPosition.Result result = findOrderType(directory, null);
+
+        assertNull(result.children());
+        assertNull(result.attributes());
     }
 
     @Test
     void listsNoPathStepsForUntypedNodes() {
-        TypeAtPosition.Result result =
-                this.typeAtPosition.findType("<order/>", URI.create("file:///query.xq"), new Position(0, 8));
+        TypeAtPosition.Result result = this.typeAtPosition.findType(
+                "<order/>", URI.create("file:///query.xq"), new Position(0, 8), Request.PathSteps.CHILDREN);
 
         assertNull(result.children());
         assertNull(result.attributes());
+    }
+
+    private TypeAtPosition.Result findOrderType(Path directory, Request.PathSteps pathSteps) throws IOException {
+        Files.writeString(directory.resolve("order.xsd"), ORDER_SCHEMA);
+        return this.typeAtPosition.findType(
+                ORDER_QUERY,
+                directory.resolve("query.xq").toUri(),
+                positionAtOffset(ORDER_QUERY, ORDER_QUERY.length()),
+                pathSteps);
+    }
+
+    private static List<String> describe(List<TypeAtPosition.PathStep> steps) {
+        return steps.stream()
+                .map(step -> step.name() + ": " + step.sequenceType())
+                .toList();
     }
 
     @Test
