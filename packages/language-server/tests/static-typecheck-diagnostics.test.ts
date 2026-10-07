@@ -35,9 +35,23 @@ describe("static typecheck diagnostics", () => {
         );
         clearStaticTypecheckCache(document.uri);
 
-        await expect(
-            collectStaticTypecheckDiagnostics(document, new RumbleWrapperClient()),
-        ).resolves.toEqual([expect.objectContaining({ code: "XPST0005" })]);
+        const diagnostics = await collectStaticTypecheckDiagnostics(
+            document,
+            new RumbleWrapperClient(),
+        );
+
+        expect(diagnostics).toEqual([
+            expect.objectContaining({
+                code: "XPST0005",
+                message:
+                    "The schema declares no child element o:prices for schema-element(o:order). It declares o:price.",
+            }),
+        ]);
+        // The diagnostic marks the step, not the whole path.
+        expect(diagnostics[0]?.range.start).toEqual({
+            line: 2,
+            character: "return $order/".length,
+        });
     }, 45_000);
 
     it("does not attach imported module errors to the importing document", async () => {
