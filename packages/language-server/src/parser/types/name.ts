@@ -20,6 +20,9 @@ export type UriQualifiedQName = {
 
 export type LexicalQName = UnprefixedQName | PrefixedQName | UriQualifiedQName;
 
+/** The context item (`$$` in JSONiq, `.` in XQuery) is analyzed as a variable with this name. */
+export const CONTEXT_ITEM_NAME: UnprefixedQName = { kind: "unprefixed-qname", localName: "$" };
+
 export type LexicalFunctionName = {
     qname: LexicalQName;
     arity?: number;

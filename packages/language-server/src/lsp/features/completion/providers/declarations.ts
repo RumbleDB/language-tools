@@ -4,6 +4,8 @@ import {
     QNameToString,
     type ScopeDefinition,
 } from "server/analysis/index.js";
+import { CONTEXT_ITEM_NAME } from "server/parser/types/name.js";
+import { getActiveParserId } from "server/parser/utils.js";
 import {
     CompletionItemKind,
     InsertTextFormat,
@@ -44,8 +46,12 @@ export const provideVariableCompletions: CompletionProvider = async (context) =>
                   context.cursorOffset - variablePrefix.length,
               );
 
+    // XQuery writes the context item as `.`, not as a variable.
+    const offerContextItem = getActiveParserId(context.document) !== "xquery";
+
     return declarations
         .filter((definition) => definition.kind === "variable" || definition.kind === "parameter")
+        .filter((definition) => offerContextItem || !isContextItem(definition))
         .map((definition) => {
             const name = definitionNameToString(definition);
             return {
@@ -148,7 +154,16 @@ function toCompletionItem(declaration: ScopeDefinition, functionLabel?: string):
         label: name,
         kind: CompletionItemKind.Variable,
         labelDetails: {
-            description: declaration.kind.charAt(0).toUpperCase() + declaration.kind.slice(1),
+            description: isContextItem(declaration)
+                ? "Context item"
+                : declaration.kind.charAt(0).toUpperCase() + declaration.kind.slice(1),
         },
     };
+}
+
+function isContextItem(declaration: ScopeDefinition): boolean {
+    return (
+        declaration.kind === "variable" &&
+        declaration.name.localName === CONTEXT_ITEM_NAME.localName
+    );
 }

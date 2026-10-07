@@ -27,6 +27,17 @@ describe("JSONiq rename", () => {
         expect(varPrepare?.placeholder).toBe("x");
     });
 
+    it("does not rename the context item", async () => {
+        const document = testDocument("rename-context-item", [
+            "declare context item := 1;",
+            "$$ + 1",
+        ]);
+
+        expect(
+            await prepareRename(document, positionAt(document, "$$"), workspaceService),
+        ).toBeNull();
+    });
+
     it("renames variables across scopes (accepting both '$name' and bare 'name')", async () => {
         const source = [
             "declare variable $x := 10;",
