@@ -1,8 +1,12 @@
 package org.jsoniq.lsp.wrapper;
 
+import java.io.IOException;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Base64;
+import java.util.List;
 
 import org.jsoniq.lsp.wrapper.handlers.TypeAtPosition;
 import org.jsoniq.lsp.wrapper.messages.Request;
@@ -10,6 +14,7 @@ import org.jsoniq.lsp.wrapper.types.TypeDefinition.ArrayTypeDefinition;
 import org.jsoniq.lsp.wrapper.types.TypeDefinition.ObjectTypeDefinition;
 import org.jsoniq.lsp.wrapper.types.TypeDefinition.UnionTypeDefinition;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
@@ -34,6 +39,49 @@ class TypeAtPositionTest {
         assertNotNull(result.sequenceType());
         assertEquals("xs:integer", result.sequenceType().toString());
         assertEquals(new Range(new Position(0, 0), new Position(0, query.length())), result.range());
+    }
+
+    @Test
+    void listsPathStepsThatTheSchemaDeclares(@TempDir Path directory) throws IOException {
+        Files.writeString(
+                directory.resolve("order.xsd"),
+                """
+                <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:o="urn:order"
+                           targetNamespace="urn:order" elementFormDefault="qualified">
+                    <xs:element name="order">
+                        <xs:complexType>
+                            <xs:sequence>
+                                <xs:element name="price" type="xs:decimal" maxOccurs="unbounded"/>
+                            </xs:sequence>
+                            <xs:attribute name="id" type="xs:integer" use="required"/>
+                        </xs:complexType>
+                    </xs:element>
+                </xs:schema>
+                """);
+        String query = "import schema namespace o = \"urn:order\" at \"order.xsd\";\n(validate { <o:order/> })";
+
+        TypeAtPosition.Result result = this.typeAtPosition.findType(
+                query, directory.resolve("query.xq").toUri(), positionAtOffset(query, query.length()));
+
+        assertEquals(
+                List.of("o:price: element(o:price, xs:decimal)+"),
+                result.children().stream()
+                        .map(step -> step.name() + ": " + step.sequenceType())
+                        .toList());
+        assertEquals(
+                List.of("id: attribute(id, xs:integer)"),
+                result.attributes().stream()
+                        .map(step -> step.name() + ": " + step.sequenceType())
+                        .toList());
+    }
+
+    @Test
+    void listsNoPathStepsForUntypedNodes() {
+        TypeAtPosition.Result result =
+                this.typeAtPosition.findType("<order/>", URI.create("file:///query.xq"), new Position(0, 8));
+
+        assertNull(result.children());
+        assertNull(result.attributes());
     }
 
     @Test

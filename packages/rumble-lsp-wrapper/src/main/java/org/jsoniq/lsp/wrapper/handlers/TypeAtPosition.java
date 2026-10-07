@@ -11,6 +11,7 @@ import org.jsoniq.lsp.wrapper.Position;
 import org.jsoniq.lsp.wrapper.Range;
 import org.jsoniq.lsp.wrapper.messages.Request;
 import org.jsoniq.lsp.wrapper.messages.ResponseBody;
+import org.jsoniq.lsp.wrapper.types.ResolvedQName;
 import org.jsoniq.lsp.wrapper.types.SequenceType;
 
 import org.rumbledb.bindings.ExternalBindings;
@@ -41,12 +42,22 @@ import org.rumbledb.expressions.scripting.control.TypeSwitchStatementCase;
 import org.rumbledb.expressions.scripting.declaration.VariableDeclStatement;
 import org.rumbledb.expressions.update.CopyDeclaration;
 import org.rumbledb.expressions.update.TransformExpression;
+import org.rumbledb.types.ItemType;
+import org.rumbledb.xml.schema.XmlSchemaCatalog;
 
 public final class TypeAtPosition implements RequestHandler {
     public static final String REQUEST_TYPE = "type-at-position";
-    public static final Result EMPTY_RESULT = new Result(null, null);
+    public static final Result EMPTY_RESULT = new Result(null, null, null, null);
 
-    public record Result(SequenceType sequenceType, Range range) implements ResponseBody {}
+    /**
+     * children and attributes list the steps that the schema declares for the type's items, when it describes all of
+     * them, so that editors can suggest path steps.
+     */
+    public record Result(SequenceType sequenceType, Range range, List<PathStep> children, List<PathStep> attributes)
+            implements ResponseBody {}
+
+    /** A child or attribute name, and the type of the nodes that a step with that name selects from one item. */
+    public record PathStep(ResolvedQName name, SequenceType sequenceType) {}
 
     private final RumbleConfiguration configuration;
 
@@ -89,10 +100,33 @@ public final class TypeAtPosition implements RequestHandler {
             if (candidate == null || candidate.sequenceType() == null) {
                 return EMPTY_RESULT;
             }
-            return new Result(SequenceType.fromSequenceType(candidate.sequenceType()), candidate.resultRange());
+            ItemType itemType = candidate.sequenceType().getItemType();
+            return new Result(
+                    SequenceType.fromSequenceType(candidate.sequenceType()),
+                    candidate.resultRange(),
+                    pathSteps(module, itemType, false),
+                    pathSteps(module, itemType, true));
         } catch (Throwable throwable) {
             return EMPTY_RESULT;
         }
+    }
+
+    private static List<PathStep> pathSteps(MainModule module, ItemType itemType, boolean attributeAxis) {
+        // Only load the schema catalog for schema-typed nodes.
+        if (!XmlSchemaCatalog.isSchemaTyped(itemType)) {
+            return null;
+        }
+        XmlSchemaCatalog catalog =
+                module.getStaticContext().getInScopeSchemaTypes().getXmlSchemaCatalog();
+        return catalog.getStepNames(itemType, attributeAxis)
+                .map(names -> names.stream()
+                        .map(name -> new PathStep(
+                                ResolvedQName.fromName(name),
+                                catalog.getStepType(itemType, attributeAxis, name)
+                                        .map(SequenceType::fromSequenceType)
+                                        .orElse(null)))
+                        .toList())
+                .orElse(null);
     }
 
     private enum CandidateKind {
