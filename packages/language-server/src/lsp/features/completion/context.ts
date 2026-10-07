@@ -52,6 +52,9 @@ export function createCompletionContext(
         getModuleProlog() {
             return (prolog ??= collectModuleProlog(document.uri, parser.parse(document).ast));
         },
+        getParseResult() {
+            return parser.parse(document);
+        },
         getVisibleDeclarations() {
             visibleDeclarations ??= this.getAnalysis().then((analysis) =>
                 getVisibleDeclarationsAtPosition(analysis, cursorOffset),

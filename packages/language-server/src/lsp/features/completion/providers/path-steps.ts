@@ -1,3 +1,4 @@
+import { Token } from "antlr4ng";
 import { formatSequenceType } from "server/analysis/index.js";
 import type { PathStepScope } from "server/integrations/rumble/operations/type-at-position/protocol.js";
 import { getTypeAtPositionFromSource } from "server/integrations/rumble/operations/type-at-position/service.js";
@@ -7,43 +8,46 @@ import { CompletionItemKind, type CompletionItem } from "vscode-languageserver";
 import { getQNameCompletionLabels, replaceTypedPrefix } from "../context.js";
 import type { CompletionContext, CompletionProvider } from "../types.js";
 
-/** The part of a step name typed so far, optionally after `@`. */
-const STEP_NAME = String.raw`(@?)((?:[A-Za-z_][\w.-]*:)?[\w.-]*)$`;
+/**
+ * The part of a step name typed so far, optionally after `@`. It must start a name, rather than continue a variable
+ * name or another token.
+ */
+const STEP_PATTERN = /(?<![\w.$@:#"'-])(@?)((?:[A-Za-z_][\w.-]*:)?[\w.-]*)$/;
 
-/** A `/` or `//` before the step. */
-const PATH_STEP_PATTERN = new RegExp(String.raw`(?<!\/)(\/\/?)` + STEP_NAME);
-
-/** A step without a path before it, which starts from the context item, e.g. in `[o:pr`. */
-const CONTEXT_ITEM_STEP_PATTERN = new RegExp(String.raw`(?<![\w.$\/@:#"'-])` + STEP_NAME);
-
-interface StepCompletionRequest {
-    /** The source with the incomplete step replaced, so that it compiles. */
-    syntheticSource: string;
-    /** Where the expression whose type the step applies to ends, or starts for the context item. */
-    typeOffset: number;
-    scope: PathStepScope;
+interface TypedStep {
+    /** Where the step starts, including any `@`. */
+    start: number;
     attributeAxis: boolean;
     namePrefix: string;
 }
 
+interface ContextItemReplacement {
+    /** Where the context item replaces the source up to the cursor. */
+    from: number;
+    /** What to insert before the context item. */
+    prefix: string;
+    scope: PathStepScope;
+}
+
 /** Suggests the children or attributes that the schema declares after `/` or `//` in a schema-typed path. */
 export const providePathStepCompletions: CompletionProvider = async (context) => {
-    const match = typedBeforeCursor(context, PATH_STEP_PATTERN);
-    // An expression must be able to start right after the slash, which excludes strings and comments.
-    if (match === null || !allowsExpressionAt(context, match.index + 1)) {
+    const step = typedStep(context);
+    if (step === null) {
         return null;
     }
-    const [, slashes, attributeMarker, namePrefix = ""] = match.groups;
-    return completeSteps(context, {
-        // Ask for the type of the path before the step, so the incomplete step does not prevent compilation.
-        syntheticSource:
-            context.source.slice(0, match.index) + context.source.slice(context.cursorOffset),
-        typeOffset: match.index,
-        // E//S applies S to E and to each of its descendants.
-        scope: slashes === "//" ? "descendants" : "children",
-        attributeAxis: attributeMarker === "@",
-        namePrefix,
-    });
+    const slash = previousToken(context, step.start);
+    // An expression must be able to start at the step, which excludes strings and comments.
+    if ((slash?.text !== "/" && slash?.text !== "//") || !allowsExpressionAt(context, step.start)) {
+        return null;
+    }
+    return completeSteps(
+        context,
+        step,
+        // E//S applies S to E and to each of its descendants, which the descendant scope lists for the items of E.
+        slash.text === "//"
+            ? { from: slash.start, prefix: "/", scope: "descendants" }
+            : { from: step.start, prefix: "", scope: "children" },
+    );
 };
 
 /**
@@ -51,11 +55,11 @@ export const providePathStepCompletions: CompletionProvider = async (context) =>
  * in a predicate. Function and variable names remain valid there, so these suggestions are added to the others.
  */
 export const provideContextItemStepCompletions: CompletionProvider = async (context) => {
-    const match = typedBeforeCursor(context, CONTEXT_ITEM_STEP_PATTERN);
+    const step = typedStep(context);
     if (
-        match === null ||
-        !setsContextItem(context.source, match.index) ||
-        !allowsExpressionAt(context, match.index)
+        step === null ||
+        !setsContextItem(context.source, step.start) ||
+        !allowsExpressionAt(context, step.start)
     ) {
         return null;
     }
@@ -63,67 +67,77 @@ export const provideContextItemStepCompletions: CompletionProvider = async (cont
     if (context.getModuleProlog().schemaImports.length === 0) {
         return null;
     }
-    const [, attributeMarker, namePrefix = ""] = match.groups;
-    const contextItem = getActiveParserId(context.document) === "xquery" ? "." : "$$";
-    return completeSteps(context, {
-        syntheticSource:
-            context.source.slice(0, match.index) +
-            contextItem +
-            context.source.slice(context.cursorOffset),
-        // At the context item's start, its own type is the narrowest one.
-        typeOffset: match.index,
-        scope: "children",
-        attributeAxis: attributeMarker === "@",
-        namePrefix,
-    });
+    return completeSteps(context, step, { from: step.start, prefix: "", scope: "children" });
 };
 
+/**
+ * Replaces the step with the context item, whose type is that of the items the step applies to. Unlike the type of the
+ * expression before a slash, it does not depend on which of the expressions ending there is meant.
+ */
 async function completeSteps(
     context: CompletionContext,
-    request: StepCompletionRequest,
+    typed: TypedStep,
+    replacement: ContextItemReplacement,
 ): Promise<CompletionItem[] | null> {
+    const contextItem = getActiveParserId(context.document) === "xquery" ? "." : "$$";
+    const contextItemOffset = replacement.from + replacement.prefix.length;
     const result = await getTypeAtPositionFromSource(
         context.document.uri,
-        request.syntheticSource,
-        context.document.positionAt(request.typeOffset),
+        context.source.slice(0, replacement.from) +
+            replacement.prefix +
+            contextItem +
+            context.source.slice(context.cursorOffset),
+        context.document.positionAt(contextItemOffset),
         context.wrapper,
-        request.scope,
+        replacement.scope,
     );
-    const steps = request.attributeAxis ? result.attributes : result.children;
+    const steps = typed.attributeAxis ? result.attributes : result.children;
     if (steps === undefined) {
         return null;
     }
 
     const { namespaces, defaultElementTypeNamespace } = await context.getAnalysis();
     // Unprefixed attribute names are in no namespace, whatever the default element namespace is.
-    const defaultNamespace = request.attributeAxis ? undefined : defaultElementTypeNamespace;
+    const defaultNamespace = typed.attributeAxis ? undefined : defaultElementTypeNamespace;
     return steps.flatMap((step) =>
         getQNameCompletionLabels(step.name, namespaces, defaultNamespace)
-            .filter((label) => label.startsWith(request.namePrefix))
+            .filter((label) => label.startsWith(typed.namePrefix))
             .map((label): CompletionItem => ({
                 label,
-                kind: request.attributeAxis
-                    ? CompletionItemKind.Property
-                    : CompletionItemKind.Field,
+                kind: typed.attributeAxis ? CompletionItemKind.Property : CompletionItemKind.Field,
                 ...(step.sequenceType === undefined
                     ? {}
                     : { labelDetails: { description: formatSequenceType(step.sequenceType) } }),
                 textEdit: replaceTypedPrefix(
                     context.document,
                     context.cursorOffset,
-                    request.namePrefix,
+                    typed.namePrefix,
                     label,
                 ),
             })),
     );
 }
 
-function typedBeforeCursor(
-    context: CompletionContext,
-    pattern: RegExp,
-): { index: number; groups: (string | undefined)[] } | null {
-    const match = context.source.slice(0, context.cursorOffset).match(pattern);
-    return match?.index === undefined ? null : { index: match.index, groups: [...match] };
+function typedStep(context: CompletionContext): TypedStep | null {
+    const match = context.source.slice(0, context.cursorOffset).match(STEP_PATTERN);
+    if (match?.index === undefined) {
+        return null;
+    }
+    const [, attributeMarker, namePrefix = ""] = match;
+    return { start: match.index, attributeAxis: attributeMarker === "@", namePrefix };
+}
+
+/** The last token before the offset, skipping whitespace and comments. */
+function previousToken(context: CompletionContext, offset: number): Token | undefined {
+    return context
+        .getParseResult()
+        .tokens.filter(
+            (token) =>
+                token.type !== Token.EOF &&
+                token.channel === Token.DEFAULT_CHANNEL &&
+                token.stop < offset,
+        )
+        .at(-1);
 }
 
 /**

@@ -63,6 +63,30 @@ describe("path step completion", () => {
         expect(items).toHaveLength(2);
     }, 45_000);
 
+    it("suggests steps after '//' following a parenthesized expression", async () => {
+        const items = await completeAtEnd("return ($order)//");
+
+        expect(items.map((item) => item.label)).toEqual(
+            expect.arrayContaining(["o:price", "o:paid"]),
+        );
+    }, 45_000);
+
+    it("suggests steps when a comment separates the path from '/'", async () => {
+        const items = await completeAtEnd("return $order (: the order :) /");
+
+        expect(items.map((item) => item.label)).toEqual(
+            expect.arrayContaining(["o:price", "o:paid"]),
+        );
+    }, 45_000);
+
+    it("suggests the steps of a path that ends another expression", async () => {
+        const items = await completeAtEnd("return $order/o:paid and $order/");
+
+        expect(items.map((item) => item.label)).toEqual(
+            expect.arrayContaining(["o:price", "o:paid"]),
+        );
+    }, 45_000);
+
     it("suggests the attributes of the path and its descendants after '//@'", async () => {
         const items = await completeAtEnd("return $order//@");
 
