@@ -6,6 +6,7 @@ import type {
     ContextItemDeclarationAstNode,
     ContextItemExpressionAstNode,
     FlowrExpressionAstNode,
+    FocusAstNode,
     QuantifiedExpressionAstNode,
     FunctionCallAstNode,
     FunctionDeclarationAstNode,
@@ -19,7 +20,7 @@ import type {
     VariableReferenceAstNode,
     TypeReferenceAstNode,
 } from "server/parser/types/ast.js";
-import type { Prefix } from "server/parser/types/name.js";
+import { CONTEXT_ITEM_NAME, type Prefix } from "server/parser/types/name.js";
 import { ParserAstVisitor } from "server/parser/types/visitor.js";
 import { DiagnosticSeverity, type Diagnostic, type Range } from "vscode-languageserver";
 import type { TextDocument } from "vscode-languageserver-textdocument";
@@ -220,6 +221,18 @@ class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
         });
     }
 
+    protected override visitFocus(node: FocusAstNode): AstNode[] {
+        return this.enterScope(node.range, () => {
+            const contextItem: ImplicitVariableDefinition = {
+                kind: "variable",
+                name: this.nameResolver.resolveQName(CONTEXT_ITEM_NAME, node.range),
+                origin: "implicit",
+            };
+            this.currentScope.declare(contextItem, this.document.offsetAt(node.range.start));
+            return this.visitChildrenAsNodes(node);
+        });
+    }
+
     protected override visitCatchErrorTarget(node: CatchErrorTargetAstNode): AstNode[] {
         if (node.target.kind === "wildcard") {
             return [
@@ -292,6 +305,8 @@ class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
             "variable",
             this.nameResolver.resolveQName(node.name, node.range),
             node.range,
+            // Without a declaration, the context item is supplied when the query runs.
+            node.kind === "variable-reference",
         );
     }
 
@@ -366,15 +381,18 @@ class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
         kind: K,
         name: ReferenceNameByKind[K],
         range: Range,
+        reportUnresolved: boolean = true,
     ): ReferenceNode<K> {
         const declaration = this.resolve(kind, name, this.document.offsetAt(range.start));
         if (declaration === undefined) {
-            this.diagnostics.push({
-                severity: DiagnosticSeverity.Error,
-                message: `Reference to undefined ${kind} '${referenceNameToString(name, kind, true)}'`,
-                range,
-                code: `unresolved-${kind}`,
-            });
+            if (reportUnresolved) {
+                this.diagnostics.push({
+                    severity: DiagnosticSeverity.Error,
+                    message: `Reference to undefined ${kind} '${referenceNameToString(name, kind, true)}'`,
+                    range,
+                    code: `unresolved-${kind}`,
+                });
+            }
             return {
                 kind: "reference",
                 range,

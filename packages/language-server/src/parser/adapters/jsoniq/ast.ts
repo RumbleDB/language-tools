@@ -168,6 +168,18 @@ class JsoniqAstBuilder extends JsoniqParserVisitor<AstVisitResult> {
 
     public override visitItemType = (node: ctx.ItemTypeContext): AstVisitResult =>
         this.common.visitItemType(node);
+
+    public override visitPredicate = (node: ctx.PredicateContext): AstVisitResult =>
+        this.common.visitPredicate(node);
+
+    public override visitSimpleMapExpr = (node: ctx.SimpleMapExprContext): AstVisitResult =>
+        this.common.visitSimpleMapExpr(node);
+
+    public override visitPathExpr = (node: ctx.PathExprContext): AstVisitResult =>
+        this.common.visitPathExpr(node);
+
+    public override visitRelativePathExpr = (node: ctx.RelativePathExprContext): AstVisitResult =>
+        this.common.visitRelativePathExpr(node);
 }
 
 export function buildJsoniqAst(

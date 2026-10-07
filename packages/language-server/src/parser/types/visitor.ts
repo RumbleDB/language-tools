@@ -7,6 +7,7 @@ import type {
     ContextItemDeclarationAstNode,
     ContextItemExpressionAstNode,
     FlowrExpressionAstNode,
+    FocusAstNode,
     QuantifiedExpressionAstNode,
     FunctionCallAstNode,
     FunctionDeclarationAstNode,
@@ -67,6 +68,8 @@ export abstract class ParserAstVisitor<R = void> {
                 return this.visitVariableReference(node);
             case "context-item-expression":
                 return this.visitContextItemExpression(node);
+            case "focus":
+                return this.visitFocus(node);
             case "argument":
                 return this.visitArgument(node);
             case "type-reference":
@@ -162,6 +165,10 @@ export abstract class ParserAstVisitor<R = void> {
     }
 
     protected visitContextItemExpression(node: ContextItemExpressionAstNode): R {
+        return this.defaultVisit(node);
+    }
+
+    protected visitFocus(node: FocusAstNode): R {
         return this.defaultVisit(node);
     }
 
