@@ -115,6 +115,14 @@ describe("path step completion", () => {
         );
     }, 45_000);
 
+    it("suggests the children of the context item after a bracket in a comment", async () => {
+        const items = await completeAtEnd("return $order[(: ] :) o:", "]");
+
+        expect(items.map((item) => item.label)).toEqual(
+            expect.arrayContaining(["o:price", "o:paid"]),
+        );
+    }, 45_000);
+
     it("suggests the children of the context item on the right of '!'", async () => {
         const items = await completeAtEnd("return $order ! o:");
 

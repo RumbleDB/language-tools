@@ -2,7 +2,9 @@ import { Token } from "antlr4ng";
 import { formatSequenceType } from "server/analysis/index.js";
 import type { PathStepScope } from "server/integrations/rumble/operations/type-at-position/protocol.js";
 import { getTypeAtPositionFromSource } from "server/integrations/rumble/operations/type-at-position/service.js";
+import type { AstNode } from "server/parser/types/ast.js";
 import { getActiveParserId } from "server/parser/utils.js";
+import { rangeContainsPosition } from "server/utils/range.js";
 import { CompletionItemKind, type CompletionItem } from "vscode-languageserver";
 
 import { getQNameCompletionLabels, replaceTypedPrefix } from "../context.js";
@@ -58,7 +60,7 @@ export const provideContextItemStepCompletions: CompletionProvider = async (cont
     const step = typedStep(context);
     if (
         step === null ||
-        !setsContextItem(context.source, step.start) ||
+        !hasFocusAt(context, step.start) ||
         !allowsExpressionAt(context, step.start)
     ) {
         return null;
@@ -141,26 +143,18 @@ function previousToken(context: CompletionContext, offset: number): Token | unde
 }
 
 /**
- * Whether the step is inside a predicate, i.e. after a `[` that is not closed before it, or on the right of `!`, where
- * the context item comes from the expression on the left. This avoids asking for a type at every expression.
+ * Whether an enclosing expression gives the step its context item, as a predicate or the right of `!` does. This avoids
+ * asking for a type at every expression.
  */
-function setsContextItem(source: string, stepOffset: number): boolean {
-    const before = source.slice(0, stepOffset);
-    if (/!\s*$/.test(before)) {
-        return true;
-    }
-    let depth = 0;
-    for (let index = before.length - 1; index >= 0; index--) {
-        if (before[index] === "]") {
-            depth++;
-        } else if (before[index] === "[") {
-            if (depth === 0) {
-                return true;
-            }
-            depth--;
-        }
-    }
-    return false;
+function hasFocusAt(context: CompletionContext, offset: number): boolean {
+    const position = context.document.positionAt(offset);
+    const containsFocus = (node: AstNode): boolean =>
+        node.children.some(
+            (child) =>
+                (child.kind === "focus" && rangeContainsPosition(child.range, position)) ||
+                containsFocus(child),
+        );
+    return containsFocus(context.getParseResult().ast);
 }
 
 function allowsExpressionAt(context: CompletionContext, offset: number): boolean {
