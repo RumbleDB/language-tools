@@ -20,11 +20,21 @@ final class ResultTypes {
     }
 
     /**
-     * Objects are described by their fields, recursively for nested objects, since their dynamic type is just
-     * js:object.
+     * Objects are described by their fields and arrays by their members, recursively, since their dynamic types are
+     * just js:object and js:array.
      */
     private static ItemType structuralType(Item item) {
         ItemType type = item.getDynamicType();
+        if (type.isArrayItemType()) {
+            // The members' items join to the array's content; an empty array keeps its type, which joins as no content.
+            ItemType content = null;
+            for (List<Item> member : item.getSequenceMembers()) {
+                for (Item memberItem : member) {
+                    content = join(content, memberItem);
+                }
+            }
+            return content == null ? type : ItemTypeFactory.createAnonymousArrayType(content);
+        }
         if (!type.isObjectItemType()) {
             return type;
         }
