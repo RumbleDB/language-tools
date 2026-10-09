@@ -2,9 +2,11 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import {
+    compareNumbers,
     fieldTypeLabel,
     formatCell,
     formatRawOutput,
+    numericCellValue,
     projectTableRows,
 } from "../src/utils/result-items.ts";
 
@@ -331,4 +333,41 @@ test("filtered exports follow sorted source indexes across pagination", async ()
     assert.equal(selected[0].serialized, '"keep59"');
     assert.equal(selected.at(-1).serialized, '"keep00"');
     assert.equal(formatRawOutput(selected).split("\n").length, 60);
+});
+
+test("numeric cells sort by exact value across decimals, doubles, and special values", () => {
+    const cells = [
+        [atomic("xs:double", "1500.0e0")],
+        [atomic("xs:decimal", "1.25")],
+        [atomic("xs:double", "INF")],
+        [atomic("xs:integer", "9007199254740993")],
+        [atomic("xs:int", "-3")],
+        [atomic("xs:float", 'xs:float("1.5")')],
+        [atomic("xs:double", "NaN")],
+        [atomic("xs:integer", "9007199254740992")],
+        [atomic("xs:double", "-0.0e0")],
+        [atomic("xs:decimal", "-0.5")],
+        [atomic("xs:double", "1.0e-11")],
+        [atomic("xs:double", "-INF")],
+    ];
+    assert.deepEqual(cells.map(numericCellValue).sort(compareNumbers), [
+        "NaN",
+        "-INF",
+        "-3",
+        "-0.5",
+        "-0.0e0",
+        "1.0e-11",
+        "1.25",
+        "1.5",
+        "1500.0e0",
+        "9007199254740992",
+        "9007199254740993",
+        "INF",
+    ]);
+    assert.equal(compareNumbers("0", "-0.0e0"), 0);
+    assert.equal(numericCellValue([atomic("xs:string", '"1"')]), undefined);
+    assert.equal(
+        numericCellValue([atomic("xs:integer", "1"), atomic("xs:integer", "2")]),
+        undefined,
+    );
 });
