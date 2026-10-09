@@ -1,6 +1,7 @@
-import type { AnalysisResult, ScopeDefinition } from "server/analysis/index.js";
+import type { AnalysisResult, ModuleProlog, ScopeDefinition } from "server/analysis/index.js";
 import type { WrapperClient } from "server/integrations/rumble/client.js";
 import type { CompletionIntent } from "server/parser/types/completion.js";
+import type { ParseResult } from "server/parser/types/result.js";
 import type { CompletionItem } from "vscode-languageserver";
 import type { TextDocument } from "vscode-languageserver-textdocument";
 
@@ -9,11 +10,15 @@ export interface CompletionContext {
     source: string;
     cursorOffset: number;
     intent: CompletionIntent;
+    /** The intent at another offset in the document, for providers that inspect text before the cursor. */
+    getIntentAt(offset: number): CompletionIntent | null;
     wrapper: WrapperClient;
 
     // This is a lazy getter, because computing visible declarations can be expensive and is not always needed.
     getVisibleDeclarations(): Promise<readonly ScopeDefinition[]>;
     getAnalysis(): Promise<AnalysisResult>;
+    getModuleProlog(): ModuleProlog;
+    getParseResult(): ParseResult;
 }
 
 /** `null` means the provider does not apply. An empty array means it applies but has no items. */

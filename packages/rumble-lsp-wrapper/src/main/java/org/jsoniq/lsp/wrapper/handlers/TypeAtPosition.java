@@ -6,17 +6,21 @@ import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 
 import org.jsoniq.lsp.wrapper.Position;
 import org.jsoniq.lsp.wrapper.Range;
 import org.jsoniq.lsp.wrapper.messages.Request;
 import org.jsoniq.lsp.wrapper.messages.ResponseBody;
+import org.jsoniq.lsp.wrapper.types.ResolvedQName;
 import org.jsoniq.lsp.wrapper.types.SequenceType;
 
 import org.rumbledb.bindings.ExternalBindings;
 import org.rumbledb.compiler.CompilationPipeline;
 import org.rumbledb.config.CompilationConfiguration;
 import org.rumbledb.config.RumbleConfiguration;
+import org.rumbledb.context.Name;
+import org.rumbledb.context.StaticContext;
 import org.rumbledb.exceptions.ExceptionMetadata;
 import org.rumbledb.expressions.AbstractNodeVisitor;
 import org.rumbledb.expressions.Expression;
@@ -39,12 +43,23 @@ import org.rumbledb.expressions.scripting.control.TypeSwitchStatementCase;
 import org.rumbledb.expressions.scripting.declaration.VariableDeclStatement;
 import org.rumbledb.expressions.update.CopyDeclaration;
 import org.rumbledb.expressions.update.TransformExpression;
+import org.rumbledb.types.ItemType;
+import org.rumbledb.xml.schema.XmlSchemaCatalog;
 
 public final class TypeAtPosition implements RequestHandler {
     public static final String REQUEST_TYPE = "type-at-position";
-    public static final Result EMPTY_RESULT = new Result(null, null);
+    public static final Result EMPTY_RESULT = new Result(null, null, null, null);
 
-    public record Result(SequenceType sequenceType, Range range) implements ResponseBody {}
+    /**
+     * When requested, children and attributes list the child and attribute steps that the schema declares for the
+     * type's items, or for them and each of their descendants, so that editors can suggest path steps. They may omit
+     * names that a wildcard allows.
+     */
+    public record Result(SequenceType sequenceType, Range range, List<PathStep> children, List<PathStep> attributes)
+            implements ResponseBody {}
+
+    /** A child or attribute name, and the type of the nodes that a step with that name selects from one item. */
+    public record PathStep(ResolvedQName name, SequenceType sequenceType) {}
 
     private final RumbleConfiguration configuration;
 
@@ -65,7 +80,7 @@ public final class TypeAtPosition implements RequestHandler {
         }
 
         String query = new String(Base64.getDecoder().decode(request.body()), StandardCharsets.UTF_8);
-        return findType(query, documentUri, request.position());
+        return findType(query, documentUri, request.position(), request.pathSteps());
     }
 
     @Override
@@ -74,6 +89,10 @@ public final class TypeAtPosition implements RequestHandler {
     }
 
     public Result findType(String query, URI documentUri, Position position) {
+        return findType(query, documentUri, position, null);
+    }
+
+    public Result findType(String query, URI documentUri, Position position, Request.PathSteps pathSteps) {
         Objects.requireNonNull(documentUri, "documentUri is required.");
         if (query == null || query.isEmpty() || position == null) {
             return EMPTY_RESULT;
@@ -87,10 +106,42 @@ public final class TypeAtPosition implements RequestHandler {
             if (candidate == null || candidate.sequenceType() == null) {
                 return EMPTY_RESULT;
             }
-            return new Result(SequenceType.fromSequenceType(candidate.sequenceType()), candidate.resultRange());
+            ItemType itemType = candidate.sequenceType().getItemType();
+            return new Result(
+                    SequenceType.fromSequenceType(candidate.sequenceType()),
+                    candidate.resultRange(),
+                    pathSteps(module, itemType, false, pathSteps),
+                    pathSteps(module, itemType, true, pathSteps));
         } catch (Throwable throwable) {
             return EMPTY_RESULT;
         }
+    }
+
+    private static List<PathStep> pathSteps(
+            MainModule module, ItemType itemType, boolean attributeAxis, Request.PathSteps pathSteps) {
+        // Only load the schema catalog when steps are requested for schema-typed nodes.
+        if (pathSteps == null || !XmlSchemaCatalog.isSchemaTyped(itemType)) {
+            return null;
+        }
+        XmlSchemaCatalog catalog =
+                module.getStaticContext().getInScopeSchemaTypes().getXmlSchemaCatalog();
+        boolean descendants = pathSteps == Request.PathSteps.DESCENDANTS;
+        // E//S abbreviates E/descendant-or-self::node()/S, so S steps from each node of that union.
+        Optional<org.rumbledb.types.SequenceType> descendantOrSelf =
+                descendants ? catalog.getDescendantOrSelfType(itemType) : Optional.empty();
+        return catalog.getStepNames(itemType, attributeAxis, descendants)
+                .map(names -> names.stream()
+                        .map(name -> new PathStep(
+                                ResolvedQName.fromName(name),
+                                (descendants
+                                                ? descendantOrSelf.flatMap(nodes -> catalog.getStepType(
+                                                                nodes.getItemType(), attributeAxis, name)
+                                                        .map(type -> type.repeated(nodes.getCardinality())))
+                                                : catalog.getStepType(itemType, attributeAxis, name))
+                                        .map(SequenceType::fromSequenceType)
+                                        .orElse(null)))
+                        .toList())
+                .orElse(null);
     }
 
     private enum CandidateKind {
@@ -212,36 +263,52 @@ public final class TypeAtPosition implements RequestHandler {
 
         @Override
         public List<Candidate> visitForClause(ForClause clause, List<Candidate> candidates) {
-            addBindingCandidate(candidates, clause.getVariableMetadata(), clause.getVariableSequenceType());
+            StaticContext scope = clause.getNextClause().getStaticContext();
+            addBindingCandidate(candidates, clause.getVariableMetadata(), scope, clause.getVariableName());
             addBindingCandidate(
-                    candidates, clause.getPositionalVariableMetadata(), clause.getPositionalVariableSequenceType());
+                    candidates, clause.getPositionalVariableMetadata(), scope, clause.getPositionalVariableName());
             return defaultAction(clause, candidates);
         }
 
         @Override
         public List<Candidate> visitLetClause(LetClause clause, List<Candidate> candidates) {
-            addBindingCandidate(candidates, clause.getVariableMetadata(), clause.getVariableSequenceType());
+            addBindingCandidate(
+                    candidates,
+                    clause.getVariableMetadata(),
+                    clause.getNextClause().getStaticContext(),
+                    clause.getVariableName());
             return defaultAction(clause, candidates);
         }
 
         @Override
         public List<Candidate> visitGroupByClause(GroupByClause clause, List<Candidate> candidates) {
             for (GroupByVariableDeclaration variable : clause.getGroupVariables()) {
-                addBindingCandidate(candidates, variable.getVariableMetadata(), variable.getVariableSequenceType());
+                addBindingCandidate(
+                        candidates,
+                        variable.getVariableMetadata(),
+                        clause.getNextClause().getStaticContext(),
+                        variable.getVariableName());
             }
             return defaultAction(clause, candidates);
         }
 
         @Override
         public List<Candidate> visitCountClause(CountClause clause, List<Candidate> candidates) {
-            addBindingCandidate(candidates, clause.getVariableMetadata(), clause.getVariableSequenceType());
+            addBindingCandidate(
+                    candidates,
+                    clause.getVariableMetadata(),
+                    clause.getNextClause().getStaticContext(),
+                    clause.getCountVariableName());
             return defaultAction(clause, candidates);
         }
 
         @Override
         public List<Candidate> visitWindowClause(WindowClause clause, List<Candidate> candidates) {
             addBindingCandidate(
-                    candidates, clause.getVariableMetadata(clause.getWindowVariable()), clause.getSequenceType());
+                    candidates,
+                    clause.getVariableMetadata().get(clause.getWindowVariable()),
+                    clause.getNextClause().getStaticContext(),
+                    clause.getWindowVariable());
             addWindowConditionCandidates(candidates, clause, clause.getStartCondition());
             if (clause.getEndCondition() != null) {
                 addWindowConditionCandidates(candidates, clause, clause.getEndCondition());
@@ -253,7 +320,10 @@ public final class TypeAtPosition implements RequestHandler {
                 List<Candidate> candidates, WindowClause clause, WindowClause.WindowCondition condition) {
             for (var name : condition.variables().names()) {
                 addBindingCandidate(
-                        candidates, clause.getVariableMetadata(name), clause.getConditionVariableSequenceType(name));
+                        candidates,
+                        clause.getVariableMetadata().get(name),
+                        clause.getNextClause().getStaticContext(),
+                        name);
             }
         }
 
@@ -269,20 +339,36 @@ public final class TypeAtPosition implements RequestHandler {
         @Override
         public List<Candidate> visitTypeSwitchExpression(TypeSwitchExpression expression, List<Candidate> candidates) {
             for (TypeswitchCase variable : expression.getCases()) {
-                addBindingCandidate(candidates, variable.getVariableMetadata(), variable.getVariableSequenceType());
+                addBindingCandidate(
+                        candidates,
+                        variable.getVariableMetadata(),
+                        variable.getReturnExpression().getStaticContext(),
+                        variable.getVariableName());
             }
             TypeswitchCase variable = expression.getDefaultCase();
-            addBindingCandidate(candidates, variable.getVariableMetadata(), variable.getVariableSequenceType());
+            addBindingCandidate(
+                    candidates,
+                    variable.getVariableMetadata(),
+                    variable.getReturnExpression().getStaticContext(),
+                    variable.getVariableName());
             return defaultAction(expression, candidates);
         }
 
         @Override
         public List<Candidate> visitTypeSwitchStatement(TypeSwitchStatement statement, List<Candidate> candidates) {
             for (TypeSwitchStatementCase variable : statement.getCases()) {
-                addBindingCandidate(candidates, variable.getVariableMetadata(), variable.getVariableSequenceType());
+                addBindingCandidate(
+                        candidates,
+                        variable.getVariableMetadata(),
+                        variable.getReturnStatement().getStaticContext(),
+                        variable.getVariableName());
             }
             TypeSwitchStatementCase variable = statement.getDefaultCase();
-            addBindingCandidate(candidates, variable.getVariableMetadata(), variable.getVariableSequenceType());
+            addBindingCandidate(
+                    candidates,
+                    variable.getVariableMetadata(),
+                    variable.getReturnStatement().getStaticContext(),
+                    variable.getVariableName());
             return defaultAction(statement, candidates);
         }
 
@@ -303,6 +389,15 @@ public final class TypeAtPosition implements RequestHandler {
         private static void addBindingCandidate(
                 List<Candidate> candidates, ExceptionMetadata metadata, org.rumbledb.types.SequenceType sequenceType) {
             addCandidate(candidates, Candidate.create(CandidateKind.EXPLICIT, metadata, metadata, sequenceType));
+        }
+
+        /** Adds a binding whose type is the one inferred in the scope where the variable is visible. */
+        private static void addBindingCandidate(
+                List<Candidate> candidates, ExceptionMetadata metadata, StaticContext context, Name variable) {
+            if (context == null || variable == null || !context.isInScope(variable)) {
+                return;
+            }
+            addBindingCandidate(candidates, metadata, context.getVariableSequenceType(variable));
         }
 
         @Override

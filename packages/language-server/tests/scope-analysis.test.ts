@@ -13,7 +13,7 @@ import { describe, expect, it } from "vitest";
 import type { TextDocument } from "vscode-languageserver-textdocument";
 
 import { parserService, workspaceService } from "./services.js";
-import { positionAt, testDocument } from "./test-utils.js";
+import { positionAt, testDocument, testDocumentFromUri } from "./test-utils.js";
 
 const buildAnalysis = (document: TextDocument) =>
     analyzeDocument(document, parserService.parse(document).ast, {
@@ -659,6 +659,50 @@ describe("JSONiq variable scope analysis", () => {
         ]);
 
         expect(findSymbolAtPosition(analysis, positionAt(document, "catch"))).toBeUndefined();
+    });
+
+    it.each([
+        ["jsoniq", "$$"],
+        ["xquery", "."],
+    ])(
+        "gives predicates, maps, path steps and function bodies their own context item (%s)",
+        (languageId, contextItem) => {
+            const source = [
+                "declare context item := 1;",
+                "declare function local:f() { CI };",
+                "CI, (1, 2)[CI gt 1] ! (CI + 1), function() { CI }, CI/(CI)",
+            ]
+                .join("\n")
+                .replaceAll("CI", () => contextItem);
+            const document = testDocumentFromUri(source, {
+                uri: `file:///scope-context-item-${languageId}`,
+                languageId,
+            });
+
+            const analysis = buildAnalysis(document);
+
+            expect(analysis.diagnostics).toEqual([]);
+            // Only a context item outside these expressions refers to the declared one.
+            expect(
+                referencesOf(analysis)
+                    .filter((reference) => reference.kind === "variable")
+                    .map((reference) => reference.declaration.origin),
+            ).toEqual([
+                "implicit",
+                "source",
+                "implicit",
+                "implicit",
+                "implicit",
+                "source",
+                "implicit",
+            ]);
+        },
+    );
+
+    it("does not report an undeclared context item, which the query can be given when it runs", () => {
+        const document = testDocument("scope-undeclared-context-item", "$$ + 1");
+
+        expect(buildAnalysis(document).diagnostics).toEqual([]);
     });
 
     it("supports multiple for bindings that each define an at-position variable", async () => {

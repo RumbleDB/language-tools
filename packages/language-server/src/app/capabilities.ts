@@ -1,5 +1,6 @@
 import { TextDocumentSyncKind, type ServerCapabilities } from "vscode-languageserver/node";
 
+import { PATH_STEP_TRIGGER_CHARACTERS } from "../lsp/features/completion.js";
 import { legend as semanticLegend } from "../lsp/features/semantic-tokens.js";
 
 export const serverCapabilities: ServerCapabilities = {
@@ -19,7 +20,7 @@ export const serverCapabilities: ServerCapabilities = {
         triggerCharacters: ["(", ","],
     },
     completionProvider: {
-        triggerCharacters: ["$", ".", "|", ":"],
+        triggerCharacters: ["$", ".", "|", ":", ...PATH_STEP_TRIGGER_CHARACTERS],
     },
     renameProvider: {
         prepareProvider: true,

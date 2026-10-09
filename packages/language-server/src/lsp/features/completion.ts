@@ -18,6 +18,10 @@ import {
 import { provideErrorCodeCompletions } from "./completion/providers/error-codes.js";
 import { provideKeywordCompletions } from "./completion/providers/keywords.js";
 import { provideObjectFieldCompletions } from "./completion/providers/object-fields.js";
+import {
+    provideContextItemStepCompletions,
+    providePathStepCompletions,
+} from "./completion/providers/path-steps.js";
 import { provideSchemaConstructorCompletions } from "./completion/providers/schema-constructors.js";
 import { provideSchemaTypeCompletions } from "./completion/providers/schema-types.js";
 import type { CompletionProvider } from "./completion/types.js";
@@ -26,9 +30,11 @@ import type { FeatureRegistrationContext } from "./context.js";
 const exclusiveProviders: CompletionProvider[] = [
     provideErrorCodeCompletions,
     provideObjectFieldCompletions,
+    providePathStepCompletions,
 ];
 
 const additiveProviders: CompletionProvider[] = [
+    provideContextItemStepCompletions,
     provideVariableCompletions,
     provideSourceFunctionCompletions,
     provideSchemaConstructorCompletions,
@@ -37,6 +43,17 @@ const additiveProviders: CompletionProvider[] = [
     provideSchemaTypeCompletions,
     provideBuiltinTypeCompletions,
     provideKeywordCompletions,
+];
+
+/**
+ * Characters that start a path step, so that schema-declared steps can be suggested as they are typed. Unlike other
+ * triggers, they also appear outside paths, such as in arrays, so they only offer path steps.
+ */
+export const PATH_STEP_TRIGGER_CHARACTERS = ["/", "@", "["];
+
+const pathStepProviders: CompletionProvider[] = [
+    providePathStepCompletions,
+    provideContextItemStepCompletions,
 ];
 
 export function registerCompletion({
@@ -50,7 +67,14 @@ export function registerCompletion({
         const document = documents.get(params.textDocument.uri);
         return document === undefined
             ? []
-            : await findCompletions(document, params.position, parser, workspace, wrapper);
+            : await findCompletions(
+                  document,
+                  params.position,
+                  parser,
+                  workspace,
+                  wrapper,
+                  params.context?.triggerCharacter,
+              );
     });
 }
 
@@ -60,9 +84,20 @@ export async function findCompletions(
     parser: ParserService,
     workspace: WorkspaceService,
     wrapper: WrapperClient,
+    triggerCharacter?: string,
 ): Promise<CompletionItem[]> {
     const context = createCompletionContext(document, position, parser, workspace, wrapper);
     if (context === null) {
+        return [];
+    }
+
+    if (triggerCharacter !== undefined && PATH_STEP_TRIGGER_CHARACTERS.includes(triggerCharacter)) {
+        for (const provider of pathStepProviders) {
+            const items = await provider(context);
+            if (items !== null) {
+                return finalizeCompletionItems(items);
+            }
+        }
         return [];
     }
 
