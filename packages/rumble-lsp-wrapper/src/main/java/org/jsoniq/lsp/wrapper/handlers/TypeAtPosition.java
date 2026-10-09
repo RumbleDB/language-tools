@@ -6,6 +6,7 @@ import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 
 import org.jsoniq.lsp.wrapper.Position;
 import org.jsoniq.lsp.wrapper.Range;
@@ -125,12 +126,17 @@ public final class TypeAtPosition implements RequestHandler {
         XmlSchemaCatalog catalog =
                 module.getStaticContext().getInScopeSchemaTypes().getXmlSchemaCatalog();
         boolean descendants = pathSteps == Request.PathSteps.DESCENDANTS;
+        // E//S abbreviates E/descendant-or-self::node()/S, so S steps from each node of that union.
+        Optional<org.rumbledb.types.SequenceType> descendantOrSelf =
+                descendants ? catalog.getDescendantOrSelfType(itemType) : Optional.empty();
         return catalog.getStepNames(itemType, attributeAxis, descendants)
                 .map(names -> names.stream()
                         .map(name -> new PathStep(
                                 ResolvedQName.fromName(name),
                                 (descendants
-                                                ? catalog.getDescendantStepType(itemType, attributeAxis, name)
+                                                ? descendantOrSelf.flatMap(nodes -> catalog.getStepType(
+                                                                nodes.getItemType(), attributeAxis, name)
+                                                        .map(type -> type.repeated(nodes.getCardinality())))
                                                 : catalog.getStepType(itemType, attributeAxis, name))
                                         .map(SequenceType::fromSequenceType)
                                         .orElse(null)))
