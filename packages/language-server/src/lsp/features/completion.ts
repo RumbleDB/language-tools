@@ -27,23 +27,43 @@ import { provideSchemaTypeCompletions } from "./completion/providers/schema-type
 import type { CompletionProvider } from "./completion/types.js";
 import type { FeatureRegistrationContext } from "./context.js";
 
-const exclusiveProviders: CompletionProvider[] = [
-    provideErrorCodeCompletions,
-    provideObjectFieldCompletions,
-    providePathStepCompletions,
-];
+interface CompletionProviders {
+    /** The first that applies replaces all others. */
+    exclusive: CompletionProvider[];
+    /** Their items are combined. */
+    additive: CompletionProvider[];
+}
 
-const additiveProviders: CompletionProvider[] = [
-    provideContextItemStepCompletions,
-    provideVariableCompletions,
-    provideSourceFunctionCompletions,
-    provideSchemaConstructorCompletions,
-    provideBuiltinFunctionCompletions,
-    provideSourceTypeCompletions,
-    provideSchemaTypeCompletions,
-    provideBuiltinTypeCompletions,
-    provideKeywordCompletions,
-];
+const allProviders: CompletionProviders = {
+    exclusive: [
+        provideErrorCodeCompletions,
+        provideObjectFieldCompletions,
+        providePathStepCompletions,
+    ],
+    additive: [
+        provideContextItemStepCompletions,
+        provideVariableCompletions,
+        provideSourceFunctionCompletions,
+        provideSchemaConstructorCompletions,
+        provideBuiltinFunctionCompletions,
+        provideSourceTypeCompletions,
+        provideSchemaTypeCompletions,
+        provideBuiltinTypeCompletions,
+        provideKeywordCompletions,
+    ],
+};
+
+/**
+ * Characters that start a path step, so that schema-declared steps can be suggested as they are typed. Unlike other
+ * triggers, they also appear outside paths, such as in arrays, so completions they trigger only consult the path step
+ * providers.
+ */
+export const PATH_STEP_TRIGGER_CHARACTERS = ["/", "@", "["];
+
+const pathStepProviders: CompletionProviders = {
+    exclusive: [providePathStepCompletions],
+    additive: [provideContextItemStepCompletions],
+};
 
 export function registerCompletion({
     connection,
@@ -56,7 +76,14 @@ export function registerCompletion({
         const document = documents.get(params.textDocument.uri);
         return document === undefined
             ? []
-            : await findCompletions(document, params.position, parser, workspace, wrapper);
+            : await findCompletions(
+                  document,
+                  params.position,
+                  parser,
+                  workspace,
+                  wrapper,
+                  params.context?.triggerCharacter,
+              );
     });
 }
 
@@ -66,20 +93,28 @@ export async function findCompletions(
     parser: ParserService,
     workspace: WorkspaceService,
     wrapper: WrapperClient,
+    triggerCharacter?: string,
 ): Promise<CompletionItem[]> {
     const context = createCompletionContext(document, position, parser, workspace, wrapper);
     if (context === null) {
         return [];
     }
 
-    for (const provider of exclusiveProviders) {
+    const providers =
+        triggerCharacter !== undefined && PATH_STEP_TRIGGER_CHARACTERS.includes(triggerCharacter)
+            ? pathStepProviders
+            : allProviders;
+
+    for (const provider of providers.exclusive) {
         const items = await provider(context);
         if (items !== null) {
             return finalizeCompletionItems(items);
         }
     }
 
-    const additiveItems = await Promise.all(additiveProviders.map((provider) => provider(context)));
+    const additiveItems = await Promise.all(
+        providers.additive.map((provider) => provider(context)),
+    );
 
     return finalizeCompletionItems(
         additiveItems.filter((items): items is CompletionItem[] => items !== null).flat(),
