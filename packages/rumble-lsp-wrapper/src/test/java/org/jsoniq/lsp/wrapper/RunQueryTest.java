@@ -118,10 +118,18 @@ class RunQueryTest {
                     "item", this.runQuery.run(query, DOCUMENT_URI).itemType().displayName());
         }
 
-        // Empty and non-empty arrays join to an array of any content.
+        // Arrays are described by their members, and an empty array adds no content in either order.
+        for (String query : List.of("({\"p\": []}, {\"p\": [\"x\"]})", "({\"p\": [\"x\"]}, {\"p\": []})")) {
+            assertEquals(
+                    "{ p: [xs:string] }",
+                    this.runQuery.run(query, DOCUMENT_URI).itemType().displayName());
+        }
         assertEquals(
-                "[item]",
-                this.runQuery.run("([], [1])", DOCUMENT_URI).itemType().displayName());
+                "[{ a: xs:decimal, b?: xs:boolean }]",
+                this.runQuery
+                        .run("[{\"a\": 1, \"b\": true}, {\"a\": 2.5}]", DOCUMENT_URI)
+                        .itemType()
+                        .displayName());
 
         RunQuery.Result nullable = this.runQuery.run("(\"a\", null)", DOCUMENT_URI);
         assertEquals("(xs:string | js:null)", nullable.itemType().displayName());
