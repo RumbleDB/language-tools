@@ -1,5 +1,13 @@
 # jsoniq-vscode
 
+## 1.11.1
+
+### Patch Changes
+
+- [#92](https://github.com/RumbleDB/language-tools/pull/92) [`6b95550`](https://github.com/RumbleDB/language-tools/commit/6b9555046878017b1bd0a5e94b46b94bff6f5c19) - fix(results): sort numeric table columns by value, so `1.5` sorts after `1.25` and negative numbers sort before positive ones; query results report the exact lexical value of numeric items as `number`
+- Updated dependencies [[`efba2c7`](https://github.com/RumbleDB/language-tools/commit/efba2c73e6f3321cfc2f90bc14bb32eceaeda2bd), [`6b95550`](https://github.com/RumbleDB/language-tools/commit/6b9555046878017b1bd0a5e94b46b94bff6f5c19)]:
+  - jsoniq-language-server@2.16.1
+
 ## 1.11.0
 
 ### Minor Changes
