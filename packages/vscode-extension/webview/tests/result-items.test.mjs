@@ -21,6 +21,10 @@ const atomic = (displayName, serialized) => ({
     type: type(displayName),
     serialized,
 });
+const numeric = (displayName, number, serialized = number) => ({
+    ...atomic(displayName, serialized),
+    number,
+});
 const key = (value) => atomic("xs:string", JSON.stringify(value));
 
 test("raw results preserve mixed items and numeric precision without a JSON envelope", () => {
@@ -335,39 +339,43 @@ test("filtered exports follow sorted source indexes across pagination", async ()
     assert.equal(formatRawOutput(selected).split("\n").length, 60);
 });
 
-test("numeric cells sort by exact value across decimals, doubles, and special values", () => {
-    const cells = [
-        [atomic("xs:double", "1500.0e0")],
-        [atomic("xs:decimal", "1.25")],
-        [atomic("xs:double", "INF")],
-        [atomic("xs:integer", "9007199254740993")],
-        [atomic("xs:int", "-3")],
-        [atomic("xs:float", 'xs:float("1.5")')],
-        [atomic("xs:double", "NaN")],
-        [atomic("xs:integer", "9007199254740992")],
-        [atomic("xs:double", "-0.0e0")],
-        [atomic("xs:decimal", "-0.5")],
-        [atomic("xs:double", "1.0e-11")],
-        [atomic("xs:double", "-INF")],
+test("numbers sort by exact value, with NaN and infinities at the ends", () => {
+    const numbers = [
+        "1500",
+        "1.25",
+        "INF",
+        "9007199254740993",
+        "-3",
+        "1.5",
+        "NaN",
+        "9007199254740992",
+        "-0",
+        "-0.5",
+        "1.0E-11",
+        "-INF",
     ];
-    assert.deepEqual(cells.map(numericCellValue).sort(compareNumbers), [
+    assert.deepEqual(numbers.sort(compareNumbers), [
         "NaN",
         "-INF",
         "-3",
         "-0.5",
-        "-0.0e0",
-        "1.0e-11",
+        "-0",
+        "1.0E-11",
         "1.25",
         "1.5",
-        "1500.0e0",
+        "1500",
         "9007199254740992",
         "9007199254740993",
         "INF",
     ]);
-    assert.equal(compareNumbers("0", "-0.0e0"), 0);
+    assert.equal(compareNumbers("0", "-0"), 0);
+});
+
+test("only a cell holding a single number has a numeric value", () => {
+    assert.equal(numericCellValue([numeric("xs:float", "1.5", 'xs:float("1.5")')]), "1.5");
     assert.equal(numericCellValue([atomic("xs:string", '"1"')]), undefined);
     assert.equal(
-        numericCellValue([atomic("xs:integer", "1"), atomic("xs:integer", "2")]),
+        numericCellValue([numeric("xs:integer", "1"), numeric("xs:integer", "2")]),
         undefined,
     );
 });

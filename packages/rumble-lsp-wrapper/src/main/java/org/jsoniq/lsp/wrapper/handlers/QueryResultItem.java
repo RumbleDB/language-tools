@@ -20,7 +20,11 @@ public sealed interface QueryResultItem {
     /** The engine permits atomic keys, including its null item, in maps. */
     sealed interface AtomicValue extends QueryResultItem {}
 
-    record AtomicItem(TypeDefinition type, String serialized) implements AtomicValue {
+    /**
+     * @param number the lexical value of a numeric item, or null for other atomics; a string so that large integers
+     *     and decimals stay exact
+     */
+    record AtomicItem(TypeDefinition type, String serialized, String number) implements AtomicValue {
         @Override
         public String kind() {
             return "atomic";

@@ -22,32 +22,10 @@ export function formatCell(items: RunQueryItem[] | undefined): string {
         : `(${items.map((item) => item.serialized).join(", ")})`;
 }
 
-const NUMERIC_TYPES = new Set(
-    [
-        "decimal",
-        "integer",
-        "nonPositiveInteger",
-        "negativeInteger",
-        "long",
-        "int",
-        "short",
-        "byte",
-        "nonNegativeInteger",
-        "unsignedLong",
-        "unsignedInt",
-        "unsignedShort",
-        "unsignedByte",
-        "positiveInteger",
-        "double",
-        "float",
-    ].map((name) => `Q{http://www.w3.org/2001/XMLSchema}${name}`),
-);
-
-/** The lexical form of a cell holding one number, unwrapped from constructors like `xs:float("1.5")`. */
+/** The lexical value of a cell holding one number. */
 export function numericCellValue(items: RunQueryItem[] | undefined): string | undefined {
     const item = items?.length === 1 ? items[0]! : undefined;
-    if (item?.kind !== "atomic" || !NUMERIC_TYPES.has(item.type.qname ?? "")) return undefined;
-    return /^[\w:]+\("(.*)"\)$/.exec(item.serialized)?.[1] ?? item.serialized;
+    return item?.kind === "atomic" ? item.number : undefined;
 }
 
 /** A finite number as sign × 0.digits × 10^exponent, with no leading or trailing zero digits. */

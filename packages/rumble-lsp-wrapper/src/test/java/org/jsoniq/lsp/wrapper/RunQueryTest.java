@@ -51,7 +51,8 @@ class RunQueryTest {
                 .equals(result.items().get(1).type().displayName()));
         assertInstanceOf(QueryResultItem.AtomicItem.class, result.items().get(0));
         assertInstanceOf(QueryResultItem.NullItem.class, result.items().get(3));
-        for (var item : result.items().subList(0, 4)) assertItemProperties(json(item));
+        assertItemProperties(json(result.items().get(0)), "number");
+        for (var item : result.items().subList(1, 4)) assertItemProperties(json(item));
         var object = assertInstanceOf(
                 QueryResultItem.ObjectItem.class, result.items().get(4));
         assertEquals("n", object.fields().get(0).name());
@@ -147,8 +148,20 @@ class RunQueryTest {
                 "Q{http://www.w3.org/2001/XMLSchema}date",
                 result.items().get(2).type().qname());
         assertEquals("xs:date(\"2026-10-02\")", result.items().get(2).serialized());
+        // Numbers carry their exact lexical value, which other atomics lack.
+        assertEquals(
+                List.of("123456789012345678901234567890", "0.12345678901234567890123456789"),
+                result.items().subList(0, 2).stream()
+                        .map(item -> ((QueryResultItem.AtomicItem) item).number())
+                        .toList());
+        assertNull(((QueryResultItem.AtomicItem) result.items().get(2)).number());
+        // A number serialized as a constructor call still carries its plain lexical value.
+        var number = (QueryResultItem.AtomicItem)
+                this.runQuery.run("xs:float(\"1.5\")", DOCUMENT_URI).items().get(0);
+        assertEquals("1.5", number.number());
         JsonNode response = json(result);
         assertProperties(response, "items", "itemType", "error");
+        assertItemProperties(response.get("items").get(2));
         assertEquals(
                 "123456789012345678901234567890",
                 response.get("items").get(0).get("serialized").asText());
