@@ -14,18 +14,26 @@ import type { CompletionContext, CompletionProvider } from "../types.js";
  */
 const STEP_PATTERN = /(?<![\w.$@:#"'-])(@?)((?:[A-Za-z_][\w.-]*:)?[\w.-]*)$/;
 
+/** The step being typed at the cursor. */
 interface TypedStep {
     /** Where the step starts, including any `@`. */
     start: number;
+    /** Whether the step starts with `@`, selecting attributes rather than children. */
     attributeAxis: boolean;
+    /** The part of the name typed so far, which suggestions must start with. */
     namePrefix: string;
 }
 
+/**
+ * How to rewrite the source so that a context item stands for the items the step applies to, and which steps to list
+ * for them.
+ */
 interface ContextItemReplacement {
     /** Where the context item replaces the source up to the cursor. */
     from: number;
-    /** What to insert before the context item. */
+    /** What to insert before the context item, such as the `/` that remains of a `//`. */
     prefix: string;
+    /** Whether to list the steps of each item and of each of its descendants, as after `//`. */
     throughDescendants: boolean;
 }
 
@@ -39,14 +47,14 @@ export const providePathStepCompletions: CompletionProvider = async (context) =>
     if (slash?.text !== "/" && slash?.text !== "//") {
         return null;
     }
-    // An expression must be able to start at the step, which excludes strings and comments.
     if (!allowsExpressionAt(context, step.start)) {
         return null;
     }
     return completeSteps(
         context,
         step,
-        // E//S applies S to E and to each of its descendants, so the steps are listed through the descendants of E.
+        // E//S applies S to E and to each of its descendants. Replacing // with / gives the context item the type of the
+        // items of E, and the wrapper lists the steps through their descendants.
         slash.text === "//"
             ? { from: slash.start, prefix: "/", throughDescendants: true }
             : { from: step.start, prefix: "", throughDescendants: false },
@@ -79,7 +87,8 @@ export const provideContextItemStepCompletions: CompletionProvider = async (cont
 
 /**
  * Replaces the step with the context item, whose type is that of the items the step applies to. Unlike the type of the
- * expression before a slash, it does not depend on which of the expressions ending there is meant.
+ * expression before a slash, it does not depend on which of the expressions ending there is meant. Returns null when
+ * the items are not schema-typed, so that other providers apply.
  */
 async function completeSteps(
     context: CompletionContext,
@@ -128,6 +137,7 @@ async function completeSteps(
     );
 }
 
+/** The step name being typed at the cursor, or null when the cursor does not follow the start of a name. */
 function typedStep(context: CompletionContext): TypedStep | null {
     const match = context.source.slice(0, context.cursorOffset).match(STEP_PATTERN);
     if (match?.index === undefined) {
@@ -138,8 +148,8 @@ function typedStep(context: CompletionContext): TypedStep | null {
 }
 
 /**
- * Whether an enclosing expression gives the step its context item, as a predicate or the right of `!` does. This avoids
- * asking for a type at every expression.
+ * Whether an enclosing expression gives the step its context item, as a predicate, the right of `!` or a later path
+ * step does. This avoids asking for a type at every expression.
  */
 function hasFocusAt(context: CompletionContext, offset: number): boolean {
     const position = context.document.positionAt(offset);
@@ -152,6 +162,10 @@ function hasFocusAt(context: CompletionContext, offset: number): boolean {
     return containsFocus(context.getParseResult().ast);
 }
 
+/**
+ * Whether an expression can start at the offset, which excludes strings and comments. Steps check where they start,
+ * since after `@` only a name can follow.
+ */
 function allowsExpressionAt(context: CompletionContext, offset: number): boolean {
     const intent = context.getIntentAt(offset);
     return intent !== null && (intent.allowVariableReferences || intent.allowFunctions);

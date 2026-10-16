@@ -57,7 +57,10 @@ public final class TypeAtPosition implements RequestHandler {
      */
     public record Result(SequenceType sequenceType, Range range, List<PathStep> pathSteps) implements ResponseBody {}
 
-    /** A child or attribute name, and the type of the nodes that a step with that name selects from one item. */
+    /**
+     * A child or attribute name, and the type of the nodes that a step with that name selects from one item, or null
+     * when the schema does not determine it.
+     */
     public record PathStep(ResolvedQName name, SequenceType sequenceType) {}
 
     private final RumbleConfiguration configuration;
@@ -114,6 +117,10 @@ public final class TypeAtPosition implements RequestHandler {
         }
     }
 
+    /**
+     * The requested steps that the schema declares for items of the type, or null when none are requested or the items
+     * are not schema-typed.
+     */
     private static List<PathStep> pathSteps(MainModule module, ItemType itemType, Request.PathSteps pathSteps) {
         // Only load the schema catalog when steps are requested for schema-typed nodes.
         if (pathSteps == null || !SchemaContentModel.isSchemaTyped(itemType)) {

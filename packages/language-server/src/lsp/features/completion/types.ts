@@ -18,6 +18,7 @@ export interface CompletionContext {
     // This is a lazy getter, because computing visible declarations can be expensive and is not always needed.
     getVisibleDeclarations(): Promise<readonly ScopeDefinition[]>;
     getAnalysis(): Promise<AnalysisResult>;
+    /** The prolog of the document's module, collected from its syntax tree without analyzing the module. */
     getModuleProlog(): ModuleProlog;
     getParseResult(): ParseResult;
     /** The last token before the offset, skipping whitespace and comments. */
