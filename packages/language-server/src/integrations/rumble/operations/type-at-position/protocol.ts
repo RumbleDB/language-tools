@@ -31,6 +31,7 @@ export interface TypeAtPositionWireResult {
 /** A name that a path step can select, and the type of the nodes it selects from one item. */
 export interface PathStep {
     name: QName;
+    /** Absent when the schema does not determine the type. */
     sequenceType?: SequenceType;
 }
 
