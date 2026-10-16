@@ -18,6 +18,7 @@ import {
 import { provideErrorCodeCompletions } from "./completion/providers/error-codes.js";
 import { provideKeywordCompletions } from "./completion/providers/keywords.js";
 import { provideObjectFieldCompletions } from "./completion/providers/object-fields.js";
+import { providePathStepCompletions } from "./completion/providers/path-steps.js";
 import { provideSchemaConstructorCompletions } from "./completion/providers/schema-constructors.js";
 import { provideSchemaTypeCompletions } from "./completion/providers/schema-types.js";
 import type { CompletionProvider } from "./completion/types.js";
@@ -26,6 +27,7 @@ import type { FeatureRegistrationContext } from "./context.js";
 const exclusiveProviders: CompletionProvider[] = [
     provideErrorCodeCompletions,
     provideObjectFieldCompletions,
+    providePathStepCompletions,
 ];
 
 const additiveProviders: CompletionProvider[] = [
