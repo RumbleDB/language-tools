@@ -1,8 +1,10 @@
 import { Token } from "antlr4ng";
 import {
+    collectModuleProlog,
     getVisibleDeclarationsAtPosition,
     QNameToString,
     type AnalysisResult,
+    type ModuleProlog,
     type ScopeDefinition,
     type QName,
 } from "server/analysis/index.js";
@@ -33,6 +35,7 @@ export function createCompletionContext(
 
     let visibleDeclarations: Promise<ScopeDefinition[]> | undefined;
     let analysis: Promise<AnalysisResult> | undefined;
+    let prolog: ModuleProlog | undefined;
 
     return {
         document,
@@ -47,6 +50,12 @@ export function createCompletionContext(
         },
         getAnalysis() {
             return (analysis ??= workspace.getAnalysis(document));
+        },
+        getModuleProlog() {
+            return (prolog ??= collectModuleProlog(document.uri, parser.parse(document).ast));
+        },
+        getParseResult() {
+            return parser.parse(document);
         },
         getTokenBefore(offset) {
             const { tokens } = parser.parse(document);

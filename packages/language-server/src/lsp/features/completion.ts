@@ -18,7 +18,10 @@ import {
 import { provideErrorCodeCompletions } from "./completion/providers/error-codes.js";
 import { provideKeywordCompletions } from "./completion/providers/keywords.js";
 import { provideObjectFieldCompletions } from "./completion/providers/object-fields.js";
-import { providePathStepCompletions } from "./completion/providers/path-steps.js";
+import {
+    provideContextItemStepCompletions,
+    providePathStepCompletions,
+} from "./completion/providers/path-steps.js";
 import { provideSchemaConstructorCompletions } from "./completion/providers/schema-constructors.js";
 import { provideSchemaTypeCompletions } from "./completion/providers/schema-types.js";
 import type { CompletionProvider } from "./completion/types.js";
@@ -31,6 +34,7 @@ const exclusiveProviders: CompletionProvider[] = [
 ];
 
 const additiveProviders: CompletionProvider[] = [
+    provideContextItemStepCompletions,
     provideVariableCompletions,
     provideSourceFunctionCompletions,
     provideSchemaConstructorCompletions,
