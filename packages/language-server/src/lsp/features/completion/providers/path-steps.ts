@@ -1,6 +1,8 @@
 import { formatSequenceType } from "server/analysis/index.js";
 import { getTypeAtPositionFromSource } from "server/integrations/rumble/operations/type-at-position/service.js";
+import type { AstNode } from "server/parser/types/ast.js";
 import { getActiveParserId } from "server/parser/utils.js";
+import { rangeContainsPosition } from "server/utils/range.js";
 import { CompletionItemKind, type CompletionItem } from "vscode-languageserver";
 
 import { getQNameCompletionLabels, replaceTypedPrefix } from "../context.js";
@@ -49,6 +51,30 @@ export const providePathStepCompletions: CompletionProvider = async (context) =>
             ? { from: slash.start, prefix: "/", throughDescendants: true }
             : { from: step.start, prefix: "", throughDescendants: false },
     );
+};
+
+/**
+ * Suggests the children or attributes that the schema declares for a schema-typed context item, as for the first step
+ * in a predicate. Function and variable names remain valid there, so these suggestions are added to the others.
+ */
+export const provideContextItemStepCompletions: CompletionProvider = async (context) => {
+    // Only schema-typed nodes have declared steps, so other modules need not look for a context item.
+    if (context.getModuleProlog().schemaImports.length === 0) {
+        return null;
+    }
+    const step = typedStep(context);
+    if (
+        step === null ||
+        !hasFocusAt(context, step.start) ||
+        !allowsExpressionAt(context, step.start)
+    ) {
+        return null;
+    }
+    return completeSteps(context, step, {
+        from: step.start,
+        prefix: "",
+        throughDescendants: false,
+    });
 };
 
 /**
@@ -109,6 +135,21 @@ function typedStep(context: CompletionContext): TypedStep | null {
     }
     const [, attributeMarker, namePrefix = ""] = match;
     return { start: match.index, attributeAxis: attributeMarker === "@", namePrefix };
+}
+
+/**
+ * Whether an enclosing expression gives the step its context item, as a predicate or the right of `!` does. This avoids
+ * asking for a type at every expression.
+ */
+function hasFocusAt(context: CompletionContext, offset: number): boolean {
+    const position = context.document.positionAt(offset);
+    const containsFocus = (node: AstNode): boolean =>
+        node.children.some(
+            (child) =>
+                (child.kind === "focus" && rangeContainsPosition(child.range, position)) ||
+                containsFocus(child),
+        );
+    return containsFocus(context.getParseResult().ast);
 }
 
 function allowsExpressionAt(context: CompletionContext, offset: number): boolean {
