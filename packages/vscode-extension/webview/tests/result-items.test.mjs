@@ -3,6 +3,7 @@ import { test } from "node:test";
 
 import {
     compareNumbers,
+    compareNumericCells,
     fieldTypeLabel,
     formatCell,
     formatRawOutput,
@@ -369,6 +370,31 @@ test("numbers sort by exact value, with NaN and infinities at the ends", () => {
         "INF",
     ]);
     assert.equal(compareNumbers("0", "-0"), 0);
+});
+
+test("other cells stay after numbers when sorting in either direction", async () => {
+    const { createTable, sortFn_alphanumeric } = await import("@tanstack/solid-table");
+    const { features } = await import("../src/model/table-features.ts");
+    const cells = [[numeric("xs:integer", "1")], [key("x")], [numeric("xs:integer", "3")], []];
+    const sortedCells = (desc) =>
+        createTable({
+            features,
+            data: cells,
+            columns: [
+                {
+                    id: "value",
+                    accessorFn: formatCell,
+                    sortFn: (rowA, rowB, columnId) =>
+                        compareNumericCells(rowA.original, rowB.original, desc) ??
+                        sortFn_alphanumeric(rowA, rowB, columnId),
+                },
+            ],
+            state: { sorting: [{ id: "value", desc }] },
+        })
+            .getSortedRowModel()
+            .rows.map((row) => formatCell(row.original));
+    assert.deepEqual(sortedCells(false), ["1", "3", '"x"', "()"]);
+    assert.deepEqual(sortedCells(true), ["3", "1", "()", '"x"']);
 });
 
 test("only a cell holding a single number has a numeric value", () => {

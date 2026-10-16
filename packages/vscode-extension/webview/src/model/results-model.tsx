@@ -12,10 +12,9 @@ import type { ExecutionResultData } from "@/types.js";
 import { itemPreview } from "@/utils/item-presentation.js";
 import { createPagination } from "@/utils/pagination.js";
 import {
-    compareNumbers,
+    compareNumericCells,
     fieldTypeLabel,
     formatCell,
-    numericCellValue,
     projectTableRows,
     type ResultSelection,
 } from "@/utils/result-items.js";
@@ -112,13 +111,12 @@ export function createResultsModel(
                 id,
                 accessorFn: (row) => formatCell(row.cells[key]),
                 // Numbers sort by value ahead of other cells, which keep the natural text order.
-                sortFn: (rowA, rowB, columnId) => {
-                    const a = numericCellValue(rowA.original.cells[key]);
-                    const b = numericCellValue(rowB.original.cells[key]);
-                    if (a !== undefined && b !== undefined) return compareNumbers(a, b);
-                    if (a !== undefined || b !== undefined) return a !== undefined ? -1 : 1;
-                    return sortFn_alphanumeric(rowA, rowB, columnId);
-                },
+                sortFn: (rowA, rowB, columnId) =>
+                    compareNumericCells(
+                        rowA.original.cells[key],
+                        rowB.original.cells[key],
+                        sorting().find((sort) => sort.id === columnId)?.desc === true,
+                    ) ?? sortFn_alphanumeric(rowA, rowB, columnId),
                 header: () => <ColumnHeader name={name} type={type} />,
                 size: getContentWidth(data, key, Math.max(name.length, type?.length ?? 0)),
                 cell: (info) => (

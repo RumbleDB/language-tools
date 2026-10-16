@@ -28,6 +28,23 @@ export function numericCellValue(items: RunQueryItem[] | undefined): string | un
     return item?.kind === "atomic" ? item.number : undefined;
 }
 
+/**
+ * Orders cells holding numbers by value, ahead of all other cells in both directions, or returns
+ * undefined when neither cell holds a number. The table negates the result when sorting
+ * descending, so `desc` cancels that for a number compared with another cell.
+ */
+export function compareNumericCells(
+    a: RunQueryItem[] | undefined,
+    b: RunQueryItem[] | undefined,
+    desc: boolean,
+): number | undefined {
+    const x = numericCellValue(a);
+    const y = numericCellValue(b);
+    if (x !== undefined && y !== undefined) return compareNumbers(x, y);
+    if (x === undefined && y === undefined) return undefined;
+    return (x !== undefined ? -1 : 1) * (desc ? -1 : 1);
+}
+
 /** A finite number as sign × 0.digits × 10^exponent, with no leading or trailing zero digits. */
 function decomposeNumber(lexical: string) {
     const [, sign = "", whole = "", fraction = "", exponent = "0"] =
