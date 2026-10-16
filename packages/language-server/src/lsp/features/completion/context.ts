@@ -1,3 +1,4 @@
+import { Token } from "antlr4ng";
 import {
     getVisibleDeclarationsAtPosition,
     QNameToString,
@@ -8,6 +9,7 @@ import {
 import type { WrapperClient } from "server/integrations/rumble/client.js";
 import type { ParserService } from "server/parser/index.js";
 import { getDocumentText } from "server/parser/utils.js";
+import { lowerBound } from "server/utils/binary-search.js";
 import type { WorkspaceService } from "server/workspace/service.js";
 import { TextEdit, type CompletionItem, type Position } from "vscode-languageserver";
 import type { TextDocument } from "vscode-languageserver-textdocument";
@@ -38,8 +40,24 @@ export function createCompletionContext(
         cursorOffset,
         intent,
         wrapper,
+        getIntentAt(offset) {
+            return offset === cursorOffset
+                ? intent
+                : parser.collectCompletionIntent(document, offset);
+        },
         getAnalysis() {
             return (analysis ??= workspace.getAnalysis(document));
+        },
+        getTokenBefore(offset) {
+            const { tokens } = parser.parse(document);
+            const after = lowerBound(tokens, offset, (token, target) => token.start - target);
+            for (let index = after - 1; index >= 0; index -= 1) {
+                const token = tokens[index]!;
+                if (token.channel === Token.DEFAULT_CHANNEL && token.stop < offset) {
+                    return token;
+                }
+            }
+            return undefined;
         },
         getVisibleDeclarations() {
             visibleDeclarations ??= this.getAnalysis().then((analysis) =>
