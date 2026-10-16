@@ -78,6 +78,7 @@ export type ParamListContext = jsoniq.ParamListContext | xquery.ParamListContext
 export type ParenthesizedExprContext =
     | jsoniq.ParenthesizedExprContext
     | xquery.ParenthesizedExprContext;
+export type PathExprContext = jsoniq.PathExprContext | xquery.PathExprContext;
 export type PostfixExprContext = jsoniq.PostfixExprContext | xquery.PostfixExprContext;
 export type PredicateContext = jsoniq.PredicateContext | xquery.PredicateContext;
 export type ProgramContext = jsoniq.ProgramContext | xquery.ProgramContext;
@@ -86,8 +87,12 @@ export type QuantifiedExprVarContext =
     | jsoniq.QuantifiedExprVarContext
     | xquery.QuantifiedExprVarContext;
 export type QuantifiedExprContext = jsoniq.QuantifiedExprContext | xquery.QuantifiedExprContext;
+export type RelativePathExprContext =
+    | jsoniq.RelativePathExprContext
+    | xquery.RelativePathExprContext;
 export type SchemaImportContext = jsoniq.SchemaImportContext | xquery.SchemaImportContext;
 export type SequenceTypeContext = jsoniq.SequenceTypeContext | xquery.SequenceTypeContext;
+export type SimpleMapExprContext = jsoniq.SimpleMapExprContext | xquery.SimpleMapExprContext;
 export type SlidingWindowClauseContext =
     | jsoniq.SlidingWindowClauseContext
     | xquery.SlidingWindowClauseContext;

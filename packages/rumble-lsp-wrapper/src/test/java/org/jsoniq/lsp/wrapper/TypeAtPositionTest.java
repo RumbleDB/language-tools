@@ -167,10 +167,10 @@ class TypeAtPositionTest {
                 """;
         URI uri = URI.create("file:///window-bindings." + extension);
         assertVariableType(query, uri, "$w", 0, "xs:integer+");
-        for (String name : new String[] {"$s", "$prev", "$next", "$e", "$eprev", "$enext"}) {
+        for (String name : new String[] {"$prev", "$next", "$eprev", "$enext"}) {
             assertVariableType(query, uri, name, 0, "xs:integer?");
         }
-        for (String name : new String[] {"$sp", "$ep", "$count"}) {
+        for (String name : new String[] {"$s", "$sp", "$e", "$ep", "$count"}) {
             assertVariableType(query, uri, name, 0, "xs:integer");
         }
     }

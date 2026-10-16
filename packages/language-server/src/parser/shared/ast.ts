@@ -1,11 +1,11 @@
-import { type ParseTree, type TerminalNode } from "antlr4ng";
+import { type ParseTree, type ParserRuleContext, type TerminalNode } from "antlr4ng";
 import type * as ctx from "server/parser/context.js";
 import {
     type AstNode,
     type AstParameter,
     type VariableDeclarationAstNode,
 } from "server/parser/types/ast.js";
-import { parseQNameText } from "server/parser/types/name.js";
+import { CONTEXT_ITEM_NAME, parseQNameText } from "server/parser/types/name.js";
 import { rangeFromNode } from "server/utils/range.js";
 import type { TextDocument } from "vscode-languageserver-textdocument";
 
@@ -178,10 +178,7 @@ export class CommonAstBuilder {
     public visitContextItemDecl = (node: ctx.ContextItemDeclContext): AstVisitResult => [
         {
             kind: "context-item-declaration",
-            name: {
-                kind: "unprefixed-qname",
-                localName: "$",
-            },
+            name: CONTEXT_ITEM_NAME,
             range: rangeFromNode(node, this.document),
             selectionRange: {
                 start: rangeFromNode(node.KW_CONTEXT(), this.document).start,
@@ -194,7 +191,7 @@ export class CommonAstBuilder {
     public visitContextItemExpr = (node: ctx.ContextItemExprContext): AstVisitResult => [
         {
             kind: "context-item-expression",
-            name: { kind: "unprefixed-qname", localName: "$" },
+            name: CONTEXT_ITEM_NAME,
             range: rangeFromNode(node, this.document),
             children: [],
         },
@@ -208,9 +205,39 @@ export class CommonAstBuilder {
             selectionRange: rangeFromNode(node.functionName(), this.document),
             parameters: this.buildParameters(node),
             isPrivate: hasPrivateAnnotation(node),
-            children: this.traversal.visitChildren(node),
+            children: this.visitChildrenWithFocus(node, [node._fn_body]),
         },
     ];
+
+    public visitPredicate = (node: ctx.PredicateContext): AstVisitResult => [
+        this.focus(node, this.traversal.visitChildren(node)),
+    ];
+
+    public visitSimpleMapExpr = (node: ctx.SimpleMapExprContext): AstVisitResult =>
+        this.visitChildrenWithFocus(node, node._map_expr);
+
+    /** A leading slash evaluates the path from the root of the context item's tree. */
+    public visitPathExpr = (node: ctx.PathExprContext): AstVisitResult =>
+        this.visitChildrenWithFocus(node, [node._singleslash, node._doubleslash]);
+
+    public visitRelativePathExpr = (node: ctx.RelativePathExprContext): AstVisitResult =>
+        this.visitChildrenWithFocus(node, node.stepExpr().slice(1));
+
+    /** Visits the children of a node, giving each of the `focused` children its own context item. */
+    private visitChildrenWithFocus(
+        node: ParserRuleContext,
+        focused: ReadonlyArray<ParserRuleContext | undefined>,
+    ): AstVisitResult {
+        return (node.children ?? []).flatMap((child) =>
+            focused.includes(child as ParserRuleContext)
+                ? [this.focus(child, this.traversal.visit(child))]
+                : this.traversal.visit(child),
+        );
+    }
+
+    private focus(node: ParseTree, children: AstVisitResult): AstNode {
+        return { kind: "focus", range: rangeFromNode(node, this.document), children };
+    }
 
     private buildVariableDeclaration(
         node: ctx.VarBindingContext | null | undefined,
@@ -238,12 +265,13 @@ export class CommonAstBuilder {
     private declarationsBeforeChildren(
         node: ParseTree,
         declarations: Array<VariableDeclarationAstNode | null>,
+        children: AstVisitResult = this.traversal.visitChildren(node),
     ): AstVisitResult {
         return [
             ...declarations.filter(
                 (declaration): declaration is VariableDeclarationAstNode => declaration !== null,
             ),
-            ...this.traversal.visitChildren(node),
+            ...children,
         ];
     }
 
@@ -402,7 +430,11 @@ export class CommonAstBuilder {
                 ?.param()
                 .map((param) => this.buildVariableDeclaration(param._name, visibleFrom)) ?? [];
 
-        return this.declarationsBeforeChildren(node, declarations);
+        return this.declarationsBeforeChildren(
+            node,
+            declarations,
+            this.visitChildrenWithFocus(node, [node._fn_body]),
+        );
     };
 
     public visitTypeSwitchStatement = (node: ctx.TypeSwitchStatementContext): AstVisitResult =>

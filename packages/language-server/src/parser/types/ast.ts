@@ -31,6 +31,7 @@ export type AstNodeKind =
     | "named-function-reference"
     | "variable-reference"
     | "context-item-expression"
+    | "focus"
     | "argument";
 
 export interface AstNodeBase<K extends AstNodeKind> {
@@ -152,6 +153,9 @@ export interface ContextItemExpressionAstNode extends AstNodeBase<"context-item-
     readonly name: LexicalReferenceNameByKind["variable"];
 }
 
+/** An expression evaluated with its own context item, e.g. a predicate or a function body. */
+export interface FocusAstNode extends AstNodeBase<"focus"> {}
+
 export interface ArgumentAstNode extends AstNodeBase<"argument"> {
     readonly index: number;
 }
@@ -178,4 +182,5 @@ export type AstNode =
     | NamedFunctionReferenceAstNode
     | VariableReferenceAstNode
     | ContextItemExpressionAstNode
+    | FocusAstNode
     | ArgumentAstNode;

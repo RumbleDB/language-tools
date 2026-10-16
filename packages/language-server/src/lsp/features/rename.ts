@@ -1,5 +1,6 @@
 import {
     findSymbolAtPosition,
+    isContextItem,
     type AnalysisResult,
     type Definition,
     type DefinitionKind,
@@ -121,6 +122,8 @@ function isVariableLike(kind: DefinitionKind): boolean {
 function isRenameableDeclaration(declaration: Definition): declaration is RenameableDeclaration {
     return (
         declaration.origin === "source" &&
+        // The context item has no name to rename.
+        !isContextItem(declaration) &&
         (isVariableLike(declaration.kind) ||
             declaration.kind === "function" ||
             declaration.kind === "type")

@@ -158,6 +158,23 @@ describe("JSONiq completion", () => {
         expect(labelsAtCursor).not.toContain("if");
     });
 
+    it.each([
+        ["jsoniq", true],
+        ["xquery", false],
+    ])("suggests the context item as '$$' only in JSONiq (%s)", async (languageId, offered) => {
+        const document = testDocumentFromUri("(1, 2)[$]", {
+            uri: `file:///completion-context-item-${languageId}`,
+            languageId,
+        });
+
+        const labelsAtCursor = await completionLabels(document, {
+            line: 0,
+            character: "(1, 2)[$".length,
+        });
+
+        expect(labelsAtCursor.includes("$$")).toBe(offered);
+    });
+
     it("replaces typed variable prefix to avoid duplicating '$'", async () => {
         const document = testDocument("completion-var-prefix-text-edit", [
             "let $a := 2",
