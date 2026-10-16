@@ -1,5 +1,6 @@
 import {
     findSymbolAtPosition,
+    isContextItem,
     type AnalysisResult,
     type Definition,
     type DefinitionKind,
@@ -10,7 +11,6 @@ import {
     type SourceVariableDefinition,
 } from "server/analysis/index.js";
 import type { AnyResolvedReference } from "server/analysis/model/reference.js";
-import { CONTEXT_ITEM_NAME } from "server/parser/types/name.js";
 import type { WorkspaceService } from "server/workspace/service.js";
 import {
     type Position,
@@ -123,10 +123,7 @@ function isRenameableDeclaration(declaration: Definition): declaration is Rename
     return (
         declaration.origin === "source" &&
         // The context item has no name to rename.
-        !(
-            declaration.kind === "variable" &&
-            declaration.name.localName === CONTEXT_ITEM_NAME.localName
-        ) &&
+        !isContextItem(declaration) &&
         (isVariableLike(declaration.kind) ||
             declaration.kind === "function" ||
             declaration.kind === "type")

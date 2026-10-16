@@ -1,10 +1,10 @@
 import {
     definitionNameToString,
     getVisibleDeclarationsAtPosition,
+    isContextItem,
     QNameToString,
     type ScopeDefinition,
 } from "server/analysis/index.js";
-import { CONTEXT_ITEM_NAME } from "server/parser/types/name.js";
 import { getActiveParserId } from "server/parser/utils.js";
 import {
     CompletionItemKind,
@@ -159,11 +159,4 @@ function toCompletionItem(declaration: ScopeDefinition, functionLabel?: string):
                 : declaration.kind.charAt(0).toUpperCase() + declaration.kind.slice(1),
         },
     };
-}
-
-function isContextItem(declaration: ScopeDefinition): boolean {
-    return (
-        declaration.kind === "variable" &&
-        declaration.name.localName === CONTEXT_ITEM_NAME.localName
-    );
 }

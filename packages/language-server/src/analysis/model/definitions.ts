@@ -1,3 +1,4 @@
+import { CONTEXT_ITEM_NAME } from "server/parser/types/name.js";
 import type { Range } from "vscode-languageserver";
 
 import type { FunctionName, QName } from "./names.js";
@@ -162,6 +163,13 @@ export function definitionNameToString(
         default:
             throw definition satisfies never;
     }
+}
+
+/** Whether the definition binds the context item (`$$` in JSONiq, `.` in XQuery). */
+export function isContextItem(definition: Definition): boolean {
+    return (
+        definition.kind === "variable" && definition.name.localName === CONTEXT_ITEM_NAME.localName
+    );
 }
 
 export function duplicateSymbolErrorCode(kind: DefinitionKind): string {
