@@ -1,11 +1,19 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
+import { createTable, sortFn_alphanumeric } from "@tanstack/solid-table";
+
+import { features } from "../src/model/table-features.ts";
+import { isExpandable, itemPreview, truncatePreview } from "../src/utils/item-presentation.ts";
 import {
+    compareNumbers,
+    compareNumericCells,
     fieldTypeLabel,
     formatCell,
     formatRawOutput,
+    numericCellValue,
     projectTableRows,
+    selectResultItems,
 } from "../src/utils/result-items.ts";
 
 const type = (displayName) => ({
@@ -18,6 +26,10 @@ const atomic = (displayName, serialized) => ({
     kind: "atomic",
     type: type(displayName),
     serialized,
+});
+const numeric = (displayName, number, serialized = number) => ({
+    ...atomic(displayName, serialized),
+    number,
 });
 const key = (value) => atomic("xs:string", JSON.stringify(value));
 
@@ -100,8 +112,7 @@ test("field type labels mark optional fields and need an object result type", ()
     assert.equal(fieldTypeLabel(undefined, "a"), undefined);
 });
 
-test("presentation preserves backend serialization and expansion behavior", async () => {
-    const { itemPreview, isExpandable } = await import("../src/utils/item-presentation.ts");
+test("presentation preserves backend serialization and expansion behavior", () => {
     const number = {
         ...atomic("xs:integer", "9007199254740993"),
     };
@@ -123,8 +134,7 @@ test("presentation preserves backend serialization and expansion behavior", asyn
     );
 });
 
-test("container summaries distinguish arrays, objects, maps, and functions", async () => {
-    const { itemPreview, isExpandable } = await import("../src/utils/item-presentation.ts");
+test("container summaries distinguish arrays, objects, maps, and functions", () => {
     assert.equal(
         itemPreview({ kind: "array", type: type("array(*)"), serialized: "[]", members: [] }),
         "[]",
@@ -153,8 +163,7 @@ test("container summaries distinguish arrays, objects, maps, and functions", asy
     );
 });
 
-test("atomic previews and compact map keys preserve backend syntax", async () => {
-    const { itemPreview } = await import("../src/utils/item-presentation.ts");
+test("atomic previews and compact map keys preserve backend syntax", () => {
     const values = [
         { ...atomic("xs:boolean", "true()") },
         { ...atomic("xs:date", 'xs:date("2026-10-03")') },
@@ -178,8 +187,7 @@ test("atomic previews and compact map keys preserve backend syntax", async () =>
     );
 });
 
-test("long strings remain complete when copied, and string-derived types retain quotes", async () => {
-    const { itemPreview, isExpandable } = await import("../src/utils/item-presentation.ts");
+test("long strings remain complete when copied, and string-derived types retain quotes", () => {
     const value = "x".repeat(500);
     const item = { ...atomic("xs:string", JSON.stringify(value)) };
     // Atomic disclosure depends on measured clipping, not a character count.
@@ -192,8 +200,7 @@ test("long strings remain complete when copied, and string-derived types retain 
     assert.equal(itemPreview(token), '"42"');
 });
 
-test("array previews preserve nested arrays and member sequence boundaries", async () => {
-    const { itemPreview } = await import("../src/utils/item-presentation.ts");
+test("array previews preserve nested arrays and member sequence boundaries", () => {
     const array = (members) => ({
         kind: "array",
         type: type("array(*)"),
@@ -207,8 +214,7 @@ test("array previews preserve nested arrays and member sequence boundaries", asy
     assert.equal(itemPreview(array([[array([[array([[one]])]])]])), "[[[…]]]");
 });
 
-test("object previews show fields and maps retain typed keys and sequence values", async () => {
-    const { itemPreview } = await import("../src/utils/item-presentation.ts");
+test("object previews show fields and maps retain typed keys and sequence values", () => {
     const fields = [
         { name: "a", value: [atomic("xs:boolean", "true()")] },
         { name: "b", value: [atomic("xs:boolean", "false()")] },
@@ -239,8 +245,7 @@ test("object previews show fields and maps retain typed keys and sequence values
     );
 });
 
-test("raw exports use backend serialization without changing quoting, whitespace, or types", async () => {
-    const { itemPreview } = await import("../src/utils/item-presentation.ts");
+test("raw exports use backend serialization without changing quoting, whitespace, or types", () => {
     const serialized =
         'map{"a": "say ""hello""", "b": <p>first\n    second</p>, "c": [(), (1, 2)], "d": 9007199254740993}';
     const item = {
@@ -270,8 +275,7 @@ test("raw exports use backend serialization without changing quoting, whitespace
     );
 });
 
-test("preview character limits preserve emoji and combining-character boundaries", async () => {
-    const { truncatePreview, itemPreview } = await import("../src/utils/item-presentation.ts");
+test("preview character limits preserve emoji and combining-character boundaries", () => {
     for (const [limit, character] of [
         [32, "😀"],
         [40, "🇨🇭"],
@@ -305,10 +309,7 @@ test("preview character limits preserve emoji and combining-character boundaries
     );
 });
 
-test("filtered exports follow sorted source indexes across pagination", async () => {
-    const { createTable } = await import("@tanstack/solid-table");
-    const { features } = await import("../src/model/table-features.ts");
-    const { selectResultItems } = await import("../src/utils/result-items.ts");
+test("filtered exports follow sorted source indexes across pagination", () => {
     const items = Array.from({ length: 80 }, (_, index) =>
         key(`${index < 60 ? "keep" : "skip"}${String(index).padStart(2, "0")}`),
     );
@@ -331,4 +332,68 @@ test("filtered exports follow sorted source indexes across pagination", async ()
     assert.equal(selected[0].serialized, '"keep59"');
     assert.equal(selected.at(-1).serialized, '"keep00"');
     assert.equal(formatRawOutput(selected).split("\n").length, 60);
+});
+
+test("numbers sort by exact value, with NaN and infinities at the ends", () => {
+    const numbers = [
+        "1500",
+        "1.25",
+        "INF",
+        "9007199254740993",
+        "-3",
+        "1.5",
+        "NaN",
+        "9007199254740992",
+        "-0",
+        "-0.5",
+        "1.0E-11",
+        "-INF",
+    ];
+    assert.deepEqual(numbers.sort(compareNumbers), [
+        "NaN",
+        "-INF",
+        "-3",
+        "-0.5",
+        "-0",
+        "1.0E-11",
+        "1.25",
+        "1.5",
+        "1500",
+        "9007199254740992",
+        "9007199254740993",
+        "INF",
+    ]);
+    assert.equal(compareNumbers("0", "-0"), 0);
+});
+
+test("other cells stay after numbers when sorting in either direction", () => {
+    const cells = [[numeric("xs:integer", "1")], [key("x")], [numeric("xs:integer", "3")], []];
+    const sortedCells = (desc) =>
+        createTable({
+            features,
+            data: cells,
+            columns: [
+                {
+                    id: "value",
+                    accessorFn: formatCell,
+                    sortFn: (rowA, rowB, columnId) =>
+                        compareNumericCells(rowA.original, rowB.original, desc) ??
+                        sortFn_alphanumeric(rowA, rowB, columnId),
+                },
+            ],
+            state: { sorting: [{ id: "value", desc }] },
+        })
+            .getSortedRowModel()
+            .rows.map((row) => formatCell(row.original));
+    assert.deepEqual(sortedCells(false), ["1", "3", '"x"', "()"]);
+    assert.deepEqual(sortedCells(true), ["3", "1", "()", '"x"']);
+});
+
+test("only a cell holding a single number has a numeric value", () => {
+    assert.equal(numericCellValue([numeric("xs:float", "1.5", 'xs:float("1.5")')]), "1.5");
+    assert.equal(numericCellValue([atomic("xs:string", '"1"')]), undefined);
+    assert.equal(
+        numericCellValue([numeric("xs:integer", "1"), numeric("xs:integer", "2")]),
+        undefined,
+    );
 });

@@ -22,6 +22,60 @@ export function formatCell(items: RunQueryItem[] | undefined): string {
         : `(${items.map((item) => item.serialized).join(", ")})`;
 }
 
+/** The lexical value of a cell holding one number. */
+export function numericCellValue(items: RunQueryItem[] | undefined): string | undefined {
+    const item = items?.length === 1 ? items[0]! : undefined;
+    return item?.kind === "atomic" ? item.number : undefined;
+}
+
+/**
+ * Orders cells holding numbers by value, ahead of all other cells in both directions, or returns
+ * undefined when neither cell holds a number. The table negates the result when sorting
+ * descending, so `desc` cancels that for a number compared with another cell.
+ */
+export function compareNumericCells(
+    a: RunQueryItem[] | undefined,
+    b: RunQueryItem[] | undefined,
+    desc: boolean,
+): number | undefined {
+    const x = numericCellValue(a);
+    const y = numericCellValue(b);
+    if (x !== undefined && y !== undefined) return compareNumbers(x, y);
+    if (x === undefined && y === undefined) return undefined;
+    return (x !== undefined ? -1 : 1) * (desc ? -1 : 1);
+}
+
+/** A finite number as sign × 0.digits × 10^exponent, with no leading or trailing zero digits. */
+function decomposeNumber(lexical: string) {
+    const [, sign = "", whole = "", fraction = "", exponent = "0"] =
+        /^([+-]?)(\d*)(?:\.(\d*))?(?:[eE]([+-]?\d+))?$/.exec(lexical) ?? [];
+    const allDigits = whole + fraction;
+    const lead = allDigits.search(/[1-9]/);
+    if (lead < 0) return { sign: 0, digits: "", exponent: 0 };
+    return {
+        sign: sign === "-" ? -1 : 1,
+        digits: allDigits.slice(lead).replace(/0+$/, ""),
+        exponent: whole.length - lead + Number(exponent),
+    };
+}
+
+/**
+ * Orders numeric lexical forms exactly, without reparsing them as JavaScript numbers. NaN sorts
+ * first, as in an `order by` with `empty least`, followed by -INF, finite values, and INF.
+ */
+export function compareNumbers(a: string, b: string): number {
+    const rank = (value: string) =>
+        value === "NaN" ? 0 : value === "-INF" ? 1 : value === "INF" ? 3 : 2;
+    if (rank(a) !== rank(b) || rank(a) !== 2) return rank(a) - rank(b);
+    const x = decomposeNumber(a);
+    const y = decomposeNumber(b);
+    if (x.sign !== y.sign || x.sign === 0) return x.sign - y.sign;
+    // Equal exponents compare digit strings lexicographically, as neither has trailing zeros.
+    const magnitude =
+        x.exponent - y.exponent || (x.digits < y.digits ? -1 : x.digits > y.digits ? 1 : 0);
+    return x.sign * magnitude;
+}
+
 /** The type label of a projected field, e.g. `xs:string?` when some objects lack the field. */
 export function fieldTypeLabel(
     itemType: RunQueryItemType | null | undefined,

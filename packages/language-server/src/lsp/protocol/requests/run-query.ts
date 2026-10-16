@@ -31,7 +31,11 @@ interface RunQueryItemBase {
 }
 
 /** The engine permits atomic keys, including null, in maps. */
-export type RunQueryAtomicItem = RunQueryItemBase & { kind: "atomic" | "null" };
+export type RunQueryAtomicItem = RunQueryItemBase & {
+    kind: "atomic" | "null";
+    /** The lexical value of a numeric item, kept as a string so large integers and decimals stay exact. */
+    number?: string;
+};
 
 /** Each kind carries its required structure; numeric values stay serialized strings. */
 export type RunQueryItem =

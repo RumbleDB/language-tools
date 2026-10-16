@@ -1,4 +1,9 @@
-import { createTable, type ColumnDef, type SortingState } from "@tanstack/solid-table";
+import {
+    createTable,
+    sortFn_alphanumeric,
+    type ColumnDef,
+    type SortingState,
+} from "@tanstack/solid-table";
 import { createSignal, createMemo, createEffect, on, type Accessor } from "solid-js";
 
 import { CellValue } from "@/components/views/table/CellValue.js";
@@ -7,6 +12,7 @@ import type { ExecutionResultData } from "@/types.js";
 import { itemPreview } from "@/utils/item-presentation.js";
 import { createPagination } from "@/utils/pagination.js";
 import {
+    compareNumericCells,
     fieldTypeLabel,
     formatCell,
     projectTableRows,
@@ -104,6 +110,13 @@ export function createResultsModel(
             ...columns.map(({ id, key, name, type }): ColumnDef<TFeatures, TData> => ({
                 id,
                 accessorFn: (row) => formatCell(row.cells[key]),
+                // Numbers sort by value ahead of other cells, which keep the natural text order.
+                sortFn: (rowA, rowB, columnId) =>
+                    compareNumericCells(
+                        rowA.original.cells[key],
+                        rowB.original.cells[key],
+                        sorting().find((sort) => sort.id === columnId)?.desc === true,
+                    ) ?? sortFn_alphanumeric(rowA, rowB, columnId),
                 header: () => <ColumnHeader name={name} type={type} />,
                 size: getContentWidth(data, key, Math.max(name.length, type?.length ?? 0)),
                 cell: (info) => (

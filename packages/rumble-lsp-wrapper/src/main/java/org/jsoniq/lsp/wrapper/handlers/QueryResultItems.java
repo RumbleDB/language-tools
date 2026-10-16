@@ -54,6 +54,6 @@ final class QueryResultItems {
                     identifier.getArity(),
                     item.getSignature().toString());
         }
-        return new QueryResultItem.AtomicItem(type, serialized);
+        return new QueryResultItem.AtomicItem(type, serialized, item.isNumeric() ? item.getStringValue() : null);
     }
 }
