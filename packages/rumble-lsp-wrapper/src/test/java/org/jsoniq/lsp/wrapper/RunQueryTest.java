@@ -118,13 +118,12 @@ class RunQueryTest {
                     "item", this.runQuery.run(query, DOCUMENT_URI).itemType().displayName());
         }
 
-        // Arrays are described by their members, and an empty array adds no content.
-        assertEquals(
-                "{ p: [xs:string] }",
-                this.runQuery
-                        .run("({\"p\": []}, {\"p\": [\"x\"]})", DOCUMENT_URI)
-                        .itemType()
-                        .displayName());
+        // Arrays are described by their members, and an empty array adds no content in either order.
+        for (String query : List.of("({\"p\": []}, {\"p\": [\"x\"]})", "({\"p\": [\"x\"]}, {\"p\": []})")) {
+            assertEquals(
+                    "{ p: [xs:string] }",
+                    this.runQuery.run(query, DOCUMENT_URI).itemType().displayName());
+        }
         assertEquals(
                 "[{ a: xs:decimal, b?: xs:boolean }]",
                 this.runQuery
