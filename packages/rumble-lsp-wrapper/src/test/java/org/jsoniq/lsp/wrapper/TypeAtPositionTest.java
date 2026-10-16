@@ -1,8 +1,12 @@
 package org.jsoniq.lsp.wrapper;
 
+import java.io.IOException;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Base64;
+import java.util.List;
 
 import org.jsoniq.lsp.wrapper.handlers.TypeAtPosition;
 import org.jsoniq.lsp.wrapper.messages.Request;
@@ -10,6 +14,7 @@ import org.jsoniq.lsp.wrapper.types.TypeDefinition.ArrayTypeDefinition;
 import org.jsoniq.lsp.wrapper.types.TypeDefinition.ObjectTypeDefinition;
 import org.jsoniq.lsp.wrapper.types.TypeDefinition.UnionTypeDefinition;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
@@ -34,6 +39,83 @@ class TypeAtPositionTest {
         assertNotNull(result.sequenceType());
         assertEquals("xs:integer", result.sequenceType().toString());
         assertEquals(new Range(new Position(0, 0), new Position(0, query.length())), result.range());
+    }
+
+    private static final String ORDER_SCHEMA =
+            """
+            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:o="urn:order"
+                       targetNamespace="urn:order" elementFormDefault="qualified">
+                <xs:element name="order">
+                    <xs:complexType>
+                        <xs:sequence>
+                            <xs:element name="line" maxOccurs="unbounded">
+                                <xs:complexType>
+                                    <xs:sequence><xs:element name="price" type="xs:decimal"/></xs:sequence>
+                                    <xs:attribute name="sku" type="xs:string"/>
+                                </xs:complexType>
+                            </xs:element>
+                        </xs:sequence>
+                        <xs:attribute name="id" type="xs:integer" use="required"/>
+                    </xs:complexType>
+                </xs:element>
+            </xs:schema>
+            """;
+
+    private static final String ORDER_QUERY =
+            "import schema namespace o = \"urn:order\" at \"order.xsd\";\n(validate { <o:order/> })";
+
+    @Test
+    void listsPathStepsThatTheSchemaDeclares(@TempDir Path directory) throws IOException {
+        assertEquals(
+                List.of("o:line: element(o:line, <anonymous>)+"),
+                describe(findOrderSteps(directory, new Request.PathSteps(Request.Axis.CHILD, false))));
+        assertEquals(
+                List.of("id: attribute(id, xs:integer)"),
+                describe(findOrderSteps(directory, new Request.PathSteps(Request.Axis.ATTRIBUTE, false))));
+    }
+
+    @Test
+    void listsPathStepsBelowDescendants(@TempDir Path directory) throws IOException {
+        assertEquals(
+                List.of("o:line: element(o:line, <anonymous>)*", "o:price: element(o:price, xs:decimal)*"),
+                describe(findOrderSteps(directory, new Request.PathSteps(Request.Axis.CHILD, true))));
+        assertEquals(
+                List.of("id: attribute(id, xs:integer)*", "sku: attribute(sku, xs:string)*"),
+                describe(findOrderSteps(directory, new Request.PathSteps(Request.Axis.ATTRIBUTE, true))));
+    }
+
+    @Test
+    void listsPathStepsOnlyWhenRequested(@TempDir Path directory) throws IOException {
+        assertNull(findOrderSteps(directory, null));
+    }
+
+    @Test
+    void listsNoPathStepsForUntypedNodes() {
+        TypeAtPosition.Result result = this.typeAtPosition.findType(
+                "<order/>",
+                URI.create("file:///query.xq"),
+                new Position(0, 8),
+                new Request.PathSteps(Request.Axis.CHILD, false));
+
+        assertNull(result.pathSteps());
+    }
+
+    private List<TypeAtPosition.PathStep> findOrderSteps(Path directory, Request.PathSteps pathSteps)
+            throws IOException {
+        Files.writeString(directory.resolve("order.xsd"), ORDER_SCHEMA);
+        return this.typeAtPosition
+                .findType(
+                        ORDER_QUERY,
+                        directory.resolve("query.xq").toUri(),
+                        positionAtOffset(ORDER_QUERY, ORDER_QUERY.length()),
+                        pathSteps)
+                .pathSteps();
+    }
+
+    private static List<String> describe(List<TypeAtPosition.PathStep> steps) {
+        return steps.stream()
+                .map(step -> step.name() + ": " + step.sequenceType())
+                .toList();
     }
 
     @Test
