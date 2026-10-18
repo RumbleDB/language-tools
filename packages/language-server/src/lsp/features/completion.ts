@@ -45,15 +45,15 @@ const allProviders: CompletionProvider[] = [
 
 /**
  * Characters that start a path step, so that schema-declared steps can be suggested as they are typed. Unlike other
- * triggers, they also appear outside paths, such as in arrays, so completions they trigger only consult the path step
- * providers.
+ * triggers, they also appear outside paths, such as in arrays, so completions they trigger are only shown when there
+ * are schema-declared steps.
  */
 export const PATH_STEP_TRIGGER_CHARACTERS = ["/", "@", "["];
 
-const pathStepProviders: CompletionProvider[] = [
+const pathStepProviders = new Set<CompletionProvider>([
     providePathStepCompletions,
     provideContextItemStepCompletions,
-];
+]);
 
 export function registerCompletion({
     connection,
@@ -90,12 +90,16 @@ export async function findCompletions(
         return [];
     }
 
-    const providers =
-        triggerCharacter !== undefined && PATH_STEP_TRIGGER_CHARACTERS.includes(triggerCharacter)
-            ? pathStepProviders
-            : allProviders;
+    const items = await Promise.all(allProviders.map((provider) => provider(context)));
 
-    const items = await Promise.all(providers.map((provider) => provider(context)));
+    const triggeredByPathStep =
+        triggerCharacter !== undefined && PATH_STEP_TRIGGER_CHARACTERS.includes(triggerCharacter);
+    const hasPathSteps = allProviders.some(
+        (provider, index) => pathStepProviders.has(provider) && (items[index]?.length ?? 0) > 0,
+    );
+    if (triggeredByPathStep && !hasPathSteps) {
+        return [];
+    }
 
     return finalizeCompletionItems(
         items

@@ -118,13 +118,13 @@ describe("path step completion", () => {
         );
     }, 45_000);
 
-    it("only suggests path steps when triggered by a path step character", async () => {
+    it("ranks path steps first when triggered by a path step character", async () => {
         const items = await completeAtEnd("return $order[", "]", "[");
 
-        expect(items.map((item) => item.label)).toEqual(
+        expect(items.slice(0, 2).map((item) => item.label)).toEqual(
             expect.arrayContaining(["o:price", "o:paid"]),
         );
-        expect(items).toHaveLength(2);
+        expect(items.map((item) => item.label)).toContain("fn:data");
     }, 45_000);
 
     it("suggests nothing for a path step character outside a schema-typed path", async () => {
