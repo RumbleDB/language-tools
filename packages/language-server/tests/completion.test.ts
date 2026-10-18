@@ -457,6 +457,29 @@ describe("JSONiq completion", () => {
         });
     }, 45_000);
 
+    it("suggests object fields when an enclosing expression ends at the dot", async () => {
+        for (const [name, query] of [
+            ["if", "if (true) then 1 else $a."],
+            ["comma", "1, $a."],
+            ["flwor", "for $x in (1, 2) return if ($x eq 1) then 1 else $a."],
+        ]) {
+            const document = testDocument(`completion-dot-object-enclosing-${name}`, [
+                'declare variable $a := {"name": "Ada", "age": 42};',
+                query,
+            ]);
+
+            const items = await findCompletions(
+                document,
+                document.positionAt(document.getText().length),
+                parserService,
+                workspaceService,
+                wrapperClient,
+            );
+
+            expect(labels(items), query).toEqual(expect.arrayContaining(["age", "name"]));
+        }
+    }, 45_000);
+
     it("suggests builtin functions when typing 'fn:' in JSONiq", async () => {
         const document = testDocument("completion-fn-prefix", "fn:");
         const items = await findCompletions(
