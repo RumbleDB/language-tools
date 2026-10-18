@@ -43,18 +43,6 @@ const allProviders: CompletionProvider[] = [
     provideKeywordCompletions,
 ];
 
-/**
- * Characters that start a path step, so that schema-declared steps can be suggested as they are typed. Unlike other
- * triggers, they also appear outside paths, such as in arrays, so completions they trigger are only shown when there
- * are schema-declared steps.
- */
-export const PATH_STEP_TRIGGER_CHARACTERS = ["/", "@", "["];
-
-const pathStepProviders = new Set<CompletionProvider>([
-    providePathStepCompletions,
-    provideContextItemStepCompletions,
-]);
-
 export function registerCompletion({
     connection,
     documents,
@@ -66,14 +54,7 @@ export function registerCompletion({
         const document = documents.get(params.textDocument.uri);
         return document === undefined
             ? []
-            : await findCompletions(
-                  document,
-                  params.position,
-                  parser,
-                  workspace,
-                  wrapper,
-                  params.context?.triggerCharacter,
-              );
+            : await findCompletions(document, params.position, parser, workspace, wrapper);
     });
 }
 
@@ -83,7 +64,6 @@ export async function findCompletions(
     parser: ParserService,
     workspace: WorkspaceService,
     wrapper: WrapperClient,
-    triggerCharacter?: string,
 ): Promise<CompletionItem[]> {
     const context = createCompletionContext(document, position, parser, workspace, wrapper);
     if (context === null) {
@@ -91,15 +71,6 @@ export async function findCompletions(
     }
 
     const items = await Promise.all(allProviders.map((provider) => provider(context)));
-
-    const triggeredByPathStep =
-        triggerCharacter !== undefined && PATH_STEP_TRIGGER_CHARACTERS.includes(triggerCharacter);
-    const hasPathSteps = allProviders.some(
-        (provider, index) => pathStepProviders.has(provider) && (items[index]?.length ?? 0) > 0,
-    );
-    if (triggeredByPathStep && !hasPathSteps) {
-        return [];
-    }
 
     return finalizeCompletionItems(
         items

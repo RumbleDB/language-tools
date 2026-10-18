@@ -118,8 +118,8 @@ describe("path step completion", () => {
         );
     }, 45_000);
 
-    it("ranks path steps first when triggered by a path step character", async () => {
-        const items = await completeAtEnd("return $order[", "]", "[");
+    it("ranks the children of the context item first in a predicate", async () => {
+        const items = await completeAtEnd("return $order[", "]");
 
         expect(items.slice(0, 2).map((item) => item.label)).toEqual(
             expect.arrayContaining(["o:price", "o:paid"]),
@@ -127,10 +127,10 @@ describe("path step completion", () => {
         expect(items.map((item) => item.label)).toContain("fn:data");
     }, 45_000);
 
-    it("suggests nothing for a path step character outside a schema-typed path", async () => {
-        const document = testDocumentFromUri("let $values := [", {
-            uri: "file:///path-step-trigger.jq",
-            languageId: "jsoniq",
+    it("suggests nothing after '@' outside a schema-typed path", async () => {
+        const document = testDocumentFromUri("let $x := <a/> return $x/@", {
+            uri: "file:///path-step-attribute.xq",
+            languageId: "xquery",
         });
 
         await expect(
@@ -140,10 +140,9 @@ describe("path step completion", () => {
                 parserService,
                 workspaceService,
                 wrapperClient,
-                "[",
             ),
         ).resolves.toEqual([]);
-    });
+    }, 45_000);
 
     it("replaces the part of a step name typed so far", async () => {
         const items = await completeAtEnd("return $order/o:pr");
@@ -161,11 +160,7 @@ describe("path step completion", () => {
 });
 
 /** Completes at the end of lastLine, before any text that follows the cursor. */
-async function completeAtEnd(
-    lastLine: string,
-    afterCursor = "",
-    triggerCharacter?: string,
-): Promise<CompletionItem[]> {
+async function completeAtEnd(lastLine: string, afterCursor = ""): Promise<CompletionItem[]> {
     const directory = mkdtempSync(join(tmpdir(), "path-step-completion-"));
     writeFileSync(join(directory, "order.xsd"), SCHEMA);
     const document = testDocumentFromUri([...QUERY_PREFIX, lastLine + afterCursor], {
@@ -178,6 +173,5 @@ async function completeAtEnd(
         parserService,
         workspaceService,
         wrapperClient,
-        triggerCharacter,
     );
 }
