@@ -51,7 +51,7 @@ export function getCompletionIntent<T extends TokenContextAnalyzer>(
     const qnamePrefix = candidates.tokenContext.qnamePrefix;
     const allowFunctions =
         candidates.tokenContext.allowReferences &&
-        (qnamePrefix || hasCandidateRule(candidates, options.isFunctionCallRule));
+        hasCandidateRule(candidates, options.isFunctionCallRule);
     const allowVariables =
         candidates.tokenContext.allowReferences &&
         !qnamePrefix &&
@@ -162,13 +162,22 @@ function collectCompletionCandidates<T extends TokenContextAnalyzer>(
         tokenName(tokenType: number): string | number;
     },
 ): CompletionCandidates {
-    // At `re|`, collect candidates before the unfinished identifier so `return`
-    // remains available. Numbers and punctuation still count as consumed input.
-    const caret = findCaretToken(
+    const tokenContext = getCompletionTokenContext(
         parsed.tokens,
         cursorOffset,
-        (token) => options.tokenName(token.type) === "NCName",
+        options.tokenContextAnalyzer,
     );
+    // At `re|`, collect candidates before the unfinished identifier so `return`
+    // remains available. Numbers and punctuation still count as consumed input.
+    // At `fn:|`, the lexer has not produced a prefixed name yet, and no grammar rule
+    // continues a function name from `fn` `:`, so collect before the prefix instead.
+    const caret = tokenContext.qnamePrefix
+        ? { tokenIndex: qnamePrefixTokenIndex(parsed.tokens, cursorOffset) }
+        : findCaretToken(
+              parsed.tokens,
+              cursorOffset,
+              (token) => options.tokenName(token.type) === "NCName",
+          );
 
     const core = new CodeCompletionCore(parsed.parser);
     core.ignoredTokens = options.ignoredTokens;
@@ -211,12 +220,19 @@ function collectCompletionCandidates<T extends TokenContextAnalyzer>(
         ),
         rules: candidateRules,
         ruleIndices: new Set(candidates.rules.keys()),
-        tokenContext: getCompletionTokenContext(
-            parsed.tokens,
-            cursorOffset,
-            options.tokenContextAnalyzer,
-        ),
+        tokenContext,
     };
+}
+
+/** The index of the prefix token in a `prefix:` that ends at the cursor. */
+function qnamePrefixTokenIndex(tokens: Token[], cursorOffset: number): number {
+    const tokensBeforeCursor = tokens.filter(
+        (token) =>
+            token.type !== Token.EOF &&
+            token.channel === Token.DEFAULT_CHANNEL &&
+            token.start < cursorOffset,
+    );
+    return tokensBeforeCursor.at(-2)!.tokenIndex;
 }
 
 /** A grammar entry point for collecting a clause's candidates before its CST exists. */

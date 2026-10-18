@@ -515,6 +515,15 @@ describe("JSONiq completion", () => {
         expect(labels(items)).toContain("fn:concat");
     });
 
+    it("does not allow functions after a prefix in a catch target", () => {
+        const source = "try { 1 div 0 } catch err:";
+        const document = testDocument("completion-catch-prefix-intent", source);
+        const intent = parserService.collectCompletionIntent(document, source.length);
+
+        expect(intent?.allowErrorCodeTargets).toBe(true);
+        expect(intent?.allowFunctions).toBe(false);
+    });
+
     it("suggests builtin functions when typing a keyword prefix like 'array:' in 'let $a := array:'", async () => {
         const document = testDocument("completion-array-prefix-expr", "let $a := array:");
         const items = await findCompletions(
