@@ -27,31 +27,21 @@ import { provideSchemaTypeCompletions } from "./completion/providers/schema-type
 import type { CompletionProvider } from "./completion/types.js";
 import type { FeatureRegistrationContext } from "./context.js";
 
-interface CompletionProviders {
-    /** The first that applies replaces all others. */
-    exclusive: CompletionProvider[];
-    /** Their items are combined. */
-    additive: CompletionProvider[];
-}
-
-const allProviders: CompletionProviders = {
-    exclusive: [
-        provideErrorCodeCompletions,
-        provideObjectFieldCompletions,
-        providePathStepCompletions,
-    ],
-    additive: [
-        provideContextItemStepCompletions,
-        provideVariableCompletions,
-        provideSourceFunctionCompletions,
-        provideSchemaConstructorCompletions,
-        provideBuiltinFunctionCompletions,
-        provideSourceTypeCompletions,
-        provideSchemaTypeCompletions,
-        provideBuiltinTypeCompletions,
-        provideKeywordCompletions,
-    ],
-};
+/** The items of all providers that apply are combined. */
+const allProviders: CompletionProvider[] = [
+    provideErrorCodeCompletions,
+    provideObjectFieldCompletions,
+    providePathStepCompletions,
+    provideContextItemStepCompletions,
+    provideVariableCompletions,
+    provideSourceFunctionCompletions,
+    provideSchemaConstructorCompletions,
+    provideBuiltinFunctionCompletions,
+    provideSourceTypeCompletions,
+    provideSchemaTypeCompletions,
+    provideBuiltinTypeCompletions,
+    provideKeywordCompletions,
+];
 
 /**
  * Characters that start a path step, so that schema-declared steps can be suggested as they are typed. Unlike other
@@ -60,10 +50,10 @@ const allProviders: CompletionProviders = {
  */
 export const PATH_STEP_TRIGGER_CHARACTERS = ["/", "@", "["];
 
-const pathStepProviders: CompletionProviders = {
-    exclusive: [providePathStepCompletions],
-    additive: [provideContextItemStepCompletions],
-};
+const pathStepProviders: CompletionProvider[] = [
+    providePathStepCompletions,
+    provideContextItemStepCompletions,
+];
 
 export function registerCompletion({
     connection,
@@ -105,18 +95,11 @@ export async function findCompletions(
             ? pathStepProviders
             : allProviders;
 
-    for (const provider of providers.exclusive) {
-        const items = await provider(context);
-        if (items !== null) {
-            return finalizeCompletionItems(items);
-        }
-    }
-
-    const additiveItems = await Promise.all(
-        providers.additive.map((provider) => provider(context)),
-    );
+    const items = await Promise.all(providers.map((provider) => provider(context)));
 
     return finalizeCompletionItems(
-        additiveItems.filter((items): items is CompletionItem[] => items !== null).flat(),
+        items
+            .filter((providerItems): providerItems is CompletionItem[] => providerItems !== null)
+            .flat(),
     );
 }

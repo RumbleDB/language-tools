@@ -14,6 +14,9 @@ import type { CompletionContext, CompletionProvider } from "../types.js";
  */
 const STEP_PATTERN = /(?<![\w.$@:#"'-])(@?)((?:[A-Za-z_][\w.-]*:)?[\w.-]*)$/;
 
+/** Ranks the declared steps before keywords, functions and variables, which sort from `0:`. */
+const PATH_STEP_SORT_PREFIX = "0:0:";
+
 /** The step being typed at the cursor. */
 interface TypedStep {
     /** Where the step starts, including any `@`. */
@@ -37,7 +40,11 @@ interface ContextItemReplacement {
     throughDescendants: boolean;
 }
 
-/** Suggests the children or attributes that the schema declares after `/` or `//` in a schema-typed path. */
+/**
+ * Suggests the children or attributes that the schema declares after `/` or `//` in a schema-typed path. A step may
+ * also be a function call or another primary expression, such as `data()`, so these suggestions are added to the others
+ * and ranked first.
+ */
 export const providePathStepCompletions: CompletionProvider = async (context) => {
     const step = typedStep(context);
     if (step === null) {
@@ -71,8 +78,12 @@ export const provideContextItemStepCompletions: CompletionProvider = async (cont
         return null;
     }
     const step = typedStep(context);
+    // Steps after a slash are left to providePathStepCompletions.
+    const tokenBefore = step === null ? undefined : context.getTokenBefore(step.start);
     if (
         step === null ||
+        tokenBefore?.text === "/" ||
+        tokenBefore?.text === "//" ||
         !hasFocusAt(context, step.start) ||
         !allowsExpressionAt(context, step.start)
     ) {
@@ -88,7 +99,7 @@ export const provideContextItemStepCompletions: CompletionProvider = async (cont
 /**
  * Replaces the step with the context item, whose type is that of the items the step applies to. Unlike the type of the
  * expression before a slash, it does not depend on which of the expressions ending there is meant. Returns null when
- * the items are not schema-typed, so that other providers apply.
+ * the items are not schema-typed.
  */
 async function completeSteps(
     context: CompletionContext,
@@ -124,6 +135,7 @@ async function completeSteps(
             .map((label): CompletionItem => ({
                 label,
                 kind: step.attributeAxis ? CompletionItemKind.Property : CompletionItemKind.Field,
+                sortText: `${PATH_STEP_SORT_PREFIX}${label}`,
                 ...(pathStep.sequenceType === undefined
                     ? {}
                     : { labelDetails: { description: formatSequenceType(pathStep.sequenceType) } }),

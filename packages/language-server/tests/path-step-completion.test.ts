@@ -40,7 +40,21 @@ describe("path step completion", () => {
                 ["o:paid", "element(o:paid, xs:boolean)?", CompletionItemKind.Field],
             ]),
         );
-        expect(items).toHaveLength(2);
+    }, 45_000);
+
+    it("ranks the declared steps before functions, which may also be steps", async () => {
+        const items = await completeAtEnd("return $order/");
+
+        expect(items.slice(0, 2).map((item) => item.label)).toEqual(
+            expect.arrayContaining(["o:price", "o:paid"]),
+        );
+        expect(items.map((item) => item.label)).toContain("fn:data");
+    }, 45_000);
+
+    it("suggests functions after the slash of an element without children", async () => {
+        const items = await completeAtEnd("return $order/o:price/");
+
+        expect(items.map((item) => item.label)).toContain("fn:data");
     }, 45_000);
 
     it("suggests the attributes that the schema declares after '/@'", async () => {
@@ -60,7 +74,6 @@ describe("path step completion", () => {
                 ["o:paid", "element(o:paid, xs:boolean)*"],
             ]),
         );
-        expect(items).toHaveLength(2);
     }, 45_000);
 
     it("suggests steps when a comment separates the path from '/'", async () => {
@@ -135,7 +148,7 @@ describe("path step completion", () => {
     it("replaces the part of a step name typed so far", async () => {
         const items = await completeAtEnd("return $order/o:pr");
 
-        expect(items.map((item) => item.label)).toEqual(["o:price"]);
+        expect(items[0]?.label).toBe("o:price");
         const line = QUERY_PREFIX.length;
         expect(items[0]?.textEdit).toEqual({
             range: {
