@@ -102,6 +102,12 @@ describe.each(["jsoniq", "xquery"])("%s query keyword completion", (languageId) 
         expect(afterReturn.map((item) => item.label)).toContain("fn:concat");
     });
 
+    it("keeps offering a keyword once it is typed in full", async () => {
+        expect(await syntaxLabels("for $i in 1 to 10\nreturn")).toContain("return");
+        expect(await syntaxLabels("for $x in (1, 2) order")).toContain("order by");
+        expect(await syntaxLabels("for $x in (1, 2) let")).toContain("let");
+    });
+
     it("ranks structural continuations before optional operators", async () => {
         const items = await completions("for $x in (1, 2) ");
         expect(items[0]?.label).toBe("return");

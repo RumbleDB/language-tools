@@ -167,16 +167,15 @@ function collectCompletionCandidates<T extends TokenContextAnalyzer>(
         cursorOffset,
         options.tokenContextAnalyzer,
     );
-    // At `re|`, collect candidates before the unfinished identifier so `return`
-    // remains available. Numbers and punctuation still count as consumed input.
+    // The editor filters suggestions by the word at the cursor, so at the end of a
+    // name or keyword, such as `re|` or `order|`, collect candidates where the word
+    // starts. Numbers and punctuation still count as consumed input.
     // At `fn:|`, the lexer has not produced a prefixed name yet, and no grammar rule
     // continues a function name from `fn` `:`, so collect before the prefix instead.
     const caret = tokenContext.qnamePrefix
         ? { tokenIndex: qnamePrefixTokenIndex(parsed.tokens, cursorOffset) }
-        : findCaretToken(
-              parsed.tokens,
-              cursorOffset,
-              (token) => options.tokenName(token.type) === "NCName",
+        : findCaretToken(parsed.tokens, cursorOffset, (token) =>
+              isWordToken(options.tokenName(token.type)),
           );
 
     const core = new CodeCompletionCore(parsed.parser);
@@ -222,6 +221,16 @@ function collectCompletionCandidates<T extends TokenContextAnalyzer>(
         ruleIndices: new Set(candidates.rules.keys()),
         tokenContext,
     };
+}
+
+const NAME_TOKEN_NAMES = new Set<string | number>(["NCName", "FullQName", "URIQualifiedName"]);
+
+/** Whether a token is a name or a keyword, which the editor treats as a word. */
+function isWordToken(tokenName: string | number): boolean {
+    return (
+        NAME_TOKEN_NAMES.has(tokenName) ||
+        (typeof tokenName === "string" && tokenName.startsWith("KW_"))
+    );
 }
 
 /** The index of the prefix token in a `prefix:` that ends at the cursor. */
