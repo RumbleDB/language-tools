@@ -19,7 +19,7 @@ export const serverCapabilities: ServerCapabilities = {
         triggerCharacters: ["(", ","],
     },
     completionProvider: {
-        triggerCharacters: ["$", ".", "|", ":", "@"],
+        triggerCharacters: ["$", ".", "|", ":", "@", "/", "["],
     },
     renameProvider: {
         prepareProvider: true,
