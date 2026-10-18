@@ -13,11 +13,10 @@ export interface TypeAtPositionRequest {
 }
 
 /**
- * Which path steps to list: those on the axis that select nodes of each item, as after `/`, or with
+ * Which path steps to list: the child and attribute steps that select nodes of each item, as after `/`, or with
  * `throughDescendants` also of each of its descendants, as after `//`.
  */
 export interface PathStepRequest {
-    axis: "child" | "attribute";
     throughDescendants: boolean;
 }
 
@@ -31,6 +30,8 @@ export interface TypeAtPositionWireResult {
 /** A name that a path step can select, and the type of the nodes it selects from one item. */
 export interface PathStep {
     name: QName;
+    /** Whether the step selects attributes rather than children. */
+    attribute: boolean;
     /** Absent when the schema does not determine the type. */
     sequenceType?: SequenceType;
 }

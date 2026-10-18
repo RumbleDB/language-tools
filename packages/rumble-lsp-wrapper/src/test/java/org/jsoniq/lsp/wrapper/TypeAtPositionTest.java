@@ -67,21 +67,19 @@ class TypeAtPositionTest {
     @Test
     void listsPathStepsThatTheSchemaDeclares(@TempDir Path directory) throws IOException {
         assertEquals(
-                List.of("o:line: element(o:line, <anonymous>)+"),
-                describe(findOrderSteps(directory, new Request.PathSteps(Request.Axis.CHILD, false))));
-        assertEquals(
-                List.of("id: attribute(id, xs:integer)"),
-                describe(findOrderSteps(directory, new Request.PathSteps(Request.Axis.ATTRIBUTE, false))));
+                List.of("o:line: element(o:line, <anonymous>)+", "@id: attribute(id, xs:integer)"),
+                describe(findOrderSteps(directory, new Request.PathSteps(false))));
     }
 
     @Test
     void listsPathStepsBelowDescendants(@TempDir Path directory) throws IOException {
         assertEquals(
-                List.of("o:line: element(o:line, <anonymous>)*", "o:price: element(o:price, xs:decimal)*"),
-                describe(findOrderSteps(directory, new Request.PathSteps(Request.Axis.CHILD, true))));
-        assertEquals(
-                List.of("id: attribute(id, xs:integer)*", "sku: attribute(sku, xs:string)*"),
-                describe(findOrderSteps(directory, new Request.PathSteps(Request.Axis.ATTRIBUTE, true))));
+                List.of(
+                        "o:line: element(o:line, <anonymous>)*",
+                        "o:price: element(o:price, xs:decimal)*",
+                        "@id: attribute(id, xs:integer)*",
+                        "@sku: attribute(sku, xs:string)*"),
+                describe(findOrderSteps(directory, new Request.PathSteps(true))));
     }
 
     @Test
@@ -92,10 +90,7 @@ class TypeAtPositionTest {
     @Test
     void listsNoPathStepsForUntypedNodes() {
         TypeAtPosition.Result result = this.typeAtPosition.findType(
-                "<order/>",
-                URI.create("file:///query.xq"),
-                new Position(0, 8),
-                new Request.PathSteps(Request.Axis.CHILD, false));
+                "<order/>", URI.create("file:///query.xq"), new Position(0, 8), new Request.PathSteps(false));
 
         assertNull(result.pathSteps());
     }
@@ -114,7 +109,7 @@ class TypeAtPositionTest {
 
     private static List<String> describe(List<TypeAtPosition.PathStep> steps) {
         return steps.stream()
-                .map(step -> step.name() + ": " + step.sequenceType())
+                .map(step -> (step.attribute() ? "@" : "") + step.name() + ": " + step.sequenceType())
                 .toList();
     }
 

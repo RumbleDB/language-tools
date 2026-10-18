@@ -60,9 +60,26 @@ describe("path step completion", () => {
     it("suggests the attributes that the schema declares after '/@'", async () => {
         const items = await completeAtEnd("return $order/@");
 
-        expect(items.map((item) => [item.label, item.labelDetails?.description])).toEqual([
-            ["id", "attribute(id, xs:integer)"],
-        ]);
+        const id = items.find((item) => item.label === "@id");
+        expect(id?.labelDetails?.description).toBe("attribute(id, xs:integer)");
+        expect(id?.kind).toBe(CompletionItemKind.Property);
+        // The typed `@` is replaced, so that the editor matches it against the label.
+        expect(id?.filterText).toBeUndefined();
+        const line = QUERY_PREFIX.length;
+        expect(id?.textEdit).toEqual({
+            range: {
+                start: { line, character: "return $order/".length },
+                end: { line, character: "return $order/@".length },
+            },
+            newText: "@id",
+        });
+    }, 45_000);
+
+    it("suggests attributes after '/', after the children", async () => {
+        const items = await completeAtEnd("return $order/");
+
+        expect(items.slice(0, 3).map((item) => item.label)).toEqual(["o:paid", "o:price", "@id"]);
+        expect(items.find((item) => item.label === "@id")?.filterText).toBe("id");
     }, 45_000);
 
     it("suggests the elements below each descendant after '//'", async () => {

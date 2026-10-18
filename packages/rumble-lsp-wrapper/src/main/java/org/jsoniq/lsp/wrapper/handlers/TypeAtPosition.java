@@ -51,17 +51,17 @@ public final class TypeAtPosition implements RequestHandler {
     public static final Result EMPTY_RESULT = new Result(null, null, null);
 
     /**
-     * When requested, pathSteps lists the steps on the requested axis that the schema declares for the type's items, or
+     * When requested, pathSteps lists the child and attribute steps that the schema declares for the type's items, or
      * for them and each of their descendants, so that editors can suggest path steps. It may omit names that a wildcard
      * allows.
      */
     public record Result(SequenceType sequenceType, Range range, List<PathStep> pathSteps) implements ResponseBody {}
 
     /**
-     * A child or attribute name, and the type of the nodes that a step with that name selects from one item, or null
-     * when the schema does not determine it.
+     * A child or attribute name, whether it is an attribute, and the type of the nodes that a step with that name
+     * selects from one item, or null when the schema does not determine it.
      */
-    public record PathStep(ResolvedQName name, SequenceType sequenceType) {}
+    public record PathStep(ResolvedQName name, boolean attribute, SequenceType sequenceType) {}
 
     private final RumbleConfiguration configuration;
 
@@ -130,25 +130,43 @@ public final class TypeAtPosition implements RequestHandler {
                 .getInScopeSchemaTypes()
                 .getXmlSchemaCatalog()
                 .getContentModel();
-        boolean attributeAxis = pathSteps.axis() == Request.Axis.ATTRIBUTE;
         // Steps select from each item, or for E//S, which abbreviates E/descendant-or-self::node()/S, from each node
         // of that union.
         Optional<org.rumbledb.types.SequenceType> stepParents = pathSteps.throughDescendants()
                 ? contentModel.getDescendantOrSelfType(itemType)
                 : Optional.of(new org.rumbledb.types.SequenceType(itemType));
+        Optional<List<PathStep>> children =
+                axisSteps(contentModel, itemType, stepParents, false, pathSteps.throughDescendants());
+        Optional<List<PathStep>> attributes =
+                axisSteps(contentModel, itemType, stepParents, true, pathSteps.throughDescendants());
+        if (children.isEmpty() && attributes.isEmpty()) {
+            return null;
+        }
+        List<PathStep> steps = new ArrayList<>(children.orElse(List.of()));
+        steps.addAll(attributes.orElse(List.of()));
+        return steps;
+    }
+
+    /** The steps on one axis, or nothing when the schema does not determine them. */
+    private static Optional<List<PathStep>> axisSteps(
+            SchemaContentModel contentModel,
+            ItemType itemType,
+            Optional<org.rumbledb.types.SequenceType> stepParents,
+            boolean attributeAxis,
+            boolean throughDescendants) {
         return contentModel
-                .getStepNames(itemType, attributeAxis, pathSteps.throughDescendants())
+                .getStepNames(itemType, attributeAxis, throughDescendants)
                 .map(names -> names.stream()
                         .map(name -> new PathStep(
                                 ResolvedQName.fromName(name),
+                                attributeAxis,
                                 stepParents
                                         .flatMap(parents -> contentModel
                                                 .getStepType(parents.getItemType(), attributeAxis, name)
                                                 .map(type -> type.repeated(parents.getCardinality())))
                                         .map(SequenceType::fromSequenceType)
                                         .orElse(null)))
-                        .toList())
-                .orElse(null);
+                        .toList());
     }
 
     private enum CandidateKind {

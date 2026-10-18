@@ -14,15 +14,15 @@ import type { CompletionContext, CompletionProvider } from "../types.js";
  */
 const STEP_PATTERN = /(?<![\w.$@:#"'-])(@?)((?:[A-Za-z_][\w.-]*:)?[\w.-]*)$/;
 
-/** Ranks the declared steps before keywords, functions and variables, which sort from `0:`. */
+/** Ranks the declared steps, children before attributes, before keywords, functions and variables, which sort from `0:`. */
 const PATH_STEP_SORT_PREFIX = "0:0:";
 
 /** The step being typed at the cursor. */
 interface TypedStep {
     /** Where the step starts, including any `@`. */
     start: number;
-    /** Whether the step starts with `@`, selecting attributes rather than children. */
-    attributeAxis: boolean;
+    /** Whether the step typed so far starts with `@`. */
+    afterAt: boolean;
     /** The part of the name typed so far, which suggestions must start with. */
     namePrefix: string;
 }
@@ -116,10 +116,7 @@ async function completeSteps(
             context.source.slice(context.cursorOffset),
         context.document.positionAt(contextItemOffset),
         context.wrapper,
-        {
-            axis: step.attributeAxis ? "attribute" : "child",
-            throughDescendants: replacement.throughDescendants,
-        },
+        { throughDescendants: replacement.throughDescendants },
     );
     const pathSteps = result.pathSteps;
     if (pathSteps === undefined) {
@@ -127,25 +124,42 @@ async function completeSteps(
     }
 
     const { namespaces, defaultElementTypeNamespace } = await context.getAnalysis();
-    // Unprefixed attribute names are in no namespace, whatever the default element namespace is.
-    const defaultNamespace = step.attributeAxis ? undefined : defaultElementTypeNamespace;
+    const typed = `${step.afterAt ? "@" : ""}${step.namePrefix}`;
+    // Children and attributes are both listed; attributes are labelled with `@`, so that the editor keeps only them
+    // once `@` is typed.
     return pathSteps.flatMap((pathStep) =>
-        getQNameCompletionLabels(pathStep.name, namespaces, defaultNamespace)
-            .filter((label) => label.startsWith(step.namePrefix))
-            .map((label): CompletionItem => ({
-                label,
-                kind: step.attributeAxis ? CompletionItemKind.Property : CompletionItemKind.Field,
-                sortText: `${PATH_STEP_SORT_PREFIX}${label}`,
-                ...(pathStep.sequenceType === undefined
-                    ? {}
-                    : { labelDetails: { description: formatSequenceType(pathStep.sequenceType) } }),
-                textEdit: replaceTypedPrefix(
-                    context.document,
-                    context.cursorOffset,
-                    step.namePrefix,
+        // Unprefixed attribute names are in no namespace, whatever the default element namespace is.
+        getQNameCompletionLabels(
+            pathStep.name,
+            namespaces,
+            pathStep.attribute ? undefined : defaultElementTypeNamespace,
+        )
+            .filter((name) => name.startsWith(step.namePrefix))
+            .map((name): CompletionItem => {
+                const label = pathStep.attribute ? `@${name}` : name;
+                return {
                     label,
-                ),
-            })),
+                    kind: pathStep.attribute
+                        ? CompletionItemKind.Property
+                        : CompletionItemKind.Field,
+                    sortText: `${PATH_STEP_SORT_PREFIX}${pathStep.attribute ? 1 : 0}:${label}`,
+                    // Before `@` is typed, an attribute also matches the start of its name.
+                    ...(pathStep.attribute && !step.afterAt ? { filterText: name } : {}),
+                    ...(pathStep.sequenceType === undefined
+                        ? {}
+                        : {
+                              labelDetails: {
+                                  description: formatSequenceType(pathStep.sequenceType),
+                              },
+                          }),
+                    textEdit: replaceTypedPrefix(
+                        context.document,
+                        context.cursorOffset,
+                        typed,
+                        label,
+                    ),
+                };
+            }),
     );
 }
 
@@ -156,7 +170,7 @@ function typedStep(context: CompletionContext): TypedStep | null {
         return null;
     }
     const [, attributeMarker, namePrefix = ""] = match;
-    return { start: match.index, attributeAxis: attributeMarker === "@", namePrefix };
+    return { start: match.index, afterAt: attributeMarker === "@", namePrefix };
 }
 
 /**
