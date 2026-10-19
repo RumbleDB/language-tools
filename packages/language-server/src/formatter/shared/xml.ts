@@ -43,6 +43,9 @@ type FormatEnclosedExpression = (node: EnclosedExpressionContent) => Doc;
 interface DirectElementOpenClose extends ParserRuleContext {
     RANGLE(index: number): TerminalNode | null;
     LANGLE(): TerminalNode;
+    SLASH(): TerminalNode;
+    qname?(): ParserRuleContext | null;
+    directConstructorQName?(): ParserRuleContext | null;
     dirElemContent(): DirectElementContent[];
 }
 
@@ -173,7 +176,7 @@ function formatDirectBody(
         const childDocs = contents.map((content) =>
             formatDirectContent(context, tokens, content, formatTerminal, formatEnclosedExpression),
         );
-        const closingTag = context.formatVerbatimRange(node.LANGLE().symbol, node.stop!);
+        const closingTag = formatClosingTag(context, tokens, node, formatTerminal);
 
         if (!hasDirectConstructor) {
             return group(
@@ -225,8 +228,28 @@ function formatBodyWithOriginalWhitespace(
         previous = content.stop!;
     }
     docs.push(context.formatVerbatimBetween(previous, node.LANGLE().symbol));
-    docs.push(context.formatVerbatimRange(node.LANGLE().symbol, node.stop!));
+    docs.push(formatClosingTag(context, tokens, node, formatTerminal));
     return concat(docs);
+}
+
+/** Formats `</name>`, dropping the whitespace XML allows before `>`. */
+function formatClosingTag(
+    context: FormatterContext,
+    tokens: XmlTokenTypes,
+    node: DirectElementOpenClose,
+    formatTerminal: (terminal: SourceTerminal, expectedToken: number) => Doc,
+): Doc {
+    const name = node.directConstructorQName?.() ?? node.qname?.();
+    const close = node.RANGLE(1);
+    if (!name || !close) {
+        return context.formatVerbatimRange(node.LANGLE().symbol, node.stop!);
+    }
+    return concat([
+        formatTerminal(node.LANGLE(), tokens.LANGLE),
+        formatTerminal(node.SLASH(), tokens.SLASH),
+        context.formatVerbatimRange(name.start!, name.stop!),
+        formatTerminal(close, tokens.RANGLE),
+    ]);
 }
 
 function formatDirectContent(

@@ -220,6 +220,17 @@ describe("JSONiq & XQuery Formatter", () => {
         );
 
         it.each(["jsoniq", "xquery"] as const)(
+            "drops whitespace before '>' in %s closing tags",
+            (languageId) => {
+                const input = "<root><child>text</child   ></root >";
+
+                expect(formatText(input, languageId)).toBe(
+                    ["<root>", "    <child>text</child>", "</root>", ""].join("\n"),
+                );
+            },
+        );
+
+        it.each(["jsoniq", "xquery"] as const)(
             "indents %s enclosed expressions with structural content under strip",
             (languageId) => {
                 const input = `<root> { $items } <child/> </root>`;
