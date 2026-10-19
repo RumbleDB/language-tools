@@ -1,5 +1,31 @@
 # jsoniq-language-server
 
+## 2.17.0
+
+### Minor Changes
+
+- [#89](https://github.com/RumbleDB/language-tools/pull/89) [`0e6fc03`](https://github.com/RumbleDB/language-tools/commit/0e6fc0305b9b5bf5b63fe6959c7612436cc84023) - feat(completion): suggest the child elements and attributes that the XML Schema declares in schema-typed paths, with the type each step selects, attributes labelled with `@` (e.g. `@id`): after `/`, below each descendant after `//`, and for the context item inside predicates (e.g. `$order/o:item[o:pr`) and on the right of `!`; they are ranked before other suggestions, such as functions like `data()`, which may also follow `/`, and they appear as soon as `/`, `@` or `[` is typed
+
+- [#93](https://github.com/RumbleDB/language-tools/pull/93) [`6d83e05`](https://github.com/RumbleDB/language-tools/commit/6d83e059d45cde3c60d11843e894045ad9389721) - feat: upgrade RumbleDB to https://github.com/RumbleDB/rumble/commit/4f5981f66d040978b169a948d7e198c00fe30a88 for static typing of schema-validated XML: `validate` results, child, attribute and descendant steps, and their atomized values get their XML Schema types, and steps that the schema does not declare are reported as errors (XPST0005) with the names it does declare (e.g. `The schema declares no child element o:prices for schema-element(o:order). It declares o:price.`)
+
+- [`d0728da`](https://github.com/RumbleDB/language-tools/commit/d0728daabc1c0232818fe117ca7f2b3e1f669bb8) - feat: upgrade RumbleDB to https://github.com/RumbleDB/rumble/commit/367d9a8a983c1a55f59994e49533efd0d99cd887 with better support of XML in JSONiq and collation support
+
+### Patch Changes
+
+- [#90](https://github.com/RumbleDB/language-tools/pull/90) [`efba2c7`](https://github.com/RumbleDB/language-tools/commit/efba2c73e6f3321cfc2f90bc14bb32eceaeda2bd) - fix: stop reporting the context item (`$$` in JSONiq, `.` in XQuery) as an undefined variable; inside predicates, simple maps, path steps and function bodies it no longer links to `declare context item`, it cannot be renamed, and JSONiq variable completion offers `$$`
+
+- [#95](https://github.com/RumbleDB/language-tools/pull/95) [`4f2f0ae`](https://github.com/RumbleDB/language-tools/commit/4f2f0aeff123f0ddd274ba5f7f5e41803e50ed1f) - fix(completion): suggest nothing inside string literals and comments, where keywords were offered because they may contain any token, such as a `.` typed in a domain name or a sentence
+
+- [`883969f`](https://github.com/RumbleDB/language-tools/commit/883969f453b01a4a1d57163e8e3aabd608aaf41d) - chore: upgrade node dependencies
+  
+  Upgrade pidusage to 4.1.0, and the results view's Solid to 1.9.17 and TanStack Table to 9.3.1. Update build and test tooling, including Rolldown, Vite, Vitest, tsdown, tsc-alias, UnoCSS, Node.js types, oxfmt, and oxlint, and refresh the dependency lockfile.
+
+- [#92](https://github.com/RumbleDB/language-tools/pull/92) [`6b95550`](https://github.com/RumbleDB/language-tools/commit/6b9555046878017b1bd0a5e94b46b94bff6f5c19) - fix(results): sort numeric table columns by value, so `1.5` sorts after `1.25` and negative numbers sort before positive ones; query results report the exact lexical value of numeric items as `number`
+
+- [`cf2cf65`](https://github.com/RumbleDB/language-tools/commit/cf2cf659d6afdecc306d6cb293c3d2b98294c4a7) - fix(completion): suggest object fields when an enclosing expression ends at the dot, as in `if ($c) then 1 else $o.` or `1, $o.`
+
+- [#94](https://github.com/RumbleDB/language-tools/pull/94) [`e3f252e`](https://github.com/RumbleDB/language-tools/commit/e3f252e7d84ffc052c8a3a781489f0f702318d89) - fix: when the cursor is at the end of a name or keyword, collect completion candidates where the word starts, so a keyword typed in full (such as `order`, offering `order by`) is still suggested; after a prefix such as `fn:`, functions are only suggested where the grammar allows a function call and no longer in `catch` targets such as `catch err:`
+
 ## 2.16.0
 
 ### Minor Changes
