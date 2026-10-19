@@ -11,15 +11,6 @@ const DEFAULT_CONTEXT: CompletionTokenContext = {
     qnamePrefix: false,
 };
 
-const FUNCTION_NAME_CONTEXT: CompletionTokenContext = {
-    kind: "function-name",
-    allowKeywords: false,
-    allowPrologKeywords: false,
-    allowReferences: false,
-    allowTypeReferences: false,
-    qnamePrefix: false,
-};
-
 const TYPE_NAME_CONTEXT: CompletionTokenContext = {
     kind: "type-name",
     allowKeywords: false,
@@ -38,7 +29,7 @@ const TOP_LEVEL_PROLOG_CONTEXT: CompletionTokenContext = {
     qnamePrefix: false,
 };
 
-export { DEFAULT_CONTEXT, FUNCTION_NAME_CONTEXT, TYPE_NAME_CONTEXT, TOP_LEVEL_PROLOG_CONTEXT };
+export { DEFAULT_CONTEXT, TYPE_NAME_CONTEXT, TOP_LEVEL_PROLOG_CONTEXT };
 
 export abstract class TokenContextAnalyzer {
     protected readonly tokensBeforeCursor: Token[];
@@ -52,7 +43,6 @@ export abstract class TokenContextAnalyzer {
         );
     }
 
-    public abstract isAfterDeclareFunction(): boolean;
     public abstract isAtTopLevelProlog(): boolean;
 
     /**
@@ -108,10 +98,6 @@ export abstract class TokenContextAnalyzer {
         return this.tokensBeforeCursor.at(-2);
     }
 
-    protected beforePreviousIs(tokenType: number): boolean {
-        return this.beforePrevious?.type === tokenType;
-    }
-
     /** Token type for a bare NCName in this grammar (e.g. `JsoniqLexer.NCName`). */
     protected abstract get ncNameTokenType(): number;
 
@@ -156,10 +142,6 @@ export function getCompletionTokenContext<T extends TokenContextAnalyzer>(
     tokenContextAnalyzer: new (tokens: Token[], cursorOffset: number) => T,
 ): CompletionTokenContext {
     const cursor = new tokenContextAnalyzer(tokens, cursorOffset);
-
-    if (cursor.isAfterDeclareFunction()) {
-        return FUNCTION_NAME_CONTEXT;
-    }
 
     if (cursor.isAtTypeName()) {
         return { ...TYPE_NAME_CONTEXT, qnamePrefix: cursor.isAfterQNamePrefix() };

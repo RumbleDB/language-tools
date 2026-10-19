@@ -28,7 +28,8 @@ export const PREFERRED_COMPLETION_RULES = new Set([
     XQueryParser.RULE_nameTest,
     XQueryParser.RULE_varRef,
     XQueryParser.RULE_qname,
-    XQueryParser.RULE_functionCall,
+    // Not `functionCall`: c3 reports only the outermost preferred rule, so it would hide
+    // the rules inside the arguments, such as `varRef` in `f($|)`.
     // Names can contain keywords; keep those paths out of syntax suggestions.
     XQueryParser.RULE_functionName,
     XQueryParser.RULE_ncName,

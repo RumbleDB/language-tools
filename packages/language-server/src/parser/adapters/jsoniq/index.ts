@@ -25,7 +25,10 @@ export const jsoniqParserAdapter: ParserAdapter = {
             clauseStartRules: CLAUSE_START_RULES,
             preferredRules: PREFERRED_COMPLETION_RULES,
             languageKeywords: KEYWORD_COMPLETIONS,
-            isFunctionCallRule: (ruleIndex) => ruleIndex === JsoniqParser.RULE_functionCall,
+            // A call or a named function reference, but not the name in a declaration.
+            isFunctionReferenceRule: (ruleIndex, candidate) =>
+                ruleIndex === JsoniqParser.RULE_functionName &&
+                candidate?.ruleList.at(-1) !== JsoniqParser.RULE_functionDecl,
             isObjectLookupRule: (ruleIndex) => ruleIndex === JsoniqParser.RULE_objectLookup,
             isObjectLookupDotToken: (tokenType) => tokenType === JsoniqLexer.DOT,
             isCommentToken: (tokenType) => tokenType === JsoniqLexer.XQComment,

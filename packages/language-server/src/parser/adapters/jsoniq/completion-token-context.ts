@@ -3,13 +3,6 @@ import { TokenContextAnalyzer } from "server/parser/completion-context.js";
 import { JsoniqLexer } from "./grammar/JsoniqLexer.js";
 
 export class JsoniqTokenContextAnalyzer extends TokenContextAnalyzer {
-    public override isAfterDeclareFunction(): boolean {
-        return (
-            this.previous?.type === JsoniqLexer.KW_FUNCTION &&
-            this.beforePreviousIs(JsoniqLexer.KW_DECLARE)
-        );
-    }
-
     protected override get ncNameTokenType(): number {
         return JsoniqLexer.NCName;
     }

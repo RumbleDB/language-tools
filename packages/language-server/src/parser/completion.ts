@@ -26,7 +26,7 @@ type CompletionOptions<T extends TokenContextAnalyzer> = {
     preferredRules: Set<number>;
     clauseStartRules: ReadonlyMap<number, number>;
     languageKeywords: LanguageKeywordCompletion[];
-    isFunctionCallRule(ruleIndex: number): boolean;
+    isFunctionReferenceRule(ruleIndex: number, candidate?: RuleCandidateInfo): boolean;
     isObjectLookupRule(ruleIndex: number): boolean;
     isObjectLookupDotToken(tokenType: number): boolean;
     isCommentToken(tokenType: number): boolean;
@@ -60,7 +60,7 @@ export function getCompletionIntent<T extends TokenContextAnalyzer>(
     const qnamePrefix = candidates.tokenContext.qnamePrefix;
     const allowFunctions =
         candidates.tokenContext.allowReferences &&
-        hasCandidateRule(candidates, options.isFunctionCallRule);
+        hasCandidateRule(candidates, options.isFunctionReferenceRule);
     const allowVariables =
         candidates.tokenContext.allowReferences &&
         !qnamePrefix &&

@@ -13,11 +13,7 @@ export interface CompletionIntent {
     keywords: KeywordCompletion[];
 }
 
-export type CompletionTokenContextKind =
-    | "default"
-    | "function-name"
-    | "type-name"
-    | "top-level-prolog";
+export type CompletionTokenContextKind = "default" | "type-name" | "top-level-prolog";
 
 export interface CompletionTokenContext {
     kind: CompletionTokenContextKind;

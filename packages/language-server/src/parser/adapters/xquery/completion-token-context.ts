@@ -3,13 +3,6 @@ import { TokenContextAnalyzer } from "server/parser/completion-context.js";
 import { XQueryLexer } from "./grammar/XQueryLexer.js";
 
 export class XQueryTokenContextAnalyzer extends TokenContextAnalyzer {
-    public override isAfterDeclareFunction(): boolean {
-        return (
-            this.previous?.type === XQueryLexer.KW_FUNCTION &&
-            this.beforePreviousIs(XQueryLexer.KW_DECLARE)
-        );
-    }
-
     protected override get ncNameTokenType(): number {
         return XQueryLexer.NCName;
     }

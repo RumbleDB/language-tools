@@ -114,16 +114,22 @@ describe("JSONiq completion", () => {
         expect(labelsAtCursor.some((label) => label.startsWith("fn:"))).toBe(false);
     });
 
-    it("does not suggest keywords when a function name is expected", async () => {
-        const document = testDocument("completion-function-name", ["declare function "]);
+    it.each([
+        ["completion-function-name", "declare function "],
+        ["completion-annotated-function-name", "declare %an:x function "],
+    ])(
+        "does not suggest anything when a function name is expected (%s)",
+        async (name, declaration) => {
+            const document = testDocument(name, [declaration]);
 
-        const labelsAtCursor = await completionLabels(document, {
-            line: 0,
-            character: "declare function ".length,
-        });
+            const labelsAtCursor = await completionLabels(document, {
+                line: 0,
+                character: declaration.length,
+            });
 
-        expect(labelsAtCursor.length).toBe(0);
-    });
+            expect(labelsAtCursor.length).toBe(0);
+        },
+    );
 
     it("suggests visible variables and expression keywords in expression context", async () => {
         const document = testDocument("completion-expression", [
@@ -157,6 +163,29 @@ describe("JSONiq completion", () => {
         expect(labelsAtCursor).toContain("$b");
         expect(labelsAtCursor).not.toContain("if");
     });
+
+    it.each(["jsoniq", "xquery"])(
+        "suggests variables and functions inside function call arguments (%s)",
+        async (languageId) => {
+            const document = testDocumentFromUri("let $a := 1\nreturn fn:abs($)", {
+                uri: `file:///completion-var-in-argument-${languageId}`,
+                languageId,
+            });
+
+            const afterDollar = await completionLabels(document, {
+                line: 1,
+                character: "return fn:abs($".length,
+            });
+            const emptyArgument = await completionLabels(document, {
+                line: 1,
+                character: "return fn:abs(".length,
+            });
+
+            expect(afterDollar).toContain("$a");
+            expect(emptyArgument).toContain("$a");
+            expect(emptyArgument).toContain("fn:abs");
+        },
+    );
 
     it.each([
         ["jsoniq", true],
