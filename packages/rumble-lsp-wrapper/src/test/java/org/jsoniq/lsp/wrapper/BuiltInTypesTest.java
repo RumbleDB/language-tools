@@ -16,12 +16,12 @@ class BuiltInTypesTest {
     private final BuiltInTypes builtInTypes = new BuiltInTypes();
 
     @Test
-    void listBuiltinTypesReturnsNonEmptyResult() throws ReflectiveOperationException {
+    void listBuiltinTypesReturnsNonEmptyResult() {
         assertFalse(this.builtInTypes.listBuiltinTypes().isEmpty());
     }
 
     @Test
-    void listBuiltinTypesContainsStringType() throws ReflectiveOperationException {
+    void listBuiltinTypesContainsStringType() {
         Optional<TypeDefinition> stringType = this.builtInTypes.listBuiltinTypes().stream()
                 .filter(definition -> "string".equals(definition.name().localName()))
                 .findFirst();

@@ -20,7 +20,7 @@ public final class BuiltinConstructors implements CLICommand {
     }
 
     @Override
-    public Catalog run() throws ReflectiveOperationException {
+    public Catalog run() {
         Stream<String> itemTypeNames = new BuiltInTypes()
                 .listBuiltinTypes().stream()
                         .filter(type -> type.name() != null
