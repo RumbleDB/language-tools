@@ -12,6 +12,8 @@ interface DotCompletionContext {
     dotOffset: number;
     fieldPrefix: string;
     syntheticSource: string;
+    /** Where the context item that stands for each object starts in the synthetic source. */
+    contextItemOffset: number;
 }
 
 export const provideObjectFieldCompletions: CompletionProvider = async (context) => {
@@ -27,7 +29,7 @@ export const provideObjectFieldCompletions: CompletionProvider = async (context)
     const result = await getTypeAtPositionFromSource(
         context.document.uri,
         dotContext.syntheticSource,
-        context.document.positionAt(dotContext.dotOffset),
+        context.document.positionAt(dotContext.contextItemOffset),
         context.wrapper,
     );
     const objectType = result.sequenceType?.itemType;
@@ -58,11 +60,14 @@ function getDotCompletionContext(context: CompletionContext): DotCompletionConte
         return null;
     }
 
+    // The lookup is replaced with `!$$`, which binds the context item to each item before the dot. An enclosing
+    // expression, such as an `if` or a FLWOR expression, may end where the dot was, but none ends at the context item.
     return {
         dotOffset,
         fieldPrefix,
         syntheticSource:
-            context.source.slice(0, dotOffset) + context.source.slice(context.cursorOffset),
+            context.source.slice(0, dotOffset) + "!$$" + context.source.slice(context.cursorOffset),
+        contextItemOffset: dotOffset + 1,
     };
 }
 
