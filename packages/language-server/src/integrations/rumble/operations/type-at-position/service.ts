@@ -6,6 +6,7 @@ import type { TextDocument } from "vscode-languageserver-textdocument";
 
 import {
     REQUEST_TYPE_TYPE_AT_POSITION,
+    type PathStepRequest,
     type TypeAtPositionRequestSpec,
     type TypeAtPositionWireResult,
 } from "./protocol.js";
@@ -27,6 +28,7 @@ export async function getTypeAtPositionFromSource(
     source: string,
     position: Position,
     client: WrapperClient,
+    pathSteps?: PathStepRequest,
 ): Promise<TypeAtPositionWireResult> {
     if (!client.isUsable()) {
         return EMPTY_RESULT;
@@ -38,6 +40,7 @@ export async function getTypeAtPositionFromSource(
             body: Buffer.from(source, "utf8").toString("base64"),
             documentUri,
             position,
+            pathSteps,
         });
 
         return response.body;

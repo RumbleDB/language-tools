@@ -18,17 +18,17 @@ import {
 import { provideErrorCodeCompletions } from "./completion/providers/error-codes.js";
 import { provideKeywordCompletions } from "./completion/providers/keywords.js";
 import { provideObjectFieldCompletions } from "./completion/providers/object-fields.js";
+import { providePathStepCompletions } from "./completion/providers/path-steps.js";
 import { provideSchemaConstructorCompletions } from "./completion/providers/schema-constructors.js";
 import { provideSchemaTypeCompletions } from "./completion/providers/schema-types.js";
 import type { CompletionProvider } from "./completion/types.js";
 import type { FeatureRegistrationContext } from "./context.js";
 
-const exclusiveProviders: CompletionProvider[] = [
+/** The items of all providers that apply are combined. */
+const allProviders: CompletionProvider[] = [
     provideErrorCodeCompletions,
     provideObjectFieldCompletions,
-];
-
-const additiveProviders: CompletionProvider[] = [
+    providePathStepCompletions,
     provideVariableCompletions,
     provideSourceFunctionCompletions,
     provideSchemaConstructorCompletions,
@@ -66,16 +66,7 @@ export async function findCompletions(
         return [];
     }
 
-    for (const provider of exclusiveProviders) {
-        const items = await provider(context);
-        if (items !== null) {
-            return finalizeCompletionItems(items);
-        }
-    }
+    const items = await Promise.all(allProviders.map((provider) => provider(context)));
 
-    const additiveItems = await Promise.all(additiveProviders.map((provider) => provider(context)));
-
-    return finalizeCompletionItems(
-        additiveItems.filter((items): items is CompletionItem[] => items !== null).flat(),
-    );
+    return finalizeCompletionItems(items.flatMap((providerItems) => providerItems ?? []));
 }

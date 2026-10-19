@@ -6,11 +6,13 @@ import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 
 import org.jsoniq.lsp.wrapper.Position;
 import org.jsoniq.lsp.wrapper.Range;
 import org.jsoniq.lsp.wrapper.messages.Request;
 import org.jsoniq.lsp.wrapper.messages.ResponseBody;
+import org.jsoniq.lsp.wrapper.types.ResolvedQName;
 import org.jsoniq.lsp.wrapper.types.SequenceType;
 
 import org.rumbledb.bindings.ExternalBindings;
@@ -41,12 +43,25 @@ import org.rumbledb.expressions.scripting.control.TypeSwitchStatementCase;
 import org.rumbledb.expressions.scripting.declaration.VariableDeclStatement;
 import org.rumbledb.expressions.update.CopyDeclaration;
 import org.rumbledb.expressions.update.TransformExpression;
+import org.rumbledb.types.ItemType;
+import org.rumbledb.xml.schema.SchemaContentModel;
 
 public final class TypeAtPosition implements RequestHandler {
     public static final String REQUEST_TYPE = "type-at-position";
-    public static final Result EMPTY_RESULT = new Result(null, null);
+    public static final Result EMPTY_RESULT = new Result(null, null, null);
 
-    public record Result(SequenceType sequenceType, Range range) implements ResponseBody {}
+    /**
+     * When requested, pathSteps lists the child and attribute steps that the schema declares for the type's items, or
+     * for them and each of their descendants, so that editors can suggest path steps. It may omit names that a wildcard
+     * allows.
+     */
+    public record Result(SequenceType sequenceType, Range range, List<PathStep> pathSteps) implements ResponseBody {}
+
+    /**
+     * A child or attribute name, whether it is an attribute, and the type of the nodes that a step with that name
+     * selects from one item, or null when the schema does not determine it.
+     */
+    public record PathStep(ResolvedQName name, boolean attribute, SequenceType sequenceType) {}
 
     private final RumbleConfiguration configuration;
 
@@ -67,7 +82,7 @@ public final class TypeAtPosition implements RequestHandler {
         }
 
         String query = new String(Base64.getDecoder().decode(request.body()), StandardCharsets.UTF_8);
-        return findType(query, documentUri, request.position());
+        return findType(query, documentUri, request.position(), request.pathSteps());
     }
 
     @Override
@@ -76,6 +91,10 @@ public final class TypeAtPosition implements RequestHandler {
     }
 
     public Result findType(String query, URI documentUri, Position position) {
+        return findType(query, documentUri, position, null);
+    }
+
+    public Result findType(String query, URI documentUri, Position position, Request.PathSteps pathSteps) {
         Objects.requireNonNull(documentUri, "documentUri is required.");
         if (query == null || query.isEmpty() || position == null) {
             return EMPTY_RESULT;
@@ -89,10 +108,65 @@ public final class TypeAtPosition implements RequestHandler {
             if (candidate == null || candidate.sequenceType() == null) {
                 return EMPTY_RESULT;
             }
-            return new Result(SequenceType.fromSequenceType(candidate.sequenceType()), candidate.resultRange());
+            return new Result(
+                    SequenceType.fromSequenceType(candidate.sequenceType()),
+                    candidate.resultRange(),
+                    pathSteps(module, candidate.sequenceType().getItemType(), pathSteps));
         } catch (Throwable throwable) {
             return EMPTY_RESULT;
         }
+    }
+
+    /**
+     * The requested steps that the schema declares for items of the type, or null when none are requested or the items
+     * are not schema-typed.
+     */
+    private static List<PathStep> pathSteps(MainModule module, ItemType itemType, Request.PathSteps pathSteps) {
+        // Only load the schema catalog when steps are requested for schema-typed nodes.
+        if (pathSteps == null || !SchemaContentModel.isSchemaTyped(itemType)) {
+            return null;
+        }
+        SchemaContentModel contentModel = module.getStaticContext()
+                .getInScopeSchemaTypes()
+                .getXmlSchemaCatalog()
+                .getContentModel();
+        // Steps select from each item, or for E//S, which abbreviates E/descendant-or-self::node()/S, from each node
+        // of that union.
+        Optional<org.rumbledb.types.SequenceType> stepParents = pathSteps.throughDescendants()
+                ? contentModel.getDescendantOrSelfType(itemType)
+                : Optional.of(new org.rumbledb.types.SequenceType(itemType));
+        Optional<List<PathStep>> children =
+                axisSteps(contentModel, itemType, stepParents, false, pathSteps.throughDescendants());
+        Optional<List<PathStep>> attributes =
+                axisSteps(contentModel, itemType, stepParents, true, pathSteps.throughDescendants());
+        if (children.isEmpty() && attributes.isEmpty()) {
+            return null;
+        }
+        List<PathStep> steps = new ArrayList<>(children.orElse(List.of()));
+        steps.addAll(attributes.orElse(List.of()));
+        return steps;
+    }
+
+    /** The steps on one axis, or nothing when the schema does not determine them. */
+    private static Optional<List<PathStep>> axisSteps(
+            SchemaContentModel contentModel,
+            ItemType itemType,
+            Optional<org.rumbledb.types.SequenceType> stepParents,
+            boolean attributeAxis,
+            boolean throughDescendants) {
+        return contentModel
+                .getStepNames(itemType, attributeAxis, throughDescendants)
+                .map(names -> names.stream()
+                        .map(name -> new PathStep(
+                                ResolvedQName.fromName(name),
+                                attributeAxis,
+                                stepParents
+                                        .flatMap(parents -> contentModel
+                                                .getStepType(parents.getItemType(), attributeAxis, name)
+                                                .map(type -> type.repeated(parents.getCardinality())))
+                                        .map(SequenceType::fromSequenceType)
+                                        .orElse(null)))
+                        .toList());
     }
 
     private enum CandidateKind {

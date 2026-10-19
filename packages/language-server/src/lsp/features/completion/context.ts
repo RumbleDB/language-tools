@@ -38,8 +38,16 @@ export function createCompletionContext(
         cursorOffset,
         intent,
         wrapper,
+        getIntentAt(offset) {
+            return offset === cursorOffset
+                ? intent
+                : parser.collectCompletionIntent(document, offset);
+        },
         getAnalysis() {
             return (analysis ??= workspace.getAnalysis(document));
+        },
+        getParseResult() {
+            return parser.parse(document);
         },
         getVisibleDeclarations() {
             visibleDeclarations ??= this.getAnalysis().then((analysis) =>

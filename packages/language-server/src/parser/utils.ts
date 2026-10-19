@@ -18,6 +18,18 @@ export function nextDefaultToken(
     };
 }
 
+/** The last token on the default channel that ends before the offset, skipping whitespace and comments. */
+export function previousDefaultToken(tokens: Token[], offset: number): Token | undefined {
+    const after = lowerBound(tokens, offset, (token, target) => token.start - target);
+    for (let index = after - 1; index >= 0; index -= 1) {
+        const token = tokens[index]!;
+        if (token.channel === Token.DEFAULT_CHANNEL && token.stop < offset) {
+            return token;
+        }
+    }
+    return undefined;
+}
+
 export function findCaretToken(
     tokens: Token[],
     cursorOffset: number,
