@@ -1,4 +1,4 @@
-import { ParseTree, TerminalNode, Token } from "antlr4ng";
+import { ParseTree, ParserRuleContext, TerminalNode, Token } from "antlr4ng";
 import { composeTokenDoc, FormatterContext, type TokenDoc } from "server/formatter/context.js";
 import { concat, Doc, NIL, space, spacedDocs } from "server/formatter/doc.js";
 import {
@@ -24,6 +24,7 @@ import {
     formatOrderByClause,
     formatWhereClause,
 } from "server/formatter/shared/flwor.js";
+import { formatCompact } from "server/formatter/shared/path.js";
 import {
     formatBoundarySpaceDeclaration,
     formatAnnotation,
@@ -87,6 +88,40 @@ import { XQueryParser } from "server/parser/adapters/xquery/grammar/XQueryParser
 import type * as ctx from "server/parser/adapters/xquery/grammar/XQueryParser.js";
 import { XQueryParserVisitor } from "server/parser/adapters/xquery/grammar/XQueryParserVisitor.js";
 
+// Path steps and type tests, written without spaces between their parts.
+const COMPACT_RULES = new Set([
+    XQueryParser.RULE_pathExpr,
+    XQueryParser.RULE_relativePathExpr,
+    XQueryParser.RULE_axisStep,
+    XQueryParser.RULE_forwardStep,
+    XQueryParser.RULE_reverseStep,
+    XQueryParser.RULE_forwardAxis,
+    XQueryParser.RULE_reverseAxis,
+    XQueryParser.RULE_abbrevForwardStep,
+    XQueryParser.RULE_nodeTest,
+    XQueryParser.RULE_nameTest,
+    XQueryParser.RULE_predicateList,
+    XQueryParser.RULE_itemType,
+    XQueryParser.RULE_anyKindTest,
+    XQueryParser.RULE_binaryNodeTest,
+    XQueryParser.RULE_documentTest,
+    XQueryParser.RULE_textTest,
+    XQueryParser.RULE_commentTest,
+    XQueryParser.RULE_namespaceNodeTest,
+    XQueryParser.RULE_piTest,
+    XQueryParser.RULE_attributeTest,
+    XQueryParser.RULE_schemaAttributeTest,
+    XQueryParser.RULE_elementTest,
+    XQueryParser.RULE_schemaElementTest,
+    XQueryParser.RULE_anyFunctionTest,
+    XQueryParser.RULE_typedFunctionTest,
+    XQueryParser.RULE_anyMapTest,
+    XQueryParser.RULE_typedMapTest,
+    XQueryParser.RULE_anyArrayTest,
+    XQueryParser.RULE_typedArrayTest,
+    XQueryParser.RULE_parenthesizedItemTest,
+]);
+
 export class XQueryFormatterVisitor extends XQueryParserVisitor<Doc> {
     public constructor(private readonly ctx: FormatterContext) {
         super();
@@ -123,6 +158,13 @@ export class XQueryFormatterVisitor extends XQueryParserVisitor<Doc> {
     ): Doc => {
         return composeTokenDoc(this.token(terminal, expectedToken));
     };
+
+    public override visitChildren(node: ParseTree): Doc {
+        if (node instanceof ParserRuleContext && COMPACT_RULES.has(node.ruleIndex)) {
+            return formatCompact(node, XQueryParser, this.v);
+        }
+        return super.visitChildren(node) ?? NIL;
+    }
 
     protected override defaultResult(): Doc {
         return NIL;

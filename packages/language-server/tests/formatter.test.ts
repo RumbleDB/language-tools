@@ -983,6 +983,28 @@ describe("JSONiq & XQuery Formatter", () => {
         });
     });
 
+    describe("Path expressions and type tests", () => {
+        it.each(["jsoniq", "xquery"] as const)("writes %s path steps together", (languageId) => {
+            const formatted = formatText(
+                "$doc / book [ @ id = 1 ] [ 2 ] // child :: title / .. / @ * / text ( )",
+                languageId,
+            );
+            expect(formatted).toBe("$doc/book[@id = 1][2]//child::title/../@*/text()\n");
+        });
+
+        it("writes kind and function tests like calls", () => {
+            expect(formatText("$x instance of element ( a , xs:string ? ) ?", "xquery")).toBe(
+                "$x instance of element(a, xs:string?)?\n",
+            );
+            expect(
+                formatText(
+                    "$f instance of function ( xs:string , item ( ) ) as item ( ) *",
+                    "xquery",
+                ),
+            ).toBe("$f instance of function(xs:string, item()) as item()*\n");
+        });
+    });
+
     describe("Syntax error handling", () => {
         it("refuses to format documents with syntax errors", () => {
             const input = "declare function local:foo("; // Incomplete syntax
@@ -1091,9 +1113,9 @@ describe("JSONiq & XQuery Formatter", () => {
 
     describe("Control flow expressions", () => {
         it("formats try-catch expressions with catch block on a new line", () => {
-            const input = "try { 1 / 0 } catch * { 0 }";
+            const input = "try { 1 div 0 } catch * { 0 }";
             const formatted = formatText(input);
-            expect(formatted).toBe("try { 1 / 0 }\ncatch * { 0 }\n");
+            expect(formatted).toBe("try { 1 div 0 }\ncatch * { 0 }\n");
         });
 
         it.each(["jsoniq", "xquery"] as const)(

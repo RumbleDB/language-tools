@@ -1,4 +1,4 @@
-import { ParseTree, TerminalNode, Token } from "antlr4ng";
+import { ParseTree, ParserRuleContext, TerminalNode, Token } from "antlr4ng";
 import { composeTokenDoc, FormatterContext, type TokenDoc } from "server/formatter/context.js";
 import { concat, Doc, indent, line, NIL, space, spacedDocs } from "server/formatter/doc.js";
 import { groupStartingWith } from "server/formatter/helpers.js";
@@ -25,6 +25,7 @@ import {
     formatOrderByClause,
     formatWhereClause,
 } from "server/formatter/shared/flwor.js";
+import { formatCompact } from "server/formatter/shared/path.js";
 import {
     formatBoundarySpaceDeclaration,
     formatAnnotation,
@@ -89,6 +90,40 @@ import { JsoniqParser } from "server/parser/adapters/jsoniq/grammar/JsoniqParser
 import type * as ctx from "server/parser/adapters/jsoniq/grammar/JsoniqParser.js";
 import { JsoniqParserVisitor } from "server/parser/adapters/jsoniq/grammar/JsoniqParserVisitor.js";
 
+// Path steps and type tests, written without spaces between their parts.
+const COMPACT_RULES = new Set([
+    JsoniqParser.RULE_pathExpr,
+    JsoniqParser.RULE_relativePathExpr,
+    JsoniqParser.RULE_axisStep,
+    JsoniqParser.RULE_forwardStep,
+    JsoniqParser.RULE_reverseStep,
+    JsoniqParser.RULE_forwardAxis,
+    JsoniqParser.RULE_reverseAxis,
+    JsoniqParser.RULE_abbrevForwardStep,
+    JsoniqParser.RULE_nodeTest,
+    JsoniqParser.RULE_nameTest,
+    JsoniqParser.RULE_predicateList,
+    JsoniqParser.RULE_itemType,
+    JsoniqParser.RULE_anyKindTest,
+    JsoniqParser.RULE_binaryNodeTest,
+    JsoniqParser.RULE_documentTest,
+    JsoniqParser.RULE_textTest,
+    JsoniqParser.RULE_commentTest,
+    JsoniqParser.RULE_namespaceNodeTest,
+    JsoniqParser.RULE_piTest,
+    JsoniqParser.RULE_attributeTest,
+    JsoniqParser.RULE_schemaAttributeTest,
+    JsoniqParser.RULE_elementTest,
+    JsoniqParser.RULE_schemaElementTest,
+    JsoniqParser.RULE_anyFunctionTest,
+    JsoniqParser.RULE_typedFunctionTest,
+    JsoniqParser.RULE_anyMapTest,
+    JsoniqParser.RULE_typedMapTest,
+    JsoniqParser.RULE_anyArrayTest,
+    JsoniqParser.RULE_typedArrayTest,
+    JsoniqParser.RULE_parenthesizedItemTest,
+]);
+
 export class JsoniqFormatterVisitor extends JsoniqParserVisitor<Doc> {
     public constructor(private readonly ctx: FormatterContext) {
         super();
@@ -137,6 +172,13 @@ export class JsoniqFormatterVisitor extends JsoniqParserVisitor<Doc> {
             (comma) => this.kw(comma, JsoniqParser.COMMA),
             breakDoc,
         );
+
+    public override visitChildren(node: ParseTree): Doc {
+        if (node instanceof ParserRuleContext && COMPACT_RULES.has(node.ruleIndex)) {
+            return formatCompact(node, JsoniqParser, this.v);
+        }
+        return super.visitChildren(node) ?? NIL;
+    }
 
     protected override defaultResult(): Doc {
         return NIL;
