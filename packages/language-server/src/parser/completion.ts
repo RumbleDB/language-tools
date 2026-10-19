@@ -1,5 +1,6 @@
 import { CodeCompletionCore } from "antlr4-c3";
 import { ParserRuleContext, Token } from "antlr4ng";
+import { lowerBound } from "server/utils/binary-search.js";
 import { createLogger } from "server/utils/logger.js";
 
 import { getCompletionTokenContext, TokenContextAnalyzer } from "./completion-context.js";
@@ -28,6 +29,8 @@ type CompletionOptions<T extends TokenContextAnalyzer> = {
     isFunctionCallRule(ruleIndex: number): boolean;
     isObjectLookupRule(ruleIndex: number): boolean;
     isObjectLookupDotToken(tokenType: number): boolean;
+    isCommentToken(tokenType: number): boolean;
+    isStringLiteralRule(ruleIndex: number): boolean;
     isCatchErrorTargetRule(ruleIndex: number, candidate?: RuleCandidateInfo): boolean;
     isVariableReferenceRule(ruleIndex: number): boolean;
     tokenName(tokenType: number): string | number;
@@ -106,33 +109,37 @@ export function getCompletionIntent<T extends TokenContextAnalyzer>(
 function isInCommentOrString(
     parsed: ParseResult,
     cursorOffset: number,
-    options: Pick<CompletionOptions<TokenContextAnalyzer>, "tokenName" | "ruleName">,
+    options: Pick<
+        CompletionOptions<TokenContextAnalyzer>,
+        "isCommentToken" | "isStringLiteralRule"
+    >,
 ): boolean {
-    const inComment = parsed.tokens.some(
-        (token) =>
-            options.tokenName(token.type) === "XQComment" &&
-            token.start < cursorOffset &&
-            cursorOffset <= token.stop,
-    );
-    return inComment || containsStringAt(parsed.tree, cursorOffset, options.ruleName);
+    // Tokens do not overlap, so only the last one that starts before the cursor can contain it.
+    const after = lowerBound(parsed.tokens, cursorOffset, (each, target) => each.start - target);
+    const token = parsed.tokens[after - 1];
+    const inComment =
+        token !== undefined && options.isCommentToken(token.type) && cursorOffset <= token.stop;
+    return inComment || containsStringAt(parsed.tree, cursorOffset, options.isStringLiteralRule);
 }
 
 function containsStringAt(
     context: ParserRuleContext,
     offset: number,
-    ruleName: (ruleIndex: number) => string | number,
+    isStringLiteralRule: (ruleIndex: number) => boolean,
 ): boolean {
     const { start, stop } = context;
     if (start === null || offset <= start.start || (stop !== null && offset > stop.stop + 1)) {
         return false;
     }
-    if (ruleName(context.ruleIndex) === "stringLiteral") {
+    if (isStringLiteralRule(context.ruleIndex)) {
         // Up to the closing quote, or to the end when the string is unterminated.
         const closed = stop !== null && stop !== start && stop.type === start.type;
         return !closed || offset <= stop.start;
     }
     return context.children.some(
-        (child) => child instanceof ParserRuleContext && containsStringAt(child, offset, ruleName),
+        (child) =>
+            child instanceof ParserRuleContext &&
+            containsStringAt(child, offset, isStringLiteralRule),
     );
 }
 
