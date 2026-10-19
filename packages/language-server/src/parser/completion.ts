@@ -46,6 +46,12 @@ export function getCompletionIntent<T extends TokenContextAnalyzer>(
     cursorOffset: number,
     options: CompletionOptions<T>,
 ): CompletionIntent | null {
+    // Strings and comments may contain any token, such as `/` in a URI, so the grammar
+    // would accept every keyword there.
+    if (isInCommentOrString(parsed, cursorOffset, options)) {
+        return null;
+    }
+
     const candidates = collectCompletionCandidates(parsed, cursorOffset, options);
 
     const qnamePrefix = candidates.tokenContext.qnamePrefix;
@@ -94,6 +100,40 @@ export function getCompletionIntent<T extends TokenContextAnalyzer>(
         allowErrorCodeTargets,
         keywords,
     };
+}
+
+/** Whether the cursor is inside a comment or after the opening quote of a string literal. */
+function isInCommentOrString(
+    parsed: ParseResult,
+    cursorOffset: number,
+    options: Pick<CompletionOptions<TokenContextAnalyzer>, "tokenName" | "ruleName">,
+): boolean {
+    const inComment = parsed.tokens.some(
+        (token) =>
+            options.tokenName(token.type) === "XQComment" &&
+            token.start < cursorOffset &&
+            cursorOffset <= token.stop,
+    );
+    return inComment || containsStringAt(parsed.tree, cursorOffset, options.ruleName);
+}
+
+function containsStringAt(
+    context: ParserRuleContext,
+    offset: number,
+    ruleName: (ruleIndex: number) => string | number,
+): boolean {
+    const { start, stop } = context;
+    if (start === null || offset <= start.start || (stop !== null && offset > stop.stop + 1)) {
+        return false;
+    }
+    if (ruleName(context.ruleIndex) === "stringLiteral") {
+        // Up to the closing quote, or to the end when the string is unterminated.
+        const closed = stop !== null && stop !== start && stop.type === start.type;
+        return !closed || offset <= stop.start;
+    }
+    return context.children.some(
+        (child) => child instanceof ParserRuleContext && containsStringAt(child, offset, ruleName),
+    );
 }
 
 function hasCandidateRule(
