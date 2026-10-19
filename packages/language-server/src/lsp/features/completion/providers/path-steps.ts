@@ -28,22 +28,9 @@ interface TypedStep {
 }
 
 /**
- * How to rewrite the source so that a context item stands for the items the step applies to, and which steps to list
- * for them.
- */
-interface ContextItemReplacement {
-    /** Where the context item replaces the source up to the cursor. */
-    from: number;
-    /** What to insert before the context item, such as the `/` that remains of a `//`. */
-    prefix: string;
-    /** Whether to list the steps of each item and of each of its descendants, as after `//`. */
-    throughDescendants: boolean;
-}
-
-/**
- * Suggests the children or attributes that the schema declares after `/` or `//` in a schema-typed path. A step may
- * also be a function call or another primary expression, such as `data()`, so these suggestions are added to the others
- * and ranked first.
+ * Suggests the children or attributes that the schema declares in a schema-typed path: after `/` or `//`, or for the
+ * context item, as for the first step in a predicate or on the right of `!`. A step may also be a function call or
+ * another primary expression, such as `data()`, so these suggestions are added to the others and ranked first.
  */
 export const providePathStepCompletions: CompletionProvider = async (context) => {
     const step = typedStep(context);
@@ -51,72 +38,44 @@ export const providePathStepCompletions: CompletionProvider = async (context) =>
         return null;
     }
     const slash = context.getTokenBefore(step.start);
-    if (slash?.text !== "/" && slash?.text !== "//") {
+    const afterSlash = slash?.text === "/" || slash?.text === "//";
+    // Without a slash, the step applies to the context item. Only schema-typed nodes have declared steps, so other
+    // modules need not look for one.
+    if (
+        !afterSlash &&
+        (context.getModuleProlog().schemaImports.length === 0 || !hasFocusAt(context, step.start))
+    ) {
         return null;
     }
     if (!allowsExpressionAt(context, step.start)) {
         return null;
     }
-    return completeSteps(
-        context,
-        step,
-        // E//S applies S to E and to each of its descendants. Replacing // with / gives the context item the type of the
-        // items of E, and the wrapper lists the steps through their descendants.
-        slash.text === "//"
-            ? { from: slash.start, prefix: "/", throughDescendants: true }
-            : { from: step.start, prefix: "", throughDescendants: false },
-    );
+    // E//S applies S to E and to each of its descendants. Keeping only the first slash gives the context item the type
+    // of the items of E, and the wrapper lists the steps through their descendants.
+    return slash?.text === "//"
+        ? completeSteps(context, step, slash.start + 1, true)
+        : completeSteps(context, step, step.start, false);
 };
 
 /**
- * Suggests the children or attributes that the schema declares for a schema-typed context item, as for the first step
- * in a predicate. Function and variable names remain valid there, so these suggestions are added to the others.
- */
-export const provideContextItemStepCompletions: CompletionProvider = async (context) => {
-    // Only schema-typed nodes have declared steps, so other modules need not look for a context item.
-    if (context.getModuleProlog().schemaImports.length === 0) {
-        return null;
-    }
-    const step = typedStep(context);
-    // Steps after a slash are left to providePathStepCompletions.
-    const tokenBefore = step === null ? undefined : context.getTokenBefore(step.start);
-    if (
-        step === null ||
-        tokenBefore?.text === "/" ||
-        tokenBefore?.text === "//" ||
-        !hasFocusAt(context, step.start) ||
-        !allowsExpressionAt(context, step.start)
-    ) {
-        return null;
-    }
-    return completeSteps(context, step, {
-        from: step.start,
-        prefix: "",
-        throughDescendants: false,
-    });
-};
-
-/**
- * Replaces the step with the context item, whose type is that of the items the step applies to. Unlike the type of the
- * expression before a slash, it does not depend on which of the expressions ending there is meant. Returns null when
- * the items are not schema-typed.
+ * Replaces the source from `from` up to the cursor with the context item, whose type is that of the items the step
+ * applies to. Unlike the type of the expression before a slash, it does not depend on which of the expressions ending
+ * there is meant. Lists the steps of each item, or with throughDescendants also of each of its descendants. Returns
+ * null when the items are not schema-typed.
  */
 async function completeSteps(
     context: CompletionContext,
     step: TypedStep,
-    replacement: ContextItemReplacement,
+    from: number,
+    throughDescendants: boolean,
 ): Promise<CompletionItem[] | null> {
     const contextItem = getActiveParserId(context.document) === "xquery" ? "." : "$$";
-    const contextItemOffset = replacement.from + replacement.prefix.length;
     const result = await getTypeAtPositionFromSource(
         context.document.uri,
-        context.source.slice(0, replacement.from) +
-            replacement.prefix +
-            contextItem +
-            context.source.slice(context.cursorOffset),
-        context.document.positionAt(contextItemOffset),
+        context.source.slice(0, from) + contextItem + context.source.slice(context.cursorOffset),
+        context.document.positionAt(from),
         context.wrapper,
-        { throughDescendants: replacement.throughDescendants },
+        { throughDescendants },
     );
     const pathSteps = result.pathSteps;
     if (pathSteps === undefined) {
@@ -124,7 +83,7 @@ async function completeSteps(
     }
 
     const { namespaces, defaultElementTypeNamespace } = await context.getAnalysis();
-    const typed = `${step.afterAt ? "@" : ""}${step.namePrefix}`;
+    const typed = context.source.slice(step.start, context.cursorOffset);
     // Children and attributes are both listed; attributes are labelled with `@`, so that the editor keeps only them
     // once `@` is typed.
     return pathSteps.flatMap((pathStep) =>
