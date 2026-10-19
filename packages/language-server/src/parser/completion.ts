@@ -1,5 +1,6 @@
 import { CodeCompletionCore } from "antlr4-c3";
 import { ParserRuleContext, Token } from "antlr4ng";
+import { lowerBound } from "server/utils/binary-search.js";
 import { createLogger } from "server/utils/logger.js";
 
 import { getCompletionTokenContext, TokenContextAnalyzer } from "./completion-context.js";
@@ -28,6 +29,8 @@ type CompletionOptions<T extends TokenContextAnalyzer> = {
     isFunctionCallRule(ruleIndex: number): boolean;
     isObjectLookupRule(ruleIndex: number): boolean;
     isObjectLookupDotToken(tokenType: number): boolean;
+    isCommentToken(tokenType: number): boolean;
+    isStringLiteralRule(ruleIndex: number): boolean;
     isCatchErrorTargetRule(ruleIndex: number, candidate?: RuleCandidateInfo): boolean;
     isVariableReferenceRule(ruleIndex: number): boolean;
     tokenName(tokenType: number): string | number;
@@ -46,6 +49,12 @@ export function getCompletionIntent<T extends TokenContextAnalyzer>(
     cursorOffset: number,
     options: CompletionOptions<T>,
 ): CompletionIntent | null {
+    // Strings and comments may contain any token, such as `/` in a URI, so the grammar
+    // would accept every keyword there.
+    if (isInCommentOrString(parsed, cursorOffset, options)) {
+        return null;
+    }
+
     const candidates = collectCompletionCandidates(parsed, cursorOffset, options);
 
     const qnamePrefix = candidates.tokenContext.qnamePrefix;
@@ -94,6 +103,44 @@ export function getCompletionIntent<T extends TokenContextAnalyzer>(
         allowErrorCodeTargets,
         keywords,
     };
+}
+
+/** Whether the cursor is inside a comment or after the opening quote of a string literal. */
+function isInCommentOrString(
+    parsed: ParseResult,
+    cursorOffset: number,
+    options: Pick<
+        CompletionOptions<TokenContextAnalyzer>,
+        "isCommentToken" | "isStringLiteralRule"
+    >,
+): boolean {
+    // Tokens do not overlap, so only the last one that starts before the cursor can contain it.
+    const after = lowerBound(parsed.tokens, cursorOffset, (each, target) => each.start - target);
+    const token = parsed.tokens[after - 1];
+    const inComment =
+        token !== undefined && options.isCommentToken(token.type) && cursorOffset <= token.stop;
+    return inComment || containsStringAt(parsed.tree, cursorOffset, options.isStringLiteralRule);
+}
+
+function containsStringAt(
+    context: ParserRuleContext,
+    offset: number,
+    isStringLiteralRule: (ruleIndex: number) => boolean,
+): boolean {
+    const { start, stop } = context;
+    if (start === null || offset <= start.start || (stop !== null && offset > stop.stop + 1)) {
+        return false;
+    }
+    if (isStringLiteralRule(context.ruleIndex)) {
+        // Up to the closing quote, or to the end when the string is unterminated.
+        const closed = stop !== null && stop !== start && stop.type === start.type;
+        return !closed || offset <= stop.start;
+    }
+    return context.children.some(
+        (child) =>
+            child instanceof ParserRuleContext &&
+            containsStringAt(child, offset, isStringLiteralRule),
+    );
 }
 
 function hasCandidateRule(
