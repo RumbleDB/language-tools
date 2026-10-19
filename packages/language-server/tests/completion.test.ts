@@ -375,6 +375,16 @@ describe("JSONiq completion", () => {
         expect(completions).toBeDefined();
     });
 
+    it.each([
+        ["string", 'let $u := "http://example.org/" return $u', '"http://example.org/'],
+        ["comment", "let $x := 1 (: see a/b :) return $x", "(: see a/"],
+    ])("suggests nothing inside a %s", async (kind, source, beforeCursor) => {
+        const document = testDocument(`completion-inside-${kind}`, source);
+        const cursor = source.indexOf(beforeCursor) + beforeCursor.length;
+
+        expect(await completionLabels(document, document.positionAt(cursor))).toEqual([]);
+    });
+
     it("offers top-level declaration starters in an empty document", async () => {
         const document = testDocument("completion-empty-document", "");
         const labelsAtCursor = await completionLabels(document, { line: 0, character: 0 });

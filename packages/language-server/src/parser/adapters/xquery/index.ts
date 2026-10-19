@@ -10,6 +10,7 @@ import {
     PREFERRED_COMPLETION_RULES,
 } from "./completion-data.js";
 import { XQueryTokenContextAnalyzer } from "./completion-token-context.js";
+import { XQueryLexer } from "./grammar/XQueryLexer.js";
 import { XQueryParser } from "./grammar/XQueryParser.js";
 import { parseXQuery } from "./parse.js";
 
@@ -27,6 +28,8 @@ export const xqueryParserAdapter: ParserAdapter = {
             isFunctionCallRule: (ruleIndex) => ruleIndex === XQueryParser.RULE_functionCall,
             isObjectLookupRule: () => false,
             isObjectLookupDotToken: () => false,
+            isCommentToken: (tokenType) => tokenType === XQueryLexer.XQComment,
+            isStringLiteralRule: (ruleIndex) => ruleIndex === XQueryParser.RULE_stringLiteral,
             isCatchErrorTargetRule: (ruleIndex, candidate) =>
                 ruleIndex === XQueryParser.RULE_nameTest &&
                 (candidate?.ruleList.includes(XQueryParser.RULE_catchClause) === true ||
