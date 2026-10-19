@@ -9,7 +9,7 @@ export interface TypeAtPositionRequest {
     body: string;
     documentUri: string;
     position: Position;
-    pathSteps?: PathStepRequest;
+    pathSteps?: PathStepRequest | undefined;
 }
 
 /**

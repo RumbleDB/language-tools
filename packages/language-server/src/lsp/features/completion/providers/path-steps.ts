@@ -96,23 +96,14 @@ async function completeSteps(
             pathStep.attribute ? undefined : defaultElementTypeNamespace,
         )
             .filter((name) => name.startsWith(step.namePrefix))
-            .map((name): CompletionItem => {
+            .map((name) => {
                 const label = pathStep.attribute ? `@${name}` : name;
-                return {
+                const item: CompletionItem = {
                     label,
                     kind: pathStep.attribute
                         ? CompletionItemKind.Property
                         : CompletionItemKind.Field,
                     sortText: `${PATH_STEP_SORT_PREFIX}${pathStep.attribute ? 1 : 0}:${label}`,
-                    // Before `@` is typed, an attribute also matches the start of its name.
-                    ...(pathStep.attribute && !step.afterAt ? { filterText: name } : {}),
-                    ...(pathStep.sequenceType === undefined
-                        ? {}
-                        : {
-                              labelDetails: {
-                                  description: formatSequenceType(pathStep.sequenceType),
-                              },
-                          }),
                     textEdit: replaceTypedPrefix(
                         context.document,
                         context.cursorOffset,
@@ -120,6 +111,14 @@ async function completeSteps(
                         label,
                     ),
                 };
+                // Before `@` is typed, an attribute also matches the start of its name.
+                if (pathStep.attribute && !step.afterAt) {
+                    item.filterText = name;
+                }
+                if (pathStep.sequenceType !== undefined) {
+                    item.labelDetails = { description: formatSequenceType(pathStep.sequenceType) };
+                }
+                return item;
             }),
     );
 }

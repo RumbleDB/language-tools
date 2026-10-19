@@ -40,7 +40,7 @@ export async function getTypeAtPositionFromSource(
             body: Buffer.from(source, "utf8").toString("base64"),
             documentUri,
             position,
-            ...(pathSteps === undefined ? {} : { pathSteps }),
+            pathSteps,
         });
 
         return response.body;
