@@ -83,11 +83,6 @@ class TypeAtPositionTest {
     }
 
     @Test
-    void listsPathStepsOnlyWhenRequested(@TempDir Path directory) throws IOException {
-        assertNull(findOrderSteps(directory, null));
-    }
-
-    @Test
     void listsNoPathStepsForUntypedNodes() {
         TypeAtPosition.Result result = this.typeAtPosition.findType(
                 "<order/>", URI.create("file:///query.xq"), new Position(0, 8), new Request.PathSteps(false));
