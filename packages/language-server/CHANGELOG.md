@@ -1,5 +1,21 @@
 # jsoniq-language-server
 
+## 2.17.1
+
+### Patch Changes
+
+- [`87daf79`](https://github.com/RumbleDB/language-tools/commit/87daf798513bad6cf43f537f95fbfd9542a0880e) - fix(completion): suggest variables and object fields inside function call arguments, such as `$a` in `fn:abs($)`, where only functions were offered
+
+- [`e128734`](https://github.com/RumbleDB/language-tools/commit/e128734886ae69564e2dbf0d2e21d37d81a8e121) - fix(formatter): write path steps and type tests without inner spaces, such as `$doc/book[@id = 1]/child::title` and `element(a, xs:string)`, which were formatted as `$doc / book [@ id = 1] / child : : title` and `element ( a , xs:string )`
+
+- [`8d37a6f`](https://github.com/RumbleDB/language-tools/commit/8d37a6f5ac0736e99a7a530eb79f73b689e18472) - Sync grammar change from RumbleDB
+  
+  See https://github.com/RumbleDB/rumble/pull/1947, https://github.com/RumbleDB/rumble/pull/1961 and https://github.com/RumbleDB/rumble/pull/1962
+  
+  JSONiq direct constructors now accept dotted tag and attribute names, such as `<a.b x.y="1"/>`, and the formatter reads them from the new `directConstructorQName` rule.
+
+- [`b5dfbb0`](https://github.com/RumbleDB/language-tools/commit/b5dfbb0015821d516bfa87cd3422466429f02793) - fix(formatter): drop whitespace before `>` in XML closing tags, such as `</a >`, which was kept as written
+
 ## 2.17.0
 
 ### Minor Changes
