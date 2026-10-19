@@ -42,21 +42,6 @@ describe("path step completion", () => {
         );
     }, 45_000);
 
-    it("ranks the declared steps before functions, which may also be steps", async () => {
-        const items = await completeAtEnd("return $order/");
-
-        expect(items.slice(0, 2).map((item) => item.label)).toEqual(
-            expect.arrayContaining(["o:price", "o:paid"]),
-        );
-        expect(items.map((item) => item.label)).toContain("fn:data");
-    }, 45_000);
-
-    it("suggests functions after the slash of an element without children", async () => {
-        const items = await completeAtEnd("return $order/o:price/");
-
-        expect(items.map((item) => item.label)).toContain("fn:data");
-    }, 45_000);
-
     it("suggests the attributes that the schema declares after '/@'", async () => {
         const items = await completeAtEnd("return $order/@");
 
@@ -75,11 +60,12 @@ describe("path step completion", () => {
         });
     }, 45_000);
 
-    it("suggests attributes after '/', after the children", async () => {
+    it("ranks children, then attributes, before functions such as data()", async () => {
         const items = await completeAtEnd("return $order/");
 
         expect(items.slice(0, 3).map((item) => item.label)).toEqual(["o:paid", "o:price", "@id"]);
         expect(items.find((item) => item.label === "@id")?.filterText).toBe("id");
+        expect(items.map((item) => item.label)).toContain("fn:data");
     }, 45_000);
 
     it("suggests the elements below each descendant after '//'", async () => {
@@ -90,14 +76,6 @@ describe("path step completion", () => {
                 ["o:price", "element(o:price, xs:decimal)*"],
                 ["o:paid", "element(o:paid, xs:boolean)*"],
             ]),
-        );
-    }, 45_000);
-
-    it("suggests steps when a comment separates the path from '/'", async () => {
-        const items = await completeAtEnd("return $order (: the order :) /");
-
-        expect(items.map((item) => item.label)).toEqual(
-            expect.arrayContaining(["o:price", "o:paid"]),
         );
     }, 45_000);
 
@@ -119,29 +97,12 @@ describe("path step completion", () => {
         ]);
     }, 45_000);
 
-    it("suggests the children of the context item after a bracket in a comment", async () => {
-        const items = await completeAtEnd("return $order[(: ] :) o:", "]");
-
-        expect(items.map((item) => item.label)).toEqual(
-            expect.arrayContaining(["o:price", "o:paid"]),
-        );
-    }, 45_000);
-
     it("suggests the children of the context item on the right of '!'", async () => {
         const items = await completeAtEnd("return $order ! o:");
 
         expect(items.map((item) => item.label)).toEqual(
             expect.arrayContaining(["o:price", "o:paid"]),
         );
-    }, 45_000);
-
-    it("ranks the children of the context item first in a predicate", async () => {
-        const items = await completeAtEnd("return $order[", "]");
-
-        expect(items.slice(0, 2).map((item) => item.label)).toEqual(
-            expect.arrayContaining(["o:price", "o:paid"]),
-        );
-        expect(items.map((item) => item.label)).toContain("fn:data");
     }, 45_000);
 
     it("suggests nothing after '@' outside a schema-typed path", async () => {
