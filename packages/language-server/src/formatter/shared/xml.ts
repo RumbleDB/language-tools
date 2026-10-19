@@ -5,8 +5,10 @@ import { concat, type Doc, group, hardline, indent, join, line, softline } from 
 import { formatBlockDoc } from "../helpers.js";
 import type { SourceTerminal } from "./tokens.js";
 
+// JSONiq names tags with `directConstructorQName`, which admits dotted names; XQuery uses `qname`.
 interface DirectAttributeList extends ParserRuleContext {
-    qname(): ParserRuleContext[];
+    qname?(): ParserRuleContext[];
+    directConstructorQName?(): ParserRuleContext[];
     dirAttributeValue(): DirectAttributeValue[];
     EQUAL(index: number): TerminalNode | null;
 }
@@ -57,7 +59,8 @@ interface DirectElementSingleTag extends ParserRuleContext {
 /** The shared structural shape of JSONiq and XQuery direct constructors. */
 export interface DirectConstructor extends ParserRuleContext {
     LANGLE(): TerminalNode | null;
-    qname(): ParserRuleContext | null;
+    qname?(): ParserRuleContext | null;
+    directConstructorQName?(): ParserRuleContext | null;
     dirAttributeList(): DirectAttributeList | null;
     dirElemConstructorOpenClose(): DirectElementOpenClose | null;
     dirElemConstructorSingleTag(): DirectElementSingleTag | null;
@@ -106,7 +109,7 @@ function formatDirectConstructorContent(
     formatEnclosedExpression: FormatEnclosedExpression,
 ): Doc {
     const openAngle = node.LANGLE();
-    const name = node.qname();
+    const name = node.directConstructorQName?.() ?? node.qname?.();
     const attributes = node.dirAttributeList();
     const openClose = node.dirElemConstructorOpenClose();
     const singleTag = node.dirElemConstructorSingleTag();
@@ -289,7 +292,7 @@ function formatDirectAttributes(
     formatTerminal: (terminal: SourceTerminal, expectedToken: number) => Doc,
     formatEnclosedExpression: FormatEnclosedExpression,
 ): Doc[] {
-    const names = node.qname();
+    const names = node.directConstructorQName?.() ?? node.qname?.() ?? [];
     const values = node.dirAttributeValue();
 
     return names.map((name, index) =>

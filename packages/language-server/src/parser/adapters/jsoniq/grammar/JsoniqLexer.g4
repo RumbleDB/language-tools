@@ -1,7 +1,6 @@
 lexer grammar JsoniqLexer;
 
 import CommonLexer;
-
 DOUBLE_DOLLAR
    : '$$'
    ;
