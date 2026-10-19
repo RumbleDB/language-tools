@@ -68,9 +68,5 @@ export async function findCompletions(
 
     const items = await Promise.all(allProviders.map((provider) => provider(context)));
 
-    return finalizeCompletionItems(
-        items
-            .filter((providerItems): providerItems is CompletionItem[] => providerItems !== null)
-            .flat(),
-    );
+    return finalizeCompletionItems(items.flatMap((providerItems) => providerItems ?? []));
 }

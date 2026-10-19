@@ -1,7 +1,7 @@
-import { formatSequenceType } from "server/analysis/index.js";
+import { collectModuleProlog, formatSequenceType } from "server/analysis/index.js";
 import { getTypeAtPositionFromSource } from "server/integrations/rumble/operations/type-at-position/service.js";
 import type { AstNode } from "server/parser/types/ast.js";
-import { getActiveParserId } from "server/parser/utils.js";
+import { getActiveParserId, previousDefaultToken } from "server/parser/utils.js";
 import { rangeContainsPosition } from "server/utils/range.js";
 import { CompletionItemKind, type CompletionItem } from "vscode-languageserver";
 
@@ -37,13 +37,15 @@ export const providePathStepCompletions: CompletionProvider = async (context) =>
     if (step === null) {
         return null;
     }
-    const slash = context.getTokenBefore(step.start);
+    const { ast, tokens } = context.getParseResult();
+    const slash = previousDefaultToken(tokens, step.start);
     const afterSlash = slash?.text === "/" || slash?.text === "//";
     // Without a slash, the step applies to the context item. Only schema-typed nodes have declared steps, so other
     // modules need not look for one.
     if (
         !afterSlash &&
-        (context.getModuleProlog().schemaImports.length === 0 || !hasFocusAt(context, step.start))
+        (collectModuleProlog(context.document.uri, ast).schemaImports.length === 0 ||
+            !hasFocusAt(context, step.start))
     ) {
         return null;
     }

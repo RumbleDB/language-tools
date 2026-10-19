@@ -1,17 +1,13 @@
-import { Token } from "antlr4ng";
 import {
-    collectModuleProlog,
     getVisibleDeclarationsAtPosition,
     QNameToString,
     type AnalysisResult,
-    type ModuleProlog,
     type ScopeDefinition,
     type QName,
 } from "server/analysis/index.js";
 import type { WrapperClient } from "server/integrations/rumble/client.js";
 import type { ParserService } from "server/parser/index.js";
 import { getDocumentText } from "server/parser/utils.js";
-import { lowerBound } from "server/utils/binary-search.js";
 import type { WorkspaceService } from "server/workspace/service.js";
 import { TextEdit, type CompletionItem, type Position } from "vscode-languageserver";
 import type { TextDocument } from "vscode-languageserver-textdocument";
@@ -35,7 +31,6 @@ export function createCompletionContext(
 
     let visibleDeclarations: Promise<ScopeDefinition[]> | undefined;
     let analysis: Promise<AnalysisResult> | undefined;
-    let prolog: ModuleProlog | undefined;
 
     return {
         document,
@@ -51,22 +46,8 @@ export function createCompletionContext(
         getAnalysis() {
             return (analysis ??= workspace.getAnalysis(document));
         },
-        getModuleProlog() {
-            return (prolog ??= collectModuleProlog(document.uri, parser.parse(document).ast));
-        },
         getParseResult() {
             return parser.parse(document);
-        },
-        getTokenBefore(offset) {
-            const { tokens } = parser.parse(document);
-            const after = lowerBound(tokens, offset, (token, target) => token.start - target);
-            for (let index = after - 1; index >= 0; index -= 1) {
-                const token = tokens[index]!;
-                if (token.channel === Token.DEFAULT_CHANNEL && token.stop < offset) {
-                    return token;
-                }
-            }
-            return undefined;
         },
         getVisibleDeclarations() {
             visibleDeclarations ??= this.getAnalysis().then((analysis) =>
