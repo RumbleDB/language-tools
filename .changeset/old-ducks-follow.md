@@ -1,6 +1,5 @@
 ---
 "jsoniq-language-server": patch
-"jsoniq-vscode": patch
 ---
 
 perf(parser): move EXIT_INTERPOLATION predicate to the right edge of the rule
