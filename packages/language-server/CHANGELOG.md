@@ -1,5 +1,15 @@
 # jsoniq-language-server
 
+## 2.17.2
+
+### Patch Changes
+
+- [#97](https://github.com/RumbleDB/language-tools/pull/97) [`bd1eb28`](https://github.com/RumbleDB/language-tools/commit/bd1eb288ecb4402b5b78a1205004fe7087ab3c4d) - perf(parser): move EXIT_INTERPOLATION predicate to the right edge of the rule
+  
+  A semantic predicate at the start of a default-mode lexer rule is reachable from the lexer's start state, so **ANTLR never caches that state and recomputes it for every token**.
+  
+  Evaluating the predicate after RBRACE GRAVE keeps the same behavior and lets the DFA cache the start state. Diagnostics on a generated file of 40 functions drop from 364 ms to 9 ms.
+
 ## 2.17.1
 
 ### Patch Changes
