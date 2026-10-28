@@ -33,7 +33,8 @@ function belongsToDocument(error: StaticTypecheckError, document: TextDocument):
 
 function toDiagnostic(error: StaticTypecheckError): Diagnostic {
     return {
-        severity: DiagnosticSeverity.Warning,
+        // A possible error only fails for some values, which the query may never have.
+        severity: error.certain ? DiagnosticSeverity.Error : DiagnosticSeverity.Warning,
         range: error.range,
         code: error.code,
         source: "jsoniq-static-typecheck",

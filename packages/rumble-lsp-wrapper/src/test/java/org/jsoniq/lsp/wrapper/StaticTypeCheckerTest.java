@@ -1,6 +1,7 @@
 package org.jsoniq.lsp.wrapper;
 
 import java.net.URI;
+import java.util.List;
 
 import org.jsoniq.lsp.wrapper.handlers.StaticTypeChecker;
 import org.junit.jupiter.api.Test;
@@ -75,6 +76,24 @@ class StaticTypeCheckerTest {
         assertEquals(2, result.errors().size());
         assertEquals(0, result.errors().get(0).range().start().line());
         assertEquals(1, result.errors().get(1).range().start().line());
+    }
+
+    @Test
+    void errorsTellWhetherTheyAreCertain() {
+        String query =
+                """
+                declare function local:f($x) as integer { $x };
+                declare function local:g() as integer { "a" };
+                1
+                """;
+
+        StaticTypeChecker.Result result = checkWithoutThrow(query);
+
+        assertEquals(
+                List.of(false, true),
+                result.errors().stream()
+                        .map(StaticTypeChecker.StaticTypeError::certain)
+                        .toList());
     }
 
     @Test

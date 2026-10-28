@@ -6,6 +6,7 @@ import { RumbleWrapperClient } from "server/integrations/rumble/client.js";
 import { clearStaticTypecheckCache } from "server/integrations/rumble/operations/static-typecheck/service.js";
 import { collectStaticTypecheckDiagnostics } from "server/lsp/diagnostics/static-typecheck.js";
 import { describe, expect, it, vi } from "vitest";
+import { DiagnosticSeverity } from "vscode-languageserver";
 
 import { createMockWrapperClient, testDocument, testDocumentFromUri } from "./test-utils.js";
 
@@ -24,6 +25,7 @@ describe("static typecheck diagnostics", () => {
                             code: "XPTY0004",
                             message: "Error in imported module",
                             location: importedModuleUri,
+                            certain: true,
                             range: {
                                 start: { line: 1, character: 0 },
                                 end: { line: 1, character: 1 },
@@ -33,6 +35,7 @@ describe("static typecheck diagnostics", () => {
                             code: "XPTY0004",
                             message: "Error in main module",
                             location: document.uri,
+                            certain: true,
                             range: {
                                 start: { line: 0, character: 0 },
                                 end: { line: 0, character: 1 },
@@ -46,6 +49,42 @@ describe("static typecheck diagnostics", () => {
 
         await expect(collectStaticTypecheckDiagnostics(document, wrapper)).resolves.toEqual([
             expect.objectContaining({ message: "Error in main module" }),
+        ]);
+    });
+
+    it("shows certain errors as errors and possible ones as warnings", async () => {
+        const document = testDocument("static-typecheck-severity", "1");
+        clearStaticTypecheckCache(document.uri);
+        const range = { start: { line: 0, character: 0 }, end: { line: 0, character: 1 } };
+        const wrapper = createMockWrapperClient({
+            sendRequest: vi.fn().mockResolvedValue({
+                id: 1,
+                responseType: "static-typecheck",
+                body: {
+                    errors: [
+                        {
+                            code: "XPTY0004",
+                            message: "Certain",
+                            location: "",
+                            range,
+                            certain: true,
+                        },
+                        {
+                            code: "XPTY0004",
+                            message: "Possible",
+                            location: "",
+                            range,
+                            certain: false,
+                        },
+                    ],
+                },
+                error: null,
+            }),
+        });
+
+        await expect(collectStaticTypecheckDiagnostics(document, wrapper)).resolves.toEqual([
+            expect.objectContaining({ message: "Certain", severity: DiagnosticSeverity.Error }),
+            expect.objectContaining({ message: "Possible", severity: DiagnosticSeverity.Warning }),
         ]);
     });
 

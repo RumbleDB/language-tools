@@ -17,10 +17,12 @@ import org.rumbledb.config.RumbleConfiguration;
 import org.rumbledb.exceptions.ExceptionMetadata;
 import org.rumbledb.exceptions.RumbleException;
 import org.rumbledb.exceptions.StaticTypeErrorsException;
+import org.rumbledb.exceptions.UnexpectedStaticTypeException;
 
 public final class StaticTypeChecker implements RequestHandler {
 
-    public record StaticTypeError(String code, String message, String location, Range range) {}
+    /** An error is certain when every value fails, and otherwise possible, as for an item* argument. */
+    public record StaticTypeError(String code, String message, String location, Range range, boolean certain) {}
 
     public record Result(List<StaticTypeError> errors) implements ResponseBody {}
 
@@ -73,7 +75,9 @@ public final class StaticTypeChecker implements RequestHandler {
                 exception.getMetadata() == null ? ExceptionMetadata.EMPTY_METADATA : exception.getMetadata();
         String code = exception.getErrorCode().toString();
         String message = Objects.toString(exception.getJSONiqErrorMessage(), exception.getMessage());
-        return new StaticTypeError(code, message, metadata.getLocation(), Range.fromExceptionMetadata(metadata));
+        boolean certain = !(exception instanceof UnexpectedStaticTypeException typeError) || typeError.isCertain();
+        return new StaticTypeError(
+                code, message, metadata.getLocation(), Range.fromExceptionMetadata(metadata), certain);
     }
 
     @Override
