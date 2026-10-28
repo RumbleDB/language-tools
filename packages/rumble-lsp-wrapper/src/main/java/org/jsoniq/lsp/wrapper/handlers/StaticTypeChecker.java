@@ -2,7 +2,6 @@ package org.jsoniq.lsp.wrapper.handlers;
 
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
 import java.util.Objects;
@@ -17,6 +16,7 @@ import org.rumbledb.config.CompilationConfiguration;
 import org.rumbledb.config.RumbleConfiguration;
 import org.rumbledb.exceptions.ExceptionMetadata;
 import org.rumbledb.exceptions.RumbleException;
+import org.rumbledb.exceptions.StaticTypeErrorsException;
 
 public final class StaticTypeChecker implements RequestHandler {
 
@@ -40,14 +40,17 @@ public final class StaticTypeChecker implements RequestHandler {
             return EMPTY_RESULT;
         }
 
-        List<StaticTypeError> typeErrors = new ArrayList<>();
         try {
             parseModule(query, documentUri, this.strictConfiguration);
+        } catch (StaticTypeErrorsException exception) {
+            return new Result(exception.getErrors().stream()
+                    .map(StaticTypeChecker::toTypeError)
+                    .toList());
         } catch (RumbleException exception) {
-            typeErrors.add(toTypeError(exception));
+            return new Result(List.of(toTypeError(exception)));
         }
 
-        return new Result(typeErrors);
+        return EMPTY_RESULT;
     }
 
     private static void parseModule(String query, URI documentUri, RumbleConfiguration configuration) {

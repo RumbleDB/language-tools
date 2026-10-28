@@ -56,9 +56,25 @@ class StaticTypeCheckerTest {
         assertFalse(result.errors().isEmpty());
         StaticTypeChecker.StaticTypeError error = result.errors().get(0);
         assertEquals("XPTY0004", error.code());
-        assertTrue(error.message().contains("arities are not allowed for additive expressions"));
+        assertTrue(error.message().contains("arities are not allowed for the operands of +"));
         assertEquals(1, error.range().start().line());
         assertEquals(4, error.range().start().character());
+    }
+
+    @Test
+    void errorsInSeveralFunctionsAreAllReturned() {
+        String query =
+                """
+                declare function local:f() as integer { "a" };
+                declare function local:g() as string { 1 };
+                1
+                """;
+
+        StaticTypeChecker.Result result = checkWithoutThrow(query);
+
+        assertEquals(2, result.errors().size());
+        assertEquals(0, result.errors().get(0).range().start().line());
+        assertEquals(1, result.errors().get(1).range().start().line());
     }
 
     @Test
