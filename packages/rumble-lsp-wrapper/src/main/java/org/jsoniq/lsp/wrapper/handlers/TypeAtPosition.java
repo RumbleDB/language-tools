@@ -400,7 +400,11 @@ public final class TypeAtPosition implements RequestHandler {
         @Override
         public List<Candidate> visitTransformExpression(TransformExpression expression, List<Candidate> candidates) {
             for (CopyDeclaration variable : expression.getCopyDeclarations()) {
-                addBindingCandidate(candidates, variable.getVariableMetadata(), variable.getSourceSequenceType());
+                addBindingCandidate(
+                        candidates,
+                        variable.getVariableMetadata(),
+                        expression.getStaticContext(),
+                        variable.getVariableName());
             }
             return defaultAction(expression, candidates);
         }

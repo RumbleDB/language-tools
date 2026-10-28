@@ -298,7 +298,7 @@ class TypeAtPositionTest {
         assertVariableType(query, DOCUMENT_URI, "$value", 0, "xs:integer");
         assertVariableType(query, DOCUMENT_URI, "$branch", 0, "xs:string");
         assertVariableType(query, DOCUMENT_URI, "$branch", 2, "xs:integer");
-        assertVariableType(query, DOCUMENT_URI, "$obj", 0, "{ a: xs:integer }");
+        assertVariableType(query, DOCUMENT_URI, "$obj", 0, "js:object");
     }
 
     @Test

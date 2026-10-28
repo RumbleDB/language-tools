@@ -101,6 +101,8 @@ public sealed interface TypeDefinition {
 
         @Override
         public String toString() {
+            // Matches the language server: a named object without fields, such as js:object, shows its name.
+            if (this.fields.isEmpty() && this.name != null) return this.name.toString();
             return notation(this.fields);
         }
 
