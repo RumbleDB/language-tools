@@ -86,24 +86,14 @@ export function packVsCodeExtension(preRelease: boolean): string {
 }
 
 function publishVsCodeExtensionToMarketplace(vsixPath: string): void {
-    if (process.env.VSCE_PAT === undefined || process.env.VSCE_PAT.length === 0) {
-        throw new Error("VSCE_PAT is required to publish the VS Code extension.");
-    }
-
-    run("pnpm", [...vsceArgs("publish"), "--packagePath", vsixPath], {
+    run("pnpm", [...vsceArgs("publish"), "--oidc", "--packagePath", vsixPath], {
         cwd: VSCODE_EXTENSION_PACKAGE_DIR,
-        env: process.env,
     });
 }
 
 function publishVsCodeExtensionToOpenVsx(vsixPath: string): void {
-    if (process.env.OVSX_PAT === undefined || process.env.OVSX_PAT.length === 0) {
-        throw new Error("OVSX_PAT is required to publish the VS Code extension to Open VSX.");
-    }
-
-    run("pnpm", [...ovsxArgs("publish"), vsixPath], {
+    run("pnpm", [...ovsxArgs("publish"), vsixPath, "--trusted-publishing"], {
         cwd: VSCODE_EXTENSION_PACKAGE_DIR,
-        env: process.env,
     });
 }
 

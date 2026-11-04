@@ -62,6 +62,3 @@ jobs:
                   pr-title: "[ci] release"
                   commit-message: "[ci] release"
                   github-token: ${{ secrets.GITHUB_TOKEN }}
-              env:
-                  VSCE_PAT: ${{ secrets.VSCE_PAT }}
-                  OVSX_PAT: ${{ secrets.OVSX_PAT }}
