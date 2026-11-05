@@ -62,6 +62,11 @@ export function typedPrefix(source: string, cursorOffset: number, pattern: RegEx
     return source.slice(0, cursorOffset).match(pattern)?.[0] ?? null;
 }
 
+/** What the pattern, which must start with `^`, matches right after the cursor. */
+export function typedSuffix(source: string, cursorOffset: number, pattern: RegExp): string {
+    return source.slice(cursorOffset).match(pattern)?.[0] ?? "";
+}
+
 /** Offer bound aliases and a local name when the caller supplies a matching default namespace. */
 export function getQNameCompletionLabels(
     qname: QName,
@@ -76,16 +81,18 @@ export function getQNameCompletionLabels(
     return labels.length === 0 ? [QNameToString(qname, true)] : labels;
 }
 
+/** Replaces the prefix before the cursor, and the suffix after it when the cursor is inside a name. */
 export function replaceTypedPrefix(
     document: TextDocument,
     cursorOffset: number,
     prefix: string,
     newText: string,
+    suffix = "",
 ): TextEdit {
     return TextEdit.replace(
         {
             start: document.positionAt(cursorOffset - prefix.length),
-            end: document.positionAt(cursorOffset),
+            end: document.positionAt(cursorOffset + suffix.length),
         },
         newText,
     );

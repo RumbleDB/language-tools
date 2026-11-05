@@ -169,6 +169,62 @@ describe("path step completion", () => {
             newText: "o:price",
         });
     }, 45_000);
+
+    it.each([
+        ["the name after the cursor", "return $order/", "o:price", "o:paid"],
+        ["the name around the cursor", "return $order/o:pr", "ice", "o:price"],
+        ["an attribute after the cursor", "return $order/", "@id", "o:paid"],
+    ])(
+        "replaces %s when accepting a step",
+        async (_name, before, after, label) => {
+            const items = await completeAtEnd(before, after);
+
+            const line = QUERY_PREFIX.length;
+            expect(items.find((item) => item.label === label)?.textEdit).toEqual({
+                range: {
+                    start: { line, character: "return $order/".length },
+                    end: { line, character: (before + after).length },
+                },
+                newText: label,
+            });
+        },
+        45_000,
+    );
+
+    it("inserts in front of a step when no slash says that only one fits", async () => {
+        const before = "return $order[";
+        const items = await completeAtEnd(before, "o:price]");
+
+        const line = QUERY_PREFIX.length;
+        expect(items.find((item) => item.label === "o:paid")?.textEdit).toEqual({
+            range: {
+                start: { line, character: before.length },
+                end: { line, character: before.length },
+            },
+            newText: "o:paid",
+        });
+    }, 45_000);
+
+    it.each([
+        ["a predicate", "o:price", "[1]"],
+        ["a later step", "o:price", "/o:paid"],
+    ])(
+        "keeps %s after the step being replaced",
+        async (_name, name, following) => {
+            const before = "return $order/";
+            const items = await completeAtEnd(before, name + following);
+
+            const line = QUERY_PREFIX.length;
+            expect(items.find((item) => item.label === "o:paid")?.textEdit).toEqual({
+                range: {
+                    start: { line, character: before.length },
+                    end: { line, character: (before + name).length },
+                },
+                newText: "o:paid",
+            });
+        },
+        45_000,
+    );
 });
 
 /** Completes at the end of lastLine, before any text that follows the cursor. */

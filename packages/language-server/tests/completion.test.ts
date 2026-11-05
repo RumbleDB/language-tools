@@ -1,7 +1,14 @@
 import { findCompletions } from "server/lsp/features/completion.js";
 import { describe, expect, it } from "vitest";
-import { CompletionItemKind, type CompletionItem, type Position } from "vscode-languageserver";
-import { type TextDocument } from "vscode-languageserver-textdocument";
+import {
+    CompletionItemKind,
+    InsertTextFormat,
+    type CompletionItem,
+    type InsertReplaceEdit,
+    type Position,
+    type TextEdit,
+} from "vscode-languageserver";
+import { TextDocument } from "vscode-languageserver-textdocument";
 
 import { parserService, workspaceService, wrapperClient } from "./services.js";
 import { positionAtNth, testDocument, testDocumentFromUri } from "./test-utils.js";
@@ -519,6 +526,168 @@ describe("JSONiq completion", () => {
         }
     }, 45_000);
 
+    it.each([
+        ["the name after the cursor", "$a.", "test", "c", "$a.c"],
+        ["the name around the cursor", "$a.te", "st", "test", "$a.test"],
+        ["a quoted name after the cursor", "$a.", '"test"', "c", "$a.c"],
+        ["only this name in a chain", "$a.", "test.c", "c", "$a.c.c"],
+        ["nothing on the next line", "$a.", "\nreturn $a", "c", "$a.c\nreturn $a"],
+    ])(
+        "replaces %s when accepting an object field",
+        async (_name, before, after, label, expected) => {
+            const prefix = 'let $a := {"test": 1, "c": 2} order by ';
+            const document = testDocument(
+                `completion-dot-object-replace-${label}-${after.length}`,
+                [prefix + before + after],
+            );
+
+            const items = await findCompletions(
+                document,
+                document.positionAt(prefix.length + before.length),
+                parserService,
+                workspaceService,
+                wrapperClient,
+            );
+
+            const edit = items.find((item) => item.label === label)?.textEdit as TextEdit;
+            expect(TextDocument.applyEdits(document, [edit])).toBe(prefix + expected);
+        },
+        45_000,
+    );
+
+    it.each([
+        [
+            "a keyword around the cursor",
+            "let $a := 1 re",
+            "turn 1",
+            "return",
+            "let $a := 1 return 1",
+        ],
+        [
+            "a variable around the cursor",
+            "let $abc := 1 return $a",
+            "bc",
+            "$abc",
+            "let $abc := 1 return $abc",
+        ],
+        [
+            "only the variable before a lookup",
+            "let $abc := 1 return $a",
+            "bc.x",
+            "$abc",
+            "let $abc := 1 return $abc.x",
+        ],
+        [
+            "a builtin type around the cursor",
+            "1 cast as xs:int",
+            "eger",
+            "xs:integer",
+            "1 cast as xs:integer",
+        ],
+        [
+            "a builtin type after its prefix",
+            "1 cast as xs:",
+            "integer",
+            "xs:string",
+            "1 cast as xs:string",
+        ],
+        [
+            "an error code around the cursor",
+            "try { 1 } catch err:FO",
+            "AR0001 { 2 }",
+            "err:FOAR0002",
+            "try { 1 } catch err:FOAR0002 { 2 }",
+        ],
+    ])(
+        "replaces %s when accepting an item",
+        async (_name, before, after, label, expected) => {
+            const document = testDocument(
+                `completion-replace-${_name.replaceAll(" ", "-")}`,
+                before + after,
+            );
+
+            const items = await findCompletions(
+                document,
+                document.positionAt(before.length),
+                parserService,
+                workspaceService,
+                wrapperClient,
+            );
+
+            const edit = items.find((item) => item.label === label)?.textEdit as TextEdit;
+            expect(TextDocument.applyEdits(document, [edit])).toBe(expected);
+        },
+        45_000,
+    );
+
+    it("replaces the whole name with a function call snippet", async () => {
+        const before = "fn:con";
+        const document = testDocument("completion-replace-function", `${before}cat`);
+
+        const items = await findCompletions(
+            document,
+            document.positionAt(before.length),
+            parserService,
+            workspaceService,
+            wrapperClient,
+        );
+
+        const item = items.find((candidate) => candidate.label === "fn:abs");
+        expect(item?.insertTextFormat).toBe(InsertTextFormat.Snippet);
+        expect(TextDocument.applyEdits(document, [item?.textEdit as TextEdit])).toBe(
+            item?.insertText,
+        );
+    }, 45_000);
+
+    it.each([
+        ["a keyword", "let $a := 1 ", "return 1", "where"],
+        ["a variable", "let $abc := 1 return ", "$abc", "$abc"],
+    ])(
+        "inserts in front of %s after the cursor",
+        async (_name, before, after, label) => {
+            const document = testDocument(`completion-insert-before-${label}`, before + after);
+
+            const items = await findCompletions(
+                document,
+                document.positionAt(before.length),
+                parserService,
+                workspaceService,
+                wrapperClient,
+            );
+
+            const edit = items.find((item) => item.label === label)?.textEdit as TextEdit;
+            expect(TextDocument.applyEdits(document, [edit])).toBe(`${before}${label}${after}`);
+        },
+        45_000,
+    );
+
+    it.each([
+        ["an object field", 'let $a := {"test": 1, "c": 2} return $a.', "test", "c", "test".length],
+        ["a word being edited", "let $a := 1 re", "turn 1", "return", "turn".length],
+        ["a word in front of the cursor", "let $a := 1 ", "return 1", "where", 0],
+    ])(
+        "offers insert and replace edits for %s",
+        async (_name, before, after, label, replaced) => {
+            const document = testDocument(`completion-insert-replace-${label}`, before + after);
+            const cursor = document.positionAt(before.length);
+
+            const items = await findCompletions(
+                document,
+                cursor,
+                parserService,
+                workspaceService,
+                wrapperClient,
+                true,
+            );
+
+            const edit = items.find((item) => item.label === label)?.textEdit as InsertReplaceEdit;
+            expect(edit.insert.end).toEqual(cursor);
+            expect(edit.replace.start).toEqual(edit.insert.start);
+            expect(edit.replace.end).toEqual(document.positionAt(before.length + replaced));
+        },
+        45_000,
+    );
+
     it("suggests object fields in a query that is still being typed", async () => {
         const binding = 'let $a := {"name": "Ada", "age": 42}';
         for (const [name, source, after] of [
@@ -645,7 +814,7 @@ describe("JSONiq completion", () => {
         expect(labels(items).some((label) => label.startsWith("fn:"))).toBe(false);
     });
 
-    it("does not set textEdit for bare unqualified function names", async () => {
+    it("replaces a bare function name typed so far", async () => {
         const document = testDocument("completion-bare-name", "concat");
         const items = await findCompletions(
             document,
@@ -655,9 +824,13 @@ describe("JSONiq completion", () => {
             wrapperClient,
         );
 
-        // Items can exist, but none should have a textEdit (editor handles bare names)
-        const withTextEdit = items.filter((item) => item.textEdit !== undefined);
-        expect(withTextEdit.length).toBe(0);
+        expect(items.length).toBeGreaterThan(0);
+        for (const item of items) {
+            expect((item.textEdit as TextEdit).range).toEqual({
+                start: { line: 0, character: 0 },
+                end: { line: 0, character: "concat".length },
+            });
+        }
     });
 });
 
