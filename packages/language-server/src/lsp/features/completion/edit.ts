@@ -15,8 +15,11 @@ const NAME_PREFIX_PATTERN = /[A-Za-z_][\w.:-]*$/;
 /** The part of a name after the cursor. It stops at `.`, which starts a lookup in `$a|.b`. */
 const NAME_SUFFIX_PATTERN = /^[\w:-]*/;
 
-/** The arguments of a call or the `#` of a function reference, already written after what an item replaces. */
-const FUNCTION_USE_PATTERN = /^(?:[ \t]*\(|#)/;
+/**
+ * The arguments of a call or the `#` of a function reference, already written after what an item replaces. A `(:` starts
+ * a comment instead.
+ */
+const FUNCTION_USE_PATTERN = /^[ \t]*(?:\((?!:)|#)/;
 
 export type EditContext = Pick<CompletionContext, "document" | "source" | "cursorOffset">;
 

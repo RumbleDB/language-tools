@@ -701,8 +701,10 @@ describe("JSONiq completion", () => {
             "local:f",
             "declare function local:f($x) { $x }; local:f(1)",
         ],
+        ["a function reference", "con", "cat#2", "fn:concat", "fn:concat#2"],
+        ["a space before the arity", "con", "cat #2", "fn:concat", "fn:concat #2"],
     ])(
-        "keeps the arguments already written after %s",
+        "keeps the arguments or arity already written after %s",
         async (_name, before, after, label, expected) => {
             const document = testDocument(
                 `completion-keeps-arguments-${_name.replaceAll(" ", "-")}`,
@@ -723,25 +725,11 @@ describe("JSONiq completion", () => {
         45_000,
     );
 
-    it("keeps a function reference when replacing its name", async () => {
-        const before = "con";
-        const document = testDocument("completion-keeps-function-reference", `${before}cat#2`);
-
-        const items = await findCompletions(
-            document,
-            document.positionAt(before.length),
-            parserService,
-            workspaceService,
-            wrapperClient,
-        );
-
-        const edit = items.find((item) => item.label === "fn:concat")?.textEdit as TextEdit;
-        expect(TextDocument.applyEdits(document, [edit])).toBe("fn:concat#2");
-    }, 45_000);
-
     it.each([
         ["no parenthesis follows", "con", "", ""],
         ["the parenthesis is on another line", "con", "\n(1)", "\n(1)"],
+        ["a comment follows", "con", "(: note :)", "(: note :)"],
+        ["a comment follows after a space", "con", " (: note :)", " (: note :)"],
         ["the function goes in front of a call", "", "concat(1)", "concat(1)"],
     ])(
         "inserts the call snippet when %s",
