@@ -15,8 +15,8 @@ const NAME_PREFIX_PATTERN = /[A-Za-z_][\w.:-]*$/;
 /** The part of a name after the cursor. It stops at `.`, which starts a lookup in `$a|.b`. */
 const NAME_SUFFIX_PATTERN = /^[\w:-]*/;
 
-/** The arguments of a call, already written after what an item replaces. */
-const ARGUMENTS_PATTERN = /^[ \t]*\(/;
+/** The arguments of a call or the `#` of a function reference, already written after what an item replaces. */
+const FUNCTION_USE_PATTERN = /^(?:[ \t]*\(|#)/;
 
 export type EditContext = Pick<CompletionContext, "document" | "source" | "cursorOffset">;
 
@@ -65,9 +65,12 @@ function replacedRange({ range }: TextEdit, context: EditContext, suffix: string
     return { start: range.start, end: document.positionAt(end) };
 }
 
-/** A function before arguments that are already written only inserts its name: `fn:abs` at `fn:|concat(1)` gives `fn:abs(1)`. */
+/**
+ * A function before its arguments or arity only inserts its name: `fn:abs` at `fn:|concat(1)` gives `fn:abs(1)`, and
+ * `fn:concat` at `con|cat#2` gives `fn:concat#2`.
+ */
 function insertedText(item: ProvidedCompletionItem, text: string, textAfter: string): string {
-    return item.functionName !== undefined && ARGUMENTS_PATTERN.test(textAfter)
+    return item.functionName !== undefined && FUNCTION_USE_PATTERN.test(textAfter)
         ? escapeSnippetText(item.functionName)
         : text;
 }

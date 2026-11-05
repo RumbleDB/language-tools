@@ -723,6 +723,22 @@ describe("JSONiq completion", () => {
         45_000,
     );
 
+    it("keeps a function reference when replacing its name", async () => {
+        const before = "con";
+        const document = testDocument("completion-keeps-function-reference", `${before}cat#2`);
+
+        const items = await findCompletions(
+            document,
+            document.positionAt(before.length),
+            parserService,
+            workspaceService,
+            wrapperClient,
+        );
+
+        const edit = items.find((item) => item.label === "fn:concat")?.textEdit as TextEdit;
+        expect(TextDocument.applyEdits(document, [edit])).toBe("fn:concat#2");
+    }, 45_000);
+
     it.each([
         ["no parenthesis follows", "con", "", ""],
         ["the parenthesis is on another line", "con", "\n(1)", "\n(1)"],
