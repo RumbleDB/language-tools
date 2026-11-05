@@ -527,6 +527,8 @@ describe("JSONiq completion", () => {
             ["unclosed-call", `${binding} return abs($a.`, ""],
             ["broken-next-clause", `${binding} let $b := $a.`, " let $c := return 1"],
             ["undeclared-later", `${binding} let $b := $a.`, " return $nope"],
+            ["before-existing-code", `${binding} let $b := $a.`, "\nreturn $b"],
+            ["before-other-lookups", `${binding} return ($a.`, ", $a.age)"],
         ] as const) {
             const document = testDocument(`completion-dot-object-incomplete-${name}`, [
                 source + after,

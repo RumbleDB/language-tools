@@ -28,7 +28,9 @@ import org.rumbledb.expressions.module.LibraryModule;
 import org.rumbledb.expressions.module.MainModule;
 import org.rumbledb.expressions.module.Module;
 import org.rumbledb.expressions.module.Prolog;
+import org.rumbledb.expressions.postfix.ObjectLookupExpression;
 import org.rumbledb.expressions.primary.VariableReferenceExpression;
+import org.rumbledb.expressions.xml.SlashExpr;
 import org.rumbledb.parser.jsoniq.JsoniqLexer;
 import org.rumbledb.parser.jsoniq.JsoniqParser;
 import org.rumbledb.parser.xquery.XQueryLexer;
@@ -155,7 +157,10 @@ public final class TolerantCompiler {
                                 .anyMatch(library -> removeDeclaration(library.getProlog(), metadata)));
     }
 
-    /** Stands for an expression that cannot be translated. */
+    /**
+     * Stands for an expression that cannot be translated. A lookup key or path step gets its own hole, rather than one
+     * for the whole expression, so that the type of what it applies to stays known while it is being typed.
+     */
     private static Expression hole() {
         return new VariableReferenceExpression(HOLE, ExceptionMetadata.EMPTY_METADATA);
     }
@@ -181,6 +186,24 @@ public final class TolerantCompiler {
         }
 
         @Override
+        public Expression visitObjectLookup(JsoniqParser.ObjectLookupContext context) {
+            try {
+                return super.visitObjectLookup(context);
+            } catch (RuntimeException exception) {
+                return hole();
+            }
+        }
+
+        @Override
+        public Expression visitStepExpr(JsoniqParser.StepExprContext context) {
+            try {
+                return super.visitStepExpr(context);
+            } catch (RuntimeException exception) {
+                return hole();
+            }
+        }
+
+        @Override
         public Expression visitExprSingle(JsoniqParser.ExprSingleContext context) {
             try {
                 return super.visitExprSingle(context);
@@ -199,6 +222,15 @@ public final class TolerantCompiler {
         @Override
         protected void translatePrologEntry(ParseTree entry, Consumer<ParseTree> translation) {
             translateIfPossible(entry, translation);
+        }
+
+        @Override
+        public Expression visitStepExpr(XQueryParser.StepExprContext context) {
+            try {
+                return super.visitStepExpr(context);
+            } catch (RuntimeException exception) {
+                return hole();
+            }
         }
 
         @Override
@@ -235,14 +267,24 @@ public final class TolerantCompiler {
 
         @Override
         public StaticContext visit(Node node, StaticContext argument) {
+            StaticContext result = argument;
             try {
-                return super.visit(node, argument);
+                result = super.visit(node, argument);
             } catch (RuntimeException exception) {
                 if (node instanceof Expression expression) {
                     expression.setStaticSequenceType(UNKNOWN);
                 }
-                return argument;
             }
+            if (isLookupOrStepOfHole(node)) {
+                ((Expression) node).setStaticSequenceType(UNKNOWN);
+            }
+            return result;
+        }
+
+        /** What a key or step selects is unknown while it is being typed, even if what it applies to is known. */
+        private static boolean isLookupOrStepOfHole(Node node) {
+            return (node instanceof ObjectLookupExpression || node instanceof SlashExpr)
+                    && node.getChildren().stream().anyMatch(child -> isSynthetic(child.getMetadata()));
         }
     }
 }

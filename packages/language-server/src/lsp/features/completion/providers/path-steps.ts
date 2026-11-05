@@ -1,8 +1,7 @@
 import { collectModuleProlog, formatSequenceType } from "server/analysis/index.js";
-import { getTypeAtPositionFromSource } from "server/integrations/rumble/operations/type-at-position/service.js";
-import type { AstNode } from "server/parser/types/ast.js";
-import { getActiveParserId, previousDefaultToken } from "server/parser/utils.js";
-import { rangeContainsPosition } from "server/utils/range.js";
+import type { PathStep } from "server/integrations/rumble/operations/focus-at-position/protocol.js";
+import { getFocusAtPosition } from "server/integrations/rumble/operations/focus-at-position/service.js";
+import { previousDefaultToken } from "server/parser/utils.js";
 import { CompletionItemKind, type CompletionItem } from "vscode-languageserver";
 
 import { getQNameCompletionLabels, replaceTypedPrefix } from "../context.js";
@@ -38,52 +37,29 @@ export const providePathStepCompletions: CompletionProvider = async (context) =>
         return null;
     }
     const { ast, tokens } = context.getParseResult();
-    const slash = previousDefaultToken(tokens, step.start);
-    const afterSlash = slash?.text === "/" || slash?.text === "//";
+    const previous = previousDefaultToken(tokens, step.start);
+    if (previous === undefined || !allowsExpressionAt(context, step.start)) {
+        return null;
+    }
     // Without a slash, the step applies to the context item. Only schema-typed nodes have declared steps, so other
     // modules need not look for one.
-    if (
-        !afterSlash &&
-        (collectModuleProlog(context.document.uri, ast).schemaImports.length === 0 ||
-            !hasFocusAt(context, step.start))
-    ) {
+    const afterSlash = previous.text === "/" || previous.text === "//";
+    if (!afterSlash && collectModuleProlog(context.document.uri, ast).schemaImports.length === 0) {
         return null;
     }
-    if (!allowsExpressionAt(context, step.start)) {
-        return null;
-    }
-    // E//S applies S to E and to each of its descendants. Keeping only the first slash gives the context item the type
-    // of the items of E, and the wrapper lists the steps through their descendants.
-    return slash?.text === "//"
-        ? completeSteps(context, step, slash.start + 1, true)
-        : completeSteps(context, step, step.start, false);
+    const { pathSteps } = await getFocusAtPosition(
+        context.document,
+        context.document.positionAt(previous.stop + 1),
+        context.wrapper,
+    );
+    return pathSteps === undefined ? null : stepCompletions(context, step, pathSteps);
 };
 
-/**
- * Replaces the source from `from` up to the cursor with the context item, whose type is that of the items the step
- * applies to. Unlike the type of the expression before a slash, it does not depend on which of the expressions ending
- * there is meant. Lists the steps of each item, or with throughDescendants also of each of its descendants. Returns
- * null when the items are not schema-typed.
- */
-async function completeSteps(
+async function stepCompletions(
     context: CompletionContext,
     step: TypedStep,
-    from: number,
-    throughDescendants: boolean,
-): Promise<CompletionItem[] | null> {
-    const contextItem = getActiveParserId(context.document) === "xquery" ? "." : "$$";
-    const result = await getTypeAtPositionFromSource(
-        context.document.uri,
-        context.source.slice(0, from) + contextItem + context.source.slice(context.cursorOffset),
-        context.document.positionAt(from),
-        context.wrapper,
-        { throughDescendants },
-    );
-    const pathSteps = result.pathSteps;
-    if (pathSteps === undefined) {
-        return null;
-    }
-
+    pathSteps: PathStep[],
+): Promise<CompletionItem[]> {
     const { namespaces, defaultElementTypeNamespace } = await context.getAnalysis();
     const typed = context.source.slice(step.start, context.cursorOffset);
     // Children and attributes are both listed; attributes are labelled with `@`, so that the editor keeps only them
@@ -131,21 +107,6 @@ function typedStep(context: CompletionContext): TypedStep | null {
     }
     const [, attributeMarker, namePrefix = ""] = match;
     return { start: match.index, afterAt: attributeMarker === "@", namePrefix };
-}
-
-/**
- * Whether an enclosing expression gives the step its context item, as a predicate, the right of `!` or a later path
- * step does. This avoids asking for a type at every expression.
- */
-function hasFocusAt(context: CompletionContext, offset: number): boolean {
-    const position = context.document.positionAt(offset);
-    const containsFocus = (node: AstNode): boolean =>
-        node.children.some(
-            (child) =>
-                (child.kind === "focus" && rangeContainsPosition(child.range, position)) ||
-                containsFocus(child),
-        );
-    return containsFocus(context.getParseResult().ast);
 }
 
 /**
