@@ -114,8 +114,10 @@ public final class TolerantCompiler {
             parser.removeErrorListeners();
             parser.setErrorHandler(new DeclarationPreservingErrorStrategy(XQueryParser.SEMICOLON));
             XQueryParser.ModuleContext tree = parser.moduleAndThisIsIt().module();
+            boolean isMainModule = tree.libraryModule() == null;
             return new Parsed(
-                    () -> (Module) new TolerantXQueryTranslation(context, compilation, source, tokens).visit(tree),
+                    () -> (Module) new TolerantXQueryTranslation(context, isMainModule, compilation, source, tokens)
+                            .visit(tree),
                     findFirst(tree, XQueryParser.PrologContext.class));
         }
 
@@ -126,8 +128,10 @@ public final class TolerantCompiler {
         parser.removeErrorListeners();
         parser.setErrorHandler(new DeclarationPreservingErrorStrategy(JsoniqParser.SEMICOLON));
         JsoniqParser.ModuleContext tree = parser.moduleAndThisIsIt().module();
+        boolean isMainModule = tree.libraryModule() == null;
         return new Parsed(
-                () -> (Module) new TolerantJsoniqTranslation(context, compilation, source, tokens).visit(tree),
+                () -> (Module)
+                        new TolerantJsoniqTranslation(context, isMainModule, compilation, source, tokens).visit(tree),
                 findFirst(tree, JsoniqParser.PrologContext.class));
     }
 
@@ -213,8 +217,12 @@ public final class TolerantCompiler {
 
     private static final class TolerantJsoniqTranslation extends TranslationVisitor {
         TolerantJsoniqTranslation(
-                StaticContext context, CompilationConfiguration compilation, String source, CommonTokenStream tokens) {
-            super(context, compilation, ExternalBindings.empty(), source, tokens);
+                StaticContext context,
+                boolean isMainModule,
+                CompilationConfiguration compilation,
+                String source,
+                CommonTokenStream tokens) {
+            super(context, isMainModule, compilation, ExternalBindings.empty(), source, tokens);
         }
 
         @Override
@@ -253,8 +261,12 @@ public final class TolerantCompiler {
 
     private static final class TolerantXQueryTranslation extends XQueryTranslationVisitor {
         TolerantXQueryTranslation(
-                StaticContext context, CompilationConfiguration compilation, String source, CommonTokenStream tokens) {
-            super(context, compilation, ExternalBindings.empty(), source, tokens);
+                StaticContext context,
+                boolean isMainModule,
+                CompilationConfiguration compilation,
+                String source,
+                CommonTokenStream tokens) {
+            super(context, isMainModule, compilation, ExternalBindings.empty(), source, tokens);
         }
 
         @Override
