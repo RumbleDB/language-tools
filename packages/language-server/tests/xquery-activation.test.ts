@@ -36,4 +36,36 @@ describe("XQuery parser activation", () => {
         expect(adapter).toBeDefined();
         expect(adapter?.id).toBe("jsoniq");
     });
+
+    it("activates XQuery parser for a declaration that only names an encoding", () => {
+        const document = testDocumentFromUri(['xquery encoding "UTF-8";', "1"], {
+            uri: "file:///test.jq",
+            languageId: "jsoniq",
+        });
+
+        expect(getParserAdapterForDocument(document)?.id).toBe("xquery");
+    });
+
+    it.each([
+        ["a string", '"xquery version"'],
+        ["a comment", '(: xquery version "3.1"; :) 1'],
+        ["a later declaration", '1; xquery version "3.1"; 2'],
+        ["an unfinished declaration", 'xquery version "3.1"'],
+    ])("keeps the language ID when the text is only in %s", (_, source) => {
+        const document = testDocumentFromUri([source], {
+            uri: "file:///test.jq",
+            languageId: "jsoniq",
+        });
+
+        expect(getParserAdapterForDocument(document)?.id).toBe("jsoniq");
+    });
+
+    it("reads the declaration after the magic line of a notebook cell", () => {
+        const document = testDocumentFromUri(["%%jsoniq", 'xquery version "3.1";', "1"], {
+            uri: "vscode-notebook-cell:/test.ipynb#cell",
+            languageId: "python",
+        });
+
+        expect(getParserAdapterForDocument(document)?.id).toBe("xquery");
+    });
 });

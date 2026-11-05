@@ -845,6 +845,25 @@ describe("JSONiq & XQuery Formatter", () => {
             const formatted = formatText(input, "xquery");
             expect(formatted).toBe('xquery version "3.1";\n\n1 + 1\n');
         });
+
+        it.each(["jsoniq", "xquery"] as const)(
+            "formats a %s version declaration with an encoding",
+            (language) => {
+                const formatted = formatText(
+                    `${language}  version "3.1"  encoding "UTF-8" ; 1`,
+                    language,
+                );
+                expect(formatted).toBe(`${language} version "3.1" encoding "UTF-8";\n\n1\n`);
+            },
+        );
+
+        it.each(["jsoniq", "xquery"] as const)(
+            "formats a %s declaration without a version",
+            (language) => {
+                const formatted = formatText(`${language}  encoding "UTF-8" ; 1`, language);
+                expect(formatted).toBe(`${language} encoding "UTF-8";\n\n1\n`);
+            },
+        );
     });
 
     describe("Comment preservation", () => {

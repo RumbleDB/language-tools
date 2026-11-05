@@ -52,6 +52,7 @@ import {
     formatModule,
     formatParameter,
     formatParameterList,
+    formatVersionDecl,
 } from "server/formatter/shared/query.js";
 import {
     formatApplyStatement,
@@ -233,7 +234,11 @@ export class JsoniqFormatterVisitor extends JsoniqParserVisitor<Doc> {
     };
 
     public override visitModule = (node: ctx.ModuleContext): Doc => {
-        return formatModule(node, node.KW_JSONIQ(), "jsoniq", this.v, this.kw);
+        return formatModule(node, this.v);
+    };
+
+    public override visitVersionDecl = (node: ctx.VersionDeclContext): Doc => {
+        return formatVersionDecl(node, this.v, this.kw);
     };
 
     public override visitLibraryModule = (node: ctx.LibraryModuleContext): Doc => {
