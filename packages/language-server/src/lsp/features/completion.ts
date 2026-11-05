@@ -1,3 +1,4 @@
+import { clientSupport } from "server/app/configuration.js";
 import type { WrapperClient } from "server/integrations/rumble/client.js";
 import type { ParserService } from "server/parser/index.js";
 import type { WorkspaceService } from "server/workspace/service.js";
@@ -50,7 +51,14 @@ export function registerCompletion({
         const document = documents.get(params.textDocument.uri);
         return document === undefined
             ? []
-            : await findCompletions(document, params.position, parser, workspace, wrapper);
+            : await findCompletions(
+                  document,
+                  params.position,
+                  parser,
+                  workspace,
+                  wrapper,
+                  clientSupport.insertReplaceEdit,
+              );
     });
 }
 
@@ -60,6 +68,7 @@ export async function findCompletions(
     parser: ParserService,
     workspace: WorkspaceService,
     wrapper: WrapperClient,
+    insertReplaceSupport = false,
 ): Promise<CompletionItem[]> {
     const context = createCompletionContext(document, position, parser, workspace, wrapper);
     if (context === null) {
@@ -68,5 +77,9 @@ export async function findCompletions(
 
     const items = await Promise.all(allProviders.map((provider) => provider(context)));
 
-    return finalizeCompletionItems(items.flatMap((providerItems) => providerItems ?? []));
+    return finalizeCompletionItems(
+        items.flatMap((providerItems) => providerItems ?? []),
+        context,
+        insertReplaceSupport,
+    );
 }

@@ -11,7 +11,12 @@ import { registerRequestHandlers } from "../lsp/handlers/requests/register.js";
 import { registerNotifications } from "../lsp/notifications/register.js";
 import { setLoggerSink } from "../utils/logger.js";
 import { serverCapabilities } from "./capabilities.js";
-import { config, InitializationOptions, mergeConfiguration } from "./configuration.js";
+import {
+    clientSupport,
+    config,
+    InitializationOptions,
+    mergeConfiguration,
+} from "./configuration.js";
 import { createServerContext } from "./context.js";
 
 export type ClientConfiguration = Partial<InitializationOptions>;
@@ -36,6 +41,9 @@ export function startServer() {
         const clientConfiguration: Partial<InitializationOptions> =
             params.initializationOptions || {};
         mergeConfiguration(clientConfiguration);
+        clientSupport.insertReplaceEdit =
+            params.capabilities.textDocument?.completion?.completionItem?.insertReplaceSupport ??
+            false;
         connection.console.log(`Language server configuration: ${JSON.stringify(config, null, 4)}`);
 
         const initialWorkspaceFolderUris =
