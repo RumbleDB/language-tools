@@ -13,6 +13,7 @@ import org.jsoniq.lsp.wrapper.cli.BuiltInTypes;
 import org.jsoniq.lsp.wrapper.cli.BuiltinConstructors;
 import org.jsoniq.lsp.wrapper.cli.BuiltinFunctions;
 import org.jsoniq.lsp.wrapper.cli.CLICommand;
+import org.jsoniq.lsp.wrapper.handlers.FocusAtPosition;
 import org.jsoniq.lsp.wrapper.handlers.Handshake;
 import org.jsoniq.lsp.wrapper.handlers.RequestHandler;
 import org.jsoniq.lsp.wrapper.handlers.RunQuery;
@@ -32,6 +33,7 @@ public class Main {
             new ObjectMapper().setSerializationInclusion(JsonInclude.Include.NON_NULL);
     private static final StaticTypeChecker INFERENCER = new StaticTypeChecker();
     private static final TypeAtPosition TYPE_AT_POSITION = new TypeAtPosition();
+    private static final FocusAtPosition FOCUS_AT_POSITION = new FocusAtPosition();
     private static final BuiltinFunctions BUILTIN_FUNCTIONS = new BuiltinFunctions();
     private static final BuiltinConstructors BUILTIN_CONSTRUCTORS = new BuiltinConstructors();
     private static final BuiltInTypes BUILTIN_TYPES = new BuiltInTypes();
@@ -46,6 +48,7 @@ public class Main {
     private static final Map<String, RequestHandler> DAEMON_HANDLERS = Map.of(
             INFERENCER.getRequestType(), INFERENCER,
             TYPE_AT_POSITION.getRequestType(), TYPE_AT_POSITION,
+            FOCUS_AT_POSITION.getRequestType(), FOCUS_AT_POSITION,
             HANDSHAKE.getRequestType(), HANDSHAKE,
             RUN_QUERY.getRequestType(), RUN_QUERY,
             SCHEMA_CATALOG.getRequestType(), SCHEMA_CATALOG);

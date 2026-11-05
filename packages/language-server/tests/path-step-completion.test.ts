@@ -105,6 +105,40 @@ describe("path step completion", () => {
         );
     }, 45_000);
 
+    it.each([
+        ["after a slash and a space", "return $order/ "],
+        ["in a call", "return data($order/"],
+        ["on the right of '!' before a step is typed", "return $order ! "],
+        ["in an unclosed predicate", "return $order["],
+        ["in a later predicate", "return $order[o:price]["],
+        ["below descendants", "return $order//"],
+    ])(
+        "suggests steps %s",
+        async (_name, lastLine) => {
+            const items = await completeAtEnd(lastLine);
+
+            expect(items.map((item) => item.label)).toEqual(
+                expect.arrayContaining(["o:price", "@id"]),
+            );
+        },
+        45_000,
+    );
+
+    it.each([
+        ["after a predicate", "return $order[1]"],
+        ["after a step", "return $order/o:price "],
+        ["after a variable", "return $order "],
+        ["outside a focus", "let $x := "],
+    ])(
+        "suggests no steps %s",
+        async (_name, lastLine) => {
+            const items = await completeAtEnd(lastLine);
+
+            expect(items.map((item) => item.label)).not.toContain("@id");
+        },
+        45_000,
+    );
+
     it("suggests nothing after '@' outside a schema-typed path", async () => {
         const document = testDocumentFromUri("let $x := <a/> return $x/@", {
             uri: "file:///path-step-attribute.xq",

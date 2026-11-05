@@ -41,11 +41,7 @@ class TolerantTypeAtPositionTest {
                 Arguments.of("declare variable $x| := {\"a\": 1}; declare function local:f() { $nope }; 1", OBJECT),
                 Arguments.of("declare variable $b := ; let $x| := {\"a\": 1} return $x", OBJECT),
                 Arguments.of("import module namespace m = \"urn:nope\"; let $x| := {\"a\": 1} return $x", OBJECT),
-                Arguments.of("declare function local:f() { let $x| := {\"a\": 1} }; 1", OBJECT),
-                Arguments.of("let $x := {\"a\": 1} let $y := $x!$|$", OBJECT),
-                Arguments.of("let $x := {\"a\": 1} return ($x!$|$", OBJECT),
-                Arguments.of("let $x := {\"a\": 1} let $y := $x!$|$ let $z := return 1", OBJECT),
-                Arguments.of("let $x := {\"a\": 1} return abs($x!$|$", OBJECT));
+                Arguments.of("declare function local:f() { let $x| := {\"a\": 1} }; 1", OBJECT));
     }
 
     @ParameterizedTest
@@ -89,6 +85,13 @@ class TolerantTypeAtPositionTest {
     @Test
     void reportsNothingForBindingsOfWhatFailedToCompile() {
         assertNull(typeAt("let $x := {\"a\": 1} let $y| := nope($x) return $y", JSONIQ_URI));
+    }
+
+    @Test
+    void reportsNothingForBindingsOfLookupsAndStepsBeingTyped() {
+        assertNull(typeAt("let $x := {\"a\": 1} let $y| := $x.", JSONIQ_URI));
+        assertNull(typeAt("let $x := <a/> let $y| := $x/", XQUERY_URI));
+        assertNull(typeAt("let $x := <a/> let $y| := $x/", JSONIQ_URI));
     }
 
     @Test
