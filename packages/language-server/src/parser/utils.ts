@@ -1,6 +1,15 @@
-import { CommonTokenStream, Token } from "antlr4ng";
+import {
+    BailErrorStrategy,
+    CharStream,
+    CommonTokenStream,
+    ParseCancellationException,
+    Token,
+} from "antlr4ng";
 import { lowerBound } from "server/utils/binary-search.js";
 import { TextDocument } from "vscode-languageserver-textdocument";
+
+import { JsoniqLexer } from "./adapters/jsoniq/grammar/JsoniqLexer.js";
+import { JsoniqParser } from "./adapters/jsoniq/grammar/JsoniqParser.js";
 
 export function nextDefaultToken(
     tokenStream: CommonTokenStream,
@@ -110,7 +119,7 @@ export function getDocumentText(document: TextDocument): string {
 
 /**
  * 1. If the document's language ID is neither JSONiq nor XQuery and the document is not part of a Jupyter Notebook cell, it is not supported by our language server.
- * 2. If the document contains 'jsoniq version' or 'xquery version', use the respective parser.
+ * 2. If the module starts with a version declaration, use the parser of the language it names.
  * 3. Otherwise, fall back to the document's language ID property.
  */
 export function getActiveParserId(document: TextDocument): "xquery" | "jsoniq" | undefined {
@@ -122,13 +131,28 @@ export function getActiveParserId(document: TextDocument): "xquery" | "jsoniq" |
         return undefined;
     }
 
-    const text = document.getText();
-    if (text.includes("xquery version")) {
-        return "xquery";
-    }
-    if (text.includes("jsoniq version")) {
-        return "jsoniq";
-    }
+    return (
+        declaredLanguage(getDocumentText(document)) ??
+        (document.languageId === "xquery" ? "xquery" : "jsoniq")
+    );
+}
 
-    return document.languageId === "xquery" ? "xquery" : "jsoniq";
+/**
+ * Selects the language the way RumbleDB does, so that the server and the engine agree on it. The versionDecl rule is
+ * shared by both grammars and accepts either keyword, and only the first tokens are read.
+ */
+function declaredLanguage(source: string): "xquery" | "jsoniq" | undefined {
+    const lexer = new JsoniqLexer(CharStream.fromString(source));
+    lexer.removeErrorListeners();
+    const parser = new JsoniqParser(new CommonTokenStream(lexer));
+    parser.removeErrorListeners();
+    parser.errorHandler = new BailErrorStrategy();
+    try {
+        return parser.versionDecl()._language?.type === JsoniqLexer.KW_XQUERY ? "xquery" : "jsoniq";
+    } catch (error) {
+        if (error instanceof ParseCancellationException) {
+            return undefined;
+        }
+        throw error;
+    }
 }

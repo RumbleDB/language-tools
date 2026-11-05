@@ -28,6 +28,11 @@ parser grammar CommonParser;
 moduleAndThisIsIt
    : module EOF
    ;
+   // Both keywords are accepted so that either grammar can read the declaration that selects the language.
+
+versionDecl
+   : language = (KW_JSONIQ | KW_XQUERY) (KW_VERSION version = stringLiteral (KW_ENCODING encoding = stringLiteral)? | KW_ENCODING encoding = stringLiteral) SEMICOLON
+   ;
 
 libraryModule
    : KW_MODULE KW_NAMESPACE ncName EQUAL uri = uriLiteral SEMICOLON prolog
@@ -886,9 +891,10 @@ keyword
    | keywordNotOKForFunction
    ;
 
-keywordOKForFunction
+commonKeywordOKForFunction
    // These keywords do not conflict with function syntax, including decimal-format properties.
-   : dialectKeywordOKForFunction
+   : KW_JSONIQ
+   | KW_XQUERY
    | DFPropertyName
    | KW_AFTER
    | KW_ALLOWING
@@ -1057,7 +1063,7 @@ stringLiteral
 noQuotesNoBracesNoAmpNoLAng
    : (keyword | (IntegerLiteral | DecimalLiteral | DoubleLiteral
    //| stringLiteral
-   | PRAGMA | EQUAL | HASH | NOT_EQUAL | LPAREN | RPAREN | LBRACKET | RBRACKET | STAR | PLUS | MINUS | TILDE | COMMA | ARROW | MOD | DOT | GRAVE | DDOT | COLON | CARAT | COLON_EQ | SEMICOLON | SLASH | DSLASH | BACKSLASH | VBAR | RANGLE | QUESTION | AT | DOLLAR | BANG | FullQName | URIQualifiedName | NCNameWithLocalWildcard | NCNameWithPrefixWildcard | NCName | ContentChar))+
+   | PRAGMA | EQUAL | HASH | NOT_EQUAL | LPAREN | RPAREN | LBRACKET | RBRACKET | STAR | PLUS | MINUS | TILDE | COMMA | ARROW | MOD | DOT | GRAVE | DDOT | COLON | CARAT | COLON_EQ | SEMICOLON | SLASH | DSLASH | BACKSLASH | VBAR | RANGLE | QUESTION | AT | DOLLAR | BANG | FullQName | URIQualifiedName | NCNameWithLocalWildcard | NCNameWithPrefixWildcard | NCName | CHAR | ContentChar))+
    ;
 
 mainModule

@@ -49,34 +49,34 @@ export function formatDocumentRoot(context: FormatterContext, body: Doc): Doc {
     return concat([body, context.formatDanglingDoc()]);
 }
 
-export function formatModule(
-    node: ctx.ModuleContext,
-    languageTerminal: SourceTerminal,
-    languageName: string,
+export function formatVersionDecl(
+    node: ctx.VersionDeclContext,
     visit: Visit,
     formatTerminal: FormatTerminal,
 ): Doc {
+    const version = node._version
+        ? concat([space, formatTerminal(node.KW_VERSION(), "version"), space, visit(node._version)])
+        : NIL;
+    const encoding = node._encoding
+        ? concat([
+              space,
+              formatTerminal(node.KW_ENCODING(), "encoding"),
+              space,
+              visit(node._encoding),
+          ])
+        : NIL;
+    return concat([
+        formatTerminal(node._language, node._language?.text ?? ""),
+        version,
+        encoding,
+        formatTerminal(node.SEMICOLON(), ";"),
+    ]);
+}
+
+export function formatModule(node: ctx.ModuleContext, visit: Visit): Doc {
     const parts: Doc[] = [];
-    if (languageTerminal) {
-        const encoding = node._encoding
-            ? concat([
-                  space,
-                  formatTerminal(node.KW_ENCODING(), "encoding"),
-                  space,
-                  visit(node._encoding),
-              ])
-            : NIL;
-        parts.push(
-            concat([
-                formatTerminal(languageTerminal, languageName),
-                space,
-                formatTerminal(node.KW_VERSION(), "version"),
-                space,
-                visit(node._vers),
-                encoding,
-                formatTerminal(node.SEMICOLON(), ";"),
-            ]),
-        );
+    if (node._decl) {
+        parts.push(visit(node._decl));
     }
 
     const libraryModule = node.libraryModule();

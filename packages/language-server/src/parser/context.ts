@@ -65,6 +65,7 @@ export type ModuleAndThisIsItContext =
     | jsoniq.ModuleAndThisIsItContext
     | xquery.ModuleAndThisIsItContext;
 export type ModuleContext = jsoniq.ModuleContext | xquery.ModuleContext;
+export type VersionDeclContext = jsoniq.VersionDeclContext | xquery.VersionDeclContext;
 export type ModuleImportContext = jsoniq.ModuleImportContext | xquery.ModuleImportContext;
 export type NameTestContext = jsoniq.NameTestContext | xquery.NameTestContext;
 export type NamedFunctionRefContext =
