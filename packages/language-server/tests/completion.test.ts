@@ -688,6 +688,70 @@ describe("JSONiq completion", () => {
         45_000,
     );
 
+    it.each([
+        ["a name being edited", "con", "cat(1)", "fn:concat", "fn:concat(1)"],
+        ["the start of a name", "con", "(1)", "fn:concat", "fn:concat(1)"],
+        ["a space before the arguments", "con", "cat (1)", "fn:concat", "fn:concat (1)"],
+        ["a prefixed name", "fn:con", "cat(1)", "fn:concat", "fn:concat(1)"],
+        ["a name after its prefix", "fn:", "concat(1)", "fn:abs", "fn:abs(1)"],
+        [
+            "a declared function",
+            "declare function local:f($x) { $x }; local:",
+            "f(1)",
+            "local:f",
+            "declare function local:f($x) { $x }; local:f(1)",
+        ],
+    ])(
+        "keeps the arguments already written after %s",
+        async (_name, before, after, label, expected) => {
+            const document = testDocument(
+                `completion-keeps-arguments-${_name.replaceAll(" ", "-")}`,
+                before + after,
+            );
+
+            const items = await findCompletions(
+                document,
+                document.positionAt(before.length),
+                parserService,
+                workspaceService,
+                wrapperClient,
+            );
+
+            const edit = items.find((item) => item.label === label)?.textEdit as TextEdit;
+            expect(TextDocument.applyEdits(document, [edit])).toBe(expected);
+        },
+        45_000,
+    );
+
+    it.each([
+        ["no parenthesis follows", "con", "", ""],
+        ["the parenthesis is on another line", "con", "\n(1)", "\n(1)"],
+        ["the function goes in front of a call", "", "concat(1)", "concat(1)"],
+    ])(
+        "inserts the call snippet when %s",
+        async (_name, before, after, kept) => {
+            const document = testDocument(
+                `completion-call-snippet-${_name.replaceAll(" ", "-")}`,
+                before + after,
+            );
+
+            const items = await findCompletions(
+                document,
+                document.positionAt(before.length),
+                parserService,
+                workspaceService,
+                wrapperClient,
+            );
+
+            const item = items.find((candidate) => candidate.label === "fn:concat");
+            expect(item?.insertText).toContain("fn:concat(");
+            expect(TextDocument.applyEdits(document, [item?.textEdit as TextEdit])).toBe(
+                `${item?.insertText}${kept}`,
+            );
+        },
+        45_000,
+    );
+
     it("suggests object fields in a query that is still being typed", async () => {
         const binding = 'let $a := {"name": "Ada", "age": 42}';
         for (const [name, source, after] of [

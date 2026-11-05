@@ -6,12 +6,7 @@ import {
     type ScopeDefinition,
 } from "server/analysis/index.js";
 import { getActiveParserId } from "server/parser/utils.js";
-import {
-    CompletionItemKind,
-    InsertTextFormat,
-    MarkupKind,
-    type CompletionItem,
-} from "vscode-languageserver";
+import { CompletionItemKind, MarkupKind } from "vscode-languageserver";
 
 import {
     replaceTypedPrefix,
@@ -19,8 +14,8 @@ import {
     applyQNamePrefixFilter,
     getQNameCompletionLabels,
 } from "../context.js";
-import type { CompletionProvider } from "../types.js";
-import { createFunctionCallSnippet } from "./snippets.js";
+import type { CompletionProvider, ProvidedCompletionItem } from "../types.js";
+import { functionCallInsertion } from "./snippets.js";
 
 const VARIABLE_PREFIX_PATTERN = /\$[A-Za-z0-9_.:-]*$/;
 
@@ -101,7 +96,10 @@ export const provideSourceTypeCompletions: CompletionProvider = async (context) 
     return applyQNamePrefixFilter(items, context) ?? items;
 };
 
-function toCompletionItem(declaration: ScopeDefinition, functionLabel?: string): CompletionItem {
+function toCompletionItem(
+    declaration: ScopeDefinition,
+    functionLabel?: string,
+): ProvidedCompletionItem {
     const name = definitionNameToString(declaration);
     if (declaration.origin === "source" && declaration.kind === "function") {
         const label = functionLabel ?? QNameToString(declaration.name.qname, false);
@@ -116,8 +114,7 @@ function toCompletionItem(declaration: ScopeDefinition, functionLabel?: string):
             kind: CompletionItemKind.Function,
             labelDetails: { detail: signatureSuffix },
             detail: signature,
-            insertText: createFunctionCallSnippet(label, parameterNames),
-            insertTextFormat: InsertTextFormat.Snippet,
+            ...functionCallInsertion(label, parameterNames),
             documentation: {
                 kind: MarkupKind.Markdown,
                 value: [

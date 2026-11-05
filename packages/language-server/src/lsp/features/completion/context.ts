@@ -111,10 +111,10 @@ export const QNAME_PREFIX_PATTERN = /[A-Za-z_][A-Za-z0-9_.-]*:$/;
  * Returns `null` when no namespace prefix is present, signalling that no filtering
  * should be applied.
  */
-export function applyQNamePrefixFilter(
-    items: CompletionItem[],
+export function applyQNamePrefixFilter<Item extends CompletionItem>(
+    items: Item[],
     context: Pick<CompletionContext, "source" | "cursorOffset" | "document">,
-): CompletionItem[] | null {
+): Item[] | null {
     const nsPrefix = typedPrefix(context.source, context.cursorOffset, QNAME_PREFIX_PATTERN);
     if (nsPrefix === null) {
         return null;
