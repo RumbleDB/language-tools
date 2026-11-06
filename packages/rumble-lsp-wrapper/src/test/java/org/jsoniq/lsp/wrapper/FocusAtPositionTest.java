@@ -139,6 +139,14 @@ class FocusAtPositionTest {
     }
 
     @ParameterizedTest
+    @ValueSource(strings = {"\n", "\r", "\r\n"})
+    void countsEveryLineEndingThatEditorsCount(String lineEnding) {
+        String query = LET_A + lineEnding + "return $a.";
+        var focus = this.focusAtPosition.findFocus(query, JSONIQ_URI, new Position(1, "return $a.".length()));
+        assertEquals(OBJECT, focus.sequenceType().toString());
+    }
+
+    @ParameterizedTest
     @ValueSource(strings = {"return $o[|]", "return $o[|", "return $o[|o:li]", "return $o[1 + |o:]"})
     void listsTheStepsInAPredicate(String markedQuery, @TempDir Path directory) throws IOException {
         assertEquals(ORDER_STEPS, orderSteps(markedQuery, "xq", directory));
@@ -152,14 +160,6 @@ class FocusAtPositionTest {
         for (String extension : List.of("xq", "jq")) {
             assertEquals(ORDER_STEPS_THROUGH_DESCENDANTS, orderSteps(markedQuery, extension, directory), extension);
         }
-    }
-
-    @ParameterizedTest
-    @ValueSource(strings = {"\n", "\r", "\r\n"})
-    void countsEveryLineEndingThatEditorsCount(String lineEnding) {
-        String query = LET_A + lineEnding + "return $a.";
-        var focus = this.focusAtPosition.findFocus(query, JSONIQ_URI, new Position(1, "return $a.".length()));
-        assertEquals(OBJECT, focus.sequenceType().toString());
     }
 
     @Test
