@@ -21,6 +21,9 @@ class TolerantTypeAtPositionTest {
     private static final URI JSONIQ_URI = URI.create("file:///tolerant.jq");
     private static final URI XQUERY_URI = URI.create("file:///tolerant.xq");
     private static final String OBJECT = "{ a: xs:integer }";
+    private static final String LIBRARY =
+            "module namespace l = \"urn:l\";\ndeclare variable $l:v as xs:integer := 1;\n";
+    private static final String LIBRARY_IMPORT = "import module namespace l = \"urn:l\" at \"lib.jq\";\n";
 
     private final TypeAtPosition typeAtPosition = new TypeAtPosition();
 
@@ -94,6 +97,16 @@ class TolerantTypeAtPositionTest {
                 OBJECT,
                 typeAt(
                         "import module namespace m = \"urn:m\" at \"broken.jq\"; let $x| := {\"a\": 1} return $x",
+                        directory.resolve("query.jq").toUri()));
+    }
+
+    @Test
+    void keepsWorkingImportWhenTheQueryIsBroken(@TempDir Path directory) throws IOException {
+        Files.writeString(directory.resolve("lib.jq"), LIBRARY);
+        assertEquals(
+                "xs:integer",
+                typeAt(
+                        LIBRARY_IMPORT + "let $x| := $l:v return $x.",
                         directory.resolve("query.jq").toUri()));
     }
 
