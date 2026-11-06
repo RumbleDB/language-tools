@@ -13,7 +13,6 @@ const UNQUOTED_FIELD_NAME_PATTERN = /^[A-Za-z_][A-Za-z0-9_-]*$/;
 interface DotCompletionContext {
     dotOffset: number;
     fieldPrefix: string;
-    fieldSuffix: string;
 }
 
 export const provideObjectFieldCompletions: CompletionProvider = async (context) => {
@@ -46,7 +45,7 @@ export const provideObjectFieldCompletions: CompletionProvider = async (context)
             context.cursorOffset,
             dotContext.fieldPrefix,
             UNQUOTED_FIELD_NAME_PATTERN.test(fieldName) ? fieldName : JSON.stringify(fieldName),
-            dotContext.fieldSuffix,
+            typedSuffix(context.source, context.cursorOffset, OBJECT_FIELD_SUFFIX_PATTERN),
         ),
     }));
 };
@@ -60,11 +59,7 @@ function getDotCompletionContext(context: CompletionContext): DotCompletionConte
         return null;
     }
 
-    return {
-        dotOffset,
-        fieldPrefix,
-        fieldSuffix: typedSuffix(context.source, context.cursorOffset, OBJECT_FIELD_SUFFIX_PATTERN),
-    };
+    return { dotOffset, fieldPrefix };
 }
 
 function objectFieldCompletions(

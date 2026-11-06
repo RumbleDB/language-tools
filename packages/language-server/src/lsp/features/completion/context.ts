@@ -113,22 +113,12 @@ export const QNAME_PREFIX_PATTERN = /[A-Za-z_][A-Za-z0-9_.-]*:$/;
  */
 export function applyQNamePrefixFilter(
     items: CompletionItem[],
-    context: Pick<CompletionContext, "source" | "cursorOffset" | "document">,
+    context: Pick<CompletionContext, "source" | "cursorOffset">,
 ): CompletionItem[] | null {
     const nsPrefix = typedPrefix(context.source, context.cursorOffset, QNAME_PREFIX_PATTERN);
     if (nsPrefix === null) {
         return null;
     }
 
-    return items
-        .filter((item) => item.label.startsWith(nsPrefix))
-        .map((item) => ({
-            ...item,
-            textEdit: replaceTypedPrefix(
-                context.document,
-                context.cursorOffset,
-                nsPrefix,
-                item.insertText ?? item.label,
-            ),
-        }));
+    return items.filter((item) => item.label.startsWith(nsPrefix));
 }

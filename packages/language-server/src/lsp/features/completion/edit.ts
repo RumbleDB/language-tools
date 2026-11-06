@@ -34,8 +34,10 @@ export function createItemEditor(context: EditContext): (item: CompletionItem) =
             ? item.textEdit
             : replaceTypedPrefix(document, cursorOffset, prefix, item.insertText ?? item.label);
         const replaced = replacedRange(edit, context, suffix);
-        const textAfter = source.slice(document.offsetAt(replaced.end));
-        return TextEdit.replace(replaced, insertedText(item, edit.newText, textAfter));
+        return TextEdit.replace(
+            replaced,
+            insertedText(item, edit.newText, source, document.offsetAt(replaced.end)),
+        );
     };
 }
 
@@ -58,8 +60,8 @@ function replacedRange({ range }: TextEdit, context: EditContext, suffix: string
  * A function before its arguments or arity only inserts its name: `fn:abs` at `fn:|concat(1)` gives `fn:abs(1)`, and
  * `fn:concat` at `con|cat#2` gives `fn:concat#2`.
  */
-function insertedText(item: CompletionItem, text: string, textAfter: string): string {
-    return item.kind === CompletionItemKind.Function && FUNCTION_USE_PATTERN.test(textAfter)
+function insertedText(item: CompletionItem, text: string, source: string, end: number): string {
+    return item.kind === CompletionItemKind.Function && FUNCTION_USE_PATTERN.test(source.slice(end))
         ? escapeSnippetText(item.label)
         : text;
 }
