@@ -197,8 +197,14 @@ class TolerantTypeAtPositionTest {
 
     @Test
     void reportsNothingForBindingsOfWhatFailedToTranslate() {
-        assertNull(typeAt("let $a := 1 let $y| := some $x in $a return $y", JSONIQ_URI));
         assertNull(typeAt("let $a := 1 let $y| := <x>{$a}", XQUERY_URI));
+    }
+
+    @Test
+    void findsTypesInQuantifiedExpressionsWithoutSatisfies() {
+        assertEquals("xs:boolean", typeAt("let $a := 1 let $y| := some $x in $a return $y", JSONIQ_URI));
+        assertEquals("xs:boolean", typeAt("let $a := 1 let $y| := every $x in $a return $y", JSONIQ_URI));
+        assertEquals("xs:integer", typeAt("let $a := 1 return some $x| in $a", JSONIQ_URI));
     }
 
     @Test
