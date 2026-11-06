@@ -6,19 +6,14 @@ import type { CompletionProvider } from "../types.js";
 
 const CATCH_ERROR_TARGET_PREFIX_PATTERN =
     /(?:\*|[A-Za-z_][A-Za-z0-9_.-]*)(?::(?:\*|[A-Za-z_][A-Za-z0-9_.-]*)?)?$/;
-const CATCH_ERROR_TARGET_CONTEXT_PATTERN =
-    /\bcatch\s+(?:(?:\*|[A-Za-z_][A-Za-z0-9_.-]*)(?::(?:\*|[A-Za-z_][A-Za-z0-9_.-]*)?)?(?:\s*\|\s*(?:\*|[A-Za-z_][A-Za-z0-9_.-]*)(?::(?:\*|[A-Za-z_][A-Za-z0-9_.-]*)?)?)*)?$/;
 
 export const provideErrorCodeCompletions: CompletionProvider = (context) => {
-    if (
-        !context.intent.allowErrorCodeTargets &&
-        !CATCH_ERROR_TARGET_CONTEXT_PATTERN.test(context.source.slice(0, context.cursorOffset))
-    ) {
-        return null;
-    }
-
     const targetPrefix =
         typedPrefix(context.source, context.cursorOffset, CATCH_ERROR_TARGET_PREFIX_PATTERN) ?? "";
+    // A target is only expected where it starts: a wildcard being typed is not itself followed by one.
+    if (!context.getIntentAt(context.cursorOffset - targetPrefix.length)?.allowErrorCodeTargets) {
+        return null;
+    }
 
     return [...wildcardErrorCodeCompletions(), ...errorCodeCompletions(targetPrefix)]
         .filter((item) => item.label.startsWith(targetPrefix))

@@ -3,12 +3,9 @@ import { defaultTokenAt, nextDefaultTokenAt, previousDefaultToken } from "server
 import { CompletionItemKind, TextEdit, type CompletionItem } from "vscode-languageserver";
 import type { TextDocument } from "vscode-languageserver-textdocument";
 
-import { nameEnd, replaceTypedPrefix, typedPrefix } from "./context.js";
+import { nameEnd, nameStart, replaceTypedPrefix } from "./context.js";
 import { escapeSnippetText } from "./providers/snippets.js";
 import type { CompletionContext } from "./types.js";
-
-/** The part of a name before the cursor, for items that do not say what they replace. */
-const NAME_PREFIX_PATTERN = /[A-Za-z_][\w.:-]*$/;
 
 export type EditContext = Pick<
     CompletionContext,
@@ -25,7 +22,7 @@ export type EditContext = Pick<
 export function createItemEditor(context: EditContext): (item: CompletionItem) => TextEdit {
     const { document, source, cursorOffset } = context;
     const { tokens } = context.getParseResult();
-    const prefix = typedPrefix(source, cursorOffset, NAME_PREFIX_PATTERN) ?? "";
+    const prefix = source.slice(nameStart(tokens, cursorOffset), cursorOffset);
     const previousText = previousDefaultToken(tokens, cursorOffset)?.text;
     const isAfterSlash = previousText === "/" || previousText === "//";
     // A step's `@` goes with the name after it.

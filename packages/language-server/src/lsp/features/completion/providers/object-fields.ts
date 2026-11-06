@@ -14,18 +14,14 @@ export const provideObjectFieldCompletions: CompletionProvider = async (context)
     const { intent, source, cursorOffset, document } = context;
     const { tokens } = context.getParseResult();
     const fieldStart = nameStart(tokens, cursorOffset);
-    const dotOffset = previousDefaultToken(tokens, fieldStart)?.start;
-    if (
-        !intent.allowObjectLookup ||
-        dotOffset === undefined ||
-        intent.objectLookupDotOffset !== dotOffset
-    ) {
+    const dot = previousDefaultToken(tokens, fieldStart);
+    if (!intent.allowObjectLookup || dot?.text !== ".") {
         return null;
     }
 
     const focus = await getFocusAtPosition(
         document,
-        document.positionAt(dotOffset + 1),
+        document.positionAt(dot.stop + 1),
         context.wrapper,
     );
     const objectType = focus.sequenceType?.itemType;

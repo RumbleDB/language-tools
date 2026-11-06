@@ -1052,6 +1052,41 @@ describe("JSONiq completion", () => {
         expect(labels(items)).toContain("fn:concat");
     });
 
+    it.each(["*", "*:", "*:FOAR", "err:*"])(
+        "keeps suggesting while typing the wildcard %s",
+        async (target) => {
+            const source = `try { 1 } catch ${target}`;
+            const document = testDocument(
+                `completion-catch-wildcard-${encodeURIComponent(target)}`,
+                source,
+            );
+            const items = await findCompletions(
+                document,
+                document.positionAt(source.length),
+                parserService,
+                workspaceService,
+                wrapperClient,
+            );
+
+            expect(items.length).toBeGreaterThan(0);
+            expect(items.every((item) => item.label.startsWith(target))).toBe(true);
+        },
+    );
+
+    it("does not suggest error codes after a variable named catch", async () => {
+        const source = "let $catch := 1 return $catch ";
+        const document = testDocument("completion-variable-named-catch", source);
+        const items = await findCompletions(
+            document,
+            document.positionAt(source.length),
+            parserService,
+            workspaceService,
+            wrapperClient,
+        );
+
+        expect(items.map((item) => item.label)).not.toContain("err:*");
+    });
+
     it("does not allow functions after a prefix in a catch target", () => {
         const source = "try { 1 div 0 } catch err:";
         const document = testDocument("completion-catch-prefix-intent", source);
