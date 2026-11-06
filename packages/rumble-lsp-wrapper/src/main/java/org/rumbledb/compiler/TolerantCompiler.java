@@ -48,8 +48,9 @@ import org.rumbledb.types.SequenceType;
  * cannot be translated or typed gets the {@link #isUnknown unknown} type, so that the rest of the module is unaffected
  * and every position still refers to the original text.
  *
- * <p>This class is in RumbleDB's package because the visitors it extends have package-private constructors. It depends
- * on their internals, so it must be reviewed whenever the RumbleDB version changes.
+ * <p>This class is in RumbleDB's package because it uses the package-private module parser and compilation passes, and
+ * extends analysis visitors with package-private constructors. It depends on their internals, so it must be reviewed
+ * whenever the RumbleDB version changes.
  */
 public final class TolerantCompiler {
     /** Compared by identity: unlike a declared item*, it means that the type could not be determined. */
