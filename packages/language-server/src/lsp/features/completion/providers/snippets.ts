@@ -1,15 +1,8 @@
-import { InsertTextFormat } from "vscode-languageserver";
-
-/** The parts of a completion item that call a function. */
-export function functionCallInsertion(functionName: string, parameterNames: string[]) {
+export function createFunctionCallSnippet(functionName: string, parameterNames: string[]): string {
     const placeholders = parameterNames.map(
         (parameterName, index) => `\${${index + 1}:${escapeSnippetText(parameterName)}}`,
     );
-    return {
-        functionName,
-        insertText: `${escapeSnippetText(functionName)}(${placeholders.join(", ")})$0`,
-        insertTextFormat: InsertTextFormat.Snippet,
-    };
+    return `${escapeSnippetText(functionName)}(${placeholders.join(", ")})$0`;
 }
 
 export function escapeSnippetText(text: string): string {

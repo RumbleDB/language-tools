@@ -1,44 +1,33 @@
 import { finalizeCompletionItems } from "server/lsp/features/completion/finalize.js";
-import { functionCallInsertion } from "server/lsp/features/completion/providers/snippets.js";
+import { createFunctionCallSnippet } from "server/lsp/features/completion/providers/snippets.js";
 import { describe, expect, it } from "vitest";
-import { CompletionItemKind, type TextEdit } from "vscode-languageserver";
+import { CompletionItemKind, InsertTextFormat, type TextEdit } from "vscode-languageserver";
 
 import { testDocument } from "./test-utils.js";
 
-function finalize(before: string, after: string, functionName: string, label: string) {
-    const source = before + after;
-    const [item] = finalizeCompletionItems(
-        [
-            {
-                label,
-                kind: CompletionItemKind.Function,
-                ...functionCallInsertion(functionName, ["$value"]),
-            },
-        ],
-        {
-            document: testDocument(`completion-edit-${label}`, source),
-            source,
-            cursorOffset: before.length,
-        },
-        false,
-    );
-    return item!;
-}
-
 describe("function call edits", () => {
-    it("inserts the function's name rather than its label before written arguments", () => {
-        const item = finalize("con", "cat(1)", "fn:concat", "fn:concat (2 arguments)");
+    it("escapes the name before written arguments, as the item stays a snippet", () => {
+        const label = "Q{urn:test}Code";
+        const before = "Co";
+        const source = `${before}de(1)`;
 
-        expect((item.textEdit as TextEdit).newText).toBe("fn:concat");
-    });
+        const [item] = finalizeCompletionItems(
+            [
+                {
+                    label,
+                    kind: CompletionItemKind.Function,
+                    insertText: createFunctionCallSnippet(label, ["$value"]),
+                    insertTextFormat: InsertTextFormat.Snippet,
+                },
+            ],
+            {
+                document: testDocument("completion-edit", source),
+                source,
+                cursorOffset: before.length,
+            },
+            false,
+        );
 
-    it("escapes the name, which stays a snippet", () => {
-        const item = finalize("Co", "de(1)", "Q{urn:test}Code", "Code");
-
-        expect((item.textEdit as TextEdit).newText).toBe("Q{urn:test\\}Code");
-    });
-
-    it("does not send what only the edit needs to the client", () => {
-        expect(finalize("con", "", "fn:concat", "fn:concat")).not.toHaveProperty("functionName");
+        expect((item!.textEdit as TextEdit).newText).toBe("Q{urn:test\\}Code");
     });
 });

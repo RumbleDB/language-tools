@@ -20,14 +20,8 @@ export interface CompletionContext {
     getParseResult(): ParseResult;
 }
 
-/** An item as a provider describes it, with what only the provider knows about accepting it. */
-export interface ProvidedCompletionItem extends CompletionItem {
-    /** What a function call item inserts alone when the arguments are already written. Not sent to the client. */
-    functionName?: string;
-}
-
 /** `null` means the provider does not apply. An empty array means it applies but has no items. */
-export type CompletionProviderResult = ProvidedCompletionItem[] | null;
+export type CompletionProviderResult = CompletionItem[] | null;
 
 export type CompletionProvider = (
     context: CompletionContext,

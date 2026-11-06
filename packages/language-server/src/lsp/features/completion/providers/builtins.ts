@@ -13,11 +13,16 @@ import {
     getBuiltinFunctionDocumentation,
     type Signature,
 } from "server/resources/function-docs.js";
-import { CompletionItemKind, MarkupKind, type CompletionItem } from "vscode-languageserver";
+import {
+    CompletionItemKind,
+    InsertTextFormat,
+    MarkupKind,
+    type CompletionItem,
+} from "vscode-languageserver";
 
 import { applyQNamePrefixFilter, getQNameCompletionLabels } from "../context.js";
-import type { CompletionProvider, ProvidedCompletionItem } from "../types.js";
-import { functionCallInsertion } from "./snippets.js";
+import type { CompletionProvider } from "../types.js";
+import { createFunctionCallSnippet } from "./snippets.js";
 
 const GENERIC_BUILTIN_PARAMETER_PREFIX = "$arg";
 const BUILTIN_FUNCTION_COMPLETION_ITEMS = {
@@ -89,11 +94,12 @@ function createBuiltinFunctionCompletionItems(
             const signatureSuffix = `(${parameterTypes}) as ${formatSequenceType(definition.signature.returnType)}`;
             const signature = `${functionName}${signatureSuffix}`;
             const documentation = getBuiltinFunctionDocumentation(definition.name.qname);
-            const item: ProvidedCompletionItem = {
+            const item: CompletionItem = {
                 label: functionName,
                 kind: CompletionItemKind.Function,
                 labelDetails: { detail: signatureSuffix },
-                ...functionCallInsertion(functionName, parameterNames),
+                insertText: createFunctionCallSnippet(functionName, parameterNames),
+                insertTextFormat: InsertTextFormat.Snippet,
                 detail:
                     overloadCount !== undefined && overloadCount > 1
                         ? `${signature} • ${overloadCount} overloads`

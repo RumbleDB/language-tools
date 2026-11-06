@@ -1,4 +1,5 @@
 import {
+    CompletionItemKind,
     InsertReplaceEdit,
     TextEdit,
     type CompletionItem,
@@ -7,7 +8,7 @@ import {
 
 import { replaceTypedPrefix, typedPrefix, typedSuffix } from "./context.js";
 import { escapeSnippetText } from "./providers/snippets.js";
-import type { CompletionContext, ProvidedCompletionItem } from "./types.js";
+import type { CompletionContext } from "./types.js";
 
 /** The part of a name before the cursor, for items that do not say what they replace. */
 const NAME_PREFIX_PATTERN = /[A-Za-z_][\w.:-]*$/;
@@ -30,7 +31,7 @@ export type EditContext = Pick<CompletionContext, "document" | "source" | "curso
 export function createItemEditor(
     context: EditContext,
     insertReplaceSupport: boolean,
-): (item: ProvidedCompletionItem) => NonNullable<CompletionItem["textEdit"]> {
+): (item: CompletionItem) => NonNullable<CompletionItem["textEdit"]> {
     const { document, source, cursorOffset } = context;
     const prefix = typedPrefix(source, cursorOffset, NAME_PREFIX_PATTERN) ?? "";
     const suffix = typedSuffix(source, cursorOffset, NAME_SUFFIX_PATTERN);
@@ -72,8 +73,8 @@ function replacedRange({ range }: TextEdit, context: EditContext, suffix: string
  * A function before its arguments or arity only inserts its name: `fn:abs` at `fn:|concat(1)` gives `fn:abs(1)`, and
  * `fn:concat` at `con|cat#2` gives `fn:concat#2`.
  */
-function insertedText(item: ProvidedCompletionItem, text: string, textAfter: string): string {
-    return item.functionName !== undefined && FUNCTION_USE_PATTERN.test(textAfter)
-        ? escapeSnippetText(item.functionName)
+function insertedText(item: CompletionItem, text: string, textAfter: string): string {
+    return item.kind === CompletionItemKind.Function && FUNCTION_USE_PATTERN.test(textAfter)
+        ? escapeSnippetText(item.label)
         : text;
 }
