@@ -57,7 +57,13 @@ class TolerantTypeAtPositionTest {
                 Arguments.of("let $x := {\"a\": 1} let $y := $x!$|$", OBJECT),
                 Arguments.of("let $x := {\"a\": 1} return ($x!$|$", OBJECT),
                 Arguments.of("let $x := {\"a\": 1} let $y := $x!$|$ let $z := return 1", OBJECT),
-                Arguments.of("let $x := {\"a\": 1} return abs($x!$|$", OBJECT));
+                Arguments.of("let $x := {\"a\": 1} return abs($x!$|$", OBJECT),
+                Arguments.of("for $i in $nope let $y| := {\"a\": 1} return $y", OBJECT),
+                Arguments.of("for $i in nope() let $y| := {\"a\": 1} return $y", OBJECT),
+                Arguments.of("for $i in abs(1, 2) let $y| := {\"a\": 1} return $y", OBJECT),
+                Arguments.of("for $z as nope in 1 let $y| := {\"a\": 1} return $y", OBJECT),
+                Arguments.of(
+                        "declare variable $d := 1; declare variable $d := 2; let $x| := {\"a\": 1} return $x", OBJECT));
     }
 
     @ParameterizedTest
@@ -80,7 +86,8 @@ class TolerantTypeAtPositionTest {
                 Arguments.of("let $x| := 1 return ($x, )", "xs:integer"),
                 Arguments.of("let $x| := 1 return nope($x)", "xs:integer"),
                 Arguments.of("let $x := 1\r\nlet $y| := $x\r\nreturn nope()", "xs:integer"),
-                Arguments.of("declare variable $b := ; let $x| := 1 return $x", "xs:integer"));
+                Arguments.of("declare variable $b := ; let $x| := 1 return $x", "xs:integer"),
+                Arguments.of("for $i in $nope let $y| := 1 return $y", "xs:integer"));
     }
 
     @Test
@@ -118,6 +125,28 @@ class TolerantTypeAtPositionTest {
                 typeAt(
                         LIBRARY_IMPORT + "declare function g( { 1 };\nlet $x| := $l:v return $x",
                         directory.resolve("query.jq").toUri()));
+    }
+
+    @ParameterizedTest
+    @MethodSource("brokenLibraries")
+    void keepsWorkingImportBeforeABrokenLibrary(String brokenLibrary, @TempDir Path directory) throws IOException {
+        Files.writeString(directory.resolve("lib.jq"), LIBRARY);
+        Files.writeString(directory.resolve("broken.jq"), brokenLibrary);
+        assertEquals(
+                "xs:integer",
+                typeAt(
+                        LIBRARY_IMPORT
+                                + "import module namespace m = \"urn:m\" at \"broken.jq\";\n"
+                                + "let $x| := $l:v return $x",
+                        directory.resolve("query.jq").toUri()));
+    }
+
+    private static Stream<String> brokenLibraries() {
+        String header = "module namespace m = \"urn:m\";\n";
+        return Stream.of(
+                header + "declare variable $m:a := ;\n",
+                header + "declare variable $m:a := $m:a;\n",
+                header + "declare variable $m:a := 1;\ndeclare variable $m:a := 2;\n");
     }
 
     @Test

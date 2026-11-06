@@ -1,24 +1,16 @@
 package org.rumbledb.compiler;
 
 import java.net.URI;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.function.Consumer;
 
 import org.antlr.v4.runtime.CharStreams;
-import org.antlr.v4.runtime.CommonToken;
 import org.antlr.v4.runtime.CommonTokenStream;
 import org.antlr.v4.runtime.DefaultErrorStrategy;
 import org.antlr.v4.runtime.Lexer;
 import org.antlr.v4.runtime.Parser;
-import org.antlr.v4.runtime.ParserRuleContext;
 import org.antlr.v4.runtime.Token;
-import org.antlr.v4.runtime.tree.ErrorNode;
 import org.antlr.v4.runtime.tree.ParseTree;
 import org.antlr.v4.runtime.tree.ParseTreeVisitor;
-import org.antlr.v4.runtime.tree.TerminalNodeImpl;
-import org.antlr.v4.runtime.tree.Trees;
-import org.jsoniq.lsp.wrapper.Position;
-import org.jsoniq.lsp.wrapper.Range;
 
 import org.rumbledb.bindings.ExternalBindings;
 import org.rumbledb.config.CompilationConfiguration;
@@ -31,9 +23,11 @@ import org.rumbledb.exceptions.ExceptionMetadata;
 import org.rumbledb.exceptions.RumbleException;
 import org.rumbledb.expressions.Expression;
 import org.rumbledb.expressions.Node;
-import org.rumbledb.expressions.flowr.FlworExpression;
+import org.rumbledb.expressions.flowr.Clause;
+import org.rumbledb.expressions.module.LibraryModule;
 import org.rumbledb.expressions.module.MainModule;
 import org.rumbledb.expressions.module.Module;
+import org.rumbledb.expressions.module.Prolog;
 import org.rumbledb.expressions.primary.VariableReferenceExpression;
 import org.rumbledb.parser.jsoniq.JsoniqLexer;
 import org.rumbledb.parser.jsoniq.JsoniqParser;
@@ -74,33 +68,11 @@ public final class TolerantCompiler {
     public static Module compile(String query, URI uri, RumbleConfiguration configuration) {
         Language language = ModuleParser.detectLanguage(query, uri, configuration);
         CompilationConfiguration compilation = new CompilationConfiguration(configuration);
-        String source = query;
-        while (true) {
-            Parsed parsed = parse(source, uri, compilation, language);
-            try {
-                return analyze(parsed.translate(), compilation);
-            } catch (RuntimeException exception) {
-                // A prolog declaration is translated outside of any expression, so failures in it are not contained.
-                String withoutDeclaration = blankFailingDeclaration(source, uri, parsed.prolog(), exception);
-                if (withoutDeclaration == null) {
-                    throw exception;
-                }
-                source = withoutDeclaration;
-            }
-        }
+        Parsed parsed = parse(query, uri, compilation, language);
+        return analyze((Module) parsed.translation().visit(parsed.module()), compilation);
     }
 
-    private record Parsed(ParseTree module, ParseTreeVisitor<Node> translation, int prologRule) {
-        Module translate() {
-            return (Module) this.translation.visit(this.module);
-        }
-
-        ParseTree prolog() {
-            return Trees.findAllRuleNodes(this.module, this.prologRule).stream()
-                    .findFirst()
-                    .orElse(null);
-        }
-    }
+    private record Parsed(ParseTree module, ParseTreeVisitor<Node> translation) {}
 
     private static Parsed parse(String source, URI uri, CompilationConfiguration compilation, Language language) {
         StaticContext context = ModuleParser.createModuleContext(uri, compilation.runtimeConfiguration());
@@ -114,16 +86,14 @@ public final class TolerantCompiler {
             XQueryParser parser = recovering(new XQueryParser(tokens));
             return new Parsed(
                     parser.moduleAndThisIsIt().module(),
-                    new TolerantXQueryTranslation(context, compilation, source, tokens),
-                    XQueryParser.RULE_prolog);
+                    new TolerantXQueryTranslation(context, compilation, source, tokens));
         }
 
         CommonTokenStream tokens = tokens(new JsoniqLexer(CharStreams.fromString(source)));
         JsoniqParser parser = recovering(new JsoniqParser(tokens));
         return new Parsed(
                 parser.moduleAndThisIsIt().module(),
-                new TolerantJsoniqTranslation(context, compilation, source, tokens),
-                JsoniqParser.RULE_prolog);
+                new TolerantJsoniqTranslation(context, compilation, source, tokens));
     }
 
     private static CommonTokenStream tokens(Lexer lexer) {
@@ -152,7 +122,7 @@ public final class TolerantCompiler {
     private static Module analyze(Module translated, CompilationConfiguration compilation) {
         CompilationContext context = new CompilationContext(
                 compilation.runtimeConfiguration(), ExternalBindings.empty(), compilation.resourceResolver());
-        Module module = CompilationPasses.<Module>resolveDependencies().apply(translated, context);
+        Module module = resolveDependencies(translated, context);
         if (module instanceof MainModule main) {
             module = CompilationPasses.rewriteBuiltinPartialApplications().apply(main, context);
         }
@@ -161,28 +131,42 @@ public final class TolerantCompiler {
         return module;
     }
 
+    /** Dependency analysis stops at a declaration it rejects, such as a duplicate, so that declaration is left out. */
+    private static Module resolveDependencies(Module module, CompilationContext context) {
+        while (true) {
+            try {
+                return CompilationPasses.<Module>resolveDependencies().apply(module, context);
+            } catch (RumbleException exception) {
+                if (!removeDeclaration(prologOf(module), exception.getMetadata())) {
+                    throw exception;
+                }
+            }
+        }
+    }
+
+    private static Prolog prologOf(Module module) {
+        return module instanceof MainModule main ? main.getProlog() : ((LibraryModule) module).getProlog();
+    }
+
+    private static boolean removeDeclaration(Prolog prolog, ExceptionMetadata metadata) {
+        return prolog != null
+                && (prolog.getDeclarations().removeIf(declaration -> declaration.getMetadata() == metadata)
+                        || prolog.getImportedModules().stream()
+                                .anyMatch(library -> removeDeclaration(library.getProlog(), metadata)));
+    }
+
     /** Stands for an expression that cannot be translated. */
     private static Expression hole() {
         return new VariableReferenceExpression(HOLE, ExceptionMetadata.EMPTY_METADATA);
     }
 
-    /**
-     * The translation of a FLWOR expression takes the clauses to be all the children except its last two, the return
-     * keyword and expression. Recovery may have left any of these out, or added error nodes.
-     */
-    private static void normalizeFlwor(ParserRuleContext flwor, ParseTree returnExpression) {
-        List<ParseTree> normalized = new ArrayList<>();
-        for (ParseTree child : flwor.children) {
-            if (child instanceof ParserRuleContext && child != returnExpression) {
-                normalized.add(child);
-            }
+    /** Leaves out a prolog entry that cannot be translated, so that references to it become unknown. */
+    private static void translateIfPossible(ParseTree entry, Consumer<ParseTree> translation) {
+        try {
+            translation.accept(entry);
+        } catch (RuntimeException exception) {
+            // Everything else in the module is still valid.
         }
-        normalized.add(new TerminalNodeImpl(new CommonToken(Token.INVALID_TYPE)));
-        normalized.add(
-                returnExpression != null
-                        ? returnExpression
-                        : new TerminalNodeImpl(new CommonToken(Token.INVALID_TYPE)));
-        flwor.children = normalized;
     }
 
     private static final class TolerantJsoniqTranslation extends TranslationVisitor {
@@ -192,9 +176,8 @@ public final class TolerantCompiler {
         }
 
         @Override
-        public FlworExpression visitFlworExpr(JsoniqParser.FlworExprContext context) {
-            normalizeFlwor(context, context.return_expr);
-            return super.visitFlworExpr(context);
+        protected void translatePrologEntry(ParseTree entry, Consumer<ParseTree> translation) {
+            translateIfPossible(entry, translation);
         }
 
         @Override
@@ -214,9 +197,8 @@ public final class TolerantCompiler {
         }
 
         @Override
-        public FlworExpression visitFlworExpr(XQueryParser.FlworExprContext context) {
-            normalizeFlwor(context, context.return_expr);
-            return super.visitFlworExpr(context);
+        protected void translatePrologEntry(ParseTree entry, Consumer<ParseTree> translation) {
+            translateIfPossible(entry, translation);
         }
 
         @Override
@@ -235,6 +217,12 @@ public final class TolerantCompiler {
             try {
                 return super.visit(node, argument);
             } catch (RuntimeException exception) {
+                // Each clause visits the next one, so the rest of the chain has not been visited if this clause failed.
+                if (node instanceof Clause clause
+                        && clause.getNextClause() != null
+                        && clause.getNextClause().getStaticContext() == null) {
+                    visit(clause.getNextClause(), argument);
+                }
                 return argument;
             }
         }
@@ -256,89 +244,5 @@ public final class TolerantCompiler {
                 return argument;
             }
         }
-    }
-
-    /**
-     * The source with spaces in place of the prolog declaration at fault, or null when there is none. Positions in the
-     * rest of the source do not change, and references to the declaration become unknown.
-     */
-    private static String blankFailingDeclaration(String source, URI uri, ParseTree prolog, RuntimeException failure) {
-        ParserRuleContext declaration = failingDeclaration(uri, prolog, failure);
-        if (declaration == null) {
-            return null;
-        }
-        // ANTLR indexes code points.
-        int[] codePoints = source.codePoints().toArray();
-        boolean changed = false;
-        for (int i = declaration.getStart().getStartIndex();
-                i <= declaration.getStop().getStopIndex();
-                i++) {
-            if (!Character.isWhitespace(codePoints[i])) {
-                codePoints[i] = ' ';
-                changed = true;
-            }
-        }
-        return changed ? new String(codePoints, 0, codePoints.length) : null;
-    }
-
-    /**
-     * The declaration that the failure is located in. Without such a location, it is the first one with a syntax error,
-     * or else the first module import: recovery can leave a tree that fails anywhere, and a broken library fails with a
-     * location in its own file. Imports come last because they usually still work, and they come first in the prolog.
-     */
-    private static ParserRuleContext failingDeclaration(URI uri, ParseTree prolog, RuntimeException failure) {
-        if (prolog == null) {
-            return null;
-        }
-        List<ParserRuleContext> declarations = new ArrayList<>();
-        for (int i = 0; i < prolog.getChildCount(); i++) {
-            if (prolog.getChild(i) instanceof ParserRuleContext declaration && declaration.getStop() != null) {
-                declarations.add(declaration);
-            }
-        }
-        if (failure instanceof RumbleException rumbleException
-                && rumbleException.getMetadata() != null
-                && uri.toString().equals(rumbleException.getMetadata().getLocation())) {
-            Position position =
-                    Range.fromExceptionMetadata(rumbleException.getMetadata()).start();
-            for (ParserRuleContext declaration : declarations) {
-                if (startOf(declaration.getStart()).compareTo(position) <= 0
-                        && position.compareTo(endOf(declaration.getStop())) <= 0) {
-                    return declaration;
-                }
-            }
-        }
-        return declarations.stream()
-                .filter(TolerantCompiler::hasSyntaxError)
-                .findFirst()
-                .or(() -> declarations.stream()
-                        .filter(TolerantCompiler::isModuleImport)
-                        .findFirst())
-                .orElse(null);
-    }
-
-    private static boolean isModuleImport(ParserRuleContext declaration) {
-        return declaration.getChild(0).getClass().getSimpleName().equals("ModuleImportContext");
-    }
-
-    private static boolean hasSyntaxError(ParseTree tree) {
-        if (tree instanceof ErrorNode || (tree instanceof ParserRuleContext rule && rule.exception != null)) {
-            return true;
-        }
-        for (int i = 0; i < tree.getChildCount(); i++) {
-            if (hasSyntaxError(tree.getChild(i))) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    private static Position startOf(Token token) {
-        return new Position(token.getLine() - 1, token.getCharPositionInLine());
-    }
-
-    private static Position endOf(Token token) {
-        return new Position(
-                token.getLine() - 1, token.getCharPositionInLine() + token.getStopIndex() - token.getStartIndex() + 1);
     }
 }
