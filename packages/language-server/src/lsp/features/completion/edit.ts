@@ -1,6 +1,5 @@
 import {
     CompletionItemKind,
-    InsertReplaceEdit,
     TextEdit,
     type CompletionItem,
     type Range,
@@ -24,33 +23,19 @@ const FUNCTION_USE_PATTERN = /^[ \t]*(?:\((?!:)|#)/;
 
 export type EditContext = Pick<CompletionContext, "document" | "source" | "cursorOffset">;
 
-/**
- * Creates the function that gives an item its final edit. The client either inserts the item up to the cursor or replaces
- * the name being edited, as its settings say. Clients without insert and replace edits always replace.
- */
-export function createItemEditor(
-    context: EditContext,
-    insertReplaceSupport: boolean,
-): (item: CompletionItem) => NonNullable<CompletionItem["textEdit"]> {
+/** Creates the function that gives an item its final edit, which replaces the name being edited. */
+export function createItemEditor(context: EditContext): (item: CompletionItem) => TextEdit {
     const { document, source, cursorOffset } = context;
     const prefix = typedPrefix(source, cursorOffset, NAME_PREFIX_PATTERN) ?? "";
     const suffix = typedSuffix(source, cursorOffset, NAME_SUFFIX_PATTERN);
-    const cursor = document.positionAt(cursorOffset);
 
     return (item) => {
-        if (item.textEdit !== undefined && !TextEdit.is(item.textEdit)) {
-            return item.textEdit;
-        }
-        const edit =
-            item.textEdit ??
-            replaceTypedPrefix(document, cursorOffset, prefix, item.insertText ?? item.label);
+        const edit = TextEdit.is(item.textEdit)
+            ? item.textEdit
+            : replaceTypedPrefix(document, cursorOffset, prefix, item.insertText ?? item.label);
         const replaced = replacedRange(edit, context, suffix);
         const textAfter = source.slice(document.offsetAt(replaced.end));
-        const newText = insertedText(item, edit.newText, textAfter);
-
-        return insertReplaceSupport
-            ? InsertReplaceEdit.create(newText, { start: replaced.start, end: cursor }, replaced)
-            : TextEdit.replace(replaced, newText);
+        return TextEdit.replace(replaced, insertedText(item, edit.newText, textAfter));
     };
 }
 

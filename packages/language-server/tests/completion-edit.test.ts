@@ -25,7 +25,6 @@ describe("function call edits", () => {
                 source,
                 cursorOffset: before.length,
             },
-            false,
         );
 
         expect((item!.textEdit as TextEdit).newText).toBe("Q{urn:test\\}Code");

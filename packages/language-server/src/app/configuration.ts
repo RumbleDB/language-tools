@@ -15,11 +15,6 @@ export const config: Readonly<InitializationOptions> = {
     formatter: { ...DEFAULT_FORMATTER_OPTIONS },
 };
 
-/** What the client declared in its `initialize` request. */
-export const clientSupport = {
-    insertReplaceEdit: false,
-};
-
 export function mergeConfiguration(
     overrides: Partial<InitializationOptions>,
 ): Readonly<InitializationOptions> {

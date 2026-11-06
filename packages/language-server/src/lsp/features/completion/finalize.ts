@@ -5,9 +5,8 @@ import { createItemEditor, type EditContext } from "./edit.js";
 export function finalizeCompletionItems(
     items: CompletionItem[],
     context: EditContext,
-    insertReplaceSupport: boolean,
 ): CompletionItem[] {
-    const toEdit = createItemEditor(context, insertReplaceSupport);
+    const toEdit = createItemEditor(context);
 
     return [...items]
         .sort((left, right) =>

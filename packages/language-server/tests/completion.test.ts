@@ -4,7 +4,6 @@ import {
     CompletionItemKind,
     InsertTextFormat,
     type CompletionItem,
-    type InsertReplaceEdit,
     type Position,
     type TextEdit,
 } from "vscode-languageserver";
@@ -662,28 +661,32 @@ describe("JSONiq completion", () => {
     );
 
     it.each([
-        ["an object field", 'let $a := {"test": 1, "c": 2} return $a.', "test", "c", "test".length],
-        ["a word being edited", "let $a := 1 re", "turn 1", "return", "turn".length],
-        ["a word in front of the cursor", "let $a := 1 ", "return 1", "where", 0],
+        [
+            "an object field",
+            'let $a := {"test": 1, "c": 2} return $a.',
+            "test",
+            "c",
+            0,
+            "test".length,
+        ],
+        ["a word being edited", "let $a := 1 re", "turn 1", "return", 2, "turn".length],
     ])(
-        "offers insert and replace edits for %s",
-        async (_name, before, after, label, replaced) => {
-            const document = testDocument(`completion-insert-replace-${label}`, before + after);
-            const cursor = document.positionAt(before.length);
+        "replaces %s up to its end",
+        async (_name, before, after, label, typed, replaced) => {
+            const document = testDocument(`completion-replace-${label}`, before + after);
 
             const items = await findCompletions(
                 document,
-                cursor,
+                document.positionAt(before.length),
                 parserService,
                 workspaceService,
                 wrapperClient,
-                true,
             );
 
-            const edit = items.find((item) => item.label === label)?.textEdit as InsertReplaceEdit;
-            expect(edit.insert.end).toEqual(cursor);
-            expect(edit.replace.start).toEqual(edit.insert.start);
-            expect(edit.replace.end).toEqual(document.positionAt(before.length + replaced));
+            const edit = items.find((item) => item.label === label)?.textEdit as TextEdit;
+            expect(TextDocument.applyEdits(document, [edit])).toBe(
+                `${before.slice(0, before.length - typed)}${label}${after.slice(replaced)}`,
+            );
         },
         45_000,
     );

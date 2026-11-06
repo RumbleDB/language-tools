@@ -96,13 +96,11 @@
         "configurationDefaults": {
             "[jsoniq]": {
                 "editor.wordBasedSuggestions": "off",
-                "editor.suggest.showWords": false,
-                "editor.suggest.insertMode": "replace"
+                "editor.suggest.showWords": false
             },
             "[xquery]": {
                 "editor.wordBasedSuggestions": "off",
-                "editor.suggest.showWords": false,
-                "editor.suggest.insertMode": "replace"
+                "editor.suggest.showWords": false
             }
         },
         "commands": [
