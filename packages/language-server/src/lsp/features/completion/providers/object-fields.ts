@@ -7,7 +7,7 @@ import type { CompletionProvider, CompletionContext } from "../types.js";
 
 const OBJECT_FIELD_PREFIX_PATTERN = /[A-Za-z_][A-Za-z0-9_:-]*$/;
 /** The field name after the cursor, quoted or not. Only one name fits after a dot, so it is always the one replaced. */
-const OBJECT_FIELD_SUFFIX_PATTERN = /^(?:"[^"\n]*"|[\w:-]*)/;
+const OBJECT_FIELD_SUFFIX_PATTERN = /^(?:"[^"\n]*"|[\w-]*(?::[\w-]+)?)/;
 const UNQUOTED_FIELD_NAME_PATTERN = /^[A-Za-z_][A-Za-z0-9_-]*$/;
 
 interface DotCompletionContext {

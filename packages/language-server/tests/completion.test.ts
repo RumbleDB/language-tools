@@ -662,6 +662,70 @@ describe("JSONiq completion", () => {
 
     it.each([
         [
+            "a variable",
+            "let $abc := 1 return { $a",
+            ": 1 }",
+            "$abc",
+            "let $abc := 1 return { $abc: 1 }",
+        ],
+        ["a keyword", "{ tr", ": 1 }", "true", "{ true: 1 }"],
+        [
+            "an assignment",
+            "variable $abc := 1; $ab",
+            ":= 3",
+            "$abc",
+            "variable $abc := 1; $abc:= 3",
+        ],
+        [
+            "an object field",
+            'let $o := {"bc": 1} return { $o.b',
+            ": 1 }",
+            "bc",
+            'let $o := {"bc": 1} return { $o.bc: 1 }',
+        ],
+    ])(
+        "keeps a colon after %s",
+        async (_name, before, after, label, expected) => {
+            const document = testDocument(`completion-keep-colon-${label}`, before + after);
+
+            const items = await findCompletions(
+                document,
+                document.positionAt(before.length),
+                parserService,
+                workspaceService,
+                wrapperClient,
+            );
+
+            const edit = items.find((item) => item.label === label)?.textEdit as TextEdit;
+            expect(TextDocument.applyEdits(document, [edit])).toBe(expected);
+        },
+        45_000,
+    );
+
+    it.each([
+        ["a parenthesized expression", "", "(1, 2)"],
+        ["a pragma", "con", "cat (# p #) { 1 }"],
+    ])(
+        "inserts the whole call before %s",
+        async (name, before, after) => {
+            const document = testDocument(`completion-whole-call-${name}`, before + after);
+
+            const items = await findCompletions(
+                document,
+                document.positionAt(before.length),
+                parserService,
+                workspaceService,
+                wrapperClient,
+            );
+
+            const item = items.find((candidate) => candidate.label === "fn:concat");
+            expect((item!.textEdit as TextEdit).newText).toBe(item!.insertText);
+        },
+        45_000,
+    );
+
+    it.each([
+        [
             "an object field",
             'let $a := {"test": 1, "c": 2} return $a.',
             "test",

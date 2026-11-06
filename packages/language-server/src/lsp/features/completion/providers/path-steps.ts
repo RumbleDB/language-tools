@@ -14,7 +14,7 @@ import type { CompletionContext, CompletionProvider } from "../types.js";
 const STEP_PATTERN = /(?<![\w.$@:#"'-])(@?)((?:[A-Za-z_][\w.-]*:)?[\w.-]*)$/;
 
 /** The step after the cursor, which may be an attribute. Only one step fits after a slash, so it is the one replaced. */
-const STEP_SUFFIX_PATTERN = /^@?[\w.:-]*/;
+const STEP_SUFFIX_PATTERN = /^@?[\w.-]*(?::[\w.-]+)?/;
 
 /** Ranks the declared steps, children before attributes, before keywords, functions and variables, which sort from `0:`. */
 const PATH_STEP_SORT_PREFIX = "0:0:";
