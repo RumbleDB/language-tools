@@ -1,3 +1,4 @@
+import type { Token } from "antlr4ng";
 import {
     getVisibleDeclarationsAtPosition,
     QNameToString,
@@ -7,7 +8,7 @@ import {
 } from "server/analysis/index.js";
 import type { WrapperClient } from "server/integrations/rumble/client.js";
 import type { ParserService } from "server/parser/index.js";
-import { getDocumentText } from "server/parser/utils.js";
+import { defaultTokenAt, getDocumentText } from "server/parser/utils.js";
 import type { WorkspaceService } from "server/workspace/service.js";
 import { TextEdit, type CompletionItem, type Position } from "vscode-languageserver";
 import type { TextDocument } from "vscode-languageserver-textdocument";
@@ -58,13 +59,28 @@ export function createCompletionContext(
     };
 }
 
+/** A token that is a name or keyword, rather than punctuation or a literal. */
+const NAME_TOKEN_PATTERN = /^[A-Za-z_]/;
+
 export function typedPrefix(source: string, cursorOffset: number, pattern: RegExp): string | null {
     return source.slice(0, cursorOffset).match(pattern)?.[0] ?? null;
 }
 
-/** What the pattern, which must start with `^`, matches right after the cursor. */
-export function typedSuffix(source: string, cursorOffset: number, pattern: RegExp): string {
-    return source.slice(cursorOffset).match(pattern)?.[0] ?? "";
+/** Where the name that continues up to the offset starts, or the offset when no name ends there. */
+export function nameStart(tokens: Token[], offset: number): number {
+    const token = defaultTokenAt(tokens, offset - 1);
+    return token !== undefined && NAME_TOKEN_PATTERN.test(token.text ?? "") ? token.start : offset;
+}
+
+/** Where the name at the offset ends, or the offset when there is none. A step's `@` goes with the name after it. */
+export function nameEnd(tokens: Token[], offset: number): number {
+    const token = defaultTokenAt(tokens, offset);
+    if (token?.text === "@") {
+        return nameEnd(tokens, token.stop + 1);
+    }
+    return token !== undefined && NAME_TOKEN_PATTERN.test(token.text ?? "")
+        ? token.stop + 1
+        : offset;
 }
 
 /** Offer bound aliases and a local name when the caller supplies a matching default namespace. */

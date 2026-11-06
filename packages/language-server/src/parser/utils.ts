@@ -39,6 +39,29 @@ export function previousDefaultToken(tokens: Token[], offset: number): Token | u
     return undefined;
 }
 
+/** The first token on the default channel that starts at or after the offset, skipping whitespace and comments. */
+export function nextDefaultTokenAt(tokens: Token[], offset: number): Token | undefined {
+    const after = lowerBound(tokens, offset, (token, target) => token.start - target);
+    for (let index = after; index < tokens.length; index += 1) {
+        const token = tokens[index]!;
+        if (token.channel === Token.DEFAULT_CHANNEL && token.type !== Token.EOF) {
+            return token;
+        }
+    }
+    return undefined;
+}
+
+/** The token on the default channel that the offset is inside or at the start of. */
+export function defaultTokenAt(tokens: Token[], offset: number): Token | undefined {
+    const index = lowerBound(tokens, offset + 1, (token, target) => token.start - target) - 1;
+    const token = tokens[index];
+    return token?.channel === Token.DEFAULT_CHANNEL &&
+        token.type !== Token.EOF &&
+        offset <= token.stop
+        ? token
+        : undefined;
+}
+
 export function findCaretToken(
     tokens: Token[],
     cursorOffset: number,

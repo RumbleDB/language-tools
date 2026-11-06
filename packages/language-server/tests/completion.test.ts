@@ -533,10 +533,10 @@ describe("JSONiq completion", () => {
         ["nothing on the next line", "$a.", "\nreturn $a", "c", "$a.c\nreturn $a"],
     ])(
         "replaces %s when accepting an object field",
-        async (_name, before, after, label, expected) => {
+        async (name, before, after, label, expected) => {
             const prefix = 'let $a := {"test": 1, "c": 2} order by ';
             const document = testDocument(
-                `completion-dot-object-replace-${label}-${after.length}`,
+                `completion-dot-object-replace-${encodeURIComponent(name)}`,
                 [prefix + before + after],
             );
 
@@ -723,6 +723,176 @@ describe("JSONiq completion", () => {
         },
         45_000,
     );
+
+    it.each([
+        ["a space", 'let $a := {"bc": 1} return $a. ', "", "bc"],
+        ["a space and a name", 'let $a := {"bc": 1} return $a. b', "", "bc"],
+        ["a new line", 'let $a := {"bc": 1} return $a.\n', "", "bc"],
+        ["a new line and a name", 'let $a := {"bc": 1} return $a.\nb', "", "bc"],
+        ["a comment", 'let $a := {"bc": 1} return $a.(: c :)', "", "bc"],
+        ["a comment and a name", 'let $a := {"bc": 1} return $a.(: c :) b', "", "bc"],
+        ["a name after the cursor", 'let $a := {"bc": 1} return $a. b', "x", "bc"],
+    ])(
+        "suggests object fields after a dot and %s",
+        async (name, before, after, label) => {
+            const document = testDocument(
+                `completion-spaced-dot-${encodeURIComponent(name)}`,
+                before + after,
+            );
+
+            const items = await findCompletions(
+                document,
+                document.positionAt(before.length),
+                parserService,
+                workspaceService,
+                wrapperClient,
+            );
+
+            const edit = items.find((item) => item.label === label)?.textEdit as TextEdit;
+            const typedStart = before.endsWith("b") ? before.length - 1 : before.length;
+            expect(TextDocument.applyEdits(document, [edit])).toBe(
+                `${before.slice(0, typedStart)}${label}`,
+            );
+        },
+        45_000,
+    );
+
+    it("does not suggest object fields after a finished lookup", async () => {
+        const source = 'let $a := {"bc": 1} return $a.bc ';
+        const document = testDocument("completion-after-lookup", source);
+
+        const items = await findCompletions(
+            document,
+            document.positionAt(source.length),
+            parserService,
+            workspaceService,
+            wrapperClient,
+        );
+
+        expect(items.map((item) => item.label)).not.toContain("bc");
+    }, 45_000);
+
+    it.each([
+        ["after a comment", "con", "cat (: c :) (1)", "fn:concat", "fn:concat (: c :) (1)"],
+        [
+            "after a slash",
+            "let $a := 1 return $a/",
+            "test(1)",
+            "fn:abs",
+            "let $a := 1 return $a/fn:abs(1)",
+        ],
+    ])(
+        "only inserts the name of a function before arguments %s",
+        async (_name, before, after, label, expected) => {
+            const document = testDocument(`completion-called-${before}${after}`, before + after);
+
+            const items = await findCompletions(
+                document,
+                document.positionAt(before.length),
+                parserService,
+                workspaceService,
+                wrapperClient,
+            );
+
+            const edit = items.find((item) => item.label === label)?.textEdit as TextEdit;
+            expect(TextDocument.applyEdits(document, [edit])).toBe(expected);
+        },
+        45_000,
+    );
+
+    it("replaces a name after a slash with any item", async () => {
+        const before = "let $a := 1 return $a/";
+        const source = `${before}test`;
+        const document = testDocument("completion-after-slash", source);
+
+        const items = await findCompletions(
+            document,
+            document.positionAt(before.length),
+            parserService,
+            workspaceService,
+            wrapperClient,
+        );
+
+        const item = items.find((candidate) => candidate.label === "fn:abs");
+        expect(TextDocument.applyEdits(document, [item!.textEdit as TextEdit])).toBe(
+            `${before}${item!.insertText}`,
+        );
+    }, 45_000);
+
+    it("replaces a wildcard in an error code", async () => {
+        const before = "try { 1 } catch err:";
+        const source = `${before}* { 2 }`;
+        const document = testDocument("completion-error-wildcard", source);
+
+        const items = await findCompletions(
+            document,
+            document.positionAt(before.length),
+            parserService,
+            workspaceService,
+            wrapperClient,
+        );
+
+        const item = items.find((candidate) => candidate.label === "err:FOAR0001");
+        expect(TextDocument.applyEdits(document, [item!.textEdit as TextEdit])).toBe(
+            "try { 1 } catch err:FOAR0001 { 2 }",
+        );
+    }, 45_000);
+
+    it.each([
+        ["for $x in 1 or", "der by $x return 1", "order by", "for $x in 1 order by $x return 1"],
+        ["for $x in 1 gr", "oup by $x return 1", "group by", "for $x in 1 group by $x return 1"],
+        ["for $x in 1 or", "der by\n$x return 1", "order by", "for $x in 1 order by\n$x return 1"],
+        ["for $x in 1 or", "der $x return 1", "order by", "for $x in 1 order by $x return 1"],
+        [
+            "for $x in 1 or",
+            "der\nby $x return 1",
+            "order by",
+            "for $x in 1 order by\nby $x return 1",
+        ],
+        ["for $x in 1 ", "order by $x return 1", "where", "for $x in 1 whereorder by $x return 1"],
+    ])(
+        "replaces the written words of a keyword at %s|%s",
+        async (before, after, label, expected) => {
+            const document = testDocument(
+                `completion-words-${before}${after}${label}`,
+                before + after,
+            );
+
+            const items = await findCompletions(
+                document,
+                document.positionAt(before.length),
+                parserService,
+                workspaceService,
+                wrapperClient,
+            );
+
+            const edit = items.find((item) => item.label === label)?.textEdit as TextEdit;
+            expect(TextDocument.applyEdits(document, [edit])).toBe(expected);
+        },
+        45_000,
+    );
+
+    it("treats a dot as part of a name in XQuery", async () => {
+        const before = "let $a.b := 1 return $a";
+        const source = `${before}.b`;
+        const document = testDocumentFromUri(source, {
+            uri: "file:///completion-xquery-dot.xq",
+            languageId: "xquery",
+        });
+
+        const items = await findCompletions(
+            document,
+            document.positionAt(before.length),
+            parserService,
+            workspaceService,
+            wrapperClient,
+        );
+
+        const item = items.find((candidate) => candidate.label === "$a.b");
+        expect(TextDocument.applyEdits(document, [item!.textEdit as TextEdit])).toBe(
+            "let $a.b := 1 return $a.b",
+        );
+    }, 45_000);
 
     it.each([
         [
