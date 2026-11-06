@@ -129,7 +129,7 @@ public final class FocusAtPosition implements RequestHandler {
             return new Focus(filter.getMainExpression(), false);
         }
         if (node instanceof SimpleMapExpression map) {
-            return new Focus((Expression) map.getChildren().get(0), false);
+            return new Focus(map.getLeftExpression(), false);
         }
         if (node instanceof SlashExpr slash) {
             // E//S abbreviates E/descendant-or-self::node()/S, so S applies to the descendants of E, and the step that

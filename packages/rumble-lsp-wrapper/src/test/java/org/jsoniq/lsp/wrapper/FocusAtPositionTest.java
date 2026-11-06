@@ -79,6 +79,8 @@ class FocusAtPositionTest {
                 "let $b := $a.| let $c := return 1",
                 "let $b := $a.| return $nope",
                 "return $a.|\n(1, 2)",
+                "return some $x in $a.|",
+                "return every $x in $a.|",
             })
     void findsWhatAnObjectLookupAppliesTo(String markedQuery) {
         assertEquals(OBJECT, focusType(LET_A + markedQuery, JSONIQ_URI));
@@ -116,6 +118,16 @@ class FocusAtPositionTest {
                 "return $o !|",
                 "return $o !| ",
                 "return $o !| o:",
+                "return <x>{$o/|}</x>",
+                "return <x>{$o !|}</x>",
+                "return <x y=\"{$o/|}\"/>",
+                "return <x>{$o/|",
+                "return <x>{$o/|}",
+                "return <x><y>{$o/|}",
+                "return <x>text {$o/|}",
+                "return <x>{$o/|}</y>",
+                "return <x y=\"{$o/|}\"",
+                "return some $x in $o/|",
             })
     void listsTheStepsThatTheSchemaDeclares(String markedQuery, @TempDir Path directory) throws IOException {
         for (String extension : List.of("xq", "jq")) {
