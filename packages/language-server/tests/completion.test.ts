@@ -519,6 +519,31 @@ describe("JSONiq completion", () => {
         }
     }, 45_000);
 
+    it("suggests object fields in a query that is still being typed", async () => {
+        const binding = 'let $a := {"name": "Ada", "age": 42}';
+        for (const [name, source, after] of [
+            ["no-return", `${binding} let $b := $a.`, ""],
+            ["unclosed-paren", `${binding} return ($a.`, ""],
+            ["unclosed-call", `${binding} return abs($a.`, ""],
+            ["broken-next-clause", `${binding} let $b := $a.`, " let $c := return 1"],
+            ["undeclared-later", `${binding} let $b := $a.`, " return $nope"],
+        ] as const) {
+            const document = testDocument(`completion-dot-object-incomplete-${name}`, [
+                source + after,
+            ]);
+
+            const items = await findCompletions(
+                document,
+                document.positionAt(source.length),
+                parserService,
+                workspaceService,
+                wrapperClient,
+            );
+
+            expect(labels(items), source + after).toEqual(expect.arrayContaining(["age", "name"]));
+        }
+    }, 45_000);
+
     it("suggests builtin functions when typing 'fn:' in JSONiq", async () => {
         const document = testDocument("completion-fn-prefix", "fn:");
         const items = await findCompletions(

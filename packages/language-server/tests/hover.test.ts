@@ -43,6 +43,48 @@ function typeWrapper(range?: Range, sequenceType?: SequenceType) {
     });
 }
 
+describe("hover in a query that RumbleDB rejects", () => {
+    it.each([
+        ["missing return", 'let $x := {"a": 1}'],
+        ["dangling dot", 'let $x := {"a": 1} return $x.'],
+        ["undeclared variable", 'let $x := {"a": 1} return $x.a + $nope'],
+        ["broken declaration", 'declare variable $b := ; let $x := {"a": 1} return $x'],
+    ])(
+        "shows the type of a binding despite a %s",
+        async (_name, source) => {
+            const document = testDocument(`hover-incomplete-${_name.replace(" ", "-")}`, source);
+
+            const hover = await findHover(
+                document,
+                positionAt(document, "$x"),
+                workspaceService,
+                wrapperClient,
+            );
+
+            expect(hover?.contents).toMatchObject({
+                value: expect.stringContaining("$x as { a: xs:integer }"),
+            });
+        },
+        45_000,
+    );
+
+    it("shows nothing for what failed to compile", async () => {
+        const document = testDocument(
+            "hover-incomplete-unknown-function",
+            "let $x := 1 return nope($x)",
+        );
+
+        const hover = await findHover(
+            document,
+            positionAt(document, "nope"),
+            workspaceService,
+            wrapperClient,
+        );
+
+        expect(hover).toBeNull();
+    }, 45_000);
+});
+
 describe("semantic hover ranges", () => {
     let documentId = 0;
     function document(source: string, languageId = "jsoniq") {

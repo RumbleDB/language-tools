@@ -1,4 +1,3 @@
 target/
-./rumbledb/
-rumbledb
+/rumbledb
 generated-resources/

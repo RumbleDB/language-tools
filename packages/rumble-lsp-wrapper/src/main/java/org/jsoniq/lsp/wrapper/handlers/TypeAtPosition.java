@@ -17,6 +17,7 @@ import org.jsoniq.lsp.wrapper.types.SequenceType;
 
 import org.rumbledb.bindings.ExternalBindings;
 import org.rumbledb.compiler.CompilationPipeline;
+import org.rumbledb.compiler.TolerantCompiler;
 import org.rumbledb.config.CompilationConfiguration;
 import org.rumbledb.config.RumbleConfiguration;
 import org.rumbledb.context.Name;
@@ -34,7 +35,7 @@ import org.rumbledb.expressions.flowr.GroupByVariableDeclaration;
 import org.rumbledb.expressions.flowr.LetClause;
 import org.rumbledb.expressions.flowr.WindowClause;
 import org.rumbledb.expressions.module.FunctionDeclaration;
-import org.rumbledb.expressions.module.MainModule;
+import org.rumbledb.expressions.module.Module;
 import org.rumbledb.expressions.module.VariableDeclaration;
 import org.rumbledb.expressions.postfix.ObjectLookupExpression;
 import org.rumbledb.expressions.primary.InlineFunctionExpression;
@@ -101,11 +102,12 @@ public final class TypeAtPosition implements RequestHandler {
         }
 
         try {
-            MainModule module = CompilationPipeline.compileMainModule(
-                    query, documentUri, new CompilationConfiguration(this.configuration), ExternalBindings.empty());
+            Module module = compile(query, documentUri);
             List<Candidate> candidates = new TypeAtPositionVisitor().visit(module, new ArrayList<>());
             Candidate candidate = selectCandidate(candidates, position);
-            if (candidate == null || candidate.sequenceType() == null) {
+            if (candidate == null
+                    || candidate.sequenceType() == null
+                    || TolerantCompiler.isUnknown(candidate.sequenceType())) {
                 return EMPTY_RESULT;
             }
             return new Result(
@@ -117,11 +119,21 @@ public final class TypeAtPosition implements RequestHandler {
         }
     }
 
+    /** Compiles the query as RumbleDB would, or when it rejects the query, as far as its valid parts allow. */
+    private Module compile(String query, URI documentUri) {
+        try {
+            return CompilationPipeline.compileMainModule(
+                    query, documentUri, new CompilationConfiguration(this.configuration), ExternalBindings.empty());
+        } catch (RuntimeException exception) {
+            return TolerantCompiler.compile(query, documentUri, this.configuration);
+        }
+    }
+
     /**
      * The requested steps that the schema declares for items of the type, or null when none are requested or the items
      * are not schema-typed.
      */
-    private static List<PathStep> pathSteps(MainModule module, ItemType itemType, Request.PathSteps pathSteps) {
+    private static List<PathStep> pathSteps(Module module, ItemType itemType, Request.PathSteps pathSteps) {
         // Only load the schema catalog when steps are requested for schema-typed nodes.
         if (pathSteps == null || !SchemaContentModel.isSchemaTyped(itemType)) {
             return null;
@@ -185,7 +197,10 @@ public final class TypeAtPosition implements RequestHandler {
                 ExceptionMetadata activationMetadata,
                 ExceptionMetadata resultMetadata,
                 org.rumbledb.types.SequenceType sequenceType) {
-            if (activationMetadata == null || resultMetadata == null || sequenceType == null) {
+            if (activationMetadata == null
+                    || resultMetadata == null
+                    || sequenceType == null
+                    || TolerantCompiler.isSynthetic(activationMetadata)) {
                 return null;
             }
             return new Candidate(
