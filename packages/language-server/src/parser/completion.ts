@@ -11,7 +11,7 @@ import {
     LanguageKeywordCompletion,
 } from "./types/completion.js";
 import { ParseResult } from "./types/result.js";
-import { findCaretToken } from "./utils.js";
+import { findCaretToken, previousDefaultToken } from "./utils.js";
 
 const logger = createLogger("completion");
 
@@ -119,7 +119,30 @@ function isInCommentOrString(
     const token = parsed.tokens[after - 1];
     const inComment =
         token !== undefined && options.isCommentToken(token.type) && cursorOffset <= token.stop;
-    return inComment || containsStringAt(parsed.tree, cursorOffset, options.isStringLiteralRule);
+    if (inComment || isInUnterminatedComment(parsed, cursorOffset, options.isStringLiteralRule)) {
+        return true;
+    }
+    // Whitespace after an unterminated string is not part of its rule, so look from the end of the last token.
+    const previous = previousDefaultToken(parsed.tokens, cursorOffset);
+    return (
+        previous !== undefined &&
+        containsStringAt(parsed.tree, previous.stop + 1, options.isStringLiteralRule)
+    );
+}
+
+/** The lexer only makes a comment token of a closed comment. Without one, `(:` stays two tokens to the end of the text. */
+function isInUnterminatedComment(
+    { tokens, tree }: ParseResult,
+    cursorOffset: number,
+    isStringLiteralRule: (ruleIndex: number) => boolean,
+): boolean {
+    return tokens.some(
+        (token, index) =>
+            token.text === "(" &&
+            tokens[index + 1]?.text === ":" &&
+            tokens[index + 1]!.stop < cursorOffset &&
+            !containsStringAt(tree, token.start, isStringLiteralRule),
+    );
 }
 
 function containsStringAt(

@@ -604,6 +604,32 @@ describe("JSONiq completion", () => {
         expect(labels(items)).toContain("fn:concat");
     });
 
+    it.each([
+        "(: note",
+        "(: note ",
+        "(:",
+        "1 + (: note",
+        "(: a (: b :) c",
+        '"open ',
+        "'open ",
+        '1 + "open string ',
+    ])("offers nothing inside the unterminated %s", (source) => {
+        for (const extension of ["jq", "xq"]) {
+            const document = testDocumentFromUri(source, {
+                uri: `file:///completion-unterminated-${encodeURIComponent(source)}.${extension}`,
+            });
+            expect(parserService.collectCompletionIntent(document, source.length)).toBeNull();
+        }
+    });
+
+    it.each(['"(: a" + ', "(: a :) ", "(", '"a" ', "1 (: a :) + "])(
+        "still offers items after %s",
+        (source) => {
+            const document = testDocument(`completion-after-${encodeURIComponent(source)}`, source);
+            expect(parserService.collectCompletionIntent(document, source.length)).not.toBeNull();
+        },
+    );
+
     it("does not allow functions after a prefix in a catch target", () => {
         const source = "try { 1 div 0 } catch err:";
         const document = testDocument("completion-catch-prefix-intent", source);
