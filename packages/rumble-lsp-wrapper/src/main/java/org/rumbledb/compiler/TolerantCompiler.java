@@ -275,9 +275,9 @@ public final class TolerantCompiler {
     }
 
     /**
-     * The declaration that the failure is located in. Without such a location, it is the first one with a syntax error
-     * or a module import: recovery can leave a tree that fails anywhere, and a broken library fails with a location in
-     * its own file.
+     * The declaration that the failure is located in. Without such a location, it is the first one with a syntax error,
+     * or else the first module import: recovery can leave a tree that fails anywhere, and a broken library fails with a
+     * location in its own file. Imports come last because they usually still work, and they come first in the prolog.
      */
     private static ParserRuleContext failingDeclaration(ParseTree prolog, RuntimeException failure) {
         if (prolog == null) {
@@ -302,8 +302,11 @@ public final class TolerantCompiler {
             }
         }
         return declarations.stream()
-                .filter(declaration -> hasSyntaxError(declaration) || isModuleImport(declaration))
+                .filter(TolerantCompiler::hasSyntaxError)
                 .findFirst()
+                .or(() -> declarations.stream()
+                        .filter(TolerantCompiler::isModuleImport)
+                        .findFirst())
                 .orElse(null);
     }
 

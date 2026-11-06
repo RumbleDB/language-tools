@@ -111,6 +111,16 @@ class TolerantTypeAtPositionTest {
     }
 
     @Test
+    void keepsWorkingImportWhenAnotherDeclarationIsBroken(@TempDir Path directory) throws IOException {
+        Files.writeString(directory.resolve("lib.jq"), LIBRARY);
+        assertEquals(
+                "xs:integer",
+                typeAt(
+                        LIBRARY_IMPORT + "declare function g( { 1 };\nlet $x| := $l:v return $x",
+                        directory.resolve("query.jq").toUri()));
+    }
+
+    @Test
     void usesTheFunctionsOfTheLanguageOfTheModule() {
         assertEquals("xs:integer", typeAt("let $y| := integer(\"1\") return nope()", JSONIQ_URI));
         assertNull(typeAt("let $y| := integer(\"1\") return nope()", XQUERY_URI));
