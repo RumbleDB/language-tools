@@ -79,13 +79,9 @@ export function formatModule(node: ctx.ModuleContext, visit: Visit): Doc {
         parts.push(visit(node._decl));
     }
 
-    const libraryModule = node.libraryModule();
-    if (libraryModule) {
-        parts.push(visit(libraryModule));
-    } else {
-        const mainModules = node.mainModule();
-        const modules = Array.isArray(mainModules) ? mainModules : mainModules ? [mainModules] : [];
-        parts.push(...modules.map(visit));
+    const module = node.libraryModule() ?? node.mainModule();
+    if (module) {
+        parts.push(visit(module));
     }
     return join(concat([hardline, hardline]), parts);
 }

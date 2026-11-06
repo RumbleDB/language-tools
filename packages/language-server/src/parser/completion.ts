@@ -229,7 +229,9 @@ function collectCompletionCandidates<T extends TokenContextAnalyzer>(
     core.ignoredTokens = options.ignoredTokens;
     core.preferredRules = options.preferredRules;
 
-    let candidates = core.collectCandidates(caret.tokenIndex);
+    // Without a context, c3 starts from rule 0. That is not the entry rule, because
+    // ANTLR places a grammar's imported rules after its own.
+    let candidates = core.collectCandidates(caret.tokenIndex, parsed.tree);
     const previous = parsed.tokens
         .filter(
             (token) =>
