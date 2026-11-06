@@ -3,7 +3,6 @@ package org.rumbledb.compiler;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.function.Supplier;
 
 import org.antlr.v4.runtime.CharStreams;
 import org.antlr.v4.runtime.CommonToken;
@@ -15,6 +14,7 @@ import org.antlr.v4.runtime.ParserRuleContext;
 import org.antlr.v4.runtime.Token;
 import org.antlr.v4.runtime.tree.ErrorNode;
 import org.antlr.v4.runtime.tree.ParseTree;
+import org.antlr.v4.runtime.tree.ParseTreeVisitor;
 import org.antlr.v4.runtime.tree.TerminalNodeImpl;
 import org.antlr.v4.runtime.tree.Trees;
 import org.jsoniq.lsp.wrapper.Position;
@@ -77,7 +77,7 @@ public final class TolerantCompiler {
         while (true) {
             Parsed parsed = parse(source, uri, compilation, language);
             try {
-                return analyze(parsed.translate().get(), compilation);
+                return analyze(parsed.translate(), compilation);
             } catch (RuntimeException exception) {
                 // A prolog declaration is translated outside of any expression, so failures in it are not contained.
                 String withoutDeclaration = blankFailingDeclaration(source, uri, parsed.prolog(), exception);
@@ -89,7 +89,17 @@ public final class TolerantCompiler {
         }
     }
 
-    private record Parsed(Supplier<Module> translate, ParseTree prolog) {}
+    private record Parsed(ParseTree module, ParseTreeVisitor<Node> translation, int prologRule) {
+        Module translate() {
+            return (Module) this.translation.visit(this.module);
+        }
+
+        ParseTree prolog() {
+            return Trees.findAllRuleNodes(this.module, this.prologRule).stream()
+                    .findFirst()
+                    .orElse(null);
+        }
+    }
 
     private static Parsed parse(String source, URI uri, CompilationConfiguration compilation, Language language) {
         StaticContext context = ModuleParser.createModuleContext(uri, compilation.runtimeConfiguration());
@@ -101,18 +111,18 @@ public final class TolerantCompiler {
         if (language == Language.XQUERY) {
             CommonTokenStream tokens = tokens(new XQueryLexer(CharStreams.fromString(source)));
             XQueryParser parser = recovering(new XQueryParser(tokens));
-            XQueryParser.ModuleContext tree = parser.moduleAndThisIsIt().module();
             return new Parsed(
-                    () -> (Module) new TolerantXQueryTranslation(context, compilation, source, tokens).visit(tree),
-                    prolog(tree, XQueryParser.RULE_prolog));
+                    parser.moduleAndThisIsIt().module(),
+                    new TolerantXQueryTranslation(context, compilation, source, tokens),
+                    XQueryParser.RULE_prolog);
         }
 
         CommonTokenStream tokens = tokens(new JsoniqLexer(CharStreams.fromString(source)));
         JsoniqParser parser = recovering(new JsoniqParser(tokens));
-        JsoniqParser.ModuleContext tree = parser.moduleAndThisIsIt().module();
         return new Parsed(
-                () -> (Module) new TolerantJsoniqTranslation(context, compilation, source, tokens).visit(tree),
-                prolog(tree, JsoniqParser.RULE_prolog));
+                parser.moduleAndThisIsIt().module(),
+                new TolerantJsoniqTranslation(context, compilation, source, tokens),
+                JsoniqParser.RULE_prolog);
     }
 
     private static CommonTokenStream tokens(Lexer lexer) {
@@ -124,10 +134,6 @@ public final class TolerantCompiler {
         parser.removeErrorListeners();
         parser.setErrorHandler(new DeclarationPreservingErrorStrategy());
         return parser;
-    }
-
-    private static ParseTree prolog(ParseTree module, int prologRule) {
-        return Trees.findAllRuleNodes(module, prologRule).stream().findFirst().orElse(null);
     }
 
     /**
