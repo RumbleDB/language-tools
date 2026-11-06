@@ -154,6 +154,14 @@ class FocusAtPositionTest {
         }
     }
 
+    @ParameterizedTest
+    @ValueSource(strings = {"\n", "\r", "\r\n"})
+    void countsEveryLineEndingThatEditorsCount(String lineEnding) {
+        String query = LET_A + lineEnding + "return $a.";
+        var focus = this.focusAtPosition.findFocus(query, JSONIQ_URI, new Position(1, "return $a.".length()));
+        assertEquals(OBJECT, focus.sequenceType().toString());
+    }
+
     @Test
     void listsNoStepsForUntypedNodes() {
         assertNull(find("let $x := <order/> return $x/|", XQUERY_URI).pathSteps());

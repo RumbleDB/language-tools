@@ -78,8 +78,13 @@ public final class TolerantCompiler {
     public static Module compile(String query, URI uri, RumbleConfiguration configuration) {
         Language language = ModuleParser.detectLanguage(query, uri, configuration);
         CompilationConfiguration compilation = new CompilationConfiguration(configuration);
-        Parsed parsed = parse(query, uri, compilation, language);
+        Parsed parsed = parse(withoutBareCarriageReturns(query), uri, compilation, language);
         return analyze((Module) parsed.translation().visit(parsed.module()), compilation);
+    }
+
+    /** Editors count a carriage return as a line ending and the lexer does not. This keeps every offset the same. */
+    private static String withoutBareCarriageReturns(String query) {
+        return query.replaceAll("\\r(?!\\n)", "\n");
     }
 
     private record Parsed(ParseTree module, ParseTreeVisitor<Node> translation) {}
