@@ -121,6 +121,18 @@ class TolerantTypeAtPositionTest {
     }
 
     @Test
+    void keepsDeclarationOnTheLineOfAnErrorInALibrary(@TempDir Path directory) throws IOException {
+        Files.writeString(
+                directory.resolve("broken.jq"), "module namespace m = \"urn:m\";\n\n\n\ndeclare variable $m:a := ;\n");
+        assertEquals(
+                OBJECT,
+                typeAt(
+                        "import module namespace m = \"urn:m\" at \"broken.jq\";\n\n\n\n"
+                                + "declare variable $keep| := {\"a\": 1};\n$keep",
+                        directory.resolve("query.jq").toUri()));
+    }
+
+    @Test
     void usesTheFunctionsOfTheLanguageOfTheModule() {
         assertEquals("xs:integer", typeAt("let $y| := integer(\"1\") return nope()", JSONIQ_URI));
         assertNull(typeAt("let $y| := integer(\"1\") return nope()", XQUERY_URI));

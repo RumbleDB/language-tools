@@ -80,7 +80,7 @@ public final class TolerantCompiler {
                 return analyze(parsed.translate().get(), compilation);
             } catch (RuntimeException exception) {
                 // A prolog declaration is translated outside of any expression, so failures in it are not contained.
-                String withoutDeclaration = blankFailingDeclaration(source, parsed.prolog(), exception);
+                String withoutDeclaration = blankFailingDeclaration(source, uri, parsed.prolog(), exception);
                 if (withoutDeclaration == null) {
                     throw exception;
                 }
@@ -255,8 +255,8 @@ public final class TolerantCompiler {
      * The source with spaces in place of the prolog declaration at fault, or null when there is none. Positions in the
      * rest of the source do not change, and references to the declaration become unknown.
      */
-    private static String blankFailingDeclaration(String source, ParseTree prolog, RuntimeException failure) {
-        ParserRuleContext declaration = failingDeclaration(prolog, failure);
+    private static String blankFailingDeclaration(String source, URI uri, ParseTree prolog, RuntimeException failure) {
+        ParserRuleContext declaration = failingDeclaration(uri, prolog, failure);
         if (declaration == null) {
             return null;
         }
@@ -279,7 +279,7 @@ public final class TolerantCompiler {
      * or else the first module import: recovery can leave a tree that fails anywhere, and a broken library fails with a
      * location in its own file. Imports come last because they usually still work, and they come first in the prolog.
      */
-    private static ParserRuleContext failingDeclaration(ParseTree prolog, RuntimeException failure) {
+    private static ParserRuleContext failingDeclaration(URI uri, ParseTree prolog, RuntimeException failure) {
         if (prolog == null) {
             return null;
         }
@@ -291,7 +291,7 @@ public final class TolerantCompiler {
         }
         if (failure instanceof RumbleException rumbleException
                 && rumbleException.getMetadata() != null
-                && !isSynthetic(rumbleException.getMetadata())) {
+                && uri.toString().equals(rumbleException.getMetadata().getLocation())) {
             Position position =
                     Range.fromExceptionMetadata(rumbleException.getMetadata()).start();
             for (ParserRuleContext declaration : declarations) {
