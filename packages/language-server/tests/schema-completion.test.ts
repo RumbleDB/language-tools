@@ -103,7 +103,11 @@ describe("schema constructor completion", () => {
                 newText: "alias:Code(${1:\\$value})$0",
             });
             // Namespace presentation uses the shared analysis; it must not issue another catalog request.
-            expect(sendRequest).toHaveBeenCalledTimes(1);
+            expect(
+                sendRequest.mock.calls.filter(
+                    ([request]) => request.requestType === "schema-catalog",
+                ),
+            ).toHaveLength(1);
         },
     );
 

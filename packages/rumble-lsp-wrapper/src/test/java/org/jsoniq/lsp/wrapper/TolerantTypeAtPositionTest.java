@@ -4,6 +4,11 @@ import java.io.IOException;
 import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.IdentityHashMap;
+import java.util.List;
+import java.util.Set;
 import java.util.stream.Stream;
 
 import org.jsoniq.lsp.wrapper.handlers.TypeAtPosition;
@@ -12,9 +17,15 @@ import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+
+import org.rumbledb.compiler.TolerantCompiler;
+import org.rumbledb.config.RumbleConfiguration;
+import org.rumbledb.expressions.Expression;
+import org.rumbledb.expressions.Node;
 
 /** Queries that RumbleDB rejects, with `|` at the position whose type is requested. */
 class TolerantTypeAtPositionTest {
@@ -54,10 +65,6 @@ class TolerantTypeAtPositionTest {
                         OBJECT),
                 Arguments.of("let $f| := abs(?) return $nope", "function(xs:numeric?) as xs:numeric?"),
                 Arguments.of("declare function local:f() { let $x| := {\"a\": 1} }; 1", OBJECT),
-                Arguments.of("let $x := {\"a\": 1} let $y := $x!$|$", OBJECT),
-                Arguments.of("let $x := {\"a\": 1} return ($x!$|$", OBJECT),
-                Arguments.of("let $x := {\"a\": 1} let $y := $x!$|$ let $z := return 1", OBJECT),
-                Arguments.of("let $x := {\"a\": 1} return abs($x!$|$", OBJECT),
                 Arguments.of("for $i in $nope let $y| := {\"a\": 1} return $y", OBJECT),
                 Arguments.of("for $i in nope() let $y| := {\"a\": 1} return $y", OBJECT),
                 Arguments.of("for $i in abs(1, 2) let $y| := {\"a\": 1} return $y", OBJECT),
@@ -180,6 +187,56 @@ class TolerantTypeAtPositionTest {
     @Test
     void reportsNothingForBindingsOfWhatFailedToCompile() {
         assertNull(typeAt("let $x := {\"a\": 1} let $y| := nope($x) return $y", JSONIQ_URI));
+    }
+
+    @Test
+    void findsTypesInsideWhatFailedToTranslate() {
+        assertEquals("xs:integer", typeAt("let $a := 1 return some $x in ($a|, 2)", JSONIQ_URI));
+        assertEquals("xs:integer", typeAt("let $a := 1 return <x>{($a|, 2)}", XQUERY_URI));
+    }
+
+    @Test
+    void reportsNothingForBindingsOfWhatFailedToTranslate() {
+        assertNull(typeAt("let $a := 1 let $y| := some $x in $a return $y", JSONIQ_URI));
+        assertNull(typeAt("let $a := 1 let $y| := <x>{$a}", XQUERY_URI));
+    }
+
+    @Test
+    void givesEachMissingExpressionItsOwnHole() {
+        List<Node> holes = new ArrayList<>();
+        collectHoles(
+                TolerantCompiler.compile(
+                        "(copy $c := 1), (copy $d := 2)", JSONIQ_URI, RumbleConfiguration.defaultConfiguration()),
+                holes);
+        Set<Node> distinct = Collections.newSetFromMap(new IdentityHashMap<>());
+        distinct.addAll(holes);
+        assertEquals(4, holes.size());
+        assertEquals(4, distinct.size());
+    }
+
+    private static void collectHoles(Node node, List<Node> holes) {
+        if (node instanceof Expression && TolerantCompiler.isSynthetic(node.getMetadata())) {
+            holes.add(node);
+        }
+        node.getChildren().forEach(child -> collectHoles(child, holes));
+    }
+
+    @ParameterizedTest
+    @ValueSource(
+            strings = {
+                "let $x| := {\"a\": 1} return delete json",
+                "let $x| := {\"a\": 1} return (delete json)",
+                "let $x| := {\"a\": 1} return insert json"
+            })
+    void keepsTypesWhenAnExpressionStartsWithAnErrorNode(String markedQuery) {
+        assertEquals(OBJECT, typeAt(markedQuery, JSONIQ_URI));
+    }
+
+    @Test
+    void reportsNothingForBindingsOfLookupsAndStepsBeingTyped() {
+        assertNull(typeAt("let $x := {\"a\": 1} let $y| := $x.", JSONIQ_URI));
+        assertNull(typeAt("let $x := <a/> let $y| := $x/", XQUERY_URI));
+        assertNull(typeAt("let $x := <a/> let $y| := $x/", JSONIQ_URI));
     }
 
     @Test

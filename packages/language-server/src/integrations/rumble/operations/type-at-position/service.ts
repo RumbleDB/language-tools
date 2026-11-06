@@ -6,7 +6,6 @@ import type { TextDocument } from "vscode-languageserver-textdocument";
 
 import {
     REQUEST_TYPE_TYPE_AT_POSITION,
-    type PathStepRequest,
     type TypeAtPositionRequestSpec,
     type TypeAtPositionWireResult,
 } from "./protocol.js";
@@ -20,33 +19,22 @@ export async function getTypeAtPosition(
     position: Position,
     wrapper: WrapperClient,
 ): Promise<TypeAtPositionWireResult> {
-    return getTypeAtPositionFromSource(document.uri, getDocumentText(document), position, wrapper);
-}
-
-export async function getTypeAtPositionFromSource(
-    documentUri: string,
-    source: string,
-    position: Position,
-    client: WrapperClient,
-    pathSteps?: PathStepRequest,
-): Promise<TypeAtPositionWireResult> {
-    if (!client.isUsable()) {
+    if (!wrapper.isUsable()) {
         return EMPTY_RESULT;
     }
 
     try {
-        const response = await client.sendRequest<TypeAtPositionRequestSpec>({
+        const response = await wrapper.sendRequest<TypeAtPositionRequestSpec>({
             requestType: REQUEST_TYPE_TYPE_AT_POSITION,
-            body: Buffer.from(source, "utf8").toString("base64"),
-            documentUri,
+            body: Buffer.from(getDocumentText(document), "utf8").toString("base64"),
+            documentUri: document.uri,
             position,
-            pathSteps,
         });
 
         return response.body;
     } catch (error) {
         logger.warn(
-            `Type-at-position unavailable for ${documentUri}: ${error instanceof Error ? error.message : String(error)}`,
+            `Type-at-position unavailable for ${document.uri}: ${error instanceof Error ? error.message : String(error)}`,
         );
         return EMPTY_RESULT;
     }

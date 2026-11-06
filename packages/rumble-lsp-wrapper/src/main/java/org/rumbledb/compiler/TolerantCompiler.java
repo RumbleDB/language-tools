@@ -1,7 +1,14 @@
 package org.rumbledb.compiler;
 
 import java.net.URI;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.function.Consumer;
+import java.util.function.Function;
+import java.util.function.Supplier;
 
 import org.antlr.v4.runtime.CharStreams;
 import org.antlr.v4.runtime.CommonTokenStream;
@@ -21,6 +28,7 @@ import org.rumbledb.context.Name;
 import org.rumbledb.context.StaticContext;
 import org.rumbledb.exceptions.ExceptionMetadata;
 import org.rumbledb.exceptions.RumbleException;
+import org.rumbledb.expressions.CommaExpression;
 import org.rumbledb.expressions.Expression;
 import org.rumbledb.expressions.Node;
 import org.rumbledb.expressions.flowr.Clause;
@@ -28,7 +36,9 @@ import org.rumbledb.expressions.module.LibraryModule;
 import org.rumbledb.expressions.module.MainModule;
 import org.rumbledb.expressions.module.Module;
 import org.rumbledb.expressions.module.Prolog;
+import org.rumbledb.expressions.postfix.ObjectLookupExpression;
 import org.rumbledb.expressions.primary.VariableReferenceExpression;
+import org.rumbledb.expressions.xml.SlashExpr;
 import org.rumbledb.parser.jsoniq.JsoniqLexer;
 import org.rumbledb.parser.jsoniq.JsoniqParser;
 import org.rumbledb.parser.xquery.XQueryLexer;
@@ -103,18 +113,24 @@ public final class TolerantCompiler {
 
     private static <P extends Parser> P recovering(P parser) {
         parser.removeErrorListeners();
-        parser.setErrorHandler(new DeclarationPreservingErrorStrategy());
+        parser.setErrorHandler(new DelimiterPreservingErrorStrategy());
         return parser;
     }
 
     /**
-     * Keeps the separator after a declaration. By default, the parser deletes it when an expression is expected, as in
-     * {@code declare variable $a := ;}, and takes what follows, even the main expression, to be that expression.
+     * Keeps the delimiter that ends what is being written. By default, the parser deletes it when an expression is
+     * expected, if the next token can start one. It would take the main expression after
+     * {@code declare variable $a := ;} to be the value of the variable, and {@code </x>} after {@code <x>{$a/}</x>} to
+     * be a step, which loses the whole constructor.
      */
-    private static final class DeclarationPreservingErrorStrategy extends DefaultErrorStrategy {
+    private static final class DelimiterPreservingErrorStrategy extends DefaultErrorStrategy {
+        private static final Set<String> DELIMITERS = Set.of(";", ")", "]", "}");
+
         @Override
         protected Token singleTokenDeletion(Parser recognizer) {
-            return ";".equals(recognizer.getCurrentToken().getText()) ? null : super.singleTokenDeletion(recognizer);
+            return DELIMITERS.contains(recognizer.getCurrentToken().getText())
+                    ? null
+                    : super.singleTokenDeletion(recognizer);
         }
     }
 
@@ -155,9 +171,69 @@ public final class TolerantCompiler {
                                 .anyMatch(library -> removeDeclaration(library.getProlog(), metadata)));
     }
 
-    /** Stands for an expression that cannot be translated. */
+    /**
+     * Stands for an expression that cannot be translated. A lookup key or path step gets its own hole, rather than one
+     * for the whole expression, so that the type of what it applies to stays known while it is being typed.
+     */
     private static Expression hole() {
         return new VariableReferenceExpression(HOLE, ExceptionMetadata.EMPTY_METADATA);
+    }
+
+    /**
+     * Translates the expressions of one grammar. One that fails becomes a hole that keeps the expressions inside it, as
+     * in the unfinished {@code some $x in $a.} or {@code <x>{$a/}}, so that they can still be typed. Translations are
+     * kept, because translating what is inside an expression again for each failing expression around it takes
+     * exponential time.
+     */
+    private static final class ExpressionRecovery<C extends ParseTree> {
+        private final Class<C> kind;
+        private final Function<C, Expression> visit;
+        private final Map<ParseTree, Expression> translated = new HashMap<>();
+
+        ExpressionRecovery(Class<C> kind, Function<C, Expression> visit) {
+            this.kind = kind;
+            this.visit = visit;
+        }
+
+        Expression translate(ParseTree context, Supplier<Expression> translation) {
+            // Missing altogether, as the return of an unfinished FLWOR: each one needs a hole of its own.
+            if (context == null) {
+                return hole();
+            }
+            Expression known = this.translated.get(context);
+            if (known != null) {
+                return known;
+            }
+            Expression result;
+            try {
+                result = translation.get();
+            } catch (RuntimeException exception) {
+                result = null;
+            }
+            // An expression that starts with an error node translates to null without failing.
+            if (result == null) {
+                result = holeKeepingParts(context);
+            }
+            this.translated.put(context, result);
+            return result;
+        }
+
+        private Expression holeKeepingParts(ParseTree context) {
+            List<Expression> parts = new ArrayList<>();
+            collectParts(context, parts);
+            return parts.isEmpty() ? hole() : new CommaExpression(parts, ExceptionMetadata.EMPTY_METADATA);
+        }
+
+        private void collectParts(ParseTree tree, List<Expression> parts) {
+            for (int i = 0; i < tree.getChildCount(); i++) {
+                ParseTree child = tree.getChild(i);
+                if (this.kind.isInstance(child)) {
+                    parts.add(this.visit.apply(this.kind.cast(child)));
+                } else {
+                    collectParts(child, parts);
+                }
+            }
+        }
     }
 
     /** Leaves out a prolog entry that cannot be translated, so that references to it become unknown. */
@@ -170,6 +246,9 @@ public final class TolerantCompiler {
     }
 
     private static final class TolerantJsoniqTranslation extends TranslationVisitor {
+        private final ExpressionRecovery<JsoniqParser.ExprSingleContext> recovery =
+                new ExpressionRecovery<>(JsoniqParser.ExprSingleContext.class, this::visitExprSingle);
+
         TolerantJsoniqTranslation(
                 StaticContext context, CompilationConfiguration compilation, String source, CommonTokenStream tokens) {
             super(context, compilation, ExternalBindings.empty(), source, tokens);
@@ -181,16 +260,25 @@ public final class TolerantCompiler {
         }
 
         @Override
+        public Expression visitObjectLookup(JsoniqParser.ObjectLookupContext context) {
+            return this.recovery.translate(context, () -> super.visitObjectLookup(context));
+        }
+
+        @Override
+        public Expression visitStepExpr(JsoniqParser.StepExprContext context) {
+            return this.recovery.translate(context, () -> super.visitStepExpr(context));
+        }
+
+        @Override
         public Expression visitExprSingle(JsoniqParser.ExprSingleContext context) {
-            try {
-                return super.visitExprSingle(context);
-            } catch (RuntimeException exception) {
-                return hole();
-            }
+            return this.recovery.translate(context, () -> super.visitExprSingle(context));
         }
     }
 
     private static final class TolerantXQueryTranslation extends XQueryTranslationVisitor {
+        private final ExpressionRecovery<XQueryParser.ExprSingleContext> recovery =
+                new ExpressionRecovery<>(XQueryParser.ExprSingleContext.class, this::visitExprSingle);
+
         TolerantXQueryTranslation(
                 StaticContext context, CompilationConfiguration compilation, String source, CommonTokenStream tokens) {
             super(context, compilation, ExternalBindings.empty(), source, tokens);
@@ -202,12 +290,13 @@ public final class TolerantCompiler {
         }
 
         @Override
+        public Expression visitStepExpr(XQueryParser.StepExprContext context) {
+            return this.recovery.translate(context, () -> super.visitStepExpr(context));
+        }
+
+        @Override
         public Expression visitExprSingle(XQueryParser.ExprSingleContext context) {
-            try {
-                return super.visitExprSingle(context);
-            } catch (RuntimeException exception) {
-                return hole();
-            }
+            return this.recovery.translate(context, () -> super.visitExprSingle(context));
         }
     }
 
@@ -235,14 +324,26 @@ public final class TolerantCompiler {
 
         @Override
         public StaticContext visit(Node node, StaticContext argument) {
+            StaticContext result = argument;
             try {
-                return super.visit(node, argument);
+                result = super.visit(node, argument);
             } catch (RuntimeException exception) {
                 if (node instanceof Expression expression) {
                     expression.setStaticSequenceType(UNKNOWN);
                 }
-                return argument;
             }
+            // A hole that keeps parts of the failed expression must not get the type of those parts.
+            if (node instanceof Expression expression
+                    && (isSynthetic(node.getMetadata()) || isLookupOrStepOfHole(node))) {
+                expression.setStaticSequenceType(UNKNOWN);
+            }
+            return result;
+        }
+
+        /** What a key or step selects is unknown while it is being typed, even if what it applies to is known. */
+        private static boolean isLookupOrStepOfHole(Node node) {
+            return (node instanceof ObjectLookupExpression || node instanceof SlashExpr)
+                    && node.getChildren().stream().anyMatch(child -> isSynthetic(child.getMetadata()));
         }
     }
 }
