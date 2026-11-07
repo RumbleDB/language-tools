@@ -1,7 +1,7 @@
 import { collectModuleProlog, formatSequenceType } from "server/analysis/index.js";
 import type { PathStep } from "server/integrations/rumble/operations/focus-at-position/protocol.js";
 import { getFocusAtPosition } from "server/integrations/rumble/operations/focus-at-position/service.js";
-import { defaultTokenAt, previousDefaultToken } from "server/parser/utils.js";
+import { defaultTokenAt, defaultTokenBefore } from "server/parser/utils.js";
 import { CompletionItemKind, type CompletionItem } from "vscode-languageserver";
 
 import { getQNameCompletionLabels, nameStart } from "../context.js";
@@ -28,7 +28,7 @@ interface TypedStep {
 export const providePathStepCompletions: CompletionProvider = async (context) => {
     const step = typedStep(context);
     const { ast, tokens } = context.getParseResult();
-    const previous = previousDefaultToken(tokens, step.start);
+    const previous = defaultTokenBefore(tokens, step.start);
     if (previous === undefined || !allowsExpressionAt(context, step.start)) {
         return null;
     }

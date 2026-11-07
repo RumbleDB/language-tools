@@ -1,6 +1,6 @@
 import { formatObjectField, type ObjectTypeDefinition } from "server/analysis/index.js";
 import { getFocusAtPosition } from "server/integrations/rumble/operations/focus-at-position/service.js";
-import { previousDefaultToken } from "server/parser/utils.js";
+import { defaultTokenBefore } from "server/parser/utils.js";
 import { CompletionItemKind } from "vscode-languageserver";
 
 import { nameEnd, nameStart, replaceRange } from "../context.js";
@@ -14,7 +14,7 @@ export const provideObjectFieldCompletions: CompletionProvider = async (context)
     const { intent, source, cursorOffset, document } = context;
     const { tokens } = context.getParseResult();
     const fieldStart = nameStart(tokens, cursorOffset);
-    const dot = previousDefaultToken(tokens, fieldStart);
+    const dot = defaultTokenBefore(tokens, fieldStart);
     if (!intent.allowObjectLookup || dot?.text !== ".") {
         return null;
     }

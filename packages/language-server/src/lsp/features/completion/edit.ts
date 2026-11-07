@@ -1,5 +1,5 @@
 import type { Token } from "antlr4ng";
-import { defaultTokenAt, nextDefaultTokenAt, previousDefaultToken } from "server/parser/utils.js";
+import { defaultTokenAt, defaultTokenAfter, defaultTokenBefore } from "server/parser/utils.js";
 import { CompletionItemKind, TextEdit, type CompletionItem } from "vscode-languageserver";
 import type { TextDocument } from "vscode-languageserver-textdocument";
 
@@ -20,7 +20,7 @@ export function createItemEditor(context: EditContext): (item: CompletionItem) =
     const { document, cursorOffset } = context;
     const { tokens } = context.getParseResult();
     const start = referenceStart(tokens, cursorOffset);
-    const previousText = previousDefaultToken(tokens, cursorOffset)?.text;
+    const previousText = defaultTokenBefore(tokens, cursorOffset)?.text;
     const isAfterSlash = previousText === "/" || previousText === "//";
     // A step's `@` goes with the name after it.
     const tokenAfterSlash = isAfterSlash ? defaultTokenAt(tokens, cursorOffset) : undefined;
@@ -81,6 +81,6 @@ function endOfWrittenWords(
 
 /** The next token, when it is on the line of the offset. Token lines count from one and document lines from zero. */
 function nextTokenOnLine(document: TextDocument, tokens: Token[], offset: number) {
-    const next = nextDefaultTokenAt(tokens, offset);
+    const next = defaultTokenAfter(tokens, offset);
     return next?.line === document.positionAt(offset).line + 1 ? next : undefined;
 }

@@ -30,7 +30,7 @@ export function nextDefaultToken(
 const compareTokenStart = (token: Token, target: number) => token.start - target;
 
 /** The last token on the default channel that ends before the offset, skipping whitespace and comments. */
-export function previousDefaultToken(tokens: Token[], offset: number): Token | undefined {
+export function defaultTokenBefore(tokens: Token[], offset: number): Token | undefined {
     const after = lowerBound(tokens, offset, compareTokenStart);
     for (let index = after - 1; index >= 0; index -= 1) {
         const token = tokens[index]!;
@@ -42,7 +42,7 @@ export function previousDefaultToken(tokens: Token[], offset: number): Token | u
 }
 
 /** The first token on the default channel that starts at or after the offset, skipping whitespace and comments. */
-export function nextDefaultTokenAt(tokens: Token[], offset: number): Token | undefined {
+export function defaultTokenAfter(tokens: Token[], offset: number): Token | undefined {
     const after = lowerBound(tokens, offset, compareTokenStart);
     for (let index = after; index < tokens.length; index += 1) {
         const token = tokens[index]!;
