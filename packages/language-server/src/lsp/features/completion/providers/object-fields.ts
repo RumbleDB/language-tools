@@ -7,7 +7,7 @@ import { nameEnd, nameStart, replaceTypedPrefix } from "../context.js";
 import type { CompletionProvider } from "../types.js";
 
 /** A quoted field name after the cursor. Only one name fits after a dot, so it is always the one replaced. */
-const QUOTED_FIELD_NAME_PATTERN = /^"[^"\n]*"/;
+const QUOTED_FIELD_NAME_PATTERN = /^"(?:[^"\\\n]|\\.)*"/;
 const UNQUOTED_FIELD_NAME_PATTERN = /^[A-Za-z_][A-Za-z0-9_-]*$/;
 
 export const provideObjectFieldCompletions: CompletionProvider = async (context) => {

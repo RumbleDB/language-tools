@@ -72,12 +72,9 @@ export function nameStart(tokens: Token[], offset: number): number {
     return token !== undefined && NAME_TOKEN_PATTERN.test(token.text ?? "") ? token.start : offset;
 }
 
-/** Where the name at the offset ends, or the offset when there is none. A step's `@` goes with the name after it. */
+/** Where the name at the offset ends, or the offset when there is none. */
 export function nameEnd(tokens: Token[], offset: number): number {
     const token = defaultTokenAt(tokens, offset);
-    if (token?.text === "@") {
-        return nameEnd(tokens, token.stop + 1);
-    }
     return token !== undefined && NAME_TOKEN_PATTERN.test(token.text ?? "")
         ? token.stop + 1
         : offset;

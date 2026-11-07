@@ -529,6 +529,7 @@ describe("JSONiq completion", () => {
         ["the name after the cursor", "$a.", "test", "c", "$a.c"],
         ["the name around the cursor", "$a.te", "st", "test", "$a.test"],
         ["a quoted name after the cursor", "$a.", '"test"', "c", "$a.c"],
+        ["a quoted name with an escaped quote", "$a.", '"te\\"st"', "c", "$a.c"],
         ["only this name in a chain", "$a.", "test.c", "c", "$a.c.c"],
         ["nothing on the next line", "$a.", "\nreturn $a", "c", "$a.c\nreturn $a"],
     ])(
@@ -743,33 +744,24 @@ describe("JSONiq completion", () => {
     );
 
     it.each([
-        ["a space", 'let $a := {"bc": 1} return $a. ', "", "bc"],
-        ["a space and a name", 'let $a := {"bc": 1} return $a. b', "", "bc"],
-        ["a new line", 'let $a := {"bc": 1} return $a.\n', "", "bc"],
-        ["a new line and a name", 'let $a := {"bc": 1} return $a.\nb', "", "bc"],
-        ["a comment", 'let $a := {"bc": 1} return $a.(: c :)', "", "bc"],
-        ["a comment and a name", 'let $a := {"bc": 1} return $a.(: c :) b', "", "bc"],
-        ["a name after the cursor", 'let $a := {"bc": 1} return $a. b', "x", "bc"],
+        ["a space", "$a. ", "", "$a. bc"],
+        ["a space and a name", "$a. b", "", "$a. bc"],
+        ["a new line", "$a.\n", "", "$a.\nbc"],
+        ["a new line and a name", "$a.\nb", "", "$a.\nbc"],
+        ["a comment", "$a.(: c :)", "", "$a.(: c :)bc"],
+        ["a comment and a name", "$a.(: c :) b", "", "$a.(: c :) bc"],
+        ["a name after the cursor", "$a. b", "x", "$a. bc"],
     ])(
         "suggests object fields after a dot and %s",
-        async (name, before, after, label) => {
+        async (name, before, after, expected) => {
+            const prefix = 'let $a := {"bc": 1} return ';
             const document = testDocument(
                 `completion-spaced-dot-${encodeURIComponent(name)}`,
-                before + after,
+                prefix + before + after,
             );
 
-            const items = await findCompletions(
-                document,
-                document.positionAt(before.length),
-                parserService,
-                workspaceService,
-                wrapperClient,
-            );
-
-            const edit = items.find((item) => item.label === label)?.textEdit as TextEdit;
-            const typedStart = before.endsWith("b") ? before.length - 1 : before.length;
-            expect(TextDocument.applyEdits(document, [edit])).toBe(
-                `${before.slice(0, typedStart)}${label}`,
+            await expect(acceptItem(document, prefix.length + before.length, "bc")).resolves.toBe(
+                prefix + expected,
             );
         },
         45_000,
@@ -804,16 +796,7 @@ describe("JSONiq completion", () => {
         async (_name, before, after, label, expected) => {
             const document = testDocument(`completion-called-${before}${after}`, before + after);
 
-            const items = await findCompletions(
-                document,
-                document.positionAt(before.length),
-                parserService,
-                workspaceService,
-                wrapperClient,
-            );
-
-            const edit = items.find((item) => item.label === label)?.textEdit as TextEdit;
-            expect(TextDocument.applyEdits(document, [edit])).toBe(expected);
+            await expect(acceptItem(document, before.length, label)).resolves.toBe(expected);
         },
         45_000,
     );
@@ -842,16 +825,7 @@ describe("JSONiq completion", () => {
         const source = `${before}* { 2 }`;
         const document = testDocument("completion-error-wildcard", source);
 
-        const items = await findCompletions(
-            document,
-            document.positionAt(before.length),
-            parserService,
-            workspaceService,
-            wrapperClient,
-        );
-
-        const item = items.find((candidate) => candidate.label === "err:FOAR0001");
-        expect(TextDocument.applyEdits(document, [item!.textEdit as TextEdit])).toBe(
+        await expect(acceptItem(document, before.length, "err:FOAR0001")).resolves.toBe(
             "try { 1 } catch err:FOAR0001 { 2 }",
         );
     }, 45_000);
@@ -876,16 +850,7 @@ describe("JSONiq completion", () => {
                 before + after,
             );
 
-            const items = await findCompletions(
-                document,
-                document.positionAt(before.length),
-                parserService,
-                workspaceService,
-                wrapperClient,
-            );
-
-            const edit = items.find((item) => item.label === label)?.textEdit as TextEdit;
-            expect(TextDocument.applyEdits(document, [edit])).toBe(expected);
+            await expect(acceptItem(document, before.length, label)).resolves.toBe(expected);
         },
         45_000,
     );
@@ -898,16 +863,7 @@ describe("JSONiq completion", () => {
             languageId: "xquery",
         });
 
-        const items = await findCompletions(
-            document,
-            document.positionAt(before.length),
-            parserService,
-            workspaceService,
-            wrapperClient,
-        );
-
-        const item = items.find((candidate) => candidate.label === "$a.b");
-        expect(TextDocument.applyEdits(document, [item!.textEdit as TextEdit])).toBe(
+        await expect(acceptItem(document, before.length, "$a.b")).resolves.toBe(
             "let $a.b := 1 return $a.b",
         );
     }, 45_000);
@@ -1366,6 +1322,19 @@ describe.each(["jsoniq", "xquery"])("%s binding completion scope", (languageId) 
         },
     );
 });
+
+/** The text after accepting the item with the label at the offset. */
+async function acceptItem(document: TextDocument, offset: number, label: string): Promise<string> {
+    const items = await findCompletions(
+        document,
+        document.positionAt(offset),
+        parserService,
+        workspaceService,
+        wrapperClient,
+    );
+    const edit = items.find((item) => item.label === label)?.textEdit as TextEdit;
+    return TextDocument.applyEdits(document, [edit]);
+}
 
 function labels(items: CompletionItem[]): string[] {
     return items.map((item) => item.label);

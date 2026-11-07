@@ -1,6 +1,7 @@
 import type { Token } from "antlr4ng";
-import { nextDefaultTokenAt, previousDefaultToken } from "server/parser/utils.js";
+import { defaultTokenAt, nextDefaultTokenAt, previousDefaultToken } from "server/parser/utils.js";
 import { CompletionItemKind, TextEdit, type CompletionItem } from "vscode-languageserver";
+import type { TextDocument } from "vscode-languageserver-textdocument";
 
 import { nameEnd, replaceTypedPrefix, typedPrefix } from "./context.js";
 import { escapeSnippetText } from "./providers/snippets.js";
@@ -27,32 +28,29 @@ export function createItemEditor(context: EditContext): (item: CompletionItem) =
     const prefix = typedPrefix(source, cursorOffset, NAME_PREFIX_PATTERN) ?? "";
     const previousText = previousDefaultToken(tokens, cursorOffset)?.text;
     const isAfterSlash = previousText === "/" || previousText === "//";
-    const editedNameEnd = nameEnd(tokens, cursorOffset);
+    // A step's `@` goes with the name after it.
+    const tokenAfterSlash = isAfterSlash ? defaultTokenAt(tokens, cursorOffset) : undefined;
+    const editedNameEnd = nameEnd(
+        tokens,
+        tokenAfterSlash?.text === "@" ? tokenAfterSlash.stop + 1 : cursorOffset,
+    );
 
     return (item) => {
         const edit = TextEdit.is(item.textEdit)
             ? item.textEdit
             : replaceTypedPrefix(document, cursorOffset, prefix, item.insertText ?? item.label);
         const providerEnd = document.offsetAt(edit.range.end);
+        const reachesPastCursor = providerEnd > cursorOffset;
         const isEditingName =
-            providerEnd > cursorOffset ||
-            isAfterSlash ||
-            document.offsetAt(edit.range.start) < cursorOffset;
+            reachesPastCursor || isAfterSlash || document.offsetAt(edit.range.start) < cursorOffset;
         const end =
-            providerEnd > cursorOffset
+            reachesPastCursor || !isEditingName
                 ? providerEnd
-                : isEditingName
-                  ? endOfWrittenWords(
-                        item,
-                        tokens,
-                        editedNameEnd,
-                        document.positionAt(editedNameEnd).line,
-                    )
-                  : cursorOffset;
+                : endOfWrittenWords(item, document, tokens, editedNameEnd);
 
         return TextEdit.replace(
             { start: edit.range.start, end: document.positionAt(end) },
-            isEditingName && isCalled(item, tokens, end, document.positionAt(end).line)
+            isEditingName && isCalled(item, document, tokens, end)
                 ? escapeSnippetText(item.label)
                 : edit.newText,
         );
@@ -65,18 +63,18 @@ export function createItemEditor(context: EditContext): (item: CompletionItem) =
  */
 function endOfWrittenWords(
     item: CompletionItem,
+    document: TextDocument,
     tokens: Token[],
-    nameEnd: number,
-    line: number,
+    editedNameEnd: number,
 ): number {
     if (item.kind !== CompletionItemKind.Keyword) {
-        return nameEnd;
+        return editedNameEnd;
     }
-    let end = nameEnd;
+    let end = editedNameEnd;
     for (const word of item.label.split(" ").slice(1)) {
-        const next = nextDefaultTokenAt(tokens, end);
-        if (next?.text !== word || next.line !== line + 1) {
-            return nameEnd;
+        const next = nextTokenOnLine(document, tokens, end);
+        if (next?.text !== word) {
+            return editedNameEnd;
         }
         end = next.stop + 1;
     }
@@ -87,10 +85,21 @@ function endOfWrittenWords(
  * A function replacing a name before its arguments or arity only inserts its name: `fn:abs` at `fn:|concat(1)` gives
  * `fn:abs(1)`, and `fn:concat` at `con|cat#2` gives `fn:concat#2`. A parenthesis on another line starts a new expression.
  */
-function isCalled(item: CompletionItem, tokens: Token[], end: number, endLine: number): boolean {
+function isCalled(
+    item: CompletionItem,
+    document: TextDocument,
+    tokens: Token[],
+    end: number,
+): boolean {
     if (item.kind !== CompletionItemKind.Function) {
         return false;
     }
-    const next = nextDefaultTokenAt(tokens, end);
-    return next?.line === endLine + 1 && (next.text === "(" || next.text === "#");
+    const next = nextTokenOnLine(document, tokens, end)?.text;
+    return next === "(" || next === "#";
+}
+
+/** The next token, when it is on the line of the offset. Token lines count from one and document lines from zero. */
+function nextTokenOnLine(document: TextDocument, tokens: Token[], offset: number) {
+    const next = nextDefaultTokenAt(tokens, offset);
+    return next?.line === document.positionAt(offset).line + 1 ? next : undefined;
 }

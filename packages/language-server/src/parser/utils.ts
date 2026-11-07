@@ -27,9 +27,11 @@ export function nextDefaultToken(
     };
 }
 
+const compareTokenStart = (token: Token, target: number) => token.start - target;
+
 /** The last token on the default channel that ends before the offset, skipping whitespace and comments. */
 export function previousDefaultToken(tokens: Token[], offset: number): Token | undefined {
-    const after = lowerBound(tokens, offset, (token, target) => token.start - target);
+    const after = lowerBound(tokens, offset, compareTokenStart);
     for (let index = after - 1; index >= 0; index -= 1) {
         const token = tokens[index]!;
         if (token.channel === Token.DEFAULT_CHANNEL && token.stop < offset) {
@@ -41,7 +43,7 @@ export function previousDefaultToken(tokens: Token[], offset: number): Token | u
 
 /** The first token on the default channel that starts at or after the offset, skipping whitespace and comments. */
 export function nextDefaultTokenAt(tokens: Token[], offset: number): Token | undefined {
-    const after = lowerBound(tokens, offset, (token, target) => token.start - target);
+    const after = lowerBound(tokens, offset, compareTokenStart);
     for (let index = after; index < tokens.length; index += 1) {
         const token = tokens[index]!;
         if (token.channel === Token.DEFAULT_CHANNEL && token.type !== Token.EOF) {
@@ -53,7 +55,7 @@ export function nextDefaultTokenAt(tokens: Token[], offset: number): Token | und
 
 /** The token on the default channel that the offset is inside or at the start of. */
 export function defaultTokenAt(tokens: Token[], offset: number): Token | undefined {
-    const index = lowerBound(tokens, offset + 1, (token, target) => token.start - target) - 1;
+    const index = lowerBound(tokens, offset + 1, compareTokenStart) - 1;
     const token = tokens[index];
     return token?.channel === Token.DEFAULT_CHANNEL &&
         token.type !== Token.EOF &&
@@ -71,11 +73,7 @@ export function findCaretToken(
         return { tokenIndex: 0, offset: cursorOffset };
     }
 
-    const insertionPoint = lowerBound(
-        tokens,
-        cursorOffset,
-        (token, target) => token.start - target,
-    );
+    const insertionPoint = lowerBound(tokens, cursorOffset, compareTokenStart);
     let tokenIndex = tokens[tokens.length - 1]!.tokenIndex;
 
     if (insertionPoint > 0) {
