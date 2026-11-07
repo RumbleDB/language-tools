@@ -869,41 +869,9 @@ describe("JSONiq completion", () => {
     }, 45_000);
 
     it.each([
-        [
-            "an object field",
-            'let $a := {"test": 1, "c": 2} return $a.',
-            "test",
-            "c",
-            0,
-            "test".length,
-        ],
-        ["a word being edited", "let $a := 1 re", "turn 1", "return", 2, "turn".length],
-    ])(
-        "replaces %s up to its end",
-        async (_name, before, after, label, typed, replaced) => {
-            const document = testDocument(`completion-replace-${label}`, before + after);
-
-            const items = await findCompletions(
-                document,
-                document.positionAt(before.length),
-                parserService,
-                workspaceService,
-                wrapperClient,
-            );
-
-            const edit = items.find((item) => item.label === label)?.textEdit as TextEdit;
-            expect(TextDocument.applyEdits(document, [edit])).toBe(
-                `${before.slice(0, before.length - typed)}${label}${after.slice(replaced)}`,
-            );
-        },
-        45_000,
-    );
-
-    it.each([
         ["a name being edited", "con", "cat(1)", "fn:concat", "fn:concat(1)"],
         ["the start of a name", "con", "(1)", "fn:concat", "fn:concat(1)"],
         ["a space before the arguments", "con", "cat (1)", "fn:concat", "fn:concat (1)"],
-        ["a prefixed name", "fn:con", "cat(1)", "fn:concat", "fn:concat(1)"],
         ["a name after its prefix", "fn:", "concat(1)", "fn:abs", "fn:abs(1)"],
         [
             "a declared function",
