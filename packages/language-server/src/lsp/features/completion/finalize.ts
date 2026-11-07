@@ -1,6 +1,13 @@
 import type { CompletionItem } from "vscode-languageserver";
 
-export function finalizeCompletionItems(items: CompletionItem[]): CompletionItem[] {
+import { createItemEditor, type EditContext } from "./edit.js";
+
+export function finalizeCompletionItems(
+    items: CompletionItem[],
+    context: EditContext,
+): CompletionItem[] {
+    const toEdit = createItemEditor(context);
+
     return [...items]
         .sort((left, right) =>
             (left.sortText ?? `1:${left.label}`).localeCompare(
@@ -10,5 +17,6 @@ export function finalizeCompletionItems(items: CompletionItem[]): CompletionItem
         .map((item, index) => ({
             ...item,
             sortText: `${index.toString().padStart(5, "0")}:${item.label}`,
+            textEdit: toEdit(item),
         }));
 }

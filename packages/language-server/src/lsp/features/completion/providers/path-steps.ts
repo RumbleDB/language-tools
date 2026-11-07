@@ -1,17 +1,11 @@
 import { collectModuleProlog, formatSequenceType } from "server/analysis/index.js";
 import type { PathStep } from "server/integrations/rumble/operations/focus-at-position/protocol.js";
 import { getFocusAtPosition } from "server/integrations/rumble/operations/focus-at-position/service.js";
-import { previousDefaultToken } from "server/parser/utils.js";
+import { defaultTokenAt, defaultTokenBefore } from "server/parser/utils.js";
 import { CompletionItemKind, type CompletionItem } from "vscode-languageserver";
 
-import { getQNameCompletionLabels, replaceTypedPrefix } from "../context.js";
+import { getQNameCompletionLabels, isPathSlash, nameStart } from "../context.js";
 import type { CompletionContext, CompletionProvider } from "../types.js";
-
-/**
- * The part of a step name typed so far, optionally after `@`. It must start a name, rather than continue a variable
- * name or another token.
- */
-const STEP_PATTERN = /(?<![\w.$@:#"'-])(@?)((?:[A-Za-z_][\w.-]*:)?[\w.-]*)$/;
 
 /** Ranks the declared steps, children before attributes, before keywords, functions and variables, which sort from `0:`. */
 const PATH_STEP_SORT_PREFIX = "0:0:";
@@ -33,17 +27,14 @@ interface TypedStep {
  */
 export const providePathStepCompletions: CompletionProvider = async (context) => {
     const step = typedStep(context);
-    if (step === null) {
-        return null;
-    }
     const { ast, tokens } = context.getParseResult();
-    const previous = previousDefaultToken(tokens, step.start);
+    const previous = defaultTokenBefore(tokens, step.start);
     if (previous === undefined || !allowsExpressionAt(context, step.start)) {
         return null;
     }
     // Without a slash, the step applies to the context item. Only schema-typed nodes have declared steps, so other
     // modules need not look for one.
-    const afterSlash = previous.text === "/" || previous.text === "//";
+    const afterSlash = isPathSlash(previous);
     if (!afterSlash && collectModuleProlog(context.document.uri, ast).schemaImports.length === 0) {
         return null;
     }
@@ -61,7 +52,6 @@ async function stepCompletions(
     pathSteps: PathStep[],
 ): Promise<CompletionItem[]> {
     const { namespaces, defaultElementTypeNamespace } = await context.getAnalysis();
-    const typed = context.source.slice(step.start, context.cursorOffset);
     // Children and attributes are both listed; attributes are labelled with `@`, so that the editor keeps only them
     // once `@` is typed.
     return pathSteps.flatMap((pathStep) =>
@@ -80,12 +70,6 @@ async function stepCompletions(
                         ? CompletionItemKind.Property
                         : CompletionItemKind.Field,
                     sortText: `${PATH_STEP_SORT_PREFIX}${pathStep.attribute ? 1 : 0}:${label}`,
-                    textEdit: replaceTypedPrefix(
-                        context.document,
-                        context.cursorOffset,
-                        typed,
-                        label,
-                    ),
                 };
                 // Before `@` is typed, an attribute also matches the start of its name.
                 if (pathStep.attribute && !step.afterAt) {
@@ -99,14 +83,16 @@ async function stepCompletions(
     );
 }
 
-/** The step name being typed at the cursor, or null when the cursor does not follow the start of a name. */
-function typedStep(context: CompletionContext): TypedStep | null {
-    const match = context.source.slice(0, context.cursorOffset).match(STEP_PATTERN);
-    if (match?.index === undefined) {
-        return null;
-    }
-    const [, attributeMarker, namePrefix = ""] = match;
-    return { start: match.index, afterAt: attributeMarker === "@", namePrefix };
+/** The step name being typed at the cursor, including an `@` right before it. */
+function typedStep(context: CompletionContext): TypedStep {
+    const { tokens } = context.getParseResult();
+    const name = nameStart(tokens, context.cursorOffset);
+    const afterAt = defaultTokenAt(tokens, name - 1)?.text === "@";
+    return {
+        start: afterAt ? name - 1 : name,
+        afterAt,
+        namePrefix: context.source.slice(name, context.cursorOffset),
+    };
 }
 
 /**
