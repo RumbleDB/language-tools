@@ -57,11 +57,7 @@ export function nextDefaultTokenAt(tokens: Token[], offset: number): Token | und
 export function defaultTokenAt(tokens: Token[], offset: number): Token | undefined {
     const index = lowerBound(tokens, offset + 1, compareTokenStart) - 1;
     const token = tokens[index];
-    return token?.channel === Token.DEFAULT_CHANNEL &&
-        token.type !== Token.EOF &&
-        offset <= token.stop
-        ? token
-        : undefined;
+    return token?.channel === Token.DEFAULT_CHANNEL && offset <= token.stop ? token : undefined;
 }
 
 export function findCaretToken(

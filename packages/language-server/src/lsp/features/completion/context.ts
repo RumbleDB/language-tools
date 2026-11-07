@@ -66,6 +66,10 @@ export function createCompletionContext(
 /** A token that is a name or keyword, rather than punctuation or a literal. */
 const NAME_TOKEN_PATTERN = /^[A-Za-z_]/;
 
+function isNameToken(token: Token | undefined): token is Token {
+    return token !== undefined && NAME_TOKEN_PATTERN.test(token.text ?? "");
+}
+
 export function typedPrefix(source: string, cursorOffset: number, pattern: RegExp): string | null {
     return source.slice(0, cursorOffset).match(pattern)?.[0] ?? null;
 }
@@ -78,19 +82,22 @@ export function nameStart(tokens: Token[], offset: number): number {
     const token = defaultTokenAt(tokens, offset - 1);
     if (token?.text === ":") {
         const prefix = defaultTokenAt(tokens, token.start - 1);
-        return prefix !== undefined && NAME_TOKEN_PATTERN.test(prefix.text ?? "")
-            ? prefix.start
-            : offset;
+        return isNameToken(prefix) ? prefix.start : offset;
     }
-    return token !== undefined && NAME_TOKEN_PATTERN.test(token.text ?? "") ? token.start : offset;
+    return isNameToken(token) ? token.start : offset;
+}
+
+/** Where the name up to the offset starts, including a `$` or `@` right before it. */
+export function referenceStart(tokens: Token[], offset: number): number {
+    const name = nameStart(tokens, offset);
+    const sigil = defaultTokenAt(tokens, name - 1)?.text;
+    return sigil === "$" || sigil === "@" ? name - 1 : name;
 }
 
 /** Where the name at the offset ends, or the offset when there is none. */
 export function nameEnd(tokens: Token[], offset: number): number {
     const token = defaultTokenAt(tokens, offset);
-    return token !== undefined && NAME_TOKEN_PATTERN.test(token.text ?? "")
-        ? token.stop + 1
-        : offset;
+    return isNameToken(token) ? token.stop + 1 : offset;
 }
 
 /** Offer bound aliases and a local name when the caller supplies a matching default namespace. */
@@ -107,27 +114,21 @@ export function getQNameCompletionLabels(
     return labels.length === 0 ? [QNameToString(qname, true)] : labels;
 }
 
-/** Replaces the prefix before the cursor, and the suffix after it when the cursor is inside a name. */
-export function replaceTypedPrefix(
+export function replaceRange(
     document: TextDocument,
-    cursorOffset: number,
-    prefix: string,
+    start: number,
+    end: number,
     newText: string,
-    suffix = "",
 ): TextEdit {
     return TextEdit.replace(
-        {
-            start: document.positionAt(cursorOffset - prefix.length),
-            end: document.positionAt(cursorOffset + suffix.length),
-        },
+        { start: document.positionAt(start), end: document.positionAt(end) },
         newText,
     );
 }
 
 /**
  * When the user has typed a namespace prefix (e.g. `fn:`), filters `items` to those
- * whose label starts with the prefix and adds a `textEdit` that replaces the whole
- * typed prefix so the editor does not produce duplicated prefixes (e.g. `fn:fn:concat`).
+ * whose label starts with the prefix.
  * Returns `null` when no namespace prefix is present, signalling that no filtering
  * should be applied.
  */

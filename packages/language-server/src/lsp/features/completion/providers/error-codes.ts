@@ -1,7 +1,7 @@
 import { errorCodes, formatErrorCodeDocumentation } from "server/resources/error-codes.js";
 import { CompletionItemKind, MarkupKind, type CompletionItem } from "vscode-languageserver";
 
-import { replaceTypedPrefix, typedPrefix } from "../context.js";
+import { replaceRange, typedPrefix } from "../context.js";
 import type { CompletionProvider } from "../types.js";
 
 const CATCH_ERROR_TARGET_PREFIX_PATTERN =
@@ -19,10 +19,10 @@ export const provideErrorCodeCompletions: CompletionProvider = (context) => {
         .filter((item) => item.label.startsWith(targetPrefix))
         .map((item) => ({
             ...item,
-            textEdit: replaceTypedPrefix(
+            textEdit: replaceRange(
                 context.document,
+                context.cursorOffset - targetPrefix.length,
                 context.cursorOffset,
-                targetPrefix,
                 item.label,
             ),
         }));
@@ -45,13 +45,7 @@ function errorCodeCompletions(targetPrefix: string): CompletionItem[] {
 
 function formatErrorCodeLabel(code: string, targetPrefix: string): string {
     const localName = code.slice("err:".length);
-    if (targetPrefix.startsWith("err:")) {
-        return code;
-    }
-    if (targetPrefix.startsWith("*:")) {
-        return `*:${localName}`;
-    }
-    return code;
+    return targetPrefix.startsWith("*:") ? `*:${localName}` : code;
 }
 
 function wildcardErrorCodeCompletions(): CompletionItem[] {

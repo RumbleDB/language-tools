@@ -3,7 +3,7 @@ import { getFocusAtPosition } from "server/integrations/rumble/operations/focus-
 import { previousDefaultToken } from "server/parser/utils.js";
 import { CompletionItemKind } from "vscode-languageserver";
 
-import { nameEnd, nameStart, replaceTypedPrefix } from "../context.js";
+import { nameEnd, nameStart, replaceRange } from "../context.js";
 import type { CompletionProvider } from "../types.js";
 
 /** A quoted field name after the cursor. Only one name fits after a dot, so it is always the one replaced. */
@@ -31,19 +31,18 @@ export const provideObjectFieldCompletions: CompletionProvider = async (context)
     }
 
     const fieldPrefix = source.slice(fieldStart, cursorOffset);
-    const fieldSuffix =
-        source.slice(cursorOffset).match(QUOTED_FIELD_NAME_PATTERN)?.[0] ??
-        source.slice(cursorOffset, nameEnd(tokens, cursorOffset));
+    const quotedName = source.slice(cursorOffset).match(QUOTED_FIELD_NAME_PATTERN)?.[0];
+    const fieldEnd =
+        quotedName === undefined ? nameEnd(tokens, cursorOffset) : cursorOffset + quotedName.length;
     return objectFieldCompletions(objectType, fieldPrefix).map(([fieldName, field]) => ({
         label: fieldName,
         kind: CompletionItemKind.Field,
         labelDetails: { detail: formatObjectField(field) },
-        textEdit: replaceTypedPrefix(
+        textEdit: replaceRange(
             document,
-            cursorOffset,
-            fieldPrefix,
+            fieldStart,
+            fieldEnd,
             UNQUOTED_FIELD_NAME_PATTERN.test(fieldName) ? fieldName : JSON.stringify(fieldName),
-            fieldSuffix,
         ),
     }));
 };

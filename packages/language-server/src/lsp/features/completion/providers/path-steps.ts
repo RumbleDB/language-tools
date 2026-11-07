@@ -4,7 +4,7 @@ import { getFocusAtPosition } from "server/integrations/rumble/operations/focus-
 import { defaultTokenAt, previousDefaultToken } from "server/parser/utils.js";
 import { CompletionItemKind, type CompletionItem } from "vscode-languageserver";
 
-import { getQNameCompletionLabels, nameStart, replaceTypedPrefix } from "../context.js";
+import { getQNameCompletionLabels, nameStart } from "../context.js";
 import type { CompletionContext, CompletionProvider } from "../types.js";
 
 /** Ranks the declared steps, children before attributes, before keywords, functions and variables, which sort from `0:`. */
@@ -52,7 +52,6 @@ async function stepCompletions(
     pathSteps: PathStep[],
 ): Promise<CompletionItem[]> {
     const { namespaces, defaultElementTypeNamespace } = await context.getAnalysis();
-    const typed = context.source.slice(step.start, context.cursorOffset);
     // Children and attributes are both listed; attributes are labelled with `@`, so that the editor keeps only them
     // once `@` is typed.
     return pathSteps.flatMap((pathStep) =>
@@ -71,12 +70,6 @@ async function stepCompletions(
                         ? CompletionItemKind.Property
                         : CompletionItemKind.Field,
                     sortText: `${PATH_STEP_SORT_PREFIX}${pathStep.attribute ? 1 : 0}:${label}`,
-                    textEdit: replaceTypedPrefix(
-                        context.document,
-                        context.cursorOffset,
-                        typed,
-                        label,
-                    ),
                 };
                 // Before `@` is typed, an attribute also matches the start of its name.
                 if (pathStep.attribute && !step.afterAt) {
