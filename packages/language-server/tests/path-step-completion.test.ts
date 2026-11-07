@@ -156,19 +156,37 @@ describe("path step completion", () => {
         ).resolves.toEqual([]);
     }, 45_000);
 
-    it("keeps a colon after a step name", async () => {
-        const items = await completeAtEnd("return { $order/o:pr", ": 1 }");
+    it("replaces an attribute step after the cursor", async () => {
+        const items = await completeAtEnd("return $order/", "@id");
 
         const line = QUERY_PREFIX.length;
-        const start = "return { $order/".length;
-        expect(items[0]?.textEdit).toEqual({
+        const start = "return $order/".length;
+        expect(items.find((item) => item.label === "@id")?.textEdit).toEqual({
             range: {
                 start: { line, character: start },
-                end: { line, character: start + "o:pr".length },
+                end: { line, character: start + "@id".length },
             },
-            newText: "o:price",
+            newText: "@id",
         });
     }, 45_000);
+
+    it.each([": 1 }", ":1 }"])(
+        "keeps a colon after a step name before `%s`",
+        async (after) => {
+            const items = await completeAtEnd("return { $order/o:pr", after);
+
+            const line = QUERY_PREFIX.length;
+            const start = "return { $order/".length;
+            expect(items[0]?.textEdit).toEqual({
+                range: {
+                    start: { line, character: start },
+                    end: { line, character: start + "o:pr".length },
+                },
+                newText: "o:price",
+            });
+        },
+        45_000,
+    );
 
     it("replaces the part of a step name typed so far", async () => {
         const items = await completeAtEnd("return $order/o:pr");

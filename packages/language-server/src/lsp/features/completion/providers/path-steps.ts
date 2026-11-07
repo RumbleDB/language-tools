@@ -4,7 +4,7 @@ import { getFocusAtPosition } from "server/integrations/rumble/operations/focus-
 import { previousDefaultToken } from "server/parser/utils.js";
 import { CompletionItemKind, type CompletionItem } from "vscode-languageserver";
 
-import { getQNameCompletionLabels, replaceTypedPrefix, typedSuffix } from "../context.js";
+import { getQNameCompletionLabels, replaceTypedPrefix } from "../context.js";
 import type { CompletionContext, CompletionProvider } from "../types.js";
 
 /**
@@ -12,9 +12,6 @@ import type { CompletionContext, CompletionProvider } from "../types.js";
  * name or another token.
  */
 const STEP_PATTERN = /(?<![\w.$@:#"'-])(@?)((?:[A-Za-z_][\w.-]*:)?[\w.-]*)$/;
-
-/** The step after the cursor, which may be an attribute. Only one step fits after a slash, so it is the one replaced. */
-const STEP_SUFFIX_PATTERN = /^@?[\w.-]*(?::[\w.-]+)?/;
 
 /** Ranks the declared steps, children before attributes, before keywords, functions and variables, which sort from `0:`. */
 const PATH_STEP_SORT_PREFIX = "0:0:";
@@ -55,20 +52,13 @@ export const providePathStepCompletions: CompletionProvider = async (context) =>
         context.document.positionAt(previous.stop + 1),
         context.wrapper,
     );
-    if (pathSteps === undefined) {
-        return null;
-    }
-    const replaced = afterSlash
-        ? typedSuffix(context.source, context.cursorOffset, STEP_SUFFIX_PATTERN)
-        : "";
-    return stepCompletions(context, step, pathSteps, replaced);
+    return pathSteps === undefined ? null : stepCompletions(context, step, pathSteps);
 };
 
 async function stepCompletions(
     context: CompletionContext,
     step: TypedStep,
     pathSteps: PathStep[],
-    stepAfterCursor: string,
 ): Promise<CompletionItem[]> {
     const { namespaces, defaultElementTypeNamespace } = await context.getAnalysis();
     const typed = context.source.slice(step.start, context.cursorOffset);
@@ -95,7 +85,6 @@ async function stepCompletions(
                         context.cursorOffset,
                         typed,
                         label,
-                        stepAfterCursor,
                     ),
                 };
                 // Before `@` is typed, an attribute also matches the start of its name.
