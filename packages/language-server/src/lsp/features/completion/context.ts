@@ -8,6 +8,7 @@ import {
 } from "server/analysis/index.js";
 import type { WrapperClient } from "server/integrations/rumble/client.js";
 import type { ParserService } from "server/parser/index.js";
+import type { CompletionIntent } from "server/parser/types/completion.js";
 import { defaultTokenAt, getDocumentText } from "server/parser/utils.js";
 import type { WorkspaceService } from "server/workspace/service.js";
 import { TextEdit, type CompletionItem, type Position } from "vscode-languageserver";
@@ -30,6 +31,8 @@ export function createCompletionContext(
         return null;
     }
 
+    // Providers often ask about the start of the same name.
+    const intents = new Map<number, CompletionIntent | null>([[cursorOffset, intent]]);
     let visibleDeclarations: Promise<ScopeDefinition[]> | undefined;
     let analysis: Promise<AnalysisResult> | undefined;
 
@@ -40,9 +43,10 @@ export function createCompletionContext(
         intent,
         wrapper,
         getIntentAt(offset) {
-            return offset === cursorOffset
-                ? intent
-                : parser.collectCompletionIntent(document, offset);
+            if (!intents.has(offset)) {
+                intents.set(offset, parser.collectCompletionIntent(document, offset));
+            }
+            return intents.get(offset) ?? null;
         },
         getAnalysis() {
             return (analysis ??= workspace.getAnalysis(document));
@@ -62,22 +66,39 @@ export function createCompletionContext(
 /** A token that is a name or keyword, rather than punctuation or a literal. */
 const NAME_TOKEN_PATTERN = /^[A-Za-z_]/;
 
-export function typedPrefix(source: string, cursorOffset: number, pattern: RegExp): string | null {
-    return source.slice(0, cursorOffset).match(pattern)?.[0] ?? null;
+function isNameToken(token: Token | undefined): token is Token {
+    return token !== undefined && NAME_TOKEN_PATTERN.test(token.text ?? "");
 }
 
-/** Where the name that continues up to the offset starts, or the offset when no name ends there. */
+/** Whether the token is a slash that a path step follows. */
+export function isPathSlash(token: Token | undefined): boolean {
+    return token?.text === "/" || token?.text === "//";
+}
+
+/**
+ * Where the name that continues up to the offset starts, or the offset when no name ends there. A prefix followed by
+ * only a colon is two tokens.
+ */
 export function nameStart(tokens: Token[], offset: number): number {
     const token = defaultTokenAt(tokens, offset - 1);
-    return token !== undefined && NAME_TOKEN_PATTERN.test(token.text ?? "") ? token.start : offset;
+    if (token?.text === ":") {
+        const prefix = defaultTokenAt(tokens, token.start - 1);
+        return isNameToken(prefix) ? prefix.start : offset;
+    }
+    return isNameToken(token) ? token.start : offset;
+}
+
+/** Where the name up to the offset starts, including a `$` or `@` right before it. */
+export function referenceStart(tokens: Token[], offset: number): number {
+    const name = nameStart(tokens, offset);
+    const sigil = defaultTokenAt(tokens, name - 1)?.text;
+    return sigil === "$" || sigil === "@" ? name - 1 : name;
 }
 
 /** Where the name at the offset ends, or the offset when there is none. */
 export function nameEnd(tokens: Token[], offset: number): number {
     const token = defaultTokenAt(tokens, offset);
-    return token !== undefined && NAME_TOKEN_PATTERN.test(token.text ?? "")
-        ? token.stop + 1
-        : offset;
+    return isNameToken(token) ? token.stop + 1 : offset;
 }
 
 /** Offer bound aliases and a local name when the caller supplies a matching default namespace. */
@@ -94,42 +115,34 @@ export function getQNameCompletionLabels(
     return labels.length === 0 ? [QNameToString(qname, true)] : labels;
 }
 
-/** Replaces the prefix before the cursor, and the suffix after it when the cursor is inside a name. */
-export function replaceTypedPrefix(
+export function replaceRange(
     document: TextDocument,
-    cursorOffset: number,
-    prefix: string,
+    start: number,
+    end: number,
     newText: string,
-    suffix = "",
 ): TextEdit {
     return TextEdit.replace(
-        {
-            start: document.positionAt(cursorOffset - prefix.length),
-            end: document.positionAt(cursorOffset + suffix.length),
-        },
+        { start: document.positionAt(start), end: document.positionAt(end) },
         newText,
     );
 }
 
 /**
- * Matches a namespace prefix immediately before the cursor, e.g. `fn:`, `array:`, `xs:`.
- * The prefix must start with a letter or underscore and end with a colon.
- */
-export const QNAME_PREFIX_PATTERN = /[A-Za-z_][A-Za-z0-9_.-]*:$/;
-
-/**
  * When the user has typed a namespace prefix (e.g. `fn:`), filters `items` to those
- * whose label starts with the prefix and adds a `textEdit` that replaces the whole
- * typed prefix so the editor does not produce duplicated prefixes (e.g. `fn:fn:concat`).
+ * whose label starts with the prefix.
  * Returns `null` when no namespace prefix is present, signalling that no filtering
  * should be applied.
  */
 export function applyQNamePrefixFilter(
     items: CompletionItem[],
-    context: Pick<CompletionContext, "source" | "cursorOffset">,
+    context: Pick<CompletionContext, "source" | "cursorOffset" | "getParseResult">,
 ): CompletionItem[] | null {
-    const nsPrefix = typedPrefix(context.source, context.cursorOffset, QNAME_PREFIX_PATTERN);
-    if (nsPrefix === null) {
+    const { tokens } = context.getParseResult();
+    const nsPrefix = context.source.slice(
+        nameStart(tokens, context.cursorOffset),
+        context.cursorOffset,
+    );
+    if (!nsPrefix.endsWith(":")) {
         return null;
     }
 

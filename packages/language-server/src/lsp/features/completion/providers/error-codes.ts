@@ -1,33 +1,30 @@
 import { errorCodes, formatErrorCodeDocumentation } from "server/resources/error-codes.js";
 import { CompletionItemKind, MarkupKind, type CompletionItem } from "vscode-languageserver";
 
-import { replaceTypedPrefix, typedPrefix } from "../context.js";
+import { replaceRange } from "../context.js";
 import type { CompletionProvider } from "../types.js";
 
 const CATCH_ERROR_TARGET_PREFIX_PATTERN =
     /(?:\*|[A-Za-z_][A-Za-z0-9_.-]*)(?::(?:\*|[A-Za-z_][A-Za-z0-9_.-]*)?)?$/;
-const CATCH_ERROR_TARGET_CONTEXT_PATTERN =
-    /\bcatch\s+(?:(?:\*|[A-Za-z_][A-Za-z0-9_.-]*)(?::(?:\*|[A-Za-z_][A-Za-z0-9_.-]*)?)?(?:\s*\|\s*(?:\*|[A-Za-z_][A-Za-z0-9_.-]*)(?::(?:\*|[A-Za-z_][A-Za-z0-9_.-]*)?)?)*)?$/;
 
 export const provideErrorCodeCompletions: CompletionProvider = (context) => {
-    if (
-        !context.intent.allowErrorCodeTargets &&
-        !CATCH_ERROR_TARGET_CONTEXT_PATTERN.test(context.source.slice(0, context.cursorOffset))
-    ) {
+    const targetPrefix =
+        context.source
+            .slice(0, context.cursorOffset)
+            .match(CATCH_ERROR_TARGET_PREFIX_PATTERN)?.[0] ?? "";
+    // A target is only expected where it starts: a wildcard being typed is not itself followed by one.
+    if (!context.getIntentAt(context.cursorOffset - targetPrefix.length)?.allowErrorCodeTargets) {
         return null;
     }
-
-    const targetPrefix =
-        typedPrefix(context.source, context.cursorOffset, CATCH_ERROR_TARGET_PREFIX_PATTERN) ?? "";
 
     return [...wildcardErrorCodeCompletions(), ...errorCodeCompletions(targetPrefix)]
         .filter((item) => item.label.startsWith(targetPrefix))
         .map((item) => ({
             ...item,
-            textEdit: replaceTypedPrefix(
+            textEdit: replaceRange(
                 context.document,
+                context.cursorOffset - targetPrefix.length,
                 context.cursorOffset,
-                targetPrefix,
                 item.label,
             ),
         }));
@@ -50,13 +47,7 @@ function errorCodeCompletions(targetPrefix: string): CompletionItem[] {
 
 function formatErrorCodeLabel(code: string, targetPrefix: string): string {
     const localName = code.slice("err:".length);
-    if (targetPrefix.startsWith("err:")) {
-        return code;
-    }
-    if (targetPrefix.startsWith("*:")) {
-        return `*:${localName}`;
-    }
-    return code;
+    return targetPrefix.startsWith("*:") ? `*:${localName}` : code;
 }
 
 function wildcardErrorCodeCompletions(): CompletionItem[] {

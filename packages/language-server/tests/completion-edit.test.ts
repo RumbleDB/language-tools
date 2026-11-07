@@ -25,7 +25,6 @@ describe("function call edits", () => {
             ],
             {
                 document,
-                source,
                 cursorOffset: before.length,
                 getParseResult: () => parserService.parse(document),
             },

@@ -9,7 +9,6 @@ export interface CompletionIntent {
     allowTypes: boolean;
     allowObjectLookup: boolean;
     allowErrorCodeTargets: boolean;
-    objectLookupDotOffset?: number;
     keywords: KeywordCompletion[];
 }
 
