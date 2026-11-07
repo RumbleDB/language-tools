@@ -1,5 +1,43 @@
 # jsoniq-language-server
 
+## 2.19.0
+
+### Minor Changes
+
+- [#107](https://github.com/RumbleDB/language-tools/pull/107) [`bf4bd37`](https://github.com/RumbleDB/language-tools/commit/bf4bd37ed5d8264cfd118a7ae30444c30fee2759) - feat: upgrade RumbleDB to https://github.com/RumbleDB/rumble/commit/e4206f70261bd1dd430c6d41063c0a33743fec8b and sync its grammar changes
+  
+  See https://github.com/RumbleDB/rumble/pull/2025 and https://github.com/RumbleDB/rumble/pull/2064
+  
+  Cyclic module imports no longer overflow the stack. The `module` rule now lives in the shared grammar, so an XQuery file can no longer contain several main modules separated by `;`.
+
+- [#101](https://github.com/RumbleDB/language-tools/pull/101) [`d3e7257`](https://github.com/RumbleDB/language-tools/commit/d3e725729eed6fafb28c7867809ed514565dcf03) - feat: upgrade RumbleDB to https://github.com/RumbleDB/rumble/commit/a22ce55ae2935f43254d8b4c7f0f6a0342a1d54e and sync its grammar changes
+  
+  See https://github.com/RumbleDB/rumble/pull/2063
+  
+  Only a version declaration at the start of a module now selects the language, not the same text in a string or comment. `jsoniq encoding "..."` and `xquery encoding "..."` are accepted, and the formatter reads them from the shared `versionDecl` rule.
+
+- [#104](https://github.com/RumbleDB/language-tools/pull/104) [`b97e8aa`](https://github.com/RumbleDB/language-tools/commit/b97e8aa7550255cf60778628cd45d524691a27cd) - feat: show types in hover and suggest object fields and path steps in queries that RumbleDB rejects, such as one still being typed
+
+### Patch Changes
+
+- [#114](https://github.com/RumbleDB/language-tools/pull/114) [`b754231`](https://github.com/RumbleDB/language-tools/commit/b754231c0973f5c5b2604dd4251a6d38f93a5c69) - fix(completion): do not suggest error codes after a variable named `catch`
+
+- [#115](https://github.com/RumbleDB/language-tools/pull/115) [`fde4690`](https://github.com/RumbleDB/language-tools/commit/fde4690bde61f08c7502155257b85b4f29893696) - fix(completion): offer no completions while typing an unterminated comment, or after a space in an unterminated string
+
+- [#116](https://github.com/RumbleDB/language-tools/pull/116) [`8db7bd7`](https://github.com/RumbleDB/language-tools/commit/8db7bd7487e5f00520eeaf77b8873815b5fe6bad) - fix(completion): accepting a multi-word operator replaces the words already written, so that `instan|ce of` gives `instance of` rather than `instance of of`, and a comment or spacing between the words is kept
+
+- [#106](https://github.com/RumbleDB/language-tools/pull/106) [`7fccb02`](https://github.com/RumbleDB/language-tools/commit/7fccb02aa8fb6e2ad6ff69f0d91ec8cf031c0c84) - fix(completion): accepting a completion item replaces the name being edited, so that `c` at `$a.|test` gives `$a.c` rather than `$a.ctest`. A function replacing a name before existing arguments only inserts its name, so that the call keeps them
+
+- [#109](https://github.com/RumbleDB/language-tools/pull/109) [`fa4dd16`](https://github.com/RumbleDB/language-tools/commit/fa4dd166a99d55104bf58e91802e3b6f8cdd439e) - fix(completion): suggest object fields when whitespace or a comment follows the dot, as in `$a.` at the end of a line. Accepting an item now finds what it replaces from tokens rather than the text, so it replaces all of `err:*`, the name after `$a/|`, the rest of a multi-word keyword such as `or|der by`, and a dotted XQuery name, and a function keeps arguments that follow a comment.
+
+- [#105](https://github.com/RumbleDB/language-tools/pull/105) [`61dce9e`](https://github.com/RumbleDB/language-tools/commit/61dce9e560f44b72f35f1881c78664fedac57b5d) - refactor: ask the wrapper what a lookup or path step applies to when suggesting object fields and path steps, instead of rewriting the query being typed
+
+- [#108](https://github.com/RumbleDB/language-tools/pull/108) [`2c27e15`](https://github.com/RumbleDB/language-tools/commit/2c27e15f430ab9d0890cf49462c8977bb8e92583) - fix: keep the bindings of `some` and `every` expressions while their `satisfies` part is still missing, so that later bindings can use the earlier ones in hover and completion
+
+- [#112](https://github.com/RumbleDB/language-tools/pull/112) [`dae5041`](https://github.com/RumbleDB/language-tools/commit/dae5041b6952657dcd5b3b1660b2438e59543a7a) - fix: keep type inference and path step completion working when a schema import cannot be loaded, such as while its location is being typed
+
+- [#117](https://github.com/RumbleDB/language-tools/pull/117) [`a10f087`](https://github.com/RumbleDB/language-tools/commit/a10f087b179c093cd048e058e5bf227bca94dd0d) - chore: upgrade `vscode-languageserver` and `vscode-languageclient` to 11, and `vscode-languageserver-textdocument` to 1.0.16
+
 ## 2.18.0
 
 ### Minor Changes

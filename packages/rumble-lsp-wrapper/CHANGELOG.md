@@ -1,5 +1,31 @@
 # rumble-lsp-wrapper
 
+## 0.15.0
+
+### Minor Changes
+
+- [#107](https://github.com/RumbleDB/language-tools/pull/107) [`bf4bd37`](https://github.com/RumbleDB/language-tools/commit/bf4bd37ed5d8264cfd118a7ae30444c30fee2759) - feat: upgrade RumbleDB to https://github.com/RumbleDB/rumble/commit/e4206f70261bd1dd430c6d41063c0a33743fec8b and sync its grammar changes
+  
+  See https://github.com/RumbleDB/rumble/pull/2025 and https://github.com/RumbleDB/rumble/pull/2064
+  
+  Cyclic module imports no longer overflow the stack. The `module` rule now lives in the shared grammar, so an XQuery file can no longer contain several main modules separated by `;`.
+
+- [#101](https://github.com/RumbleDB/language-tools/pull/101) [`d3e7257`](https://github.com/RumbleDB/language-tools/commit/d3e725729eed6fafb28c7867809ed514565dcf03) - feat: upgrade RumbleDB to https://github.com/RumbleDB/rumble/commit/a22ce55ae2935f43254d8b4c7f0f6a0342a1d54e and sync its grammar changes
+  
+  See https://github.com/RumbleDB/rumble/pull/2063
+  
+  Only a version declaration at the start of a module now selects the language, not the same text in a string or comment. `jsoniq encoding "..."` and `xquery encoding "..."` are accepted, and the formatter reads them from the shared `versionDecl` rule.
+
+- [#104](https://github.com/RumbleDB/language-tools/pull/104) [`b97e8aa`](https://github.com/RumbleDB/language-tools/commit/b97e8aa7550255cf60778628cd45d524691a27cd) - feat: show types in hover and suggest object fields and path steps in queries that RumbleDB rejects, such as one still being typed
+
+### Patch Changes
+
+- [#105](https://github.com/RumbleDB/language-tools/pull/105) [`61dce9e`](https://github.com/RumbleDB/language-tools/commit/61dce9e560f44b72f35f1881c78664fedac57b5d) - refactor: ask the wrapper what a lookup or path step applies to when suggesting object fields and path steps, instead of rewriting the query being typed
+
+- [#108](https://github.com/RumbleDB/language-tools/pull/108) [`2c27e15`](https://github.com/RumbleDB/language-tools/commit/2c27e15f430ab9d0890cf49462c8977bb8e92583) - fix: keep the bindings of `some` and `every` expressions while their `satisfies` part is still missing, so that later bindings can use the earlier ones in hover and completion
+
+- [#112](https://github.com/RumbleDB/language-tools/pull/112) [`dae5041`](https://github.com/RumbleDB/language-tools/commit/dae5041b6952657dcd5b3b1660b2438e59543a7a) - fix: keep type inference and path step completion working when a schema import cannot be loaded, such as while its location is being typed
+
 ## 0.14.0
 
 ### Minor Changes

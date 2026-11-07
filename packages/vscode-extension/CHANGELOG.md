@@ -1,5 +1,27 @@
 # jsoniq-vscode
 
+## 1.14.0
+
+### Minor Changes
+
+- [#107](https://github.com/RumbleDB/language-tools/pull/107) [`bf4bd37`](https://github.com/RumbleDB/language-tools/commit/bf4bd37ed5d8264cfd118a7ae30444c30fee2759) - feat: upgrade RumbleDB to https://github.com/RumbleDB/rumble/commit/e4206f70261bd1dd430c6d41063c0a33743fec8b and sync its grammar changes
+  
+  See https://github.com/RumbleDB/rumble/pull/2025 and https://github.com/RumbleDB/rumble/pull/2064
+  
+  Cyclic module imports no longer overflow the stack. The `module` rule now lives in the shared grammar, so an XQuery file can no longer contain several main modules separated by `;`.
+
+- [#101](https://github.com/RumbleDB/language-tools/pull/101) [`d3e7257`](https://github.com/RumbleDB/language-tools/commit/d3e725729eed6fafb28c7867809ed514565dcf03) - feat: upgrade RumbleDB to https://github.com/RumbleDB/rumble/commit/a22ce55ae2935f43254d8b4c7f0f6a0342a1d54e and sync its grammar changes
+  
+  See https://github.com/RumbleDB/rumble/pull/2063
+  
+  Only a version declaration at the start of a module now selects the language, not the same text in a string or comment. `jsoniq encoding "..."` and `xquery encoding "..."` are accepted, and the formatter reads them from the shared `versionDecl` rule.
+
+### Patch Changes
+
+- [#117](https://github.com/RumbleDB/language-tools/pull/117) [`a10f087`](https://github.com/RumbleDB/language-tools/commit/a10f087b179c093cd048e058e5bf227bca94dd0d) - chore: upgrade `vscode-languageserver` and `vscode-languageclient` to 11, and `vscode-languageserver-textdocument` to 1.0.16
+- Updated dependencies [[`b754231`](https://github.com/RumbleDB/language-tools/commit/b754231c0973f5c5b2604dd4251a6d38f93a5c69), [`fde4690`](https://github.com/RumbleDB/language-tools/commit/fde4690bde61f08c7502155257b85b4f29893696), [`8db7bd7`](https://github.com/RumbleDB/language-tools/commit/8db7bd7487e5f00520eeaf77b8873815b5fe6bad), [`7fccb02`](https://github.com/RumbleDB/language-tools/commit/7fccb02aa8fb6e2ad6ff69f0d91ec8cf031c0c84), [`fa4dd16`](https://github.com/RumbleDB/language-tools/commit/fa4dd166a99d55104bf58e91802e3b6f8cdd439e), [`61dce9e`](https://github.com/RumbleDB/language-tools/commit/61dce9e560f44b72f35f1881c78664fedac57b5d), [`2c27e15`](https://github.com/RumbleDB/language-tools/commit/2c27e15f430ab9d0890cf49462c8977bb8e92583), [`bf4bd37`](https://github.com/RumbleDB/language-tools/commit/bf4bd37ed5d8264cfd118a7ae30444c30fee2759), [`d3e7257`](https://github.com/RumbleDB/language-tools/commit/d3e725729eed6fafb28c7867809ed514565dcf03), [`b97e8aa`](https://github.com/RumbleDB/language-tools/commit/b97e8aa7550255cf60778628cd45d524691a27cd), [`dae5041`](https://github.com/RumbleDB/language-tools/commit/dae5041b6952657dcd5b3b1660b2438e59543a7a), [`a10f087`](https://github.com/RumbleDB/language-tools/commit/a10f087b179c093cd048e058e5bf227bca94dd0d)]:
+  - jsoniq-language-server@2.19.0
+
 ## 1.13.0
 
 ### Minor Changes
