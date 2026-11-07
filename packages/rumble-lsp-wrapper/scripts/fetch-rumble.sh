@@ -35,6 +35,23 @@ ensure_rumble_checkout() {
         echo "Expected a git checkout at $RUMBLE_DIR" >&2
         exit 1
     fi
+
+    if [ "$(git -C "$RUMBLE_DIR" rev-parse HEAD)" = "$RUMBLE_REQUESTED_COMMIT" ]; then
+        return
+    fi
+
+    # A checkout on a branch is being worked on, so it is left as it is.
+    current_branch=$(git -C "$RUMBLE_DIR" branch --show-current)
+    if [ -n "$current_branch" ]; then
+        echo "Warning: using Rumble branch $current_branch rather than the pinned commit $RUMBLE_REQUESTED_COMMIT." >&2
+        return
+    fi
+
+    echo "Updating Rumble to commit $RUMBLE_REQUESTED_COMMIT..." >&2
+    git -C "$RUMBLE_DIR" fetch --depth 1 origin "$RUMBLE_REQUESTED_COMMIT"
+    git -C "$RUMBLE_DIR" -c advice.detachedHead=false checkout --detach FETCH_HEAD >/dev/null
+    # A jar from before the move is stale, even if no build stamp says so.
+    rm -f "$RUMBLE_TARGET_DIR"/rumbledb-*-jar-with-dependencies.jar
 }
 
 detect_rumble_ref() {
@@ -123,6 +140,10 @@ ensure_rumble_checkout
 RUMBLE_COMMIT=$(git -C "$RUMBLE_DIR" rev-parse HEAD)
 RUMBLE_COMMIT_SHORT=$(git -C "$RUMBLE_DIR" rev-parse --short HEAD)
 RUMBLE_CURRENT_REF=$(detect_rumble_ref)
+# The jar was built from another commit, so it must not be used for this one.
+if [ -f "$WRAPPER_BUILD_STAMP" ] && ! stamp_commit_matches_checkout; then
+    rm -f "$RUMBLE_TARGET_DIR"/rumbledb-*-jar-with-dependencies.jar
+fi
 RUMBLE_JAR=$(resolve_rumble_jar 2>/dev/null || true)
 if [ -n "$RUMBLE_JAR" ]; then
     cache_rumble_jar
@@ -140,7 +161,7 @@ if [ -z "$RUMBLE_JAR" ]; then
     RUMBLE_JAR=$(resolve_rumble_jar)
     cache_rumble_jar
     CURRENT_BUILD_SIGNATURE=$(build_signature)
-elif ! stamp_commit_matches_checkout; then
+elif [ ! -f "$WRAPPER_BUILD_STAMP" ]; then
     echo "Adopting existing Rumble jar for commit $RUMBLE_COMMIT_SHORT..." >&2
 fi
 
