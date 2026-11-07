@@ -1,4 +1,4 @@
-# RumbleDB Language Tools
+# JSONiq and XQuery Language Tools
 
 Editor support for [JSONiq](https://www.jsoniq.org/) and XQuery, built around the [RumbleDB](https://rumbledb.org/) engine. It includes a language server, a VS Code extension, and a small Java process that lets the server ask RumbleDB about your query.
 
