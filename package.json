@@ -39,7 +39,7 @@
         "@octokit/rest": "^22.0.1",
         "husky": "^9.1.7",
         "lint-staged": "^17.6.0",
-        "npm-run-all2": "^9.0.3",
+        "npm-run-all2": "^9.0.4",
         "oxfmt": "catalog:",
         "oxlint": "catalog:"
     },
