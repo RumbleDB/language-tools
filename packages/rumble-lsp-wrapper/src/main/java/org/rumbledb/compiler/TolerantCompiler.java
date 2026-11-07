@@ -5,6 +5,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -36,6 +37,7 @@ import org.rumbledb.expressions.module.LibraryModule;
 import org.rumbledb.expressions.module.MainModule;
 import org.rumbledb.expressions.module.Module;
 import org.rumbledb.expressions.module.Prolog;
+import org.rumbledb.expressions.module.SchemaImport;
 import org.rumbledb.expressions.postfix.ObjectLookupExpression;
 import org.rumbledb.expressions.primary.VariableReferenceExpression;
 import org.rumbledb.expressions.xml.SlashExpr;
@@ -45,6 +47,7 @@ import org.rumbledb.parser.xquery.XQueryLexer;
 import org.rumbledb.parser.xquery.XQueryParser;
 import org.rumbledb.types.BuiltinTypesCatalogue;
 import org.rumbledb.types.SequenceType;
+import org.rumbledb.xml.schema.XmlSchemaCatalog;
 
 /**
  * Compiles a query that RumbleDB rejects, such as one still being typed, far enough to annotate what is valid with
@@ -245,6 +248,26 @@ public final class TolerantCompiler {
         }
     }
 
+    /** Loading fails for all imports if one fails, as when its file does not exist yet, so that one is left out. */
+    private static Optional<XmlSchemaCatalog> loadSchemasIfPossible(
+            List<SchemaImport> imports, Function<List<SchemaImport>, Optional<XmlSchemaCatalog>> load) {
+        try {
+            return load.apply(imports);
+        } catch (RuntimeException allFailed) {
+            List<SchemaImport> loadable = new ArrayList<>();
+            Optional<XmlSchemaCatalog> catalog = Optional.empty();
+            for (SchemaImport schemaImport : imports) {
+                loadable.add(schemaImport);
+                try {
+                    catalog = load.apply(loadable);
+                } catch (RuntimeException failed) {
+                    loadable.remove(schemaImport);
+                }
+            }
+            return catalog;
+        }
+    }
+
     private static final class TolerantJsoniqTranslation extends TranslationVisitor {
         private final ExpressionRecovery<JsoniqParser.ExprSingleContext> recovery =
                 new ExpressionRecovery<>(JsoniqParser.ExprSingleContext.class, this::visitExprSingle);
@@ -257,6 +280,11 @@ public final class TolerantCompiler {
         @Override
         protected void translatePrologEntry(ParseTree entry, Consumer<ParseTree> translation) {
             translateIfPossible(entry, translation);
+        }
+
+        @Override
+        protected Optional<XmlSchemaCatalog> loadSchemas(List<SchemaImport> schemaImports) {
+            return loadSchemasIfPossible(schemaImports, super::loadSchemas);
         }
 
         @Override
@@ -287,6 +315,11 @@ public final class TolerantCompiler {
         @Override
         protected void translatePrologEntry(ParseTree entry, Consumer<ParseTree> translation) {
             translateIfPossible(entry, translation);
+        }
+
+        @Override
+        protected Optional<XmlSchemaCatalog> loadSchemas(List<SchemaImport> schemaImports) {
+            return loadSchemasIfPossible(schemaImports, super::loadSchemas);
         }
 
         @Override

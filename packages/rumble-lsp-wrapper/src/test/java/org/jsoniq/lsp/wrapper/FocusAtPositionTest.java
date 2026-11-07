@@ -42,11 +42,9 @@ class FocusAtPositionTest {
             </xs:schema>
             """;
 
-    private static final String LET_ORDER =
-            """
-            import schema namespace o = "urn:order" at "order.xsd";
-            let $o := validate { <o:order id="1"/> }
-            """;
+    private static final String LET_ORDER_IMPORT = "import schema namespace o = \"urn:order\" at \"order.xsd\";\n";
+    private static final String LET_ORDER_BINDING = "let $o := validate { <o:order id=\"1\"/> }\n";
+    private static final String LET_ORDER = LET_ORDER_IMPORT + LET_ORDER_BINDING;
 
     private static final List<String> ORDER_STEPS =
             List.of("o:line: element(o:line, <anonymous>)+", "@id: attribute(id, xs:integer)");
@@ -154,6 +152,27 @@ class FocusAtPositionTest {
         }
     }
 
+    @ParameterizedTest
+    @ValueSource(strings = {"missing.xsd", "broken.xsd"})
+    void typesAQueryWhoseSchemaCannotBeLoaded(String location, @TempDir Path directory) throws IOException {
+        Files.writeString(directory.resolve("broken.xsd"), "<xs:schema");
+        String query = "import schema namespace m = \"urn:other\" at \"" + location + "\";\n" + LET_A + "return $a.|";
+        assertEquals(OBJECT, focusType(query, directory.resolve("query.jq").toUri()));
+    }
+
+    @ParameterizedTest
+    @ValueSource(
+            strings = {
+                "import schema namespace m = \"urn:other\" at \"missing.xsd\";\n" + LET_ORDER,
+                LET_ORDER_IMPORT + "import schema namespace m = \"urn:other\" at \"missing.xsd\";\n" + LET_ORDER_BINDING
+            })
+    void keepsTheSchemasThatCanBeLoaded(String prolog, @TempDir Path directory) throws IOException {
+        Files.writeString(directory.resolve("order.xsd"), ORDER_SCHEMA);
+        for (String extension : List.of("xq", "jq")) {
+            assertEquals(ORDER_STEPS, steps(prolog + "return $o/|", extension, directory), extension);
+        }
+    }
+
     @Test
     void listsNoStepsForUntypedNodes() {
         assertNull(find("let $x := <order/> return $x/|", XQUERY_URI).pathSteps());
@@ -166,9 +185,11 @@ class FocusAtPositionTest {
 
     private List<String> orderSteps(String markedQuery, String extension, Path directory) throws IOException {
         Files.writeString(directory.resolve("order.xsd"), ORDER_SCHEMA);
-        var steps = find(
-                        LET_ORDER + markedQuery,
-                        directory.resolve("query." + extension).toUri())
+        return steps(LET_ORDER + markedQuery, extension, directory);
+    }
+
+    private List<String> steps(String markedQuery, String extension, Path directory) {
+        var steps = find(markedQuery, directory.resolve("query." + extension).toUri())
                 .pathSteps();
         return steps == null
                 ? null
