@@ -42,14 +42,18 @@ export function createItemEditor(context: EditContext): (item: CompletionItem) =
         const reachesPastCursor = providerEnd > cursorOffset;
         const isEditingName =
             reachesPastCursor || isAfterSlash || document.offsetAt(edit.range.start) < cursorOffset;
-        const end =
-            reachesPastCursor || !isEditingName
-                ? providerEnd
-                : endOfWrittenWords(item, document, tokens, editedNameEnd);
-
+        if (reachesPastCursor || !isEditingName) {
+            return TextEdit.replace(edit.range, edit.newText);
+        }
+        const writtenWords = textOfWrittenWords(item, document, tokens, editedNameEnd);
+        const end = document.positionAt(editedNameEnd + writtenWords.length);
+        if (writtenWords !== "") {
+            const firstWord = item.label.slice(0, item.label.indexOf(" "));
+            return TextEdit.replace({ start: edit.range.start, end }, firstWord + writtenWords);
+        }
         return TextEdit.replace(
-            { start: edit.range.start, end: document.positionAt(end) },
-            isEditingName && item.kind === CompletionItemKind.Function && isBeforeCall
+            { start: edit.range.start, end },
+            item.kind === CompletionItemKind.Function && isBeforeCall
                 ? escapeSnippetText(item.label)
                 : edit.newText,
         );
@@ -57,27 +61,31 @@ export function createItemEditor(context: EditContext): (item: CompletionItem) =
 }
 
 /**
- * The end of the words of a keyword that are already written after its first one, as `by` in `or|der by`. An edit cannot
- * span several lines, so they must be on the line of the first word.
+ * The text after the first word of a keyword or operator, up to the end of its other words, when they are all already
+ * written, as ` by` in `or|der by`. Keeping this text also keeps a comment between the words. An edit cannot span several
+ * lines, so they must be on the line of the first word.
  */
-function endOfWrittenWords(
+function textOfWrittenWords(
     item: CompletionItem,
     document: TextDocument,
     tokens: Token[],
     editedNameEnd: number,
-): number {
-    if (item.kind !== CompletionItemKind.Keyword) {
-        return editedNameEnd;
+): string {
+    if (item.kind !== CompletionItemKind.Keyword && item.kind !== CompletionItemKind.Operator) {
+        return "";
     }
     let end = editedNameEnd;
     for (const word of item.label.split(" ").slice(1)) {
         const next = nextTokenOnLine(document, tokens, end);
         if (next?.text !== word) {
-            return editedNameEnd;
+            return "";
         }
         end = next.stop + 1;
     }
-    return end;
+    return document.getText({
+        start: document.positionAt(editedNameEnd),
+        end: document.positionAt(end),
+    });
 }
 
 /** The next token, when it is on the line of the offset. Token lines count from one and document lines from zero. */
