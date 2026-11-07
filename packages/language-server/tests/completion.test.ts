@@ -683,10 +683,28 @@ describe("JSONiq completion", () => {
             "bc",
             'let $o := {"bc": 1} return { $o.bc: 1 }',
         ],
+        [
+            "a variable with no space",
+            "let $abc := 1 return { $a",
+            ":1 }",
+            "$abc",
+            "let $abc := 1 return { $abc:1 }",
+        ],
+        ["a keyword with no space", "{ tr", ":1 }", "true", "{ true:1 }"],
+        [
+            "an object field with no space",
+            'let $o := {"bc": 1} return { $o.b',
+            ":1 }",
+            "bc",
+            'let $o := {"bc": 1} return { $o.bc:1 }',
+        ],
     ])(
         "keeps a colon after %s",
-        async (_name, before, after, label, expected) => {
-            const document = testDocument(`completion-keep-colon-${label}`, before + after);
+        async (name, before, after, label, expected) => {
+            const document = testDocument(
+                `completion-keep-colon-${name.replaceAll(" ", "-")}`,
+                before + after,
+            );
 
             const items = await findCompletions(
                 document,
