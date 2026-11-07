@@ -1074,6 +1074,32 @@ describe("JSONiq completion", () => {
         expect(intent?.allowFunctions).toBe(false);
     });
 
+    it.each([
+        "(: note",
+        "(: note ",
+        "(:",
+        "1 + (: note",
+        "(: a (: b :) c",
+        '"open ',
+        "'open ",
+        '1 + "open string ',
+    ])("offers nothing inside the unterminated %s", (source) => {
+        for (const extension of ["jq", "xq"]) {
+            const document = testDocumentFromUri(source, {
+                uri: `file:///completion-unterminated-${encodeURIComponent(source)}.${extension}`,
+            });
+            expect(parserService.collectCompletionIntent(document, source.length)).toBeNull();
+        }
+    });
+
+    it.each(['"(: a" + ', "(: a :) ", "(", '"a" ', "1 (: a :) + "])(
+        "still offers items after %s",
+        (source) => {
+            const document = testDocument(`completion-after-${encodeURIComponent(source)}`, source);
+            expect(parserService.collectCompletionIntent(document, source.length)).not.toBeNull();
+        },
+    );
+
     it("suggests builtin functions when typing a keyword prefix like 'array:' in 'let $a := array:'", async () => {
         const document = testDocument("completion-array-prefix-expr", "let $a := array:");
         const items = await findCompletions(
