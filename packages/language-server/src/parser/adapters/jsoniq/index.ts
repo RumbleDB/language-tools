@@ -30,7 +30,6 @@ export const jsoniqParserAdapter: ParserAdapter = {
                 ruleIndex === JsoniqParser.RULE_functionName &&
                 candidate?.ruleList.at(-1) !== JsoniqParser.RULE_functionDecl,
             isObjectLookupRule: (ruleIndex) => ruleIndex === JsoniqParser.RULE_objectLookup,
-            isObjectLookupDotToken: (tokenType) => tokenType === JsoniqLexer.DOT,
             isCommentToken: (tokenType) => tokenType === JsoniqLexer.XQComment,
             isStringLiteralRule: (ruleIndex) => ruleIndex === JsoniqParser.RULE_stringLiteral,
             isCatchErrorTargetRule: (ruleIndex, candidate) =>

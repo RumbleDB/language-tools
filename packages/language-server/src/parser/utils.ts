@@ -11,25 +11,11 @@ import { TextDocument } from "vscode-languageserver-textdocument";
 import { JsoniqLexer } from "./adapters/jsoniq/grammar/JsoniqLexer.js";
 import { JsoniqParser } from "./adapters/jsoniq/grammar/JsoniqParser.js";
 
-export function nextDefaultToken(
-    tokenStream: CommonTokenStream,
-): (token: Token | null | undefined) => Token | null {
-    return (token) => {
-        if (token === null || token === undefined || token.tokenIndex < 0) {
-            return null;
-        }
-
-        const nextTokenIndex = tokenStream.nextTokenOnChannel(
-            token.tokenIndex + 1,
-            Token.DEFAULT_CHANNEL,
-        );
-        return nextTokenIndex < 0 ? null : tokenStream.get(nextTokenIndex);
-    };
-}
+const compareTokenStart = (token: Token, target: number) => token.start - target;
 
 /** The last token on the default channel that ends before the offset, skipping whitespace and comments. */
-export function previousDefaultToken(tokens: Token[], offset: number): Token | undefined {
-    const after = lowerBound(tokens, offset, (token, target) => token.start - target);
+export function defaultTokenBefore(tokens: Token[], offset: number): Token | undefined {
+    const after = lowerBound(tokens, offset, compareTokenStart);
     for (let index = after - 1; index >= 0; index -= 1) {
         const token = tokens[index]!;
         if (token.channel === Token.DEFAULT_CHANNEL && token.stop < offset) {
@@ -37,6 +23,25 @@ export function previousDefaultToken(tokens: Token[], offset: number): Token | u
         }
     }
     return undefined;
+}
+
+/** The first token on the default channel that starts at or after the offset, skipping whitespace and comments. */
+export function defaultTokenAfter(tokens: Token[], offset: number): Token | undefined {
+    const after = lowerBound(tokens, offset, compareTokenStart);
+    for (let index = after; index < tokens.length; index += 1) {
+        const token = tokens[index]!;
+        if (token.channel === Token.DEFAULT_CHANNEL && token.type !== Token.EOF) {
+            return token;
+        }
+    }
+    return undefined;
+}
+
+/** The token on the default channel that the offset is inside or at the start of. */
+export function defaultTokenAt(tokens: Token[], offset: number): Token | undefined {
+    const index = lowerBound(tokens, offset + 1, compareTokenStart) - 1;
+    const token = tokens[index];
+    return token?.channel === Token.DEFAULT_CHANNEL && offset <= token.stop ? token : undefined;
 }
 
 export function findCaretToken(
@@ -48,11 +53,7 @@ export function findCaretToken(
         return { tokenIndex: 0, offset: cursorOffset };
     }
 
-    const insertionPoint = lowerBound(
-        tokens,
-        cursorOffset,
-        (token, target) => token.start - target,
-    );
+    const insertionPoint = lowerBound(tokens, cursorOffset, compareTokenStart);
     let tokenIndex = tokens[tokens.length - 1]!.tokenIndex;
 
     if (insertionPoint > 0) {

@@ -30,7 +30,6 @@ export const xqueryParserAdapter: ParserAdapter = {
                 ruleIndex === XQueryParser.RULE_functionName &&
                 candidate?.ruleList.at(-1) !== XQueryParser.RULE_functionDecl,
             isObjectLookupRule: () => false,
-            isObjectLookupDotToken: () => false,
             isCommentToken: (tokenType) => tokenType === XQueryLexer.XQComment,
             isStringLiteralRule: (ruleIndex) => ruleIndex === XQueryParser.RULE_stringLiteral,
             isCatchErrorTargetRule: (ruleIndex, candidate) =>

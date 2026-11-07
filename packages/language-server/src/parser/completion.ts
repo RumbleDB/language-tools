@@ -28,7 +28,6 @@ type CompletionOptions<T extends TokenContextAnalyzer> = {
     languageKeywords: LanguageKeywordCompletion[];
     isFunctionReferenceRule(ruleIndex: number, candidate?: RuleCandidateInfo): boolean;
     isObjectLookupRule(ruleIndex: number): boolean;
-    isObjectLookupDotToken(tokenType: number): boolean;
     isCommentToken(tokenType: number): boolean;
     isStringLiteralRule(ruleIndex: number): boolean;
     isCatchErrorTargetRule(ruleIndex: number, candidate?: RuleCandidateInfo): boolean;
@@ -65,16 +64,10 @@ export function getCompletionIntent<T extends TokenContextAnalyzer>(
         candidates.tokenContext.allowReferences &&
         !qnamePrefix &&
         hasCandidateRule(candidates, options.isVariableReferenceRule);
-    const objectLookupDotOffset = findObjectLookupDotOffset(
-        parsed.tokens,
-        cursorOffset,
-        options.isObjectLookupDotToken,
-    );
     const allowObjectLookup =
         candidates.tokenContext.allowReferences &&
         !qnamePrefix &&
-        hasCandidateRule(candidates, options.isObjectLookupRule) &&
-        objectLookupDotOffset !== undefined;
+        hasCandidateRule(candidates, options.isObjectLookupRule);
     const allowTypes = candidates.tokenContext.allowTypeReferences;
     const allowErrorCodeTargets = hasCandidateRule(candidates, options.isCatchErrorTargetRule);
     const keywords = qnamePrefix ? [] : keywordCompletions(candidates, options.languageKeywords);
@@ -87,7 +80,6 @@ export function getCompletionIntent<T extends TokenContextAnalyzer>(
         allowVariables,
         allowObjectLookup,
         allowTypes,
-        objectLookupDotOffset,
         keywords,
         expectedTokens,
         expectedRules,
@@ -98,7 +90,6 @@ export function getCompletionIntent<T extends TokenContextAnalyzer>(
         allowVariableReferences: allowVariables,
         allowFunctions,
         allowObjectLookup,
-        ...(objectLookupDotOffset === undefined ? {} : { objectLookupDotOffset }),
         allowTypes,
         allowErrorCodeTargets,
         keywords,
@@ -177,28 +168,6 @@ function hasCandidateRule(
 
 function hasCandidateToken(candidates: CompletionCandidates, tokenType: number): boolean {
     return candidates.tokenTypes.has(tokenType);
-}
-
-/// This is used to strip out object lookup dot tokens that are not actually part of an object lookup expression, e.g. in the following example:
-/// ```
-/// let x = 1;
-/// x. // <- cursor here
-/// ```
-/// We send only the query text up to the dot to the server so it does not give errors
-function findObjectLookupDotOffset(
-    tokens: Token[],
-    cursorOffset: number,
-    isObjectLookupDotToken: (tokenType: number) => boolean,
-): number | undefined {
-    return tokens
-        .filter(
-            (token) =>
-                token.type !== Token.EOF &&
-                isObjectLookupDotToken(token.type) &&
-                token.start < cursorOffset &&
-                token.stop < cursorOffset,
-        )
-        .at(-1)?.start;
 }
 
 function keywordCompletions(
