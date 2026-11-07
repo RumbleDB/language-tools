@@ -11,22 +11,6 @@ import { TextDocument } from "vscode-languageserver-textdocument";
 import { JsoniqLexer } from "./adapters/jsoniq/grammar/JsoniqLexer.js";
 import { JsoniqParser } from "./adapters/jsoniq/grammar/JsoniqParser.js";
 
-export function nextDefaultToken(
-    tokenStream: CommonTokenStream,
-): (token: Token | null | undefined) => Token | null {
-    return (token) => {
-        if (token === null || token === undefined || token.tokenIndex < 0) {
-            return null;
-        }
-
-        const nextTokenIndex = tokenStream.nextTokenOnChannel(
-            token.tokenIndex + 1,
-            Token.DEFAULT_CHANNEL,
-        );
-        return nextTokenIndex < 0 ? null : tokenStream.get(nextTokenIndex);
-    };
-}
-
 const compareTokenStart = (token: Token, target: number) => token.start - target;
 
 /** The last token on the default channel that ends before the offset, skipping whitespace and comments. */
