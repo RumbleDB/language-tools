@@ -1,32 +1,73 @@
 # JSONiq Language Server
 
-The Language Server Protocol (LSP) implementation for JSONiq and XQuery.
+A Language Server Protocol implementation for JSONiq and XQuery. It powers the [VS Code extension](https://github.com/RumbleDB/language-tools/tree/main/packages/vscode-extension), and works with any other editor that has an LSP client.
 
-## Overview
+## Usage
 
-This package implements the core logic for language intelligence, capable of being consumed by any IDE that supports the Language Server Protocol.
+```bash
+npm install jsoniq-language-server
+node node_modules/jsoniq-language-server/dist/main.mjs --stdio
+```
 
-It offers basic parsing and tokenization using ANTLR4, and integrates with the RumbleDB Java wrapper to provide advanced capabilities such as deep semantic diagnostics and enhanced code completion.
+Point your editor's LSP client at that command. The server chooses a parser from the document's language ID (`jsoniq` or `xquery`), so make sure your client sends one of those.
+
+## Supported LSP features
+
+- Diagnostics, completion, hover and signature help
+- Go to definition, find references and rename
+- Document symbols and document links
+- Formatting, inlay hints, code lens and semantic tokens
+
+Files are parsed with ANTLR grammars for both languages, which keeps these features working on incomplete code. Some features also use RumbleDB, as described below.
+
+## RumbleDB and Java
+
+Type-checking diagnostics, inferred types and running queries come from RumbleDB, through the [Java wrapper](https://github.com/RumbleDB/language-tools/tree/main/packages/rumble-lsp-wrapper). This needs Java 17 or newer on your `PATH`.
+
+The wrapper JAR is too large to ship in the npm package. The server downloads it from GitHub Releases when it is first needed, checks its SHA-256 against the bundled manifest, and caches it. Set `JSONIQ_LSP_CACHE_DIR` to control where it is stored.
+
+If you don't want any of this, set `wrapper.enabled` to `false` (see below) and the server runs on the parser alone.
+
+## Configuration
+
+Pass options as `initializationOptions`. These are the defaults:
+
+```json
+{
+    "wrapper": { "enabled": true },
+    "formatter": {
+        "indentSize": 4,
+        "maxLineWidth": 100,
+        "useTabs": false,
+        "blankLineBetweenDeclarations": true,
+        "insertFinalNewline": true
+    }
+}
+```
+
+## Custom protocol messages
+
+These go beyond standard LSP. A client can ignore them, but needs `jsoniq/runQuery` and a `jsoniq.runQuery` command to make the **Run Query** code lens do anything.
+
+| Method                             | Kind         | Purpose                                        |
+| ---------------------------------- | ------------ | ---------------------------------------------- |
+| `jsoniq/runQuery`                  | request      | Runs a query and returns its results or error. |
+| `jsoniq/active-parser`             | notification | Tells the client which parser a document uses. |
+| `jsoniq/memory-usage`              | notification | Reports server and wrapper memory use.         |
+| `jsoniq/wrapper-download-progress` | notification | Reports progress of the wrapper JAR download.  |
+
+TypeScript definitions are exported from `jsoniq-language-server/requests` and `jsoniq-language-server/notifications`.
 
 ## Development
 
-### Prerequisites
+Run these from this package, after following the [build instructions](https://github.com/RumbleDB/language-tools#building-from-source) in the repository root:
 
-- Node.js (v18+)
-- pnpm
+| Command                          | What it does                                                |
+| -------------------------------- | ----------------------------------------------------------- |
+| `pnpm run generate:grammar`      | Regenerates the lexers and parsers from the `.g4` files.    |
+| `pnpm run build`                 | Compiles function docs and built-in catalogs, then bundles. |
+| `pnpm run watch`                 | Type-checks and rebundles on change.                        |
+| `pnpm test`                      | Runs the Vitest suite.                                      |
+| `pnpm run missing-function-docs` | Lists built-in functions that have no documentation yet.    |
 
-### Scripts
-
-Before building the language server for the first time, you must generate the grammar lexer and parser files:
-
-- `pnpm run generate:grammar`: Generates the ANTLR lexers and parsers from the `.g4` grammar files.
-
-Other available scripts:
-
-- `pnpm run build`: Compiles the server and its dependencies.
-- `pnpm run watch`: Type-checks and rebuilds the server bundle in watch mode.
-- `pnpm run test`: Runs the Vitest suite.
-
-## Running
-
-The language server is typically launched by a client (such as the VS Code extension). Its entry point is `dist/main.mjs`.
+Documentation for RumbleDB's own built-in functions lives in [`docs/functions`](https://github.com/RumbleDB/language-tools/tree/main/packages/language-server/docs/functions), as one Markdown file per function.

@@ -1,44 +1,49 @@
 # RumbleDB LSP Wrapper
 
-A Java wrapper around RumbleDB to expose advanced features to the Language Server Protocol (LSP).
+A Java process that gives the language server access to RumbleDB's compiler and runtime. The server handles parsing itself and comes here for anything that needs the real engine: type checking, the type at a cursor position, and running queries.
 
-## Overview
-
-While the TypeScript language server provides basic syntax and tokenization, deep semantic understanding of JSONiq and XQuery is delegated to the actual RumbleDB engine. This package wraps RumbleDB and provides an interface that the Node.js language server can communicate with to obtain:
-
-- Accurate semantic diagnostics
-- Context-aware completions
-- Type information
+You won't normally start this yourself. The language server launches it and keeps it running.
 
 ## Building
 
-### Prerequisites
-
-- Java 17 or higher
-- Apache Maven
-
-### Commands
-
-To build the wrapper and package it into a fat JAR:
+You need Java 17+, Maven and Git. From the repository root:
 
 ```bash
-mvn clean package
+pnpm run build:wrapper
 ```
 
-Or run via the pnpm wrapper in the monorepo:
+This fetches RumbleDB at the commit pinned in `scripts/fetch-rumble.sh`, builds it, and then builds the wrapper. Both steps are cached: the wrapper is only rebuilt when its Java sources, Maven configuration, version or RumbleDB JAR change. To skip the cache, run `pnpm run build:force` in this package. Production builds are never cached.
 
-```bash
-pnpm run build
-```
+Run the tests with `pnpm test` in this package, and format the Java code with `pnpm run fmt`.
 
-The development build reuses the packaged wrapper when its Java sources, Maven configuration,
-version, and RumbleDB JAR are unchanged. Use `pnpm run build:force` to bypass that cache.
-Wrapper tests are run separately with `pnpm run test`; production builds remain uncached.
+When a local build exists, the language server uses it. Otherwise it falls back to the JAR from GitHub Releases.
 
-## Schema catalog endpoint
+## Running
 
-`schema-catalog` loads XML schemas independently of the query body. The request keeps
-its existing `documentUri` field, but `body` now contains **base64-encoded UTF-8 JSON**:
+`org.jsoniq.lsp.wrapper.Main` has two modes.
+
+With `--daemon`, it reads one JSON request per line from stdin and writes one JSON response per line to stdout.
+
+With one of these flags, it prints a JSON catalog and exits. The language server uses them at build time.
+
+- `--dump-builtin-functions`
+- `--dump-builtin-types`
+- `--dump-builtin-constructors`
+
+## Daemon requests
+
+| Request type        | Purpose                                               |
+| ------------------- | ----------------------------------------------------- |
+| `handshake`         | Confirms the process is up, before any other request. |
+| `static-typecheck`  | Compiles a query and reports its errors and types.    |
+| `type-at-position`  | Finds the static type at a position.                  |
+| `focus-at-position` | Finds the type of the context item at a position.     |
+| `schema-catalog`    | Loads the types and constructors from XML schemas.    |
+| `run-query`         | Runs a query and returns its results.                 |
+
+### `schema-catalog`
+
+This request loads XML schemas without looking at the query, so it still works when the query body is incomplete. The language server builds its input from the module prolog. The request keeps the usual `documentUri` field, but `body` is base64-encoded UTF-8 JSON:
 
 ```json
 {
@@ -47,19 +52,10 @@ its existing `documentUri` field, but `body` now contains **base64-encoded UTF-8
 }
 ```
 
-- `imports` is required and contains only the current module's schema imports.
-- `locations` is required; an empty array delegates location resolution to RumbleDB
-  (which uses the namespace URI, except for the built-in XML Schema namespace).
-- `baseUri` is optional: pass the decoded value of `declare base-uri` when present.
-  It is resolved against the absolute `documentUri`; otherwise `documentUri` is the base.
-- Schema includes and imports are resolved by RumbleDB's existing schema loader.
-  Neither the query text nor the query file is read by this endpoint.
+- `imports` is required, and lists only the current module's schema imports.
+- `locations` is required. If it is empty, RumbleDB resolves the location itself, using the namespace URI (except for the built-in XML Schema namespace).
+- `baseUri` is optional. Pass the decoded value of `declare base-uri` if there is one. It is resolved against the absolute `documentUri`, which is otherwise the base.
 
-The response remains `{ "types": [...], "constructors": [...], "errors": [...] }`.
-Names are namespace-qualified without query-specific prefixes. Built-in types and
-constructors are excluded. Schema-loading errors retain the existing error format;
-without source ranges in the input, their query location is the start of the document.
-Invalid request payloads are rejected as request errors.
+RumbleDB's schema loader follows any includes and imports.
 
-The language server builds this input from the module prolog, including when the
-query body is incomplete. Query text is no longer sent to this endpoint.
+The response is `{ "types": [...], "constructors": [...], "errors": [...] }`. Names are namespace-qualified, without query-specific prefixes, and built-ins are left out. Schema loading errors use the normal error format; since the input has no source ranges, their location is the start of the document. Invalid payloads are rejected as request errors.

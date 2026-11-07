@@ -1,62 +1,55 @@
 # RumbleDB Language Tools
 
-This repository contains the language support tools for JSONiq and XQuery, primarily powered by [RumbleDB](https://rumbledb.org/).
+Editor support for [JSONiq](https://www.jsoniq.org/) and XQuery, built around the [RumbleDB](https://rumbledb.org/) engine. It includes a language server, a VS Code extension, and a small Java process that lets the server ask RumbleDB about your query.
 
-## Features
+![A JSONiq query in VS Code with its results shown as a table and as an expandable list](https://github.com/user-attachments/assets/5f271ee2-1967-439b-86c1-5f5122549579)
 
-- **Syntax highlighting** for JSONiq (`.jq`) and XQuery (`.xq`)
-- **Code completion** and **hover documentation**
-- **Diagnostics** and syntax error reporting
-- Enhanced language support via the RumbleDB Java wrapper
+If you just want to write queries, install the extension from the [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=RumbleDB.jsoniq-vscode) or [Open VSX](https://open-vsx.org/extension/RumbleDB/jsoniq-vscode). Its [README](./packages/vscode-extension/README.md) covers what it does. For other editors, see the [language server](./packages/language-server/README.md).
 
-## Workspace Structure
+## Packages
 
-This is a monorepo managed with `pnpm`, containing the following packages:
+| Package                                                | What it is                                                                                               |
+| ------------------------------------------------------ | -------------------------------------------------------------------------------------------------------- |
+| [`jsoniq-language-server`](./packages/language-server) | The LSP server, written in TypeScript. Parsing, completion, navigation and formatting happen here.       |
+| [`rumble-lsp-wrapper`](./packages/rumble-lsp-wrapper)  | A long-running Java process around RumbleDB. It handles type checking, type lookups and running queries. |
+| [`jsoniq-vscode`](./packages/vscode-extension)         | The VS Code extension: TextMate grammars, the language client, and the query results panel.              |
 
-- **[`jsoniq-language-server`](./packages/language-server)**: The Language Server Protocol (LSP) implementation for JSONiq and XQuery.
-- **[`rumble-lsp-wrapper`](./packages/rumble-lsp-wrapper)**: A Java-based wrapper providing advanced LSP capabilities by directly leveraging the RumbleDB engine.
-- **[`jsoniq-vscode`](./packages/vscode-extension)**: The Visual Studio Code extension providing IDE integration.
+They fit together like this:
+
+```text
+VS Code extension  ──LSP──▶  language server  ──JSON over stdin/stdout──▶  wrapper (RumbleDB)
+```
+
+The server works without the wrapper, so you can turn it off or run without Java. You lose type checking, type-aware completion and running queries, but everything based on the parser keeps working.
 
 ## Building from source
 
-### Prerequisites
+You need [Node.js](https://nodejs.org/) (CI runs on 26), [pnpm](https://pnpm.io/), Java 17+, Maven and Git. The first build fetches RumbleDB at a pinned commit and compiles it, so expect it to take a while.
 
-- [Node.js](https://nodejs.org/) (v18+)
-- [pnpm](https://pnpm.io/)
-- [Java 17+](https://adoptium.net/) (for the RumbleDB wrapper)
-- [Maven](https://maven.apache.org/) (for building the RumbleDB wrapper)
+```bash
+pnpm install
+pnpm run generate:grammar
+pnpm run build
+```
 
-### Setup & Build
+To try your build, open the repo in VS Code and start the **Launch VSCode Exension** debug configuration. `pnpm run dev` rebuilds the server, webview and extension as you edit.
 
-1. Install dependencies:
+## Common commands
 
-    ```bash
-    pnpm install
-    ```
+| Command               | What it does                                                     |
+| --------------------- | ---------------------------------------------------------------- |
+| `pnpm run build`      | Builds the wrapper, server and extension.                        |
+| `pnpm run build:prod` | Clean production build, including regenerated built-in catalogs. |
+| `pnpm run dev`        | Builds once, then watches the server, webview and extension.     |
+| `pnpm test`           | Runs the wrapper tests, then the language server tests.          |
+| `pnpm run lint`       | Lints with oxlint.                                               |
+| `pnpm run fmt`        | Formats with oxfmt (and Spotless for the Java code).             |
+| `pnpm run clean`      | Removes `dist` folders and the Java `target` directory.          |
 
-2. Generate the language grammar files:
+## Contributing
 
-    ```bash
-    pnpm run generate:grammar
-    ```
-
-3. Build all packages:
-
-    ```bash
-    pnpm run build
-    ```
-
-### Scripts
-
-- `pnpm run build`: Builds the wrapper, language server, and client.
-- `pnpm run build:prod`: Performs a clean production build and regenerates derived catalogs.
-- `pnpm run dev`: Builds once, then watches the language server, webview, and extension.
-- `pnpm run clean`: Cleans the `dist` folders and Java `target` directories.
-- `pnpm run test`: Runs the Java wrapper and TypeScript language-server test suites.
-- `pnpm run lint`: Lints the codebase using `oxlint`.
-- `pnpm run fmt`: Formats the codebase using `oxfmt`.
-- `pnpm run test`: Runs the test suite for the language server.
+Bug reports and pull requests are welcome on [GitHub](https://github.com/RumbleDB/language-tools/issues). If your change affects a published package, add a changeset with `pnpm changeset`.
 
 ## License
 
-This project is licensed under the Apache License 2.0. See the [LICENSE](LICENSE) file for details.
+[Apache License 2.0](LICENSE)
