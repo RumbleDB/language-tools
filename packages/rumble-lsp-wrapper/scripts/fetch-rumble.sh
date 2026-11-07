@@ -50,6 +50,8 @@ ensure_rumble_checkout() {
     echo "Updating Rumble to commit $RUMBLE_REQUESTED_COMMIT..." >&2
     git -C "$RUMBLE_DIR" fetch --depth 1 origin "$RUMBLE_REQUESTED_COMMIT"
     git -C "$RUMBLE_DIR" -c advice.detachedHead=false checkout --detach FETCH_HEAD >/dev/null
+    # A jar from before the move is stale, even if no build stamp says so.
+    rm -f "$RUMBLE_TARGET_DIR"/rumbledb-*-jar-with-dependencies.jar
 }
 
 detect_rumble_ref() {
