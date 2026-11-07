@@ -11,7 +11,7 @@ import {
     LanguageKeywordCompletion,
 } from "./types/completion.js";
 import { ParseResult } from "./types/result.js";
-import { findCaretToken, previousDefaultToken } from "./utils.js";
+import { findCaretToken, defaultTokenBefore } from "./utils.js";
 
 const logger = createLogger("completion");
 
@@ -114,7 +114,7 @@ function isInCommentOrString(
         return true;
     }
     // Whitespace after an unterminated string is not part of its rule, so look from the end of the last token.
-    const previous = previousDefaultToken(parsed.tokens, cursorOffset);
+    const previous = defaultTokenBefore(parsed.tokens, cursorOffset);
     return (
         previous !== undefined &&
         containsStringAt(parsed.tree, previous.stop + 1, options.isStringLiteralRule)
