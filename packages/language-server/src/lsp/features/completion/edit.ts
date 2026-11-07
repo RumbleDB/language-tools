@@ -57,8 +57,9 @@ export function createItemEditor(context: EditContext): (item: CompletionItem) =
 }
 
 /**
- * The end of the words of a keyword that are already written after its first one, as `by` in `or|der by`. An edit cannot
- * span several lines, so they must be on the line of the first word.
+ * The end of the words of a keyword or operator that are already written after its first one, as `by` in `or|der by`. An
+ * edit cannot span several lines, so they must be on the line of the first word. It also must not delete a comment, so
+ * only whitespace can come between them.
  */
 function endOfWrittenWords(
     item: CompletionItem,
@@ -66,13 +67,17 @@ function endOfWrittenWords(
     tokens: Token[],
     editedNameEnd: number,
 ): number {
-    if (item.kind !== CompletionItemKind.Keyword) {
+    if (item.kind !== CompletionItemKind.Keyword && item.kind !== CompletionItemKind.Operator) {
         return editedNameEnd;
     }
     let end = editedNameEnd;
     for (const word of item.label.split(" ").slice(1)) {
         const next = nextTokenOnLine(document, tokens, end);
-        if (next?.text !== word) {
+        const between = document.getText({
+            start: document.positionAt(end),
+            end: document.positionAt(next?.start ?? end),
+        });
+        if (next?.text !== word || between.trim() !== "") {
             return editedNameEnd;
         }
         end = next.stop + 1;
