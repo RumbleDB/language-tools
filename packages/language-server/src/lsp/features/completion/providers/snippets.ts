@@ -5,6 +5,6 @@ export function createFunctionCallSnippet(functionName: string, parameterNames: 
     return `${escapeSnippetText(functionName)}(${placeholders.join(", ")})$0`;
 }
 
-function escapeSnippetText(text: string): string {
+export function escapeSnippetText(text: string): string {
     return text.replaceAll("\\", "\\\\").replaceAll("$", "\\$").replaceAll("}", "\\}");
 }

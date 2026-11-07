@@ -13,38 +13,24 @@ import {
     type CompletionItem,
 } from "vscode-languageserver";
 
-import {
-    replaceTypedPrefix,
-    typedPrefix,
-    applyQNamePrefixFilter,
-    getQNameCompletionLabels,
-} from "../context.js";
+import { referenceStart, applyQNamePrefixFilter, getQNameCompletionLabels } from "../context.js";
 import type { CompletionProvider } from "../types.js";
 import { createFunctionCallSnippet } from "./snippets.js";
-
-const VARIABLE_PREFIX_PATTERN = /\$[A-Za-z0-9_.:-]*$/;
 
 export const provideVariableCompletions: CompletionProvider = async (context) => {
     if (!context.intent.allowVariableReferences) {
         return null;
     }
 
-    const variablePrefix = typedPrefix(
-        context.source,
-        context.cursorOffset,
-        VARIABLE_PREFIX_PATTERN,
-    );
+    const start = referenceStart(context.getParseResult().tokens, context.cursorOffset);
+    const isAfterDollar = context.source[start] === "$";
 
     // Resolve at the reference's start, just like normal variable resolution.
     // The cursor can equal a recovered initializer's end and incorrectly
     // include the variable being initialized in completion suggestions.
-    const declarations =
-        variablePrefix === null
-            ? await context.getVisibleDeclarations()
-            : getVisibleDeclarationsAtPosition(
-                  await context.getAnalysis(),
-                  context.cursorOffset - variablePrefix.length,
-              );
+    const declarations = isAfterDollar
+        ? getVisibleDeclarationsAtPosition(await context.getAnalysis(), start)
+        : await context.getVisibleDeclarations();
 
     // XQuery writes the context item as `.`, not as a variable.
     const offerContextItem = getActiveParserId(context.document) !== "xquery";
@@ -52,22 +38,7 @@ export const provideVariableCompletions: CompletionProvider = async (context) =>
     return declarations
         .filter((definition) => definition.kind === "variable" || definition.kind === "parameter")
         .filter((definition) => offerContextItem || !isContextItem(definition))
-        .map((definition) => {
-            const name = definitionNameToString(definition);
-            return {
-                ...toCompletionItem(definition),
-                ...(variablePrefix === null
-                    ? {}
-                    : {
-                          textEdit: replaceTypedPrefix(
-                              context.document,
-                              context.cursorOffset,
-                              variablePrefix,
-                              name,
-                          ),
-                      }),
-            };
-        });
+        .map((definition) => toCompletionItem(definition));
 };
 
 export const provideSourceFunctionCompletions: CompletionProvider = async (context) => {
