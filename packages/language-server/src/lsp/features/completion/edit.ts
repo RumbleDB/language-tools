@@ -3,7 +3,7 @@ import { defaultTokenAt, defaultTokenAfter, defaultTokenBefore } from "server/pa
 import { CompletionItemKind, TextEdit, type CompletionItem } from "vscode-languageserver";
 import type { TextDocument } from "vscode-languageserver-textdocument";
 
-import { nameEnd, referenceStart, replaceRange } from "./context.js";
+import { isPathSlash, nameEnd, referenceStart, replaceRange } from "./context.js";
 import { escapeSnippetText } from "./providers/snippets.js";
 import type { CompletionContext } from "./types.js";
 
@@ -20,8 +20,7 @@ export function createItemEditor(context: EditContext): (item: CompletionItem) =
     const { document, cursorOffset } = context;
     const { tokens } = context.getParseResult();
     const start = referenceStart(tokens, cursorOffset);
-    const previousText = defaultTokenBefore(tokens, cursorOffset)?.text;
-    const isAfterSlash = previousText === "/" || previousText === "//";
+    const isAfterSlash = isPathSlash(defaultTokenBefore(tokens, cursorOffset));
     // A step's `@` goes with the name after it.
     const tokenAfterSlash = isAfterSlash ? defaultTokenAt(tokens, cursorOffset) : undefined;
     const editedNameEnd = nameEnd(
@@ -30,7 +29,9 @@ export function createItemEditor(context: EditContext): (item: CompletionItem) =
     );
 
     const nextAfterName = nextTokenOnLine(document, tokens, editedNameEnd)?.text;
-    // A function replacing a name before its arguments or arity only inserts its name.
+    // A function replacing a name before its arguments or arity only inserts its name: `fn:abs` at `fn:|concat(1)` gives
+    // `fn:abs(1)`, and `fn:concat` at `con|cat#2` gives `fn:concat#2`. A parenthesis on another line is taken to start a
+    // new expression.
     const isBeforeCall = nextAfterName === "(" || nextAfterName === "#";
 
     return (item) => {

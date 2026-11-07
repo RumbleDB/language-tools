@@ -1,7 +1,7 @@
 import { errorCodes, formatErrorCodeDocumentation } from "server/resources/error-codes.js";
 import { CompletionItemKind, MarkupKind, type CompletionItem } from "vscode-languageserver";
 
-import { replaceRange, typedPrefix } from "../context.js";
+import { replaceRange } from "../context.js";
 import type { CompletionProvider } from "../types.js";
 
 const CATCH_ERROR_TARGET_PREFIX_PATTERN =
@@ -9,7 +9,9 @@ const CATCH_ERROR_TARGET_PREFIX_PATTERN =
 
 export const provideErrorCodeCompletions: CompletionProvider = (context) => {
     const targetPrefix =
-        typedPrefix(context.source, context.cursorOffset, CATCH_ERROR_TARGET_PREFIX_PATTERN) ?? "";
+        context.source
+            .slice(0, context.cursorOffset)
+            .match(CATCH_ERROR_TARGET_PREFIX_PATTERN)?.[0] ?? "";
     // A target is only expected where it starts: a wildcard being typed is not itself followed by one.
     if (!context.getIntentAt(context.cursorOffset - targetPrefix.length)?.allowErrorCodeTargets) {
         return null;

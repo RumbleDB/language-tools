@@ -32,7 +32,7 @@ export function createCompletionContext(
     }
 
     // Providers often ask about the start of the same name.
-    const intents = new Map([[cursorOffset, intent as CompletionIntent | null]]);
+    const intents = new Map<number, CompletionIntent | null>([[cursorOffset, intent]]);
     let visibleDeclarations: Promise<ScopeDefinition[]> | undefined;
     let analysis: Promise<AnalysisResult> | undefined;
 
@@ -70,8 +70,9 @@ function isNameToken(token: Token | undefined): token is Token {
     return token !== undefined && NAME_TOKEN_PATTERN.test(token.text ?? "");
 }
 
-export function typedPrefix(source: string, cursorOffset: number, pattern: RegExp): string | null {
-    return source.slice(0, cursorOffset).match(pattern)?.[0] ?? null;
+/** Whether the token is a slash that a path step follows. */
+export function isPathSlash(token: Token | undefined): boolean {
+    return token?.text === "/" || token?.text === "//";
 }
 
 /**

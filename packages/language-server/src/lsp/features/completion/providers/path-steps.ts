@@ -4,7 +4,7 @@ import { getFocusAtPosition } from "server/integrations/rumble/operations/focus-
 import { defaultTokenAt, defaultTokenBefore } from "server/parser/utils.js";
 import { CompletionItemKind, type CompletionItem } from "vscode-languageserver";
 
-import { getQNameCompletionLabels, nameStart } from "../context.js";
+import { getQNameCompletionLabels, isPathSlash, nameStart } from "../context.js";
 import type { CompletionContext, CompletionProvider } from "../types.js";
 
 /** Ranks the declared steps, children before attributes, before keywords, functions and variables, which sort from `0:`. */
@@ -34,7 +34,7 @@ export const providePathStepCompletions: CompletionProvider = async (context) =>
     }
     // Without a slash, the step applies to the context item. Only schema-typed nodes have declared steps, so other
     // modules need not look for one.
-    const afterSlash = previous.text === "/" || previous.text === "//";
+    const afterSlash = isPathSlash(previous);
     if (!afterSlash && collectModuleProlog(context.document.uri, ast).schemaImports.length === 0) {
         return null;
     }
