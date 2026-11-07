@@ -848,9 +848,10 @@ describe("JSONiq completion", () => {
             "for $x in 1 or",
             "der (: c :) by $x return 1",
             "order by",
-            "for $x in 1 order by (: c :) by $x return 1",
+            "for $x in 1 order (: c :) by $x return 1",
         ],
-        ["1 inst", "ance (: c :) of xs:int", "instance of", "1 instance of (: c :) of xs:int"],
+        ["1 inst", "ance (: c :) of xs:int", "instance of", "1 instance (: c :) of xs:int"],
+        ["1 inst", "ance   of xs:int", "instance of", "1 instance   of xs:int"],
     ])(
         "replaces the written words of a keyword at %s|%s",
         async (before, after, label, expected) => {
