@@ -43,9 +43,7 @@ export const provideBuiltinFunctionCompletions: CompletionProvider = async (cont
             ? BUILTIN_FUNCTION_COMPLETION_ITEMS[language]
             : createBuiltinFunctionCompletionItems(language, namespaces, defaultFunctionNamespace);
 
-    // When the user has typed a namespace prefix (e.g. `fn:`), filter items to that
-    // prefix and supply an explicit textEdit that replaces the whole typed prefix so
-    // the editor does not produce duplicate prefixes (e.g. `fn:fn:string-join`).
+    // When the user has typed a namespace prefix (e.g. `fn:`), only offer items with that prefix.
     return applyQNamePrefixFilter(items, context) ?? items;
 };
 
