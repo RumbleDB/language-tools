@@ -2,7 +2,7 @@
 
 Editor support for [JSONiq](https://www.jsoniq.org/) and XQuery, built around the [RumbleDB](https://rumbledb.org/) engine. It includes a language server, a VS Code extension, and a small Java process that lets the server ask RumbleDB about your query.
 
-![A JSONiq query in VS Code with its results shown as a table and as an expandable list](https://github.com/user-attachments/assets/5f271ee2-1967-439b-86c1-5f5122549579)
+![A JSONiq query in VS Code with its results shown as a table and as an expandable list](https://github.com/user-attachments/assets/dd9657ae-3b08-494f-8dd6-110ac1778e3b)
 
 If you just want to write queries, install the extension from the [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=RumbleDB.jsoniq-vscode) or [Open VSX](https://open-vsx.org/extension/RumbleDB/jsoniq-vscode). Its [README](./packages/vscode-extension/README.md) covers what it does. For other editors, see the [language server](./packages/language-server/README.md).
 
@@ -16,8 +16,10 @@ If you just want to write queries, install the extension from the [VS Code Marke
 
 They fit together like this:
 
-```text
-VS Code extension  ──LSP──▶  language server  ──JSON over stdin/stdout──▶  wrapper (RumbleDB)
+```mermaid
+flowchart LR
+    vscode["VS Code extension"] -- LSP --> server["Language server"]
+    server -. "JSON over stdin/stdout" .-> wrapper["Java wrapper (RumbleDB)"]
 ```
 
 The server works without the wrapper, so you can turn it off or run without Java. You lose type checking, type-aware completion and running queries, but everything based on the parser keeps working.

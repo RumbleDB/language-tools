@@ -2,21 +2,32 @@
 
 Write and run JSONiq and XQuery in VS Code, with [RumbleDB](https://rumbledb.org/) checking your queries and executing them. The extension handles `.jq`, `.jsoniq`, `.jqm`, `.xq`, `.xqy`, `.xquery` and `.xqm` files.
 
-## Run a query and browse the results
+Running queries and type checking need Java 17 or newer. See [Requirements](#requirements).
 
-Click **Run Query** above the first line, or the play button in the editor title bar. Results open in a panel beside your code. You can switch between a list and a table, filter the results, and open the raw output in an editor tab.
+![A JSONiq query with its results shown as a table and as an expandable list](https://github.com/user-attachments/assets/dd9657ae-3b08-494f-8dd6-110ac1778e3b)
 
-![A JSONiq query with its results shown as a table and as an expandable list](https://github.com/user-attachments/assets/5f271ee2-1967-439b-86c1-5f5122549579)
+## Features
 
-## Find errors before you run
+- **Completion** for keywords, functions, variables, types, object fields and path steps
+- **Type checking** and syntax errors as you type
+- **Inferred types** and function documentation on hover
+- **Go to definition**, find references and rename
+- **Run queries** and browse the results as a list or a table
+- **Outline view**, and clickable links on module and schema imports
+- **Document formatting**
+- **Signature help** and inlay hints for function calls
+- **Semantic highlighting** on top of the TextMate grammars
+- **Jupyter notebook** support for cells that start with `%%jsoniq`
+
+### Errors and type checking
 
 Syntax errors show up as you type. RumbleDB's static type checker catches type problems too, like this string passed to a function that expects a decimal.
 
 ![A warning that an argument requires xs:decimal but xs:string was found](https://github.com/user-attachments/assets/fad396a2-73a2-4a47-95e6-f0c0c8ebb71b)
 
-## Completion and hover that know your data
+### Completion and hover
 
-Completion covers keywords, built-in and user-defined functions, variables, types, object fields and path steps, including types from imported schemas. Object fields come from the inferred type, so `$o.` lists the fields that `$o` actually has.
+Object fields in completion come from the inferred type, so `$o.` lists the fields that `$o` actually has. Types from imported schemas are included too.
 
 ![Completion after $o. listing the fields customer, id and total with their types](https://github.com/user-attachments/assets/7d398180-82bc-4ed7-b404-af1aa038c6b8)
 
@@ -24,19 +35,24 @@ Hover over a variable to see its inferred type, or over a function to read its d
 
 ![Hovering over $revenue shows its inferred object type](https://github.com/user-attachments/assets/8e2ae778-fded-41db-9f46-d76ae8cf1427)
 
-## Navigate across files
+### Navigation
 
-Go to definition, find references and rename work on your code, and references are found across the modules in your workspace.
+Go to definition, find references and rename. References are found across the modules in your workspace.
 
 ![The References view listing three uses of pricing:with-tax across three files](https://github.com/user-attachments/assets/ed9661c9-5173-4542-b070-72d473ae0858)
 
-## Also included
+### Running queries
 
-- Document outline, and clickable links on module and schema imports
-- Document formatting
-- Signature help and inlay hints for function calls
-- Highlighting based on the parser, on top of the TextMate grammars
-- Language support in Jupyter notebook cells that start with `%%jsoniq`
+Click **Run Query** above the first line, or the play button in the editor title bar. Results open in a panel beside your code. You can switch between a list and a table, filter the results, and open the raw output in an editor tab.
+
+### Jupyter notebooks
+
+Cells that start with `%%jsoniq` get language support in VS Code's Jupyter notebooks. This extension doesn't run those cells. For that, you need the [`jsoniq`](https://pypi.org/project/jsoniq/) Python package, which requires Python 3.11+ and Java 17 or 21. Run this in the notebook first:
+
+```python
+%pip install jsoniq
+%load_ext jsoniqmagic
+```
 
 ## Requirements
 
