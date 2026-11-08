@@ -124,6 +124,29 @@ class StaticTypeCheckerTest {
     }
 
     @Test
+    void reportsEveryIndependentErrorInALibraryModule() {
+        StaticTypeChecker.Result result = checkWithoutThrow(
+                """
+                module namespace lib = "urn:lib";
+                declare function lib:f() as integer { "x" };
+                declare function lib:g() as string { 1 };
+                """);
+
+        assertEquals(List.of("XPTY0004@1:0", "XPTY0004@2:0"), describe(result));
+    }
+
+    @Test
+    void reportsTypeErrorsAfterASyntaxError() {
+        StaticTypeChecker.Result result = checkWithoutThrow(
+                """
+                declare variable $a := 1 + ;
+                2 + "b"
+                """);
+
+        assertEquals(List.of("XPST0003@0:28", "XPTY0004@1:0"), describe(result));
+    }
+
+    @Test
     void libraryModuleIsStaticTypecheckedAsALibraryModule() {
         StaticTypeChecker.Result result = checkWithoutThrow(
                 """
