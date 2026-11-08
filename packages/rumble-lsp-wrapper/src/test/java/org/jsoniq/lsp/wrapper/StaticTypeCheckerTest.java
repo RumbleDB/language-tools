@@ -4,6 +4,8 @@ import java.net.URI;
 
 import org.jsoniq.lsp.wrapper.handlers.StaticTypeChecker;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -71,5 +73,19 @@ class StaticTypeCheckerTest {
 
         assertFalse(result.errors().isEmpty());
         assertEquals("XPTY0004", result.errors().get(0).code());
+    }
+
+    @ParameterizedTest
+    @ValueSource(
+            strings = {
+                "(: outer (: nested :) :)\nmodule namespace lib = \"urn:lib\";\n",
+                "module (: comment :) namespace lib = \"urn:lib\";\n",
+                "xquery encoding \"utf-8\";\nmodule namespace lib = \"urn:lib\";\n",
+                "jsoniq version \"1.0\";(: comment :)module namespace lib = \"urn:lib\";\n",
+            })
+    void libraryModuleIsNotCompiledAsAMainModule(String query) {
+        StaticTypeChecker.Result result = checkWithoutThrow(query);
+
+        assertTrue(result.errors().isEmpty(), () -> result.errors().toString());
     }
 }

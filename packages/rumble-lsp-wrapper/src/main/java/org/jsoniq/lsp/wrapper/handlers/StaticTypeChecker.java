@@ -16,6 +16,7 @@ import org.rumbledb.compiler.CompilationPipeline;
 import org.rumbledb.config.CompilationConfiguration;
 import org.rumbledb.config.RumbleConfiguration;
 import org.rumbledb.exceptions.ExceptionMetadata;
+import org.rumbledb.exceptions.NotLibraryModuleException;
 import org.rumbledb.exceptions.RumbleException;
 
 public final class StaticTypeChecker implements RequestHandler {
@@ -50,19 +51,18 @@ public final class StaticTypeChecker implements RequestHandler {
         return new Result(typeErrors);
     }
 
+    /**
+     * Lets RumbleDB tell the module kinds apart: it rejects a source that does not start like a library module before
+     * analyzing anything. An import that is not a library module is reported as a module that was not found instead,
+     * so the rejection is always about this source.
+     */
     private static void parseModule(String query, URI documentUri, RumbleConfiguration configuration) {
-        if (isLibraryModule(query)) {
+        try {
             CompilationPipeline.analyzeLibraryModule(query, documentUri, configuration);
-            return;
+        } catch (NotLibraryModuleException notALibrary) {
+            CompilationPipeline.compileMainModule(
+                    query, documentUri, new CompilationConfiguration(configuration), ExternalBindings.empty());
         }
-
-        CompilationPipeline.compileMainModule(
-                query, documentUri, new CompilationConfiguration(configuration), ExternalBindings.empty());
-    }
-
-    private static boolean isLibraryModule(String query) {
-        return query.matches(
-                "(?s)^\\s*(?:\\(:.*?:\\)\\s*)*(?:jsoniq|xquery)?(?:\\s+version\\s+[^;]+;\\s*)?module\\s+namespace\\b.*");
     }
 
     static StaticTypeError toTypeError(RumbleException exception) {
