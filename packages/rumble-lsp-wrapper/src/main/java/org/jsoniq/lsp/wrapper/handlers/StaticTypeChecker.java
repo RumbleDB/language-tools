@@ -4,8 +4,11 @@ import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Base64;
+import java.util.Comparator;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 
 import org.jsoniq.lsp.wrapper.Range;
 import org.jsoniq.lsp.wrapper.messages.Request;
@@ -13,6 +16,7 @@ import org.jsoniq.lsp.wrapper.messages.ResponseBody;
 
 import org.rumbledb.bindings.ExternalBindings;
 import org.rumbledb.compiler.CompilationPipeline;
+import org.rumbledb.compiler.TolerantCompiler;
 import org.rumbledb.config.CompilationConfiguration;
 import org.rumbledb.config.RumbleConfiguration;
 import org.rumbledb.exceptions.ExceptionMetadata;
@@ -40,14 +44,49 @@ public final class StaticTypeChecker implements RequestHandler {
             return EMPTY_RESULT;
         }
 
-        List<StaticTypeError> typeErrors = new ArrayList<>();
         try {
             parseModule(query, documentUri, this.strictConfiguration);
+            return EMPTY_RESULT;
         } catch (RumbleException exception) {
-            typeErrors.add(toTypeError(exception));
+            return new Result(collectErrors(query, documentUri, exception));
         }
+    }
 
-        return new Result(typeErrors);
+    /**
+     * Compilation stops at the first error, so the tolerant compiler, which types the rest of the module, finds the
+     * others. The first error is kept even if the tolerant compiler does not find it, because it can come from a pass
+     * that only compilation runs.
+     */
+    private List<StaticTypeError> collectErrors(String query, URI documentUri, RumbleException firstError) {
+        // Typing visits some expressions more than once, such as FLWOR clauses, which finds their errors again.
+        Set<StaticTypeError> errors = new LinkedHashSet<>();
+        try {
+            TolerantCompiler.compile(
+                    query, documentUri, this.strictConfiguration, error -> errors.add(toTypeError(error)));
+        } catch (RuntimeException exception) {
+            // The first error is still worth reporting.
+        }
+        StaticTypeError first = toTypeError(firstError);
+        if (errors.stream().noneMatch(error -> isSameProblem(error, first))) {
+            errors.add(first);
+        }
+        List<StaticTypeError> sorted = new ArrayList<>(errors);
+        sorted.sort(
+                Comparator.comparing((StaticTypeError error) -> error.range().start())
+                        .thenComparing(error -> error.range().end()));
+        return sorted;
+    }
+
+    /**
+     * Whether an error found by the tolerant compiler is the first error, found in a part of it. Compilation inlines
+     * function calls before typing, so it finds a wrong argument at the argument, while the tolerant compiler, which
+     * does not inline, finds it at the call.
+     */
+    private static boolean isSameProblem(StaticTypeError found, StaticTypeError first) {
+        return found.code().equals(first.code())
+                && Objects.equals(found.location(), first.location())
+                && found.range().start().compareTo(first.range().start()) <= 0
+                && first.range().end().compareTo(found.range().end()) <= 0;
     }
 
     private static void parseModule(String query, URI documentUri, RumbleConfiguration configuration) {

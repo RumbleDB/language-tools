@@ -28,6 +28,7 @@ import org.rumbledb.config.model.LanguageVersion.Language;
 import org.rumbledb.context.Name;
 import org.rumbledb.context.StaticContext;
 import org.rumbledb.exceptions.ExceptionMetadata;
+import org.rumbledb.exceptions.OurBadException;
 import org.rumbledb.exceptions.RumbleException;
 import org.rumbledb.expressions.CommaExpression;
 import org.rumbledb.expressions.Expression;
@@ -79,10 +80,20 @@ public final class TolerantCompiler {
     }
 
     public static Module compile(String query, URI uri, RumbleConfiguration configuration) {
+        return compile(query, uri, configuration, error -> {});
+    }
+
+    /**
+     * Also passes on each error that typing finds in the source, as long as it is not caused by an expression that
+     * could not be typed, so that one error does not hide the others. Errors are only found with static typing enabled
+     * in the configuration, and the same one may be passed on more than once.
+     */
+    public static Module compile(
+            String query, URI uri, RumbleConfiguration configuration, Consumer<RumbleException> errors) {
         Language language = ModuleParser.detectLanguage(query, uri, configuration);
         CompilationConfiguration compilation = new CompilationConfiguration(configuration);
         Parsed parsed = parse(query, uri, compilation, language);
-        return analyze((Module) parsed.translation().visit(parsed.module()), compilation);
+        return analyze((Module) parsed.translation().visit(parsed.module()), compilation, errors);
     }
 
     private record Parsed(ParseTree module, ParseTreeVisitor<Node> translation) {}
@@ -138,7 +149,8 @@ public final class TolerantCompiler {
     }
 
     /** The analysis passes of the compilation pipeline that types depend on, without its optimizations. */
-    private static Module analyze(Module translated, CompilationConfiguration compilation) {
+    private static Module analyze(
+            Module translated, CompilationConfiguration compilation, Consumer<RumbleException> errors) {
         CompilationContext context = new CompilationContext(
                 compilation.runtimeConfiguration(), ExternalBindings.empty(), compilation.resourceResolver());
         Module module = resolveDependencies(translated, context);
@@ -146,7 +158,7 @@ public final class TolerantCompiler {
             module = CompilationPasses.rewriteBuiltinPartialApplications().apply(main, context);
         }
         new TolerantStaticContextVisitor().visit(module, module.getStaticContext());
-        new TolerantInferTypeVisitor(context).visit(module, module.getStaticContext());
+        new TolerantInferTypeVisitor(context, errors).visit(module, module.getStaticContext());
         return module;
     }
 
@@ -351,8 +363,11 @@ public final class TolerantCompiler {
     }
 
     private static final class TolerantInferTypeVisitor extends InferTypeVisitor {
-        TolerantInferTypeVisitor(CompilationContext context) {
+        private final Consumer<RumbleException> errors;
+
+        TolerantInferTypeVisitor(CompilationContext context, Consumer<RumbleException> errors) {
             super(context.configuration(), context.resourceResolver());
+            this.errors = errors;
         }
 
         @Override
@@ -361,6 +376,9 @@ public final class TolerantCompiler {
             try {
                 result = super.visit(node, argument);
             } catch (RuntimeException exception) {
+                if (exception instanceof RumbleException error && isInSource(error, node)) {
+                    this.errors.accept(error);
+                }
                 if (node instanceof Expression expression) {
                     expression.setStaticSequenceType(UNKNOWN);
                 }
@@ -371,6 +389,21 @@ public final class TolerantCompiler {
                 expression.setStaticSequenceType(UNKNOWN);
             }
             return result;
+        }
+
+        /**
+         * Whether the error is in the source rather than caused by an operand that could not be typed: an unknown type
+         * is item*, which most operators reject, as {@code $x + 1} does after {@code let $x := 1 + "a"}. An error
+         * without a location is not in the source either: it is a lookup of something that an earlier pass rejected,
+         * such as an undeclared variable, or a hole, which never has a location. An internal error is never in the
+         * source, even when it has a location.
+         */
+        private static boolean isInSource(RumbleException error, Node node) {
+            return !(error instanceof OurBadException)
+                    && !isSynthetic(error.getMetadata())
+                    && node.getChildren().stream()
+                            .noneMatch(child ->
+                                    child instanceof Expression operand && isUnknown(operand.getStaticSequenceType()));
         }
 
         /** What a key or step selects is unknown while it is being typed, even if what it applies to is known. */
