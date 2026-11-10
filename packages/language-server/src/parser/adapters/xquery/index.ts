@@ -7,6 +7,7 @@ import {
     COMPLETION_START_RULES,
     IGNORED_COMPLETION_TOKENS,
     KEYWORD_COMPLETIONS,
+    LITERAL_XML_RULES,
     PREFERRED_COMPLETION_RULES,
 } from "./completion-data.js";
 import { XQueryTokenContextAnalyzer } from "./completion-token-context.js";
@@ -53,6 +54,7 @@ export const xqueryParserAdapter: ParserAdapter = {
                     XQueryParser.RULE_typedMapTest,
                 ].includes(candidate?.ruleList.at(-1) ?? -1),
             isCommentToken: (tokenType) => tokenType === XQueryLexer.XQComment,
+            isLiteralXmlRule: (ruleIndex) => LITERAL_XML_RULES.has(ruleIndex),
             isStringLiteralRule: (ruleIndex) => ruleIndex === XQueryParser.RULE_stringLiteral,
             isCatchErrorTargetRule: (ruleIndex, candidate) =>
                 ruleIndex === XQueryParser.RULE_nameTest &&

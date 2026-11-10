@@ -7,6 +7,7 @@ import {
     COMPLETION_START_RULES,
     IGNORED_COMPLETION_TOKENS,
     KEYWORD_COMPLETIONS,
+    LITERAL_XML_RULES,
     PREFERRED_COMPLETION_RULES,
 } from "./completion-data.js";
 import { JsoniqTokenContextAnalyzer } from "./completion-token-context.js";
@@ -54,6 +55,7 @@ export const jsoniqParserAdapter: ParserAdapter = {
                     JsoniqParser.RULE_typedMapTest,
                 ].includes(candidate?.ruleList.at(-1) ?? -1),
             isCommentToken: (tokenType) => tokenType === JsoniqLexer.XQComment,
+            isLiteralXmlRule: (ruleIndex) => LITERAL_XML_RULES.has(ruleIndex),
             isStringLiteralRule: (ruleIndex) => ruleIndex === JsoniqParser.RULE_stringLiteral,
             isCatchErrorTargetRule: (ruleIndex, candidate) =>
                 ruleIndex === JsoniqParser.RULE_nameTest &&

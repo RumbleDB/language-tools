@@ -8,14 +8,14 @@ import { createMockWrapperClient, testDocumentFromUri } from "./test-utils.js";
 const wrapper = createMockWrapperClient();
 
 describe.each(["jsoniq", "xquery"])("%s query keyword completion", (languageId) => {
-    async function completions(source: string) {
+    async function completions(source: string, offset = source.length) {
         const document = testDocumentFromUri(source, {
             uri: `file:///keyword-completion-${languageId}-${encodeURIComponent(source)}.${languageId === "jsoniq" ? "jq" : "xq"}`,
             languageId,
         });
         return findCompletions(
             document,
-            document.positionAt(source.length),
+            document.positionAt(offset),
             parserService,
             workspaceService,
             wrapper,
@@ -123,6 +123,49 @@ describe.each(["jsoniq", "xquery"])("%s query keyword completion", (languageId) 
             expect(await syntaxLabels(source)).toEqual([]);
         },
     );
+
+    it.each(["declare variable $x := 1;", "declare function local:f() { 1 };"])(
+        "preserves prolog order after '%s'",
+        async (declaration) => {
+            const labels = await syntaxLabels(declaration + " declare ");
+            expect(labels).toEqual(expect.arrayContaining(["function", "variable"]));
+            for (const label of ["namespace", "base-uri", "default", "and"]) {
+                expect(labels).not.toContain(label);
+            }
+        },
+    );
+
+    it.each([
+        "<root>text ¦</root>",
+        "<root>¦</root>",
+        "<root>text ¦",
+        '<root a="text ¦"/>',
+        "<root a='¦'/>",
+        "<root>{{¦}}</root>",
+        "<root>{1} ¦</root>",
+        "<root><child>text ¦</child></root>",
+    ])("suppresses query completion in literal XML at %s", async (source) => {
+        expect(await completions(source.replace("¦", ""), source.indexOf("¦"))).toEqual([]);
+    });
+
+    it.each([
+        "<root>{¦}</root>",
+        "<root>{1 + ¦}</root>",
+        '<root a="{¦}"/>',
+        "<root><child a='{1 + ¦}'/></root>",
+        "<root>{<child>{1 + ¦}</child>}</root>",
+    ])("offers query completion inside XML expressions at %s", async (source) => {
+        const items = await completions(source.replace("¦", ""), source.indexOf("¦"));
+        expect(items.map((item) => item.label)).toContain("fn:concat");
+    });
+
+    if (languageId === "jsoniq") {
+        it("uses the parsed expression when braces could also be literal XML", async () => {
+            const source = '<root>{ {"name": fn:con¦cat("a", "b")}.name }</root>';
+            const items = await completions(source.replace("¦", ""), source.indexOf("¦"));
+            expect(items.map((item) => item.label)).toContain("fn:concat");
+        });
+    }
 
     it("uses order instead of order by in the default-order declaration", async () => {
         const labels = await syntaxLabels("declare default ");

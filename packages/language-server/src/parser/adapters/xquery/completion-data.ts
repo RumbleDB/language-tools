@@ -26,7 +26,15 @@ export const IGNORED_COMPLETION_TOKENS = new Set([
     XQueryLexer.COMMA,
 ]);
 
+// Literal XML tokens are data. Embedded expressions are separate grammar alternatives.
+export const LITERAL_XML_RULES = new Set([
+    XQueryParser.RULE_noQuotesNoBracesNoAmpNoLAng,
+    XQueryParser.RULE_dirAttributeTextQuot,
+    XQueryParser.RULE_dirAttributeTextApos,
+]);
+
 export const PREFERRED_COMPLETION_RULES = new Set([
+    ...LITERAL_XML_RULES,
     XQueryParser.RULE_nameTest,
     XQueryParser.RULE_varRef,
     XQueryParser.RULE_qname,
@@ -81,10 +89,6 @@ export const COMPLETION_START_RULES = new Map<number, CompletionStartRule>([
     [
         XQueryLexer.KW_REPLACE,
         { ruleIndex: XQueryParser.RULE_replaceExpr, requiredToken: XQueryLexer.KW_VALUE },
-    ],
-    [
-        XQueryLexer.KW_INSERT,
-        { ruleIndex: XQueryParser.RULE_exprSimple, requiredToken: XQueryLexer.KW_JSON },
     ],
 ]);
 

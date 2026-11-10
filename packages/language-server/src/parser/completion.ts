@@ -38,6 +38,7 @@ type CompletionOptions<T extends TokenContextAnalyzer> = {
     isTypeReferenceRule(ruleIndex: number, candidate?: RuleCandidateInfo): boolean;
     isCommentToken(tokenType: number): boolean;
     isStringLiteralRule(ruleIndex: number): boolean;
+    isLiteralXmlRule(ruleIndex: number): boolean;
     isCatchErrorTargetRule(ruleIndex: number, candidate?: RuleCandidateInfo): boolean;
     isVariableReferenceRule(ruleIndex: number): boolean;
     tokenName(tokenType: number): string | number;
@@ -45,10 +46,8 @@ type CompletionOptions<T extends TokenContextAnalyzer> = {
 };
 
 type CompletionCandidates = {
-    tokenTypes: Set<number>;
-    tokenFollowers: Map<number, number[]>;
+    tokens: Map<number, number[]>;
     rules: Map<number, RuleCandidateInfo>;
-    ruleIndices: Set<number>;
     tokenContext: CompletionTokenContext;
 };
 
@@ -64,6 +63,12 @@ export function getCompletionIntent<T extends TokenContextAnalyzer>(
     }
 
     const candidates = collectCompletionCandidates(parsed, cursorOffset, options);
+    if (
+        hasCandidateRule(candidates, options.isLiteralXmlRule) &&
+        !isInParsedExpression(parsed.tree, cursorOffset, options.ruleName)
+    ) {
+        return null;
+    }
 
     const qnamePrefix = candidates.tokenContext.qnamePrefix;
     const allowFunctions = hasCandidateRule(candidates, options.isFunctionReferenceRule);
@@ -78,8 +83,8 @@ export function getCompletionIntent<T extends TokenContextAnalyzer>(
             ? []
             : keywordCompletions(candidates, options.languageKeywords);
 
-    const expectedTokens = [...candidates.tokenTypes].map(options.tokenName);
-    const expectedRules = [...candidates.ruleIndices].map(options.ruleName);
+    const expectedTokens = [...candidates.tokens.keys()].map(options.tokenName);
+    const expectedRules = [...candidates.rules.keys()].map(options.ruleName);
 
     logger.debug("Completion candidates:", {
         allowFunctions,
@@ -163,6 +168,31 @@ function containsStringAt(
     );
 }
 
+/** Use the closest expression or direct XML constructor to resolve C3's text/code ambiguity. */
+function isInParsedExpression(
+    tree: ParserRuleContext,
+    offset: number,
+    ruleName: (ruleIndex: number) => string | number,
+): boolean {
+    let context: ParserRuleContext | undefined = tree;
+    let inExpression = false;
+    while (context !== undefined) {
+        const rule = ruleName(context.ruleIndex);
+        if (rule === "expr") inExpression = true;
+        if (rule === "directConstructor") inExpression = false;
+
+        context = context.children.findLast(
+            (child): child is ParserRuleContext =>
+                child instanceof ParserRuleContext &&
+                child.start !== null &&
+                child.stop !== null &&
+                child.start.start <= offset &&
+                offset <= child.stop.stop + 1,
+        );
+    }
+    return inExpression;
+}
+
 function hasCandidateRule(
     candidates: CompletionCandidates,
     predicate: (ruleIndex: number, candidate?: RuleCandidateInfo) => boolean,
@@ -172,26 +202,25 @@ function hasCandidateRule(
     );
 }
 
-function hasCandidateToken(candidates: CompletionCandidates, tokenType: number): boolean {
-    return candidates.tokenTypes.has(tokenType);
-}
-
 function keywordCompletions(
     candidates: CompletionCandidates,
     languageKeywords: LanguageKeywordCompletion[],
 ): KeywordCompletion[] {
-    return languageKeywords
-        .filter((completion) => hasCandidateToken(candidates, completion.tokenType))
-        .map(({ label, insertText, followingTokens, fallbackLabel, tokenType }) => ({
-            label:
-                (candidates.tokenFollowers.get(tokenType)?.length ?? 0) > 0 &&
-                followingTokens?.some(
-                    (token, index) => candidates.tokenFollowers.get(tokenType)?.[index] !== token,
-                )
-                    ? (fallbackLabel ?? label)
-                    : label,
-            ...(insertText === undefined ? {} : { insertText }),
-        }));
+    return languageKeywords.flatMap(
+        ({ label, insertText, followingTokens, fallbackLabel, tokenType }) => {
+            const followers = candidates.tokens.get(tokenType);
+            if (followers === undefined) return [];
+            const conflicts =
+                followers.length > 0 &&
+                followingTokens?.some((token, index) => followers[index] !== token);
+            return [
+                {
+                    label: conflicts ? (fallbackLabel ?? label) : label,
+                    ...(insertText === undefined ? {} : { insertText }),
+                },
+            ];
+        },
+    );
 }
 
 function collectCompletionCandidates<T extends TokenContextAnalyzer>(
@@ -227,7 +256,7 @@ function collectCompletionCandidates<T extends TokenContextAnalyzer>(
 
     // Without a context, c3 starts from rule 0. That is not the entry rule, because
     // ANTLR places a grammar's imported rules after its own.
-    let candidates = core.collectCandidates(caret.tokenIndex, parsed.tree);
+    const candidates = core.collectCandidates(caret.tokenIndex, parsed.tree);
     const previous = parsed.tokens
         .filter(
             (token) =>
@@ -244,31 +273,29 @@ function collectCompletionCandidates<T extends TokenContextAnalyzer>(
         startRule !== undefined &&
         candidates.tokens.has(startRule.requiredToken)
     ) {
-        candidates = core.collectCandidates(
+        // C3 reuses its candidate maps. Save the document's candidates before narrowing.
+        const documentTokens = new Map(candidates.tokens);
+        const documentRules = new Map(candidates.rules);
+        core.collectCandidates(
             caret.tokenIndex,
             new CompletionRuleContext(
                 startRule.ruleIndex,
                 startRule.startAfterIntroducer ? parsed.tokens[caret.tokenIndex]! : previous,
             ),
         );
+        // The narrower rule can only remove options. It does not see the preceding query.
+        for (const token of candidates.tokens.keys()) {
+            if (!documentTokens.has(token)) candidates.tokens.delete(token);
+        }
+        for (const rule of candidates.rules.keys()) {
+            const candidate = documentRules.get(rule);
+            if (candidate === undefined) candidates.rules.delete(rule);
+            else candidates.rules.set(rule, candidate);
+        }
     }
-    const candidateRules = new Map<number, RuleCandidateInfo>();
-    for (const [ruleIndex, candidate] of candidates.rules.entries()) {
-        candidateRules.set(ruleIndex, {
-            startTokenIndex: candidate.startTokenIndex,
-            ruleList: candidate.ruleList,
-        });
-    }
+    candidates.tokens.delete(Token.EOF);
 
-    return {
-        tokenFollowers: candidates.tokens,
-        tokenTypes: new Set(
-            [...candidates.tokens.keys()].filter((tokenType) => tokenType !== Token.EOF),
-        ),
-        rules: candidateRules,
-        ruleIndices: new Set(candidates.rules.keys()),
-        tokenContext,
-    };
+    return { tokens: candidates.tokens, rules: candidates.rules, tokenContext };
 }
 
 const NAME_TOKEN_NAMES = new Set<string | number>(["NCName", "FullQName", "URIQualifiedName"]);

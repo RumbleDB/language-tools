@@ -28,7 +28,15 @@ export const IGNORED_COMPLETION_TOKENS = new Set([
     JsoniqLexer.COMMA,
 ]);
 
+// Literal XML tokens are data. Embedded expressions are separate grammar alternatives.
+export const LITERAL_XML_RULES = new Set([
+    JsoniqParser.RULE_noQuotesNoBracesNoAmpNoLAng,
+    JsoniqParser.RULE_dirAttributeTextQuot,
+    JsoniqParser.RULE_dirAttributeTextApos,
+]);
+
 export const PREFERRED_COMPLETION_RULES = new Set([
+    ...LITERAL_XML_RULES,
     JsoniqParser.RULE_nameTest,
     JsoniqParser.RULE_varRef,
     JsoniqParser.RULE_qname,
@@ -85,10 +93,6 @@ export const COMPLETION_START_RULES = new Map<number, CompletionStartRule>([
     [
         JsoniqLexer.KW_REPLACE,
         { ruleIndex: JsoniqParser.RULE_replaceExpr, requiredToken: JsoniqLexer.KW_VALUE },
-    ],
-    [
-        JsoniqLexer.KW_INSERT,
-        { ruleIndex: JsoniqParser.RULE_exprSimple, requiredToken: JsoniqLexer.KW_JSON },
     ],
 ]);
 
