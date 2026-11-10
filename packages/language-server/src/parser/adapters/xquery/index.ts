@@ -31,6 +31,13 @@ export const xqueryParserAdapter: ParserAdapter = {
                     candidate?.ruleList.at(-1) !== XQueryParser.RULE_functionDecl) ||
                 (ruleIndex === XQueryParser.RULE_eqName &&
                     candidate?.ruleList.at(-1) === XQueryParser.RULE_arrowFunctionSpecifier),
+            isTypeReferenceRule: (ruleIndex, candidate) =>
+                ruleIndex === XQueryParser.RULE_eqName &&
+                [
+                    XQueryParser.RULE_itemType,
+                    XQueryParser.RULE_typeName,
+                    XQueryParser.RULE_typedMapTest,
+                ].includes(candidate?.ruleList.at(-1) ?? -1),
             isObjectLookupRule: () => false,
             isCommentToken: (tokenType) => tokenType === XQueryLexer.XQComment,
             isStringLiteralRule: (ruleIndex) => ruleIndex === XQueryParser.RULE_stringLiteral,
