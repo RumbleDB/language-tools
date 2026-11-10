@@ -44,11 +44,11 @@ describe("JSONiq dynamic dot lookup completion", () => {
     );
 
     it.each([
-        "$obj.(function($x as xs:¦) { $x })",
-        "$obj.(function() as xs:¦ { 1 })",
-        "$obj.(function($x as array(xs:¦)) { $x })",
+        '$obj.("name" cast as xs:¦)',
+        '$obj.("name" treat as xs:¦)',
+        '$obj.((function($x as xs:¦) { $x })("name"))',
     ])("offers nested types in %s", async (expression) => {
-        const items = await complete(expression);
+        const items = await complete('declare variable $obj := {"name": 1}; ' + expression);
         expect(items.map((item) => item.label)).toContain("xs:string");
         expect(items.every((item) => item.kind === CompletionItemKind.Class)).toBe(true);
     });
