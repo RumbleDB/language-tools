@@ -63,7 +63,14 @@ arrayUnboxing
    ;
 
 objectLookup
-   : DOT (kw = keyword | lt = stringLiteral | nc = NCName | pe = parenthesizedExpr | vr = varRef | ci = contextItemExpr)
+   : DOT (key = objectLookupKey | pe = parenthesizedExpr | vr = varRef | ci = contextItemExpr)
+   ;
+
+// Keep static keys separate from expressions for completion.
+objectLookupKey
+   : kw = keyword
+   | lt = stringLiteral
+   | nc = NCName
    ;
 
 postfixExpr

@@ -38,7 +38,8 @@ export const PREFERRED_COMPLETION_RULES = new Set([
     // so variable and parenthesized arrow specifiers keep their own candidates.
     JsoniqParser.RULE_eqName,
     JsoniqParser.RULE_ncName,
-    JsoniqParser.RULE_objectLookup,
+    // Prefer only static keys so dynamic keys keep their nested reference candidates.
+    JsoniqParser.RULE_objectLookupKey,
 ]);
 
 // Prefer query clauses when their opening keyword is also a legal name.
