@@ -31,6 +31,13 @@ export const jsoniqParserAdapter: ParserAdapter = {
                     candidate?.ruleList.at(-1) !== JsoniqParser.RULE_functionDecl) ||
                 (ruleIndex === JsoniqParser.RULE_eqName &&
                     candidate?.ruleList.at(-1) === JsoniqParser.RULE_arrowFunctionSpecifier),
+            isTypeReferenceRule: (ruleIndex, candidate) =>
+                ruleIndex === JsoniqParser.RULE_eqName &&
+                [
+                    JsoniqParser.RULE_itemType,
+                    JsoniqParser.RULE_typeName,
+                    JsoniqParser.RULE_typedMapTest,
+                ].includes(candidate?.ruleList.at(-1) ?? -1),
             isObjectLookupRule: (ruleIndex) => ruleIndex === JsoniqParser.RULE_objectLookup,
             isCommentToken: (tokenType) => tokenType === JsoniqLexer.XQComment,
             isStringLiteralRule: (ruleIndex) => ruleIndex === JsoniqParser.RULE_stringLiteral,
