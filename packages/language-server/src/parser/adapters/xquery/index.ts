@@ -25,10 +25,12 @@ export const xqueryParserAdapter: ParserAdapter = {
             clauseStartRules: CLAUSE_START_RULES,
             preferredRules: PREFERRED_COMPLETION_RULES,
             languageKeywords: KEYWORD_COMPLETIONS,
-            // A call or a named function reference, but not the name in a declaration.
+            // Calls, named function references, and named arrow specifiers.
             isFunctionReferenceRule: (ruleIndex, candidate) =>
-                ruleIndex === XQueryParser.RULE_functionName &&
-                candidate?.ruleList.at(-1) !== XQueryParser.RULE_functionDecl,
+                (ruleIndex === XQueryParser.RULE_functionName &&
+                    candidate?.ruleList.at(-1) !== XQueryParser.RULE_functionDecl) ||
+                (ruleIndex === XQueryParser.RULE_eqName &&
+                    candidate?.ruleList.at(-1) === XQueryParser.RULE_arrowFunctionSpecifier),
             isObjectLookupRule: () => false,
             isCommentToken: (tokenType) => tokenType === XQueryLexer.XQComment,
             isStringLiteralRule: (ruleIndex) => ruleIndex === XQueryParser.RULE_stringLiteral,

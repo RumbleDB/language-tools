@@ -32,6 +32,9 @@ export const PREFERRED_COMPLETION_RULES = new Set([
     // the rules inside the arguments, such as `varRef` in `f($|)`.
     // Names can contain keywords; keep those paths out of syntax suggestions.
     XQueryParser.RULE_functionName,
+    // Arrow function names use eqName, not functionName. Prefer the name alone
+    // so variable and parenthesized arrow specifiers keep their own candidates.
+    XQueryParser.RULE_eqName,
     XQueryParser.RULE_ncName,
 ]);
 

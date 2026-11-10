@@ -73,6 +73,26 @@ describe.each(["jsoniq", "xquery"])("%s query keyword completion", (languageId) 
         }
     });
 
+    it.each(["1 => ", "1 => con", "1 => fn:", "1 => fn:con", "1 => abs() => "])(
+        "offers function names in the arrow expression %s",
+        async (source) => {
+            const labels = (await completions(source)).map((item) => item.label);
+            expect(labels).toContain("fn:concat");
+            expect(labels).not.toContain("for");
+        },
+    );
+
+    it.each(["1 => local:", "1 => $", "1 => ($", "1 => (", "1 => local:f($"])(
+        "preserves references in the arrow expression %s",
+        async (expression) => {
+            const source =
+                "declare variable $f := concat#2; declare function local:f($x, $y) { $x }; " +
+                expression;
+            const labels = (await completions(source)).map((item) => item.label);
+            expect(labels).toContain(expression.endsWith("$") ? "$f" : "local:f");
+        },
+    );
+
     it("offers satisfies after a quantified binding", async () => {
         expect((await completions("some ")).map((item) => item.label)).toEqual(["$"]);
         expect((await syntaxLabels("some $x in (1, 2) "))[0]).toBe("satisfies");
