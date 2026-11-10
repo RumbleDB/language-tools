@@ -20,15 +20,22 @@ export type RuleCandidateInfo = {
     ruleList: number[];
 };
 
+export type CompletionStartRule = {
+    ruleIndex: number;
+    requiredToken: number;
+    startAfterIntroducer?: boolean;
+};
+
 type CompletionOptions<T extends TokenContextAnalyzer> = {
     tokenContextAnalyzer: new (tokens: Token[], cursorOffset: number) => T;
     ignoredTokens: Set<number>;
     preferredRules: Set<number>;
-    clauseStartRules: ReadonlyMap<number, number>;
+    completionStartRules: ReadonlyMap<number, CompletionStartRule>;
     languageKeywords: LanguageKeywordCompletion[];
     isFunctionReferenceRule(ruleIndex: number, candidate?: RuleCandidateInfo): boolean;
-    isTypeReferenceRule(ruleIndex: number, candidate?: RuleCandidateInfo): boolean;
     isObjectLookupRule(ruleIndex: number): boolean;
+    isDeclarationNameRule(ruleIndex: number, candidate?: RuleCandidateInfo): boolean;
+    isTypeReferenceRule(ruleIndex: number, candidate?: RuleCandidateInfo): boolean;
     isCommentToken(tokenType: number): boolean;
     isStringLiteralRule(ruleIndex: number): boolean;
     isCatchErrorTargetRule(ruleIndex: number, candidate?: RuleCandidateInfo): boolean;
@@ -39,6 +46,7 @@ type CompletionOptions<T extends TokenContextAnalyzer> = {
 
 type CompletionCandidates = {
     tokenTypes: Set<number>;
+    tokenFollowers: Map<number, number[]>;
     rules: Map<number, RuleCandidateInfo>;
     ruleIndices: Set<number>;
     tokenContext: CompletionTokenContext;
@@ -58,21 +66,17 @@ export function getCompletionIntent<T extends TokenContextAnalyzer>(
     const candidates = collectCompletionCandidates(parsed, cursorOffset, options);
 
     const qnamePrefix = candidates.tokenContext.qnamePrefix;
-    const allowFunctions =
-        candidates.tokenContext.allowReferences &&
-        hasCandidateRule(candidates, options.isFunctionReferenceRule);
+    const allowFunctions = hasCandidateRule(candidates, options.isFunctionReferenceRule);
     const allowVariables =
-        candidates.tokenContext.allowReferences &&
-        !qnamePrefix &&
-        hasCandidateRule(candidates, options.isVariableReferenceRule);
+        !qnamePrefix && hasCandidateRule(candidates, options.isVariableReferenceRule);
     const allowObjectLookup =
-        candidates.tokenContext.allowReferences &&
-        !qnamePrefix &&
-        hasCandidateRule(candidates, options.isObjectLookupRule);
+        !qnamePrefix && hasCandidateRule(candidates, options.isObjectLookupRule);
     const allowTypes = hasCandidateRule(candidates, options.isTypeReferenceRule);
     const allowErrorCodeTargets = hasCandidateRule(candidates, options.isCatchErrorTargetRule);
     const keywords =
-        qnamePrefix || allowTypes ? [] : keywordCompletions(candidates, options.languageKeywords);
+        qnamePrefix || allowTypes || hasCandidateRule(candidates, options.isDeclarationNameRule)
+            ? []
+            : keywordCompletions(candidates, options.languageKeywords);
 
     const expectedTokens = [...candidates.tokenTypes].map(options.tokenName);
     const expectedRules = [...candidates.ruleIndices].map(options.ruleName);
@@ -176,18 +180,16 @@ function keywordCompletions(
     candidates: CompletionCandidates,
     languageKeywords: LanguageKeywordCompletion[],
 ): KeywordCompletion[] {
-    if (!candidates.tokenContext.allowKeywords) {
-        return [];
-    }
-
     return languageKeywords
-        .filter(
-            (completion) =>
-                hasCandidateToken(candidates, completion.tokenType) &&
-                (!completion.prologOnly || candidates.tokenContext.allowPrologKeywords),
-        )
-        .map(({ label, insertText }) => ({
-            label,
+        .filter((completion) => hasCandidateToken(candidates, completion.tokenType))
+        .map(({ label, insertText, followingTokens, fallbackLabel, tokenType }) => ({
+            label:
+                (candidates.tokenFollowers.get(tokenType)?.length ?? 0) > 0 &&
+                followingTokens?.some(
+                    (token, index) => candidates.tokenFollowers.get(tokenType)?.[index] !== token,
+                )
+                    ? (fallbackLabel ?? label)
+                    : label,
             ...(insertText === undefined ? {} : { insertText }),
         }));
 }
@@ -199,7 +201,7 @@ function collectCompletionCandidates<T extends TokenContextAnalyzer>(
         tokenContextAnalyzer: new (tokens: Token[], cursorOffset: number) => T;
         ignoredTokens: Set<number>;
         preferredRules: Set<number>;
-        clauseStartRules: ReadonlyMap<number, number>;
+        completionStartRules: ReadonlyMap<number, CompletionStartRule>;
         tokenName(tokenType: number): string | number;
     },
 ): CompletionCandidates {
@@ -232,20 +234,22 @@ function collectCompletionCandidates<T extends TokenContextAnalyzer>(
                 token.tokenIndex < caret.tokenIndex && token.channel === Token.DEFAULT_CHANNEL,
         )
         .at(-1);
-    const clauseRule =
-        previous === undefined ? undefined : options.clauseStartRules.get(previous.type);
-    // `for` and `let` can also be path/function names. If the grammar expects a
-    // binding here, collect within the query clause to exclude those name paths.
-    // This preserves all clause alternatives (including window clauses) and lets
-    // the grammar supply `$` just like any other syntax token.
+    const startRule =
+        previous === undefined ? undefined : options.completionStartRules.get(previous.type);
+    // Introducers such as `for`, `declare`, and `validate` can also be names.
+    // A required syntax continuation proves that the construct can start here;
+    // collect within it to exclude candidates from the competing name paths.
     if (
         previous !== undefined &&
-        clauseRule !== undefined &&
-        [...candidates.tokens.keys()].some((tokenType) => options.tokenName(tokenType) === "DOLLAR")
+        startRule !== undefined &&
+        candidates.tokens.has(startRule.requiredToken)
     ) {
         candidates = core.collectCandidates(
             caret.tokenIndex,
-            new CompletionRuleContext(clauseRule, previous),
+            new CompletionRuleContext(
+                startRule.ruleIndex,
+                startRule.startAfterIntroducer ? parsed.tokens[caret.tokenIndex]! : previous,
+            ),
         );
     }
     const candidateRules = new Map<number, RuleCandidateInfo>();
@@ -257,6 +261,7 @@ function collectCompletionCandidates<T extends TokenContextAnalyzer>(
     }
 
     return {
+        tokenFollowers: candidates.tokens,
         tokenTypes: new Set(
             [...candidates.tokens.keys()].filter((tokenType) => tokenType !== Token.EOF),
         ),
@@ -287,7 +292,7 @@ function qnamePrefixTokenIndex(tokens: Token[], cursorOffset: number): number {
     return tokensBeforeCursor.at(-2)!.tokenIndex;
 }
 
-/** A grammar entry point for collecting a clause's candidates before its CST exists. */
+/** A grammar entry point for collecting a construct's candidates before its CST exists. */
 class CompletionRuleContext extends ParserRuleContext {
     public constructor(
         private readonly completionRuleIndex: number,

@@ -43,15 +43,15 @@ describe.each(["jsoniq", "xquery"])("%s query keyword completion", (languageId) 
             detail: "local:f($arg)",
         });
         const labels = items.map((item) => item.label);
-        expect(labels).toEqual(expect.arrayContaining(["if", "for", "$global", "fn:concat"]));
+        expect(labels).toEqual(
+            expect.arrayContaining(["if", "for", "$global", "fn:concat", "copy", "delete"]),
+        );
         for (const label of [
             "case",
             "group by",
             "ascending",
             "or",
             "instance of",
-            "copy",
-            "delete",
             "while",
             "break loop",
         ]) {
@@ -92,6 +92,56 @@ describe.each(["jsoniq", "xquery"])("%s query keyword completion", (languageId) 
             expect(labels).toContain(expression.endsWith("$") ? "$f" : "local:f");
         },
     );
+
+    it.each([
+        ["declare ", ["function", "variable", "option", "namespace"]],
+        ["declare default ", ["element", "function", "collation", "order"]],
+        ["declare default function ", ["namespace"]],
+        ["declare default element ", ["namespace"]],
+        ["import ", ["module", "schema"]],
+        ["validate ", ["strict", "lax", "type"]],
+        ["replace ", ["value"]],
+        ["insert ", ["json"]],
+        ["1 is ", ["statically"]],
+    ] as const)("offers grammar continuations after '%s'", async (source, expected) => {
+        expect(await syntaxLabels(source)).toEqual(expect.arrayContaining([...expected]));
+    });
+
+    it.each(["declare ", "import ", "validate ", "replace "])(
+        "excludes expression operators after the syntax introducer '%s'",
+        async (source) => {
+            expect(await syntaxLabels(source)).not.toContain("and");
+            expect((await completions(source)).map((item) => item.label)).not.toContain(
+                "fn:concat",
+            );
+        },
+    );
+
+    it.each(["declare namespace ", "declare option ", "declare function "])(
+        "does not suggest syntax when a new name is expected after '%s'",
+        async (source) => {
+            expect(await syntaxLabels(source)).toEqual([]);
+        },
+    );
+
+    it("uses order instead of order by in the default-order declaration", async () => {
+        const labels = await syntaxLabels("declare default ");
+        expect(labels).toContain("order");
+        expect(labels).not.toContain("order by");
+        expect(await syntaxLabels("declare default order ")).toEqual(["empty"]);
+    });
+
+    it("offers prolog keywords while typing their prefixes", async () => {
+        expect(await syntaxLabels("decl")).toContain("declare function");
+        expect(await syntaxLabels("imp")).toContain("import");
+    });
+
+    it("keeps prolog suggestions out of ordinary expressions", async () => {
+        const labels = await syntaxLabels("let $x := ");
+        expect(labels).not.toContain("declare function");
+        expect(labels).not.toContain("import");
+        expect(labels).not.toContain("module");
+    });
 
     it("offers satisfies after a quantified binding", async () => {
         expect((await completions("some ")).map((item) => item.label)).toEqual(["$"]);

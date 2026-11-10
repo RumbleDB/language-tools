@@ -1,5 +1,7 @@
+import type { CompletionStartRule } from "server/parser/completion.js";
 import { LanguageKeywordCompletion } from "server/parser/types/completion.js";
 
+import { withGrammarKeywords } from "../common/completion-data.js";
 import { XQueryLexer } from "./grammar/XQueryLexer.js";
 import { XQueryParser } from "./grammar/XQueryParser.js";
 
@@ -38,90 +40,76 @@ export const PREFERRED_COMPLETION_RULES = new Set([
     XQueryParser.RULE_ncName,
 ]);
 
-// Prefer query clauses when their opening keyword is also a legal name.
-export const CLAUSE_START_RULES = new Map([
-    [XQueryLexer.KW_FOR, XQueryParser.RULE_flworExpr],
-    [XQueryLexer.KW_LET, XQueryParser.RULE_flworExpr],
-    [XQueryLexer.KW_SOME, XQueryParser.RULE_quantifiedExpr],
-    [XQueryLexer.KW_EVERY, XQueryParser.RULE_quantifiedExpr],
+// A required continuation distinguishes syntax from a path or function with the same name.
+export const COMPLETION_START_RULES = new Map<number, CompletionStartRule>([
+    [
+        XQueryLexer.KW_VARIABLE,
+        {
+            ruleIndex: XQueryParser.RULE_varBinding,
+            requiredToken: XQueryLexer.DOLLAR,
+            startAfterIntroducer: true,
+        },
+    ],
+    [
+        XQueryLexer.KW_FOR,
+        { ruleIndex: XQueryParser.RULE_flworExpr, requiredToken: XQueryLexer.DOLLAR },
+    ],
+    [
+        XQueryLexer.KW_LET,
+        { ruleIndex: XQueryParser.RULE_flworExpr, requiredToken: XQueryLexer.DOLLAR },
+    ],
+    [
+        XQueryLexer.KW_SOME,
+        { ruleIndex: XQueryParser.RULE_quantifiedExpr, requiredToken: XQueryLexer.DOLLAR },
+    ],
+    [
+        XQueryLexer.KW_EVERY,
+        { ruleIndex: XQueryParser.RULE_quantifiedExpr, requiredToken: XQueryLexer.DOLLAR },
+    ],
+    [
+        XQueryLexer.KW_DECLARE,
+        { ruleIndex: XQueryParser.RULE_prolog, requiredToken: XQueryLexer.KW_FUNCTION },
+    ],
+    [
+        XQueryLexer.KW_IMPORT,
+        { ruleIndex: XQueryParser.RULE_prologHeader, requiredToken: XQueryLexer.KW_SCHEMA },
+    ],
+    [
+        XQueryLexer.KW_VALIDATE,
+        { ruleIndex: XQueryParser.RULE_validateExpr, requiredToken: XQueryLexer.KW_STRICT },
+    ],
+    [
+        XQueryLexer.KW_REPLACE,
+        { ruleIndex: XQueryParser.RULE_replaceExpr, requiredToken: XQueryLexer.KW_VALUE },
+    ],
+    [
+        XQueryLexer.KW_INSERT,
+        { ruleIndex: XQueryParser.RULE_exprSimple, requiredToken: XQueryLexer.KW_JSON },
+    ],
 ]);
 
-export const KEYWORD_COMPLETIONS: LanguageKeywordCompletion[] = [
-    keyword(XQueryLexer.DOLLAR),
-    ...[
-        XQueryLexer.KW_EVERY,
-        XQueryLexer.KW_FOR,
-        XQueryLexer.KW_IF,
-        XQueryLexer.KW_LET,
-        XQueryLexer.KW_SOME,
-        XQueryLexer.KW_SWITCH,
-        XQueryLexer.KW_TRY,
-        XQueryLexer.KW_TYPESWITCH,
-    ].map((tokenType) => keyword(tokenType)),
-    keyword(XQueryLexer.KW_ORDERED),
-    keyword(XQueryLexer.KW_UNORDERED),
-    prologKeyword(XQueryLexer.KW_DECLARE, "declare function", "declare function "),
-    prologKeyword(XQueryLexer.KW_DECLARE, "declare variable", "declare variable "),
-    prologKeyword(XQueryLexer.KW_IMPORT),
-    prologKeyword(XQueryLexer.KW_MODULE),
-    ...[
-        XQueryLexer.KW_AND,
-        XQueryLexer.KW_AS,
-        XQueryLexer.KW_ASCENDING,
-        XQueryLexer.KW_AT,
-        XQueryLexer.KW_BY,
-        XQueryLexer.KW_CASE,
-        XQueryLexer.KW_CATCH,
-        XQueryLexer.KW_COUNT,
-        XQueryLexer.KW_COLLATION,
-        XQueryLexer.KW_DEFAULT,
-        XQueryLexer.KW_DESCENDING,
-        XQueryLexer.KW_DIV,
-        XQueryLexer.KW_ELSE,
-        XQueryLexer.KW_EMPTY,
-        XQueryLexer.KW_EQ,
-        XQueryLexer.KW_EXCEPT,
-        XQueryLexer.KW_GE,
-        XQueryLexer.KW_GREATEST,
-        XQueryLexer.KW_GT,
-        XQueryLexer.KW_IDIV,
-        XQueryLexer.KW_IN,
-        XQueryLexer.KW_INTERSECT,
-        XQueryLexer.KW_IS,
-        XQueryLexer.KW_LE,
-        XQueryLexer.KW_LEAST,
-        XQueryLexer.KW_LT,
-        XQueryLexer.KW_MOD,
-        XQueryLexer.KW_NAMESPACE,
-        XQueryLexer.KW_NE,
-        XQueryLexer.KW_OF,
-        XQueryLexer.KW_OR,
-        XQueryLexer.KW_RETURN,
-        XQueryLexer.KW_SATISFIES,
-        XQueryLexer.KW_THEN,
-        XQueryLexer.KW_TO,
-        XQueryLexer.KW_UNION,
-        XQueryLexer.KW_VALIDATE,
-        XQueryLexer.KW_WHERE,
-        XQueryLexer.KW_WINDOW,
-        XQueryLexer.KW_START,
-        XQueryLexer.KW_WHEN,
-        XQueryLexer.KW_END,
-        XQueryLexer.KW_PREVIOUS,
-        XQueryLexer.KW_NEXT,
-    ].map((tokenType) => keyword(tokenType)),
-    keyword(XQueryLexer.KW_TUMBLING, "tumbling window"),
-    keyword(XQueryLexer.KW_SLIDING, "sliding window"),
-    keyword(XQueryLexer.KW_ONLY, "only end"),
-    keyword(XQueryLexer.KW_ALLOWING, "allowing empty"),
-    keyword(XQueryLexer.KW_CAST, "cast as"),
-    keyword(XQueryLexer.KW_CASTABLE, "castable as"),
-    keyword(XQueryLexer.KW_INSTANCE, "instance of"),
-    keyword(XQueryLexer.KW_TREAT, "treat as"),
-    keyword(XQueryLexer.KW_GROUP, "group by"),
-    keyword(XQueryLexer.KW_ORDER, "order by"),
-    keyword(XQueryLexer.KW_STABLE, "stable order by"),
-];
+export const KEYWORD_COMPLETIONS: LanguageKeywordCompletion[] = withGrammarKeywords(
+    [
+        keyword(XQueryLexer.DOLLAR),
+        keyword(XQueryLexer.KW_DECLARE, "declare function", "declare function "),
+        keyword(XQueryLexer.KW_DECLARE, "declare variable", "declare variable "),
+        keyword(XQueryLexer.KW_IMPORT),
+        keyword(XQueryLexer.KW_MODULE),
+        keyword(XQueryLexer.KW_TUMBLING, "tumbling window"),
+        keyword(XQueryLexer.KW_SLIDING, "sliding window"),
+        keyword(XQueryLexer.KW_ONLY, "only end"),
+        keyword(XQueryLexer.KW_ALLOWING, "allowing empty"),
+        keyword(XQueryLexer.KW_CAST, "cast as"),
+        keyword(XQueryLexer.KW_CASTABLE, "castable as"),
+        keyword(XQueryLexer.KW_INSTANCE, "instance of"),
+        keyword(XQueryLexer.KW_TREAT, "treat as"),
+        keyword(XQueryLexer.KW_GROUP, "group by"),
+        keyword(XQueryLexer.KW_ORDER, "order by"),
+        keyword(XQueryLexer.KW_STABLE, "stable order by"),
+    ],
+    XQueryLexer.symbolicNames,
+    XQueryLexer.literalNames,
+);
 
 function keyword(
     tokenType: number,
@@ -132,17 +120,6 @@ function keyword(
         tokenType,
         label,
         ...(insertText === undefined ? {} : { insertText }),
-    };
-}
-
-function prologKeyword(
-    tokenType: number,
-    label = tokenLabel(tokenType),
-    insertText?: string,
-): LanguageKeywordCompletion {
-    return {
-        ...keyword(tokenType, label, insertText),
-        prologOnly: true,
     };
 }
 
