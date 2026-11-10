@@ -38,7 +38,7 @@ export const jsoniqParserAdapter: ParserAdapter = {
                     JsoniqParser.RULE_typeName,
                     JsoniqParser.RULE_typedMapTest,
                 ].includes(candidate?.ruleList.at(-1) ?? -1),
-            isObjectLookupRule: (ruleIndex) => ruleIndex === JsoniqParser.RULE_objectLookup,
+            isObjectLookupRule: (ruleIndex) => ruleIndex === JsoniqParser.RULE_objectLookupKey,
             isCommentToken: (tokenType) => tokenType === JsoniqLexer.XQComment,
             isStringLiteralRule: (ruleIndex) => ruleIndex === JsoniqParser.RULE_stringLiteral,
             isCatchErrorTargetRule: (ruleIndex, candidate) =>
