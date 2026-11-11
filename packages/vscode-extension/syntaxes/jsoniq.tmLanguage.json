@@ -31,6 +31,9 @@
             "include": "#numbers"
         },
         {
+            "include": "#object-keys"
+        },
+        {
             "include": "#declarations"
         },
         {
@@ -503,6 +506,15 @@
                             "name": "variable.other.readwrite.jsoniq"
                         }
                     }
+                }
+            ]
+        },
+        "object-keys": {
+            "patterns": [
+                {
+                    "comment": "An unquoted key of an object constructor or an object type, which may spell a keyword. A name before a colon that another name follows is the prefix of a QName instead.",
+                    "name": "variable.other.property.jsoniq",
+                    "match": "(?<![\\w:.$%@-])[A-Za-z_][A-Za-z0-9_-]*(?=\\?:|\\s*:(?![:=)A-Za-z_*]))"
                 }
             ]
         },
