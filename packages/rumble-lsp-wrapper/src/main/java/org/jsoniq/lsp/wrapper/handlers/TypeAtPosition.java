@@ -340,11 +340,12 @@ public final class TypeAtPosition implements RequestHandler {
 
         @Override
         public List<Candidate> visitTransformExpression(TransformExpression expression, List<Candidate> candidates) {
+            // RumbleDB binds the copy variables in the static context of the transform, and types them there.
             for (CopyDeclaration variable : expression.getCopyDeclarations()) {
                 addBindingCandidate(
                         candidates,
                         variable.getVariableMetadata(),
-                        expression.getModifyExpression().getStaticContext(),
+                        expression.getStaticContext(),
                         variable.getVariableName());
             }
             return defaultAction(expression, candidates);
