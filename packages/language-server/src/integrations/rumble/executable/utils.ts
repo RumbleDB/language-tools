@@ -52,6 +52,28 @@ export function getWrapperCacheDirectory(
     );
 }
 
+/**
+ * Turns Spark properties into JVM system properties. RumbleDB builds its
+ * session from `new SparkConf()`, which loads every `spark.*` system property.
+ * Keys outside `spark.` would be ignored by Spark, so they are dropped here.
+ */
+export function sparkConfToJvmArgs(
+    sparkConf: Readonly<Record<string, unknown>> = {},
+    onIgnoredKey: (key: string) => void = () => {},
+): string[] {
+    const args: string[] = [];
+    for (const [key, value] of Object.entries(sparkConf)) {
+        const isScalar =
+            typeof value === "string" || typeof value === "number" || typeof value === "boolean";
+        if (!key.startsWith("spark.") || !isScalar) {
+            onIgnoredKey(key);
+            continue;
+        }
+        args.push(`-D${key}=${String(value)}`);
+    }
+    return args;
+}
+
 export const SPARK_JVM_ARGS: readonly string[] = [
     "--add-opens=java.base/java.lang=ALL-UNNAMED",
     "--add-opens=java.base/java.lang.invoke=ALL-UNNAMED",

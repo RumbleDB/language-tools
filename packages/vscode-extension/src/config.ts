@@ -1,8 +1,14 @@
-import type { ClientConfiguration } from "jsoniq-language-server";
+import type { ClientConfiguration, LakehouseFormats } from "jsoniq-language-server";
 import * as vscode from "vscode";
 
-export const config: ClientConfiguration = {
-    wrapper: {
-        enabled: vscode.workspace.getConfiguration("jsoniq.lsp.wrapper").get("enabled", false),
-    },
-};
+/** Reads the settings the language server needs. */
+export function readConfiguration(): ClientConfiguration {
+    const wrapper = vscode.workspace.getConfiguration("jsoniq.lsp.wrapper");
+    return {
+        wrapper: {
+            enabled: wrapper.get("enabled", false),
+            lakehouseFormats: wrapper.get<LakehouseFormats>("lakehouseFormats", {}),
+            sparkConf: wrapper.get<Record<string, string | number | boolean>>("sparkConf", {}),
+        },
+    };
+}
