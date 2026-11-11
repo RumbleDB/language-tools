@@ -48,6 +48,35 @@ export const PREFERRED_COMPLETION_RULES = new Set([
     XQueryParser.RULE_ncName,
 ]);
 
+// Where an expression can start, the grammar also allows axes, kind tests, constructors and statements.
+// They are rarely typed there as keywords, so offer only these, which start an expression or follow one.
+export const EXPRESSION_KEYWORDS = new Set([
+    XQueryLexer.DOLLAR,
+    XQueryLexer.KW_EVERY,
+    XQueryLexer.KW_FOR,
+    XQueryLexer.KW_IF,
+    XQueryLexer.KW_LET,
+    XQueryLexer.KW_SOME,
+    XQueryLexer.KW_SWITCH,
+    XQueryLexer.KW_TRY,
+    XQueryLexer.KW_TYPESWITCH,
+    XQueryLexer.KW_ORDERED,
+    XQueryLexer.KW_UNORDERED,
+    XQueryLexer.KW_NAMESPACE,
+    XQueryLexer.KW_VALIDATE,
+    XQueryLexer.KW_DECLARE,
+    XQueryLexer.KW_IMPORT,
+    XQueryLexer.KW_MODULE,
+    XQueryLexer.KW_COPY,
+    XQueryLexer.KW_DELETE,
+    XQueryLexer.KW_INSERT,
+    XQueryLexer.KW_RENAME,
+    XQueryLexer.KW_REPLACE,
+    XQueryLexer.KW_APPEND,
+    XQueryLexer.KW_STATICALLY,
+    XQueryLexer.KW_JSON,
+]);
+
 // A required continuation distinguishes syntax from a path or function with the same name.
 export const COMPLETION_START_RULES = new Map<number, CompletionStartRule>([
     [

@@ -5,6 +5,7 @@ import { TextDocument } from "vscode-languageserver-textdocument";
 
 import {
     COMPLETION_START_RULES,
+    EXPRESSION_KEYWORDS,
     IGNORED_COMPLETION_TOKENS,
     KEYWORD_COMPLETIONS,
     LITERAL_XML_RULES,
@@ -26,6 +27,7 @@ export const jsoniqParserAdapter: ParserAdapter = {
             completionStartRules: COMPLETION_START_RULES,
             preferredRules: PREFERRED_COMPLETION_RULES,
             languageKeywords: KEYWORD_COMPLETIONS,
+            expressionKeywords: EXPRESSION_KEYWORDS,
             // Calls, named function references, and named arrow specifiers.
             isFunctionReferenceRule: (ruleIndex, candidate) =>
                 (ruleIndex === JsoniqParser.RULE_functionName &&

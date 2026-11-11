@@ -186,6 +186,17 @@ describe.each(["jsoniq", "xquery"])("%s query keyword completion", (languageId) 
         expect(labels).not.toContain("module");
     });
 
+    it.each(["let $x := 1 return ", "(1, "])(
+        "offers no axes, kind tests or statements where an expression starts after '%s'",
+        async (source) => {
+            const labels = await syntaxLabels(source);
+            expect(labels).toContain("if");
+            for (const label of ["child", "node", "element", "map", "function", "while", "break"]) {
+                expect(labels).not.toContain(label);
+            }
+        },
+    );
+
     it("offers satisfies after a quantified binding", async () => {
         expect((await completions("some ")).map((item) => item.label)).toEqual(["$"]);
         expect((await syntaxLabels("some $x in (1, 2) "))[0]).toBe("satisfies");

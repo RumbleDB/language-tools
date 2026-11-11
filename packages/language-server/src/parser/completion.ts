@@ -32,6 +32,8 @@ type CompletionOptions<T extends TokenContextAnalyzer> = {
     preferredRules: Set<number>;
     completionStartRules: ReadonlyMap<number, CompletionStartRule>;
     languageKeywords: LanguageKeywordCompletion[];
+    /** The only keywords offered where an expression can start. */
+    expressionKeywords: ReadonlySet<number>;
     isFunctionReferenceRule(ruleIndex: number, candidate?: RuleCandidateInfo): boolean;
     isObjectLookupRule(ruleIndex: number): boolean;
     isDeclarationNameRule(ruleIndex: number, candidate?: RuleCandidateInfo): boolean;
@@ -81,7 +83,14 @@ export function getCompletionIntent<T extends TokenContextAnalyzer>(
     const keywords =
         qnamePrefix || allowTypes || hasCandidateRule(candidates, options.isDeclarationNameRule)
             ? []
-            : keywordCompletions(candidates, options.languageKeywords);
+            : keywordCompletions(
+                  candidates,
+                  allowFunctions || allowVariables
+                      ? options.languageKeywords.filter(({ tokenType }) =>
+                            options.expressionKeywords.has(tokenType),
+                        )
+                      : options.languageKeywords,
+              );
 
     const expectedTokens = [...candidates.tokens.keys()].map(options.tokenName);
     const expectedRules = [...candidates.rules.keys()].map(options.ruleName);
@@ -256,7 +265,7 @@ function collectCompletionCandidates<T extends TokenContextAnalyzer>(
 
     // Without a context, c3 starts from rule 0. That is not the entry rule, because
     // ANTLR places a grammar's imported rules after its own.
-    const candidates = core.collectCandidates(caret.tokenIndex, parsed.tree);
+    let { tokens, rules } = core.collectCandidates(caret.tokenIndex, parsed.tree);
     const previous = parsed.tokens
         .filter(
             (token) =>
@@ -268,34 +277,29 @@ function collectCompletionCandidates<T extends TokenContextAnalyzer>(
     // Introducers such as `for`, `declare`, and `validate` can also be names.
     // A required syntax continuation proves that the construct can start here;
     // collect within it to exclude candidates from the competing name paths.
-    if (
-        previous !== undefined &&
-        startRule !== undefined &&
-        candidates.tokens.has(startRule.requiredToken)
-    ) {
-        // C3 reuses its candidate maps. Save the document's candidates before narrowing.
-        const documentTokens = new Map(candidates.tokens);
-        const documentRules = new Map(candidates.rules);
-        core.collectCandidates(
+    if (previous !== undefined && startRule !== undefined && tokens.has(startRule.requiredToken)) {
+        // C3 reuses its candidate maps, so copy the document's candidates before narrowing.
+        const whole = { tokens: new Map(tokens), rules: new Map(rules) };
+        const narrowed = core.collectCandidates(
             caret.tokenIndex,
             new CompletionRuleContext(
                 startRule.ruleIndex,
                 startRule.startAfterIntroducer ? parsed.tokens[caret.tokenIndex]! : previous,
             ),
         );
-        // The narrower rule can only remove options. It does not see the preceding query.
-        for (const token of candidates.tokens.keys()) {
-            if (!documentTokens.has(token)) candidates.tokens.delete(token);
-        }
-        for (const rule of candidates.rules.keys()) {
-            const candidate = documentRules.get(rule);
-            if (candidate === undefined) candidates.rules.delete(rule);
-            else candidates.rules.set(rule, candidate);
-        }
+        // The narrower rule can only remove options. It does not see the preceding query, so
+        // the rule paths come from the document.
+        tokens = new Map([...narrowed.tokens].filter(([token]) => whole.tokens.has(token)));
+        rules = new Map(
+            [...narrowed.rules.keys()].flatMap((rule) => {
+                const candidate = whole.rules.get(rule);
+                return candidate === undefined ? [] : [[rule, candidate] as const];
+            }),
+        );
     }
-    candidates.tokens.delete(Token.EOF);
+    tokens.delete(Token.EOF);
 
-    return { tokens: candidates.tokens, rules: candidates.rules, tokenContext };
+    return { tokens, rules, tokenContext };
 }
 
 const NAME_TOKEN_NAMES = new Set<string | number>(["NCName", "FullQName", "URIQualifiedName"]);

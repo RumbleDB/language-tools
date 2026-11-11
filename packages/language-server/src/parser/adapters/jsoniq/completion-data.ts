@@ -52,6 +52,40 @@ export const PREFERRED_COMPLETION_RULES = new Set([
     JsoniqParser.RULE_objectLookupKey,
 ]);
 
+// Where an expression can start, the grammar also allows axes, kind tests, constructors and statements.
+// They are rarely typed there as keywords, so offer only these, which start an expression or follow one.
+export const EXPRESSION_KEYWORDS = new Set([
+    JsoniqLexer.DOLLAR,
+    JsoniqLexer.KW_EVERY,
+    JsoniqLexer.KW_FOR,
+    JsoniqLexer.KW_IF,
+    JsoniqLexer.KW_LET,
+    JsoniqLexer.KW_SOME,
+    JsoniqLexer.KW_SWITCH,
+    JsoniqLexer.KW_TRY,
+    JsoniqLexer.KW_TYPESWITCH,
+    JsoniqLexer.KW_TRUE,
+    JsoniqLexer.KW_FALSE,
+    JsoniqLexer.KW_NULL,
+    JsoniqLexer.KW_NOT,
+    JsoniqLexer.KW_ORDERED,
+    JsoniqLexer.KW_UNORDERED,
+    JsoniqLexer.KW_NAMESPACE,
+    JsoniqLexer.KW_VALIDATE,
+    JsoniqLexer.KW_DECLARE,
+    JsoniqLexer.KW_IMPORT,
+    JsoniqLexer.KW_JSONIQ,
+    JsoniqLexer.KW_MODULE,
+    JsoniqLexer.KW_COPY,
+    JsoniqLexer.KW_DELETE,
+    JsoniqLexer.KW_INSERT,
+    JsoniqLexer.KW_RENAME,
+    JsoniqLexer.KW_REPLACE,
+    JsoniqLexer.KW_APPEND,
+    JsoniqLexer.KW_STATICALLY,
+    JsoniqLexer.KW_JSON,
+]);
+
 // A required continuation distinguishes syntax from a path or function with the same name.
 export const COMPLETION_START_RULES = new Map<number, CompletionStartRule>([
     [
