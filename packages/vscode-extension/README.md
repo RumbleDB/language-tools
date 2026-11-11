@@ -68,7 +68,7 @@ Without Java, the features based on the parser still work.
 | `jsoniq.lsp.wrapper.lakehouseFormats` | none enabled | Lakehouse formats to enable in RumbleDB's Spark session. Only `delta` for now. |
 | `jsoniq.lsp.wrapper.sparkConf`        | `{}`         | Other Spark properties for the wrapper. Only `spark.*` keys are used.          |
 
-Reload the window after changing these settings.
+When you change these settings, you are asked to restart the language server to apply them.
 
 ### Delta Lake
 

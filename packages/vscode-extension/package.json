@@ -154,7 +154,7 @@
                     "default": {
                         "delta": false
                     },
-                    "markdownDescription": "Table formats RumbleDB can read. They are off by default, because enabling one changes how Spark runs every query.\n\nReload the window after changing."
+                    "markdownDescription": "Table formats RumbleDB can read. They are off by default, because enabling one changes how Spark runs every query."
                 },
                 "jsoniq.lsp.wrapper.sparkConf": {
                     "type": "object",
@@ -169,7 +169,7 @@
                     "propertyNames": {
                         "pattern": "^spark\\."
                     },
-                    "markdownDescription": "Extra Spark properties for the RumbleDB wrapper, such as `\"spark.sql.shuffle.partitions\": 8`. Keys must start with `spark.`.\n\nThese override the properties set by `#jsoniq.lsp.wrapper.lakehouseFormats#`, except `spark.sql.extensions`: extensions listed there are added, not replaced.\n\nReload the window after changing."
+                    "markdownDescription": "Extra Spark properties for the RumbleDB wrapper, such as `\"spark.sql.shuffle.partitions\": 8`. Keys must start with `spark.`.\n\nThese override the properties set by `#jsoniq.lsp.wrapper.lakehouseFormats#`, except `spark.sql.extensions`: extensions listed there are added, not replaced."
                 }
             }
         }
