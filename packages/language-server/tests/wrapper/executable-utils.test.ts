@@ -4,6 +4,7 @@ import path from "node:path";
 import {
     getBaseCacheDirectory,
     getWrapperCacheDirectory,
+    sparkConfToJvmArgs,
 } from "server/integrations/rumble/executable/utils";
 import { describe, expect, it } from "vitest";
 
@@ -40,5 +41,35 @@ describe("wrapper executable cache directories", () => {
             path.join(os.homedir(), "Library", "Caches"),
         );
         expect(getBaseCacheDirectory({}, "linux")).toBe(path.join(os.homedir(), ".cache"));
+    });
+});
+
+describe("sparkConfToJvmArgs", () => {
+    it("turns spark properties into system properties", () => {
+        expect(
+            sparkConfToJvmArgs({
+                "spark.sql.extensions": "io.delta.sql.DeltaSparkSessionExtension",
+                "spark.executor.cores": 2,
+                "spark.sql.adaptive.enabled": false,
+            }),
+        ).toEqual([
+            "-Dspark.sql.extensions=io.delta.sql.DeltaSparkSessionExtension",
+            "-Dspark.executor.cores=2",
+            "-Dspark.sql.adaptive.enabled=false",
+        ]);
+    });
+
+    it("drops keys outside spark. and non-scalar values", () => {
+        const ignored: string[] = [];
+        expect(
+            sparkConfToJvmArgs({ "java.io.tmpdir": "/tmp", "spark.foo": { nested: true } }, (key) =>
+                ignored.push(key),
+            ),
+        ).toEqual([]);
+        expect(ignored).toEqual(["java.io.tmpdir", "spark.foo"]);
+    });
+
+    it("returns nothing when unset", () => {
+        expect(sparkConfToJvmArgs()).toEqual([]);
     });
 });

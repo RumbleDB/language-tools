@@ -7,10 +7,11 @@ import {
 } from "vscode-languageclient/node";
 
 import { registerRunQueryCommand } from "./commands/run-query.js";
-import { config } from "./config.js";
+import { readConfiguration } from "./config.js";
 import { JSONIQ_LANGUAGE_ID, XQUERY_LANGUAGE_ID } from "./const.js";
 import { JUPYTER_NOTEBOOK_SELECTOR } from "./notebook/index.js";
 import { initializeCustomNotifications } from "./notifications/index.js";
+import { registerRestartPrompt } from "./restart-prompt.js";
 
 let client: LanguageClient | undefined;
 
@@ -55,7 +56,8 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
             { scheme: "file", language: XQUERY_LANGUAGE_ID },
             JUPYTER_NOTEBOOK_SELECTOR,
         ],
-        initializationOptions: config,
+        // A function, so that a restart reads the settings again.
+        initializationOptions: () => readConfiguration(),
         synchronize: {
             fileEvents: workspaceFileWatcher,
         },
@@ -72,6 +74,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     await client.start();
     initializeCustomNotifications(client, context);
     context.subscriptions.push(registerRunQueryCommand(client, context));
+    context.subscriptions.push(registerRestartPrompt(client));
 }
 
 export async function deactivate(): Promise<void> {
