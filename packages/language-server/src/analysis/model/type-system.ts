@@ -71,12 +71,12 @@ function renderType(type: TypeDefinition, limits: RenderLimits): string {
                 .slice(0, limits.maxFields)
                 .map(([name, field]) =>
                     limits.namesOnly
-                        ? `${name}${field.required ? "" : "?"}`
-                        : `${name}${field.required ? "" : "?"}: ${renderType(field.type, nested)}`,
+                        ? fieldName(name, field)
+                        : `${fieldName(name, field)}: ${renderType(field.type, nested)}`,
                 );
             const hidden = entries.length - fields.length;
             if (hidden > 0) {
-                fields.push(fields.length === 0 ? countFields(hidden) : `… ${hidden} more`);
+                fields.push(fields.length === 0 ? `… ${pluralFields(hidden)}` : `… ${hidden} more`);
             }
             return `{ ${fields.join(", ")} }`;
         }
@@ -90,8 +90,13 @@ function renderType(type: TypeDefinition, limits: RenderLimits): string {
     }
 }
 
-function countFields(count: number): string {
-    return `… ${count} ${count === 1 ? "field" : "fields"}`;
+/** A field name followed by `?` when the field is optional. */
+function fieldName(name: string, field: ObjectFieldDefinition): string {
+    return `${name}${field.required ? "" : "?"}`;
+}
+
+function pluralFields(count: number): string {
+    return `${count} ${count === 1 ? "field" : "fields"}`;
 }
 
 /** Formats a field after its name, e.g. `?: xs:string` for an optional field. */
@@ -120,7 +125,7 @@ function objectDepth(type: TypeDefinition): number {
     }
 }
 
-/** The most fields of any outermost object of a type, which is where a summary drops fields. */
+/** The most fields of any outermost object of a type, which are the fields that a summary drops. */
 function outerFieldCount(type: TypeDefinition): number {
     switch (type.kind) {
         case "object":
@@ -143,39 +148,22 @@ const SUMMARY_WIDTH = 60;
  * A type with nothing to give up, such as a long named type, is returned in full.
  */
 export function summarizeTypeDefinition(type: TypeDefinition, maxWidth = SUMMARY_WIDTH): string {
-    const full = formatTypeDefinition(type);
-    if (full.length <= maxWidth) {
-        return full;
-    }
-    const depth = objectDepth(type);
-    if (depth === 0) {
-        return full;
-    }
-    for (let nested = depth - 1; nested >= 1; nested--) {
-        const summary = renderType(type, { ...UNLIMITED, depth: nested });
+    // Collapse nested objects one level at a time, starting from the whole type.
+    for (let depth = objectDepth(type); depth >= 1; depth--) {
+        const summary = renderType(type, { ...UNLIMITED, depth });
         if (summary.length <= maxWidth) {
             return summary;
         }
     }
+    // Show as many field names as fit. Without fields to drop, the type is returned in full.
     const names = (maxFields: number): string =>
         renderType(type, { depth: 1, namesOnly: true, maxFields });
     const fieldCount = outerFieldCount(type);
-    const allNames = names(fieldCount);
-    if (allNames.length <= maxWidth) {
-        return allNames;
+    let shown = 0;
+    while (shown < fieldCount && names(shown + 1).length <= maxWidth) {
+        shown++;
     }
-    // Showing one more name never makes a summary shorter while some names stay hidden.
-    let fits = 0;
-    let tooWide = fieldCount;
-    while (tooWide - fits > 1) {
-        const middle = Math.floor((fits + tooWide) / 2);
-        if (names(middle).length <= maxWidth) {
-            fits = middle;
-        } else {
-            tooWide = middle;
-        }
-    }
-    return names(fits);
+    return names(shown);
 }
 
 /** Formats a field after its name like {@link formatObjectField}, with its type summarized. */
@@ -194,79 +182,53 @@ export function summarizeSequenceType(type: SequenceType, maxWidth = SUMMARY_WID
 /** Width of a hover line. */
 const EXPANDED_WIDTH = 80;
 
-/** Lines a hover may take before nested objects are summarized and then fields are left out. */
-const EXPANDED_LINES = 40;
+/** Fields a hover lists before it counts the others. */
+const EXPANDED_FIELDS = 20;
 
 /**
- * Formats a type that is too wide for one line with one field per line, indenting nested objects. Objects are expanded
- * as deep as the result stays within {@link EXPANDED_LINES} lines, and what is nested deeper is summarized on one line.
- * An object with too many fields for that shows only the first of them.
+ * Formats a type that is too wide for one line with one field per line, each field's type summarized on its line.
+ * Only one level is expanded: what is nested deeper shows when hovering that field in a path.
  */
-export function formatTypeDefinitionExpanded(type: TypeDefinition, suffix = ""): string {
-    const available = EXPANDED_WIDTH - suffix.length;
-    for (let depth = objectDepth(type); depth >= 1; depth--) {
-        const expanded = expandType(type, depth, 0, available, Infinity);
-        if (lineCount(expanded) <= EXPANDED_LINES) {
-            return expanded;
-        }
-    }
-    return expandType(type, 1, 0, available, EXPANDED_LINES - 3);
-}
-
-export function formatSequenceTypeExpanded(type: SequenceType): string {
-    return `${formatTypeDefinitionExpanded(type.itemType, type.arity)}${type.arity}`;
-}
-
-function lineCount(text: string): number {
-    return text.split("\n").length;
-}
-
-/**
- * Formats a type whose first line continues a line that leaves `available` characters, and whose other lines are
- * indented by `indent`.
- */
-function expandType(
+export function formatTypeDefinitionExpanded(
     type: TypeDefinition,
-    depth: number,
-    indent: number,
-    available: number,
-    maxFields: number,
+    available = EXPANDED_WIDTH,
 ): string {
     const inline = formatTypeDefinition(type);
     if (inline.length <= available) {
         return inline;
     }
-    if (depth <= 0) {
-        return summarizeTypeDefinition(type, available);
-    }
     switch (type.kind) {
         case "object": {
             const entries = Object.entries(type.fields);
-            if (entries.length === 0) {
-                return inline;
-            }
-            const padding = " ".repeat(indent + 2);
-            const fields = entries.slice(0, maxFields).map(([name, field]) => {
-                const prefix = `${name}${field.required ? "" : "?"}: `;
+            const fields = entries.slice(0, EXPANDED_FIELDS).map(([name, field]) => {
+                const prefix = `  ${fieldName(name, field)}: `;
                 // Leave room for the comma after the field.
-                const width = EXPANDED_WIDTH - indent - 2 - prefix.length - 1;
-                return `${padding}${prefix}${expandType(field.type, depth - 1, indent + 2, width, maxFields)}`;
+                const width = EXPANDED_WIDTH - prefix.length - 1;
+                return `${prefix}${summarizeTypeDefinition(field.type, width)}`;
             });
             const hidden = entries.length - fields.length;
             if (hidden > 0) {
-                fields.push(`${padding}… ${hidden} more ${hidden === 1 ? "field" : "fields"}`);
+                fields.push(`  … ${hidden} more ${hidden === 1 ? "field" : "fields"}`);
             }
-            return `{\n${fields.join(",\n")}\n${" ".repeat(indent)}}`;
+            return `{\n${fields.join(",\n")}\n}`;
         }
         case "array":
             return type.content === undefined || type.name !== undefined
                 ? inline
-                : `[${expandType(type.content, depth, indent, available - 2, maxFields)}]`;
+                : `[${formatTypeDefinitionExpanded(type.content, available - 2)}]`;
         case "union":
             return `(${type.members
-                .map((member) => expandType(member, depth, indent, available - 2, maxFields))
+                .map((member) => formatTypeDefinitionExpanded(member, available - 2))
                 .join(" | ")})`;
         default:
             return inline;
     }
+}
+
+export function formatSequenceTypeExpanded(type: SequenceType): string {
+    const itemType = formatTypeDefinitionExpanded(
+        type.itemType,
+        EXPANDED_WIDTH - type.arity.length,
+    );
+    return `${itemType}${type.arity}`;
 }

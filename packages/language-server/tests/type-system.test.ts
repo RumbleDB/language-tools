@@ -99,49 +99,40 @@ describe("large inferred type formatting", () => {
         },
     };
 
-    it("expands nested objects that do not fit on their line", () => {
+    it("puts each field on its own line and summarizes what is nested in it", () => {
         expect(formatSequenceTypeExpanded({ itemType: event, arity: "*" })).toBe(
             [
                 "{",
                 "  id: xs:integer,",
-                "  actor?: {",
-                "    avatar_url?: xs:string,",
-                "    events_url?: xs:string,",
-                "    followers_url?: xs:string,",
-                "    login?: xs:string",
-                "  },",
+                "  actor?: { avatar_url?, events_url?, followers_url?, login? },",
                 "  repo?: { name?: xs:string },",
-                "  commits?: [{",
-                "    avatar_url?: xs:string,",
-                "    events_url?: xs:string,",
-                "    followers_url?: xs:string,",
-                "    login?: xs:string",
-                "  }],",
-                "  position?: ({",
-                "    avatar_url?: xs:string,",
-                "    events_url?: xs:string,",
-                "    followers_url?: xs:string,",
-                "    login?: xs:string",
-                "  } | js:null)",
+                "  commits?: [{ avatar_url?, events_url?, followers_url?, login? }],",
+                "  position?: ({ avatar_url?, events_url?, followers_url?, login? } | js:null)",
                 "}*",
             ].join("\n"),
         );
     });
 
-    it("summarizes nested objects on one line when expanding them takes too many lines", () => {
-        const accounts = object(
-            Object.fromEntries(Array.from({ length: 10 }, (_, index) => [`account${index}`, user])),
+    it("expands the object inside an array", () => {
+        expect(
+            formatSequenceTypeExpanded({ itemType: { kind: "array", content: user }, arity: "?" }),
+        ).toBe(
+            [
+                "[{",
+                "  avatar_url?: xs:string,",
+                "  events_url?: xs:string,",
+                "  followers_url?: xs:string,",
+                "  login?: xs:string",
+                "}]?",
+            ].join("\n"),
         );
-        const lines = formatSequenceTypeExpanded({ itemType: accounts, arity: "" }).split("\n");
-        expect(lines).toHaveLength(12);
-        expect(lines[1]).toBe("  account0?: { avatar_url?, events_url?, followers_url?, login? },");
     });
 
-    it("leaves out the fields that do not fit in a hover", () => {
+    it("counts the fields after the first 20 instead of listing them", () => {
         const table = strings(...Array.from({ length: 300 }, (_, index) => `column${index}`));
         const lines = formatSequenceTypeExpanded({ itemType: table, arity: "*" }).split("\n");
-        expect(lines).toHaveLength(40);
-        expect(lines.slice(-3)).toEqual(["  column36?: xs:string,", "  … 263 more fields", "}*"]);
+        expect(lines).toHaveLength(23);
+        expect(lines.slice(-3)).toEqual(["  column19?: xs:string,", "  … 280 more fields", "}*"]);
     });
 
     it("keeps a type that fits on one line as it is", () => {
