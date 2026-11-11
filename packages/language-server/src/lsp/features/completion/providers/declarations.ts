@@ -2,6 +2,7 @@ import {
     definitionNameToString,
     getVisibleDeclarationsAtPosition,
     isContextItem,
+    parameterListToString,
     QNameToString,
     type ScopeDefinition,
 } from "server/analysis/index.js";
@@ -79,7 +80,7 @@ function toCompletionItem(declaration: ScopeDefinition, functionLabel?: string):
         const parameterNames = declaration.parameters.map((parameter) =>
             definitionNameToString(parameter),
         );
-        const signatureSuffix = `(${parameterNames.join(", ")})`;
+        const signatureSuffix = parameterListToString(declaration);
         const signature = `${label}${signatureSuffix}`;
 
         return {

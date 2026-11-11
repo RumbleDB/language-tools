@@ -136,6 +136,21 @@ describe("semantic hover ranges", () => {
         });
     });
 
+    it("shows a declared function with its parameters before its return type", async () => {
+        const doc = document("declare function local:f($v, $w) { $v }; local:f(1, 2)");
+        const range = rangeOf(doc, "local:f");
+        const hover = await findHover(
+            doc,
+            range.start,
+            workspaceService,
+            typeWrapper(range, inferredType("integer")),
+        );
+        expect(hover).toEqual({
+            range,
+            contents: { kind: "markdown", value: "```jsoniq\nlocal:f($v, $w) as xs:integer\n```" },
+        });
+    });
+
     it("keeps variable hovers on the variable when inference selects it", async () => {
         const doc = document("let $v := 1 return $v");
         const position = doc.positionAt(doc.getText().lastIndexOf("$v"));

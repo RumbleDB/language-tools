@@ -2,7 +2,9 @@ import {
     findSymbolAtPosition,
     formatSequenceType,
     formatSequenceTypeExpanded,
+    parameterListToString,
     type BuiltinFunctionDefinition,
+    type Definition,
     type SchemaConstructorDefinition,
 } from "server/analysis/index.js";
 import { getTypeAtPosition } from "server/integrations/rumble/operations/type-at-position/service.js";
@@ -53,7 +55,9 @@ export const provideSemanticHover: HoverProvider = async (context) => {
     // A variable or function name reads like its declaration, `$x as xs:integer`. Any other expression is already
     // highlighted in the editor, and repeating its source text would only crowd the hover.
     const isName = occurrence !== undefined && sameRange(occurrence.range, range);
-    const prefix = isName ? `${context.document.getText(range)} as ` : "";
+    const prefix = isName
+        ? `${declarationName(declaration, context.document.getText(range))} as `
+        : "";
     return {
         range,
         contents: {
@@ -62,6 +66,14 @@ export const provideSemanticHover: HoverProvider = async (context) => {
         },
     };
 };
+
+/** The name of a declaration as it is declared: a function's return type follows its parameters. */
+function declarationName(declaration: Definition | undefined, name: string): string {
+    if (declaration?.kind === "function" && declaration.origin === "source") {
+        return `${name}${parameterListToString(declaration)}`;
+    }
+    return name;
+}
 
 function createFunctionHoverContent(
     declaration: BuiltinFunctionDefinition | SchemaConstructorDefinition,

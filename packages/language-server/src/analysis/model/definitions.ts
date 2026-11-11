@@ -165,6 +165,11 @@ export function definitionNameToString(
     }
 }
 
+/** The parameters of a declared function, as in its declaration: `($v, $w)`. */
+export function parameterListToString(definition: SourceFunctionDefinition): string {
+    return `(${definition.parameters.map((parameter) => definitionNameToString(parameter)).join(", ")})`;
+}
+
 /** Whether the definition binds the context item (`$$` in JSONiq, `.` in XQuery). */
 export function isContextItem(definition: Definition): boolean {
     return (
