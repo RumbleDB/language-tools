@@ -115,7 +115,7 @@ describe("semantic hover ranges", () => {
     it.each([
         ["2.03 instance of xs:decimal", "instance", "boolean"],
         ["declare function local:f($v) { $v }; local:f(1)", "local:f(1)", "integer"],
-    ])("pairs expression text and type for %s", async (source, target, name) => {
+    ])("shows only the type of the expression %s", async (source, target, name) => {
         const doc = document(source);
         const expression = target === "instance" ? source : target;
         const range = rangeOf(doc, expression);
@@ -131,7 +131,7 @@ describe("semantic hover ranges", () => {
             range,
             contents: {
                 kind: "markdown",
-                value: `\`\`\`jsoniq\n${expression} as xs:${name}\n\`\`\``,
+                value: `\`\`\`jsoniq\nxs:${name}\n\`\`\``,
             },
         });
     });

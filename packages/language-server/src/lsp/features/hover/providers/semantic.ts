@@ -10,6 +10,7 @@ import {
     formatFunctionDocEntry,
     getBuiltinFunctionDocumentation,
 } from "server/resources/function-docs.js";
+import { sameRange } from "server/utils/range.js";
 import { MarkupKind } from "vscode-languageserver";
 
 import type { HoverProvider } from "../types.js";
@@ -49,13 +50,15 @@ export const provideSemanticHover: HoverProvider = async (context) => {
         return null;
     }
 
+    // A variable or function name reads like its declaration, `$x as xs:integer`. Any other expression is already
+    // highlighted in the editor, and repeating its source text would only crowd the hover.
+    const isName = occurrence !== undefined && sameRange(occurrence.range, range);
+    const prefix = isName ? `${context.document.getText(range)} as ` : "";
     return {
         range,
         contents: {
             kind: MarkupKind.Markdown,
-            value: codeBlock(
-                `${context.document.getText(range)} as ${formatSequenceTypeExpanded(sequenceType)}`,
-            ),
+            value: codeBlock(formatSequenceTypeExpanded(sequenceType, prefix)),
         },
     };
 };
