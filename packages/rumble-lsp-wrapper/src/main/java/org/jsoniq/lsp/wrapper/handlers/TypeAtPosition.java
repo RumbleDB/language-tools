@@ -308,14 +308,14 @@ public final class TypeAtPosition implements RequestHandler {
                 addBindingCandidate(
                         candidates,
                         variable.getVariableMetadata(),
-                        variable.getReturnExpression().getStaticContext(),
+                        variable.getStaticContext(),
                         variable.getVariableName());
             }
             TypeswitchCase variable = expression.getDefaultCase();
             addBindingCandidate(
                     candidates,
                     variable.getVariableMetadata(),
-                    variable.getReturnExpression().getStaticContext(),
+                    variable.getStaticContext(),
                     variable.getVariableName());
             return defaultAction(expression, candidates);
         }
@@ -326,14 +326,14 @@ public final class TypeAtPosition implements RequestHandler {
                 addBindingCandidate(
                         candidates,
                         variable.getVariableMetadata(),
-                        variable.getReturnStatement().getStaticContext(),
+                        variable.getStaticContext(),
                         variable.getVariableName());
             }
             TypeSwitchStatementCase variable = statement.getDefaultCase();
             addBindingCandidate(
                     candidates,
                     variable.getVariableMetadata(),
-                    variable.getReturnStatement().getStaticContext(),
+                    variable.getStaticContext(),
                     variable.getVariableName());
             return defaultAction(statement, candidates);
         }
