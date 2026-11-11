@@ -76,7 +76,11 @@ function renderType(type: TypeDefinition, limits: RenderLimits): string {
                 );
             const hidden = entries.length - fields.length;
             if (hidden > 0) {
-                fields.push(fields.length === 0 ? `… ${pluralFields(hidden)}` : `… ${hidden} more`);
+                fields.push(
+                    fields.length === 0
+                        ? `… ${hidden} ${hidden === 1 ? "field" : "fields"}`
+                        : `… ${hidden} more`,
+                );
             }
             return `{ ${fields.join(", ")} }`;
         }
@@ -93,15 +97,6 @@ function renderType(type: TypeDefinition, limits: RenderLimits): string {
 /** A field name followed by `?` when the field is optional. */
 function fieldName(name: string, field: ObjectFieldDefinition): string {
     return `${name}${field.required ? "" : "?"}`;
-}
-
-function pluralFields(count: number): string {
-    return `${count} ${count === 1 ? "field" : "fields"}`;
-}
-
-/** Formats a field after its name, e.g. `?: xs:string` for an optional field. */
-export function formatObjectField(field: ObjectFieldDefinition): string {
-    return `${field.required ? "" : "?"}: ${formatTypeDefinition(field.type)}`;
 }
 
 export function formatSequenceType(type: SequenceType): string {
@@ -147,7 +142,7 @@ const SUMMARY_WIDTH = 60;
  * nested objects become `{…}`, then the outermost objects show only their field names, then only the first of them.
  * A type with nothing to give up, such as a long named type, is returned in full.
  */
-export function summarizeTypeDefinition(type: TypeDefinition, maxWidth = SUMMARY_WIDTH): string {
+function summarizeTypeDefinition(type: TypeDefinition, maxWidth = SUMMARY_WIDTH): string {
     // Collapse nested objects one level at a time, starting from the whole type.
     for (let depth = objectDepth(type); depth >= 1; depth--) {
         const summary = renderType(type, { ...UNLIMITED, depth });
@@ -166,13 +161,10 @@ export function summarizeTypeDefinition(type: TypeDefinition, maxWidth = SUMMARY
     return names(shown);
 }
 
-/** Formats a field after its name like {@link formatObjectField}, with its type summarized. */
-export function summarizeObjectField(
-    field: ObjectFieldDefinition,
-    maxWidth = SUMMARY_WIDTH,
-): string {
+/** Formats a field after its name, e.g. `?: xs:string` for an optional field, with its type summarized. */
+export function summarizeObjectField(field: ObjectFieldDefinition): string {
     const optional = field.required ? "" : "?";
-    return `${optional}: ${summarizeTypeDefinition(field.type, maxWidth - optional.length - 2)}`;
+    return `${optional}: ${summarizeTypeDefinition(field.type, SUMMARY_WIDTH - optional.length - 2)}`;
 }
 
 export function summarizeSequenceType(type: SequenceType, maxWidth = SUMMARY_WIDTH): string {
@@ -189,10 +181,7 @@ const EXPANDED_FIELDS = 20;
  * Formats a type that is too wide for one line with one field per line, each field's type summarized on its line.
  * Only one level is expanded: what is nested deeper shows when hovering that field in a path.
  */
-export function formatTypeDefinitionExpanded(
-    type: TypeDefinition,
-    available = EXPANDED_WIDTH,
-): string {
+function formatTypeDefinitionExpanded(type: TypeDefinition, available = EXPANDED_WIDTH): string {
     const inline = formatTypeDefinition(type);
     if (inline.length <= available) {
         return inline;
