@@ -9,7 +9,7 @@ import {
 import type { WrapperClient } from "server/integrations/rumble/client.js";
 import type { ParserService } from "server/parser/index.js";
 import type { CompletionIntent } from "server/parser/types/completion.js";
-import { defaultTokenAt, getDocumentText } from "server/parser/utils.js";
+import { defaultTokenAt, defaultTokenBefore, getDocumentText } from "server/parser/utils.js";
 import type { WorkspaceService } from "server/workspace/service.js";
 import { TextEdit, type CompletionItem, type Position } from "vscode-languageserver";
 import type { TextDocument } from "vscode-languageserver-textdocument";
@@ -86,6 +86,15 @@ export function nameStart(tokens: Token[], offset: number): number {
         return isNameToken(prefix) ? prefix.start : offset;
     }
     return isNameToken(token) ? token.start : offset;
+}
+
+/** The dot of an object lookup whose field name the cursor is at, as in `$o.¦` or `$o.na¦`, but not `$o.$¦`. */
+export function lookupDotAtCursor(
+    context: Pick<CompletionContext, "intent" | "cursorOffset" | "getParseResult">,
+): Token | undefined {
+    const { tokens } = context.getParseResult();
+    const dot = defaultTokenBefore(tokens, nameStart(tokens, context.cursorOffset));
+    return context.intent.allowObjectLookup && dot?.text === "." ? dot : undefined;
 }
 
 /** Where the name up to the offset starts, including a `$` or `@` right before it. */

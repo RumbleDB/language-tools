@@ -1,9 +1,8 @@
 import { summarizeObjectField, type ObjectTypeDefinition } from "server/analysis/index.js";
 import { getFocusAtPosition } from "server/integrations/rumble/operations/focus-at-position/service.js";
-import { defaultTokenBefore } from "server/parser/utils.js";
 import { CompletionItemKind } from "vscode-languageserver";
 
-import { nameEnd, nameStart, replaceRange } from "../context.js";
+import { lookupDotAtCursor, nameEnd, nameStart, replaceRange } from "../context.js";
 import type { CompletionProvider } from "../types.js";
 
 /** A quoted field name after the cursor. Only one name fits after a dot, so it is always the one replaced. */
@@ -11,13 +10,13 @@ const QUOTED_FIELD_NAME_PATTERN = /^"(?:[^"\\\n]|\\.)*"/;
 const UNQUOTED_FIELD_NAME_PATTERN = /^[A-Za-z_][A-Za-z0-9_-]*$/;
 
 export const provideObjectFieldCompletions: CompletionProvider = async (context) => {
-    const { intent, source, cursorOffset, document } = context;
-    const { tokens } = context.getParseResult();
-    const fieldStart = nameStart(tokens, cursorOffset);
-    const dot = defaultTokenBefore(tokens, fieldStart);
-    if (!intent.allowObjectLookup || dot?.text !== ".") {
+    const { source, cursorOffset, document } = context;
+    const dot = lookupDotAtCursor(context);
+    if (dot === undefined) {
         return null;
     }
+    const { tokens } = context.getParseResult();
+    const fieldStart = nameStart(tokens, cursorOffset);
 
     const focus = await getFocusAtPosition(
         document,

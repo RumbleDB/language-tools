@@ -1,3 +1,5 @@
+import type { SequenceType } from "server/analysis/index.js";
+import type { WrapperClient } from "server/integrations/rumble/client.js";
 import { findCompletions } from "server/lsp/features/completion.js";
 import { describe, expect, it } from "vitest";
 import { CompletionItemKind } from "vscode-languageserver";
@@ -64,6 +66,44 @@ describe("JSONiq dynamic dot lookup completion", () => {
             });
         },
     );
+
+    it.each(["$obj.¦", "$obj.na¦"])("offers only fields in %s", async (expression) => {
+        const { document, offset } = documentAtCursor(
+            'declare variable $key := "name"; declare variable $obj := {"name": 1}; ' + expression,
+        );
+        const objectType: SequenceType = {
+            itemType: {
+                kind: "object",
+                fields: {
+                    name: {
+                        type: { kind: "named", name: { prefix: "xs", localName: "integer" } },
+                        required: true,
+                    },
+                },
+            },
+            arity: "",
+        };
+        const withFields = createMockWrapperClient({
+            sendRequest: (async () => ({
+                id: 0,
+                responseType: "",
+                body: { sequenceType: objectType },
+                error: null,
+            })) as WrapperClient["sendRequest"],
+        });
+        const items = await findCompletions(
+            document,
+            document.positionAt(offset),
+            parserService,
+            workspaceService,
+            withFields,
+        );
+        expect(items.map((item) => item.label)).toEqual(["name"]);
+    });
+
+    it("offers no variables after a dot when the fields are unknown", async () => {
+        expect(await complete('declare variable $key := "name"; $obj.¦')).toEqual([]);
+    });
 
     it.each(['$obj."na¦me"', '$obj.("na¦me")'])(
         "does not suggest references inside the string in %s",

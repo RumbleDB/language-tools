@@ -14,12 +14,18 @@ import {
     type CompletionItem,
 } from "vscode-languageserver";
 
-import { referenceStart, applyQNamePrefixFilter, getQNameCompletionLabels } from "../context.js";
+import {
+    referenceStart,
+    applyQNamePrefixFilter,
+    getQNameCompletionLabels,
+    lookupDotAtCursor,
+} from "../context.js";
 import type { CompletionProvider } from "../types.js";
 import { createFunctionCallSnippet } from "./snippets.js";
 
 export const provideVariableCompletions: CompletionProvider = async (context) => {
-    if (!context.intent.allowVariableReferences) {
+    // A field name is far more likely after a lookup dot. A variable, as in `$o.$key`, still follows a typed `$`.
+    if (!context.intent.allowVariableReferences || lookupDotAtCursor(context) !== undefined) {
         return null;
     }
 
