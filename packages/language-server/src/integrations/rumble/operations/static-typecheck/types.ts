@@ -5,6 +5,8 @@ export interface StaticTypecheckError {
     message: string;
     location: string;
     range: Range;
+    /** Whether every value fails the check, rather than only some, as an item* argument for an xs:integer. */
+    certain: boolean;
 }
 
 export interface StaticTypecheckWireResult {
