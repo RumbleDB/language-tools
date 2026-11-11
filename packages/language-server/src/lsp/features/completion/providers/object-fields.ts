@@ -1,4 +1,4 @@
-import { formatObjectField, type ObjectTypeDefinition } from "server/analysis/index.js";
+import { summarizeObjectField, type ObjectTypeDefinition } from "server/analysis/index.js";
 import { getFocusAtPosition } from "server/integrations/rumble/operations/focus-at-position/service.js";
 import { defaultTokenBefore } from "server/parser/utils.js";
 import { CompletionItemKind } from "vscode-languageserver";
@@ -37,7 +37,7 @@ export const provideObjectFieldCompletions: CompletionProvider = async (context)
     return objectFieldCompletions(objectType, fieldPrefix).map(([fieldName, field]) => ({
         label: fieldName,
         kind: CompletionItemKind.Field,
-        labelDetails: { detail: formatObjectField(field) },
+        labelDetails: { detail: summarizeObjectField(field) },
         textEdit: replaceRange(
             document,
             fieldStart,

@@ -1,6 +1,7 @@
 import {
     findSymbolAtPosition,
     formatSequenceType,
+    formatSequenceTypeExpanded,
     type BuiltinFunctionDefinition,
     type SchemaConstructorDefinition,
 } from "server/analysis/index.js";
@@ -53,7 +54,7 @@ export const provideSemanticHover: HoverProvider = async (context) => {
         contents: {
             kind: MarkupKind.Markdown,
             value: codeBlock(
-                `${context.document.getText(range)} as ${formatSequenceType(sequenceType)}`,
+                `${context.document.getText(range)} as ${formatSequenceTypeExpanded(sequenceType)}`,
             ),
         },
     };

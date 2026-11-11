@@ -1,4 +1,4 @@
-import { collectModuleProlog, formatSequenceType } from "server/analysis/index.js";
+import { collectModuleProlog, summarizeSequenceType } from "server/analysis/index.js";
 import type { PathStep } from "server/integrations/rumble/operations/focus-at-position/protocol.js";
 import { getFocusAtPosition } from "server/integrations/rumble/operations/focus-at-position/service.js";
 import { defaultTokenAt, defaultTokenBefore } from "server/parser/utils.js";
@@ -76,7 +76,9 @@ async function stepCompletions(
                     item.filterText = name;
                 }
                 if (pathStep.sequenceType !== undefined) {
-                    item.labelDetails = { description: formatSequenceType(pathStep.sequenceType) };
+                    item.labelDetails = {
+                        description: summarizeSequenceType(pathStep.sequenceType),
+                    };
                 }
                 return item;
             }),
