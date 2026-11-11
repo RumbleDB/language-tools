@@ -4,8 +4,11 @@ import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Base64;
+import java.util.Comparator;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 
 import org.jsoniq.lsp.wrapper.Range;
 import org.jsoniq.lsp.wrapper.messages.Request;
@@ -13,15 +16,22 @@ import org.jsoniq.lsp.wrapper.messages.ResponseBody;
 
 import org.rumbledb.bindings.ExternalBindings;
 import org.rumbledb.compiler.CompilationPipeline;
+import org.rumbledb.compiler.TolerantCompiler;
 import org.rumbledb.config.CompilationConfiguration;
 import org.rumbledb.config.RumbleConfiguration;
 import org.rumbledb.exceptions.ExceptionMetadata;
 import org.rumbledb.exceptions.NotLibraryModuleException;
 import org.rumbledb.exceptions.RumbleException;
+import org.rumbledb.exceptions.StaticTypeErrorsException;
+import org.rumbledb.exceptions.UnexpectedStaticTypeException;
 
 public final class StaticTypeChecker implements RequestHandler {
 
-    public record StaticTypeError(String code, String message, String location, Range range) {}
+    /**
+     * A static type error, which is certain when every value of the expression fails, and otherwise only possible: an
+     * item* argument for an xs:integer parameter fails unless it is one integer.
+     */
+    public record StaticTypeError(String code, String message, String location, Range range, boolean certain) {}
 
     public record Result(List<StaticTypeError> errors) implements ResponseBody {}
 
@@ -41,14 +51,58 @@ public final class StaticTypeChecker implements RequestHandler {
             return EMPTY_RESULT;
         }
 
-        List<StaticTypeError> typeErrors = new ArrayList<>();
         try {
             parseModule(query, documentUri, this.strictConfiguration);
+            return EMPTY_RESULT;
         } catch (RumbleException exception) {
-            typeErrors.add(toTypeError(exception));
+            return new Result(collectErrors(query, documentUri, compilationErrors(exception)));
         }
+    }
 
-        return new Result(typeErrors);
+    /** Static typing reports all of its errors together, while any other pass stops at the first one. */
+    private static List<RumbleException> compilationErrors(RumbleException exception) {
+        return exception instanceof StaticTypeErrorsException all ? all.getErrors() : List.of(exception);
+    }
+
+    /**
+     * Compilation reports every static type error, but any other pass stops at the first error, before typing. The
+     * tolerant compiler, which also types a module with such an error, finds the type errors in the rest. The errors of
+     * compilation are kept even if the tolerant compiler does not find them, because they can come from a pass that
+     * only compilation runs.
+     */
+    private List<StaticTypeError> collectErrors(
+            String query, URI documentUri, List<RumbleException> compilationErrors) {
+        // A problem may be found both by compilation and by the tolerant compiler.
+        Set<StaticTypeError> errors = new LinkedHashSet<>();
+        try {
+            TolerantCompiler.compile(
+                    query, documentUri, this.strictConfiguration, error -> errors.add(toTypeError(error)));
+        } catch (RuntimeException exception) {
+            // The errors of compilation are still worth reporting.
+        }
+        for (RumbleException compilationError : compilationErrors) {
+            StaticTypeError error = toTypeError(compilationError);
+            if (errors.stream().noneMatch(found -> isSameProblem(found, error))) {
+                errors.add(error);
+            }
+        }
+        List<StaticTypeError> sorted = new ArrayList<>(errors);
+        sorted.sort(
+                Comparator.comparing((StaticTypeError error) -> error.range().start())
+                        .thenComparing(error -> error.range().end()));
+        return sorted;
+    }
+
+    /**
+     * Whether an error found by the tolerant compiler is an error of compilation, found in a part of it. Compilation
+     * inlines function calls before typing, so it finds a wrong argument at the argument, while the tolerant compiler,
+     * which does not inline, finds it at the call.
+     */
+    private static boolean isSameProblem(StaticTypeError found, StaticTypeError error) {
+        return found.code().equals(error.code())
+                && Objects.equals(found.location(), error.location())
+                && found.range().start().compareTo(error.range().start()) <= 0
+                && error.range().end().compareTo(found.range().end()) <= 0;
     }
 
     /**
@@ -70,7 +124,10 @@ public final class StaticTypeChecker implements RequestHandler {
                 exception.getMetadata() == null ? ExceptionMetadata.EMPTY_METADATA : exception.getMetadata();
         String code = exception.getErrorCode().toString();
         String message = Objects.toString(exception.getJSONiqErrorMessage(), exception.getMessage());
-        return new StaticTypeError(code, message, metadata.getLocation(), Range.fromExceptionMetadata(metadata));
+        // Only a type mismatch may be possible. A failed "is statically" assertion, or any other error, is certain.
+        boolean certain = !(exception instanceof UnexpectedStaticTypeException mismatch) || mismatch.isCertain();
+        return new StaticTypeError(
+                code, message, metadata.getLocation(), Range.fromExceptionMetadata(metadata), certain);
     }
 
     @Override

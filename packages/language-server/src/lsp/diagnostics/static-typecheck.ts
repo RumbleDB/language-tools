@@ -31,9 +31,10 @@ function belongsToDocument(error: StaticTypecheckError, document: TextDocument):
     }
 }
 
+/** An error that always occurs is shown as one, and one that only occurs for some values as a warning. */
 function toDiagnostic(error: StaticTypecheckError): Diagnostic {
     return {
-        severity: DiagnosticSeverity.Warning,
+        severity: error.certain ? DiagnosticSeverity.Error : DiagnosticSeverity.Warning,
         range: error.range,
         code: error.code,
         source: "jsoniq-static-typecheck",

@@ -115,7 +115,7 @@ describe("semantic hover ranges", () => {
     it.each([
         ["2.03 instance of xs:decimal", "instance", "boolean"],
         ["declare function local:f($v) { $v }; local:f(1)", "local:f(1)", "integer"],
-    ])("pairs expression text and type for %s", async (source, target, name) => {
+    ])("shows only the type of the expression %s", async (source, target, name) => {
         const doc = document(source);
         const expression = target === "instance" ? source : target;
         const range = rangeOf(doc, expression);
@@ -131,8 +131,23 @@ describe("semantic hover ranges", () => {
             range,
             contents: {
                 kind: "markdown",
-                value: `\`\`\`jsoniq\n${expression} as xs:${name}\n\`\`\``,
+                value: `\`\`\`jsoniq\nxs:${name}\n\`\`\``,
             },
+        });
+    });
+
+    it("shows a declared function with its parameters before its return type", async () => {
+        const doc = document("declare function local:f($v, $w) { $v }; local:f(1, 2)");
+        const range = rangeOf(doc, "local:f");
+        const hover = await findHover(
+            doc,
+            range.start,
+            workspaceService,
+            typeWrapper(range, inferredType("integer")),
+        );
+        expect(hover).toEqual({
+            range,
+            contents: { kind: "markdown", value: "```jsoniq\nlocal:f($v, $w) as xs:integer\n```" },
         });
     });
 

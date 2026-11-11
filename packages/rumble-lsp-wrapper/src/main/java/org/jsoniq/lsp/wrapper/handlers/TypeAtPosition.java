@@ -308,14 +308,14 @@ public final class TypeAtPosition implements RequestHandler {
                 addBindingCandidate(
                         candidates,
                         variable.getVariableMetadata(),
-                        variable.getReturnExpression().getStaticContext(),
+                        variable.getStaticContext(),
                         variable.getVariableName());
             }
             TypeswitchCase variable = expression.getDefaultCase();
             addBindingCandidate(
                     candidates,
                     variable.getVariableMetadata(),
-                    variable.getReturnExpression().getStaticContext(),
+                    variable.getStaticContext(),
                     variable.getVariableName());
             return defaultAction(expression, candidates);
         }
@@ -326,22 +326,27 @@ public final class TypeAtPosition implements RequestHandler {
                 addBindingCandidate(
                         candidates,
                         variable.getVariableMetadata(),
-                        variable.getReturnStatement().getStaticContext(),
+                        variable.getStaticContext(),
                         variable.getVariableName());
             }
             TypeSwitchStatementCase variable = statement.getDefaultCase();
             addBindingCandidate(
                     candidates,
                     variable.getVariableMetadata(),
-                    variable.getReturnStatement().getStaticContext(),
+                    variable.getStaticContext(),
                     variable.getVariableName());
             return defaultAction(statement, candidates);
         }
 
         @Override
         public List<Candidate> visitTransformExpression(TransformExpression expression, List<Candidate> candidates) {
+            // RumbleDB binds the copy variables in the static context of the transform, and types them there.
             for (CopyDeclaration variable : expression.getCopyDeclarations()) {
-                addBindingCandidate(candidates, variable.getVariableMetadata(), variable.getSourceSequenceType());
+                addBindingCandidate(
+                        candidates,
+                        variable.getVariableMetadata(),
+                        expression.getStaticContext(),
+                        variable.getVariableName());
             }
             return defaultAction(expression, candidates);
         }

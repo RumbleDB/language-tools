@@ -1,6 +1,8 @@
 import {
     formatSequenceType,
+    formatSequenceTypeExpanded,
     formatTypeDefinition,
+    summarizeSequenceType,
     type TypeDefinition,
 } from "server/analysis/model/type-system.js";
 import { describe, expect, it } from "vitest";
@@ -69,5 +71,117 @@ describe("inferred object type formatting", () => {
                 name: { prefix: "js", localName: "array" },
             }),
         ).toBe("js:array");
+    });
+});
+
+describe("large inferred type formatting", () => {
+    const string: TypeDefinition = { kind: "named", name: { prefix: "xs", localName: "string" } };
+    function object(fields: Record<string, TypeDefinition>): TypeDefinition {
+        return {
+            kind: "object",
+            fields: Object.fromEntries(
+                Object.entries(fields).map(([name, type]) => [name, { type, required: false }]),
+            ),
+        };
+    }
+    function strings(...names: string[]): TypeDefinition {
+        return object(Object.fromEntries(names.map((name) => [name, string])));
+    }
+    const user = strings("avatar_url", "events_url", "followers_url", "login");
+    const event: TypeDefinition = {
+        kind: "object",
+        fields: {
+            id: { type: integer, required: true },
+            actor: { type: user, required: false },
+            repo: { type: strings("name"), required: false },
+            commits: { type: { kind: "array", content: user }, required: false },
+            position: { type: { kind: "union", members: [user, nullType] }, required: false },
+        },
+    };
+
+    it("puts each field on its own line and summarizes what is nested in it", () => {
+        expect(formatSequenceTypeExpanded({ itemType: event, arity: "*" })).toBe(
+            [
+                "{",
+                "  id: xs:integer,",
+                "  actor?: { avatar_url?, events_url?, followers_url?, login? },",
+                "  repo?: { name?: xs:string },",
+                "  commits?: [{ avatar_url?, events_url?, followers_url?, login? }],",
+                "  position?: ({ avatar_url?, events_url?, followers_url?, login? } | js:null)",
+                "}*",
+            ].join("\n"),
+        );
+    });
+
+    it("expands the object inside an array", () => {
+        expect(
+            formatSequenceTypeExpanded({ itemType: { kind: "array", content: user }, arity: "?" }),
+        ).toBe(
+            [
+                "[{",
+                "  avatar_url?: xs:string,",
+                "  events_url?: xs:string,",
+                "  followers_url?: xs:string,",
+                "  login?: xs:string",
+                "}]?",
+            ].join("\n"),
+        );
+    });
+
+    it("counts the fields after the first 20 instead of listing them", () => {
+        const table = strings(...Array.from({ length: 300 }, (_, index) => `column${index}`));
+        const lines = formatSequenceTypeExpanded({ itemType: table, arity: "*" }).split("\n");
+        expect(lines).toHaveLength(23);
+        expect(lines.slice(-3)).toEqual(["  column19?: xs:string,", "  … 280 more fields", "}*"]);
+    });
+
+    it("expands a type that fits on one line only without its prefix", () => {
+        const type = { itemType: strings("avatar_url", "events_url", "login"), arity: "" };
+        expect(formatSequenceTypeExpanded(type)).toBe(formatSequenceType(type));
+        expect(formatSequenceTypeExpanded(type, "$a_long_variable_name as ")).toBe(
+            [
+                "$a_long_variable_name as {",
+                "  avatar_url?: xs:string,",
+                "  events_url?: xs:string,",
+                "  login?: xs:string",
+                "}",
+            ].join("\n"),
+        );
+    });
+
+    it("keeps a type that fits on one line as it is", () => {
+        const small = { itemType: strings("name", "url"), arity: "" };
+        expect(formatSequenceTypeExpanded(small)).toBe(formatSequenceType(small));
+        expect(summarizeSequenceType(small)).toBe(formatSequenceType(small));
+    });
+
+    it("hides nested objects before the types of fields in a summary", () => {
+        expect(
+            summarizeSequenceType({
+                itemType: object({ name: string, owner: user }),
+                arity: "?",
+            }),
+        ).toBe("{ name?: xs:string, owner?: {…} }?");
+    });
+
+    it("shows field names, then only the first of them, in a summary", () => {
+        expect(summarizeSequenceType({ itemType: user, arity: "*" })).toBe(
+            "{ avatar_url?, events_url?, followers_url?, login? }*",
+        );
+        expect(summarizeSequenceType({ itemType: user, arity: "*" }, 40)).toBe(
+            "{ avatar_url?, events_url?, … 2 more }*",
+        );
+        expect(summarizeSequenceType({ itemType: strings("a".repeat(80)), arity: "" })).toBe(
+            "{ … 1 field }",
+        );
+    });
+
+    it("summarizes the objects inside arrays and unions", () => {
+        expect(
+            summarizeSequenceType({
+                itemType: { kind: "union", members: [{ kind: "array", content: user }, nullType] },
+                arity: "",
+            }),
+        ).toBe("([{ avatar_url?, events_url?, … 2 more }] | js:null)");
     });
 });

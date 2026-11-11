@@ -21,6 +21,7 @@ import org.antlr.v4.runtime.tree.ParseTree;
 import org.antlr.v4.runtime.tree.ParseTreeVisitor;
 
 import org.rumbledb.bindings.ExternalBindings;
+import org.rumbledb.compiler.typing.StaticTypeErrors;
 import org.rumbledb.config.CompilationConfiguration;
 import org.rumbledb.config.RumbleConfiguration;
 import org.rumbledb.config.model.LanguageVersion;
@@ -28,6 +29,7 @@ import org.rumbledb.config.model.LanguageVersion.Language;
 import org.rumbledb.context.Name;
 import org.rumbledb.context.StaticContext;
 import org.rumbledb.exceptions.ExceptionMetadata;
+import org.rumbledb.exceptions.OurBadException;
 import org.rumbledb.exceptions.RumbleException;
 import org.rumbledb.expressions.CommaExpression;
 import org.rumbledb.expressions.Expression;
@@ -45,7 +47,6 @@ import org.rumbledb.parser.jsoniq.JsoniqLexer;
 import org.rumbledb.parser.jsoniq.JsoniqParser;
 import org.rumbledb.parser.xquery.XQueryLexer;
 import org.rumbledb.parser.xquery.XQueryParser;
-import org.rumbledb.types.BuiltinTypesCatalogue;
 import org.rumbledb.types.SequenceType;
 import org.rumbledb.xml.schema.XmlSchemaCatalog;
 
@@ -60,17 +61,17 @@ import org.rumbledb.xml.schema.XmlSchemaCatalog;
  * whenever the RumbleDB version changes.
  */
 public final class TolerantCompiler {
-    /** Compared by identity: unlike a declared item*, it means that the type could not be determined. */
-    private static final SequenceType UNKNOWN =
-            new SequenceType(BuiltinTypesCatalogue.item, SequenceType.Arity.ZeroOrMore);
-
     private static final Name HOLE = Name.createVariableInNoNamespace("__hole");
 
     private TolerantCompiler() {}
 
-    /** Whether the type only stands for something that failed to compile. Let bindings pass it on unchanged. */
+    /**
+     * Whether the type only stands for something that failed to compile. Let bindings pass it on unchanged. It is the
+     * type RumbleDB gives an expression with a static type error, so that RumbleDB does not report errors that only
+     * follow from a hole either.
+     */
     public static boolean isUnknown(SequenceType type) {
-        return type == UNKNOWN;
+        return StaticTypeErrors.isUnknown(type);
     }
 
     /** Whether the expression has no counterpart in the source, because it replaces a broken one. */
@@ -79,10 +80,20 @@ public final class TolerantCompiler {
     }
 
     public static Module compile(String query, URI uri, RumbleConfiguration configuration) {
+        return compile(query, uri, configuration, error -> {});
+    }
+
+    /**
+     * Also passes on each error that typing finds in the source, as long as it is not caused by an expression that
+     * could not be typed, so that one error does not hide the others. Errors are only found with static typing enabled
+     * in the configuration.
+     */
+    public static Module compile(
+            String query, URI uri, RumbleConfiguration configuration, Consumer<RumbleException> errors) {
         Language language = ModuleParser.detectLanguage(query, uri, configuration);
         CompilationConfiguration compilation = new CompilationConfiguration(configuration);
         Parsed parsed = parse(query, uri, compilation, language);
-        return analyze((Module) parsed.translation().visit(parsed.module()), compilation);
+        return analyze((Module) parsed.translation().visit(parsed.module()), compilation, errors);
     }
 
     private record Parsed(ParseTree module, ParseTreeVisitor<Node> translation) {}
@@ -138,7 +149,8 @@ public final class TolerantCompiler {
     }
 
     /** The analysis passes of the compilation pipeline that types depend on, without its optimizations. */
-    private static Module analyze(Module translated, CompilationConfiguration compilation) {
+    private static Module analyze(
+            Module translated, CompilationConfiguration compilation, Consumer<RumbleException> errors) {
         CompilationContext context = new CompilationContext(
                 compilation.runtimeConfiguration(), ExternalBindings.empty(), compilation.resourceResolver());
         Module module = resolveDependencies(translated, context);
@@ -146,7 +158,12 @@ public final class TolerantCompiler {
             module = CompilationPasses.rewriteBuiltinPartialApplications().apply(main, context);
         }
         new TolerantStaticContextVisitor().visit(module, module.getStaticContext());
-        new TolerantInferTypeVisitor(context).visit(module, module.getStaticContext());
+        TolerantInferTypeVisitor typing = new TolerantInferTypeVisitor(context, errors);
+        typing.visit(module, module.getStaticContext());
+        // RumbleDB collects the static type errors it reports rather than throwing them.
+        typing.getStaticTypeErrors().stream()
+                .filter(error -> !isSynthetic(error.getMetadata()))
+                .forEach(errors);
         return module;
     }
 
@@ -350,9 +367,13 @@ public final class TolerantCompiler {
         }
     }
 
+    /** Types what RumbleDB cannot, such as holes, and passes on the errors that RumbleDB throws rather than collects. */
     private static final class TolerantInferTypeVisitor extends InferTypeVisitor {
-        TolerantInferTypeVisitor(CompilationContext context) {
+        private final Consumer<RumbleException> errors;
+
+        TolerantInferTypeVisitor(CompilationContext context, Consumer<RumbleException> errors) {
             super(context.configuration(), context.resourceResolver());
+            this.errors = errors;
         }
 
         @Override
@@ -361,16 +382,32 @@ public final class TolerantCompiler {
             try {
                 result = super.visit(node, argument);
             } catch (RuntimeException exception) {
+                if (exception instanceof RumbleException error && isInSource(error, node)) {
+                    this.errors.accept(error);
+                }
                 if (node instanceof Expression expression) {
-                    expression.setStaticSequenceType(UNKNOWN);
+                    expression.setStaticSequenceType(StaticTypeErrors.UNKNOWN);
                 }
             }
             // A hole that keeps parts of the failed expression must not get the type of those parts.
             if (node instanceof Expression expression
                     && (isSynthetic(node.getMetadata()) || isLookupOrStepOfHole(node))) {
-                expression.setStaticSequenceType(UNKNOWN);
+                expression.setStaticSequenceType(StaticTypeErrors.UNKNOWN);
             }
             return result;
+        }
+
+        /**
+         * Whether the error is in the source rather than caused by an operand that could not be typed: an unknown type
+         * is item*, which most operators reject, as {@code $x + 1} does after {@code let $x := 1 + "a"}. An error
+         * without a location is not in the source either: it is a lookup of something that an earlier pass rejected,
+         * such as an undeclared variable, or a hole, which never has a location. An internal error is never in the
+         * source, even when it has a location.
+         */
+        private static boolean isInSource(RumbleException error, Node node) {
+            return !(error instanceof OurBadException)
+                    && !isSynthetic(error.getMetadata())
+                    && !StaticTypeErrors.hasUnknownOperand(node);
         }
 
         /** What a key or step selects is unknown while it is being typed, even if what it applies to is known. */
