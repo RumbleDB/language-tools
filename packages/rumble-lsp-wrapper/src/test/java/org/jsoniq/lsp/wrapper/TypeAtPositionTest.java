@@ -80,7 +80,9 @@ class TypeAtPositionTest {
 
     @Test
     void preservesObjectFieldsWithOptionalMathResult() {
-        String query = "for $i in 1 to 10 return {\"i\": $i, \"power_of_two\": math:pow($i, 2)}";
+        // math:pow of an optional number is optional.
+        String query =
+                "for $i in 1 to 10 return {\"i\": $i, \"power_of_two\": math:pow(if ($i > 5) then $i else (), 2)}";
         TypeAtPosition.Result result =
                 this.typeAtPosition.findType(query, DOCUMENT_URI, new Position(0, query.indexOf('{')));
 
@@ -226,7 +228,8 @@ class TypeAtPositionTest {
         assertVariableType(query, DOCUMENT_URI, "$value", 0, "xs:integer");
         assertVariableType(query, DOCUMENT_URI, "$branch", 0, "xs:string");
         assertVariableType(query, DOCUMENT_URI, "$branch", 2, "xs:integer");
-        assertVariableType(query, DOCUMENT_URI, "$obj", 0, "{ a: xs:integer }");
+        // The modify clause may change the fields of a copy, so only its kind is known.
+        assertVariableType(query, DOCUMENT_URI, "$obj", 0, "{  }");
     }
 
     @Test

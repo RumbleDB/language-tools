@@ -31,8 +31,8 @@ public sealed interface TypeDefinition {
     }
 
     /**
-     * Preserve engine display notation, including prefixes retained on schema types. The engine renders anonymous
-     * unions, objects and arrays as internal JSON, so those display their descriptor's notation instead.
+     * Preserve engine display notation, including prefixes retained on schema types. Anonymous unions, objects and
+     * arrays keep their structure, and display it in the engine's notation, such as { a: xs:integer, b?: xs:string }.
      */
     static TypeDefinition fromItemType(ItemType itemType) {
         ResolvedQName name = itemType.hasName() ? ResolvedQName.fromName(itemType.getName()) : null;

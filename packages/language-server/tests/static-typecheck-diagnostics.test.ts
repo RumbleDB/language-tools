@@ -6,6 +6,7 @@ import { RumbleWrapperClient } from "server/integrations/rumble/client.js";
 import { clearStaticTypecheckCache } from "server/integrations/rumble/operations/static-typecheck/service.js";
 import { collectStaticTypecheckDiagnostics } from "server/lsp/diagnostics/static-typecheck.js";
 import { describe, expect, it, vi } from "vitest";
+import { DiagnosticSeverity } from "vscode-languageserver";
 
 import { createMockWrapperClient, testDocument, testDocumentFromUri } from "./test-utils.js";
 
@@ -28,6 +29,7 @@ describe("static typecheck diagnostics", () => {
                                 start: { line: 1, character: 0 },
                                 end: { line: 1, character: 1 },
                             },
+                            certain: true,
                         },
                         {
                             code: "XPTY0004",
@@ -37,6 +39,7 @@ describe("static typecheck diagnostics", () => {
                                 start: { line: 0, character: 0 },
                                 end: { line: 0, character: 1 },
                             },
+                            certain: true,
                         },
                     ],
                 },
@@ -46,6 +49,22 @@ describe("static typecheck diagnostics", () => {
 
         await expect(collectStaticTypecheckDiagnostics(document, wrapper)).resolves.toEqual([
             expect.objectContaining({ message: "Error in main module" }),
+        ]);
+    });
+
+    it("shows a certain error as an error and a possible one as a warning", async () => {
+        const wrapper = new RumbleWrapperClient();
+        const document = testDocument(
+            "static-typecheck-severity",
+            'declare function local:f($x as item*) { $x + 1 }; (local:f(1), 2 + "b")',
+        );
+        clearStaticTypecheckCache(document.uri);
+
+        const diagnostics = await collectStaticTypecheckDiagnostics(document, wrapper);
+
+        expect(diagnostics.map((diagnostic) => diagnostic.severity)).toEqual([
+            DiagnosticSeverity.Warning,
+            DiagnosticSeverity.Error,
         ]);
     });
 
