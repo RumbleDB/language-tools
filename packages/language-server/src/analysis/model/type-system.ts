@@ -214,10 +214,8 @@ function formatTypeDefinitionExpanded(type: TypeDefinition, available = EXPANDED
     }
 }
 
-export function formatSequenceTypeExpanded(type: SequenceType): string {
-    const itemType = formatTypeDefinitionExpanded(
-        type.itemType,
-        EXPANDED_WIDTH - type.arity.length,
-    );
-    return `${itemType}${type.arity}`;
+/** Formats a sequence type like {@link formatTypeDefinitionExpanded}, after `prefix` on its first line. */
+export function formatSequenceTypeExpanded(type: SequenceType, prefix = ""): string {
+    const available = EXPANDED_WIDTH - prefix.length - type.arity.length;
+    return `${prefix}${formatTypeDefinitionExpanded(type.itemType, available)}${type.arity}`;
 }

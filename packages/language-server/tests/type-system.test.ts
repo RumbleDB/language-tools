@@ -135,6 +135,20 @@ describe("large inferred type formatting", () => {
         expect(lines.slice(-3)).toEqual(["  column19?: xs:string,", "  … 280 more fields", "}*"]);
     });
 
+    it("expands a type that fits on one line only without its prefix", () => {
+        const type = { itemType: strings("avatar_url", "events_url", "login"), arity: "" };
+        expect(formatSequenceTypeExpanded(type)).toBe(formatSequenceType(type));
+        expect(formatSequenceTypeExpanded(type, "$a_long_variable_name as ")).toBe(
+            [
+                "$a_long_variable_name as {",
+                "  avatar_url?: xs:string,",
+                "  events_url?: xs:string,",
+                "  login?: xs:string",
+                "}",
+            ].join("\n"),
+        );
+    });
+
     it("keeps a type that fits on one line as it is", () => {
         const small = { itemType: strings("name", "url"), arity: "" };
         expect(formatSequenceTypeExpanded(small)).toBe(formatSequenceType(small));
