@@ -15,6 +15,7 @@ import {
     spacedDocs,
 } from "../doc.js";
 import { formatBlockDoc, formatIfExpressionDoc, formatTryCatchDoc } from "../helpers.js";
+import { formatIntroducedExpression } from "./flwor.js";
 import { formatTokenSeparatedDocs } from "./tokens.js";
 
 type SourceTerminal = TerminalNode | TerminalNode[] | Token | null | undefined;
@@ -366,7 +367,14 @@ export function formatVariableDeclaration(
         typed,
         external,
         expression
-            ? concat([space, formatTerminal(node.COLON_EQ(), ":="), space, visit(expression)])
+            ? concat([
+                  space,
+                  formatIntroducedExpression(
+                      formatTerminal(node.COLON_EQ(), ":="),
+                      expression,
+                      visit,
+                  ),
+              ])
             : NIL,
         semicolon,
     ]);

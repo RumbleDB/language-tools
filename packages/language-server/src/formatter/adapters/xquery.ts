@@ -29,6 +29,7 @@ import {
     formatLetVariable,
     formatOrderByClause,
     formatWhereClause,
+    formatWindowClause,
 } from "server/formatter/shared/flwor.js";
 import {
     formatBoundarySpaceDeclaration,
@@ -406,6 +407,24 @@ export class XQueryFormatterVisitor extends XQueryParserVisitor<Doc> {
 
     public override visitOrderByClause = (node: ctx.OrderByClauseContext): Doc => {
         return formatOrderByClause(node, XQueryParser.COMMA, this.v, this.kw);
+    };
+
+    public override visitTumblingWindowClause = (node: ctx.TumblingWindowClauseContext): Doc => {
+        return formatWindowClause(
+            this.kw(node.KW_TUMBLING(), XQueryParser.KW_TUMBLING),
+            node,
+            this.v,
+            this.kw,
+        );
+    };
+
+    public override visitSlidingWindowClause = (node: ctx.SlidingWindowClauseContext): Doc => {
+        return formatWindowClause(
+            this.kw(node.KW_SLIDING(), XQueryParser.KW_SLIDING),
+            node,
+            this.v,
+            this.kw,
+        );
     };
 
     public override visitCountClause = (node: ctx.CountClauseContext): Doc => {

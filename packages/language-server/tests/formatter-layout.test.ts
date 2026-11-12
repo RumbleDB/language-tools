@@ -74,6 +74,53 @@ describe.each(BOTH)("%s layout", (languageId) => {
         });
     });
 
+    describe("FLWOR expressions", () => {
+        it("indents a FLWOR bound to a variable on its own lines", () => {
+            expectLayout(
+                ["let $a := for $x in (1, 2) return $x", "return $a"],
+                ["let $a :=", "    for $x in (1, 2)", "    return $x", "return $a"],
+                languageId,
+            );
+        });
+
+        it("indents a FLWOR that is returned on its own lines", () => {
+            expectLayout(
+                ["for $x in (1, 2) return for $y in (3, 4) return $x * $y"],
+                ["for $x in (1, 2)", "return", "    for $y in (3, 4)", "    return $x * $y"],
+                languageId,
+            );
+        });
+
+        it("indents a FLWOR that initializes a variable on its own lines", () => {
+            expectLayout(
+                ["declare variable $a := for $x in (1, 2) return $x;", "$a"],
+                ["declare variable $a :=", "    for $x in (1, 2)", "    return $x;", "", "$a"],
+                languageId,
+            );
+        });
+
+        it("puts the conditions of a window on their own lines", () => {
+            expectLayout(
+                [
+                    "for sliding window $w in (1, 2, 3) start at $s when true() only end at $e when $e - $s eq 2",
+                    "return $w",
+                ],
+                [
+                    "for sliding window $w in (1, 2, 3)",
+                    "    start at $s when true()",
+                    "    only end at $e when $e - $s eq 2",
+                    "return $w",
+                ],
+                languageId,
+            );
+            expectLayout(
+                ["for tumbling window $w in (1, 2, 3) start when true() return $w"],
+                ["for tumbling window $w in (1, 2, 3)", "    start when true()", "return $w"],
+                languageId,
+            );
+        });
+    });
+
     describe("line breaks kept from the source", () => {
         it("keeps a function body on its own lines", () => {
             expectLayout(

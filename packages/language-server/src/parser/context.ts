@@ -43,6 +43,7 @@ export type EnclosedExpressionContext =
     | xquery.EnclosedExpressionContext;
 export type ExitStatementContext = jsoniq.ExitStatementContext | xquery.ExitStatementContext;
 export type ExprContext = jsoniq.ExprContext | xquery.ExprContext;
+export type ExprSingleContext = jsoniq.ExprSingleContext | xquery.ExprSingleContext;
 export type FlworExprContext = jsoniq.FlworExprContext | xquery.FlworExprContext;
 export type FlworStatementContext = jsoniq.FlworStatementContext | xquery.FlworStatementContext;
 export type ForClauseContext = jsoniq.ForClauseContext | xquery.ForClauseContext;

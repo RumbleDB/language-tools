@@ -55,20 +55,6 @@ export function formatBlockDoc(
     return group(concat([leftBrace, indent(concat([line, doc])), line, rightBrace]), options);
 }
 
-// ─── FLWOR Formatting ─────────────────────────────────────────────────────────
-
-/**
- * Formats a FLWOR expression with each clause separated by a hard line break.
- */
-export function formatFlworExpressionDoc(
-    clauses: readonly Doc[],
-    returnKeywordDoc: Doc,
-    returnExprDoc: Doc,
-): Doc {
-    const returnLine = concat([returnKeywordDoc, space, returnExprDoc]);
-    return join(hardline, [...clauses, returnLine]);
-}
-
 // ─── If/Else Formatting ──────────────────────────────────────────────────────
 
 /**
