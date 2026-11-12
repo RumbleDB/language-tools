@@ -138,7 +138,8 @@ export function formatParenthesizedExpression(
         node.LPAREN(),
         node.RPAREN(),
         items,
-        node.getTokens(commaTokenType),
+        // The commas separate the items of the inner expression, so they are its tokens.
+        expression?.getTokens(commaTokenType) ?? [],
         formatTerminal,
     );
 }

@@ -6,6 +6,11 @@ export interface CommentAttachmentMap {
     dangling: Token[];
 }
 
+/** Whether a token is a comment, which the lexer puts on the hidden channel. */
+export function isComment(token: Token): boolean {
+    return token.channel === Token.HIDDEN_CHANNEL && (token.text?.trim().startsWith("(:") ?? false);
+}
+
 /**
  * Checks whether there is a newline character between two token positions in
  * the token stream (exclusive of both endpoints).
@@ -72,7 +77,7 @@ export function buildCommentAttachmentMap(tokenStream: CommonTokenStream): Comme
             previousDefaultIndex = i;
             continue;
         }
-        if (tok.channel !== Token.HIDDEN_CHANNEL || !tok.text?.trim().startsWith("(:")) {
+        if (!isComment(tok)) {
             continue;
         }
 

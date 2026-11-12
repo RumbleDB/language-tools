@@ -506,7 +506,10 @@ export class JsoniqFormatterVisitor extends JsoniqParserVisitor<Doc> {
                     indent(
                         concat([
                             line,
-                            this.joinWithCommas(formattedItems, node.getTokens(JsoniqParser.COMMA)),
+                            this.joinWithCommas(
+                                formattedItems,
+                                exprNode.getTokens(JsoniqParser.COMMA),
+                            ),
                         ]),
                     ),
                     line,
@@ -515,12 +518,17 @@ export class JsoniqFormatterVisitor extends JsoniqParserVisitor<Doc> {
             );
         }
 
-        const lb = this.token(node.LBRACE(), JsoniqParser.LBRACE);
         const rb = this.kw(node.RBRACE(), JsoniqParser.RBRACE);
         const pairs = node.pairConstructor().map((p) => this.v(p));
+        // `map { … }` constructs a map rather than an object, so its keyword must be kept.
+        const mapKeyword = node.KW_MAP();
+        const lb = this.token(
+            mapKeyword ?? node.LBRACE(),
+            mapKeyword ? JsoniqParser.KW_MAP : JsoniqParser.LBRACE,
+        );
         return formatPairObjectConstructor(
             lb,
-            NIL,
+            mapKeyword ? concat([space, this.kw(node.LBRACE(), JsoniqParser.LBRACE)]) : NIL,
             rb,
             pairs,
             node.getTokens(JsoniqParser.COMMA),

@@ -1,7 +1,7 @@
-import { CommonTokenStream, TerminalNode, Token } from "antlr4ng";
+import { CommonTokenStream, type ParserRuleContext, TerminalNode, Token } from "antlr4ng";
 
-import { buildCommentAttachmentMap, CommentAttachmentMap } from "./comments.js";
-import { concat, Doc, hardline, NIL, space, text, verbatim } from "./doc.js";
+import { buildCommentAttachmentMap, CommentAttachmentMap, isComment } from "./comments.js";
+import { concat, Doc, hardline, lineStart, NIL, space, text, verbatim } from "./doc.js";
 import type { FormatterOptions } from "./options.js";
 
 /**
@@ -62,33 +62,63 @@ export class FormatterContext {
      * omits whitespace tokens that the parser did not consume.
      */
     public formatTokenRange(start: Token, stop: Token): TokenDoc {
-        const tokenText = this.getSourceText(start, stop);
         return {
             leading: this.flushLeadingDoc(start.tokenIndex),
-            value: verbatim(tokenText),
+            value: this.formatVerbatimRange(start, stop),
             trailing: this.flushTrailingDoc(stop.tokenIndex),
         };
     }
 
     /**
-     * Returns source text exactly as written without attaching formatter comments.
-     * Use for semantic text regions nested inside a larger formatted construct.
+     * Returns source text exactly as written, with the comments inside it, but not
+     * the comments attached before or after it. Use for semantic text regions
+     * nested inside a larger formatted construct.
      */
     public formatVerbatimRange(start: Token, stop: Token): Doc {
+        this.markCommentsAsEmitted(start.tokenIndex, stop.tokenIndex);
         return verbatim(this.getSourceText(start, stop));
     }
 
     /**
-     * Returns the exact source gap between two tokens without attaching comments.
-     * This is used for semantic XML boundary whitespace, which must retain its
-     * original spelling under `declare boundary-space preserve`.
+     * Formats the nodes between two tokens, keeping the source text around them as written, such as the text of a
+     * string constructor or of an XML element around its enclosed expressions.
+     *
+     * The lexer may read text such as `(: … :)` in it as a comment, which the text then prints. So the text is taken
+     * before the nodes and the two tokens are formatted, and they leave those comments to it instead of printing them
+     * a second time. The caller formats the two tokens after calling this.
      */
-    public formatVerbatimBetween(left: Token, right: Token): Doc {
+    public formatBetweenSourceText<T extends ParserRuleContext>(
+        open: Token,
+        nodes: readonly T[],
+        close: Token,
+        format: (node: T) => Doc,
+    ): Doc {
+        const texts = [open, ...nodes.map((node) => node.stop!)].map((left, index) =>
+            this.formatVerbatimBetween(left, nodes[index]?.start ?? close),
+        );
+        return concat([
+            texts[0]!,
+            ...nodes.flatMap((node, index) => [format(node), texts[index + 1]!]),
+        ]);
+    }
+
+    /** Returns the source text between two tokens as written, with the comments in it. */
+    private formatVerbatimBetween(left: Token, right: Token): Doc {
         if (left.stop >= right.start - 1) {
             return NIL;
         }
+        this.markCommentsAsEmitted(left.tokenIndex + 1, right.tokenIndex - 1);
         const inputStream = left.inputStream ?? right.inputStream;
         return verbatim(inputStream?.getTextFromRange(left.stop + 1, right.start - 1) ?? "");
+    }
+
+    /** Records the comments among the tokens from first to last as emitted, because their text is printed as is. */
+    private markCommentsAsEmitted(first: number, last: number): void {
+        for (let index = first; index <= last; index++) {
+            if (isComment(this.tokenStream.get(index))) {
+                this.emittedComments.add(index);
+            }
+        }
     }
 
     /** Returns the exact source text covered by two tokens. */
@@ -137,6 +167,9 @@ export class FormatterContext {
         for (const c of leading) {
             if (!this.emittedComments.has(c.tokenIndex)) {
                 this.emittedComments.add(c.tokenIndex);
+                // The comment was on its own line, so it must stay there, or the next format would attach it to
+                // the token before it as a trailing comment.
+                docs.push(lineStart);
                 docs.push(verbatim(c.text?.trim() ?? ""));
                 docs.push(hardline);
             }

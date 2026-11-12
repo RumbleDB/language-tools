@@ -154,7 +154,10 @@ export function formatGroupByVariable(
     const expression = node._ex
         ? concat([space, formatTerminal(node.COLON_EQ(), ":="), space, visit(node._ex)])
         : NIL;
-    return concat([visit(node._var_ref), sequenceType, expression]);
+    const collation = node._uri
+        ? concat([space, formatTerminal(node.KW_COLLATION(), "collation"), space, visit(node._uri)])
+        : NIL;
+    return concat([visit(node._var_ref), sequenceType, expression, collation]);
 }
 
 export function formatOrderByClause(

@@ -69,6 +69,19 @@ export function printDocToString(doc: Doc, options: FormatterOptions): string {
                 break;
             }
             case "line": {
+                if (current.unlessAtLineStart) {
+                    const lineSoFar = output.slice(output.lastIndexOf("\n") + 1);
+                    if (lineSoFar.trim() === "") {
+                        // Already on a fresh line: only make sure it has this indentation.
+                        output =
+                            output.slice(0, output.length - lineSoFar.length) +
+                            indentStr.repeat(indent);
+                    } else {
+                        output = output.trimEnd() + "\n" + indentStr.repeat(indent);
+                    }
+                    currentColumn = indent * options.indentSize;
+                    break;
+                }
                 if (mode === "flat") {
                     if (current.hard) {
                         output += "\n" + indentStr.repeat(indent);

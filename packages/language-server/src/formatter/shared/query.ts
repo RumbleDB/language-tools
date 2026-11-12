@@ -350,13 +350,15 @@ export function formatVariableDeclaration(
         : prefix;
     const semicolon = formatTerminal(node.SEMICOLON(), ";");
 
-    if (node.KW_EXTERNAL() !== null || node._external !== undefined) {
-        return concat([typed, space, formatTerminal(node.KW_EXTERNAL(), "external"), semicolon]);
-    }
-
+    // An external variable may also have a default value.
+    const external =
+        node.KW_EXTERNAL() !== null || node._external !== undefined
+            ? concat([space, formatTerminal(node.KW_EXTERNAL(), "external")])
+            : NIL;
     const expression = node.exprSingle();
     return concat([
         typed,
+        external,
         expression
             ? concat([space, formatTerminal(node.COLON_EQ(), ":="), space, visit(expression)])
             : NIL,
@@ -440,9 +442,11 @@ export function formatSequenceType(
     visit: Visit,
     formatTerminal: FormatTerminal,
 ): Doc {
-    if (node.KW_EMPTY_SEQUENCE() !== null) {
+    // JSONiq also writes the empty sequence type as `()`, without the keyword.
+    if (node.LPAREN() !== null) {
+        const keyword = node.KW_EMPTY_SEQUENCE();
         return concat([
-            formatTerminal(node.KW_EMPTY_SEQUENCE(), "empty-sequence"),
+            keyword !== null ? formatTerminal(keyword, "empty-sequence") : NIL,
             formatTerminal(node.LPAREN(), "("),
             formatTerminal(node.RPAREN(), ")"),
         ]);

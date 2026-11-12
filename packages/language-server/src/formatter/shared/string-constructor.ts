@@ -3,6 +3,7 @@ import type * as ctx from "server/parser/context.js";
 
 import { composeTokenDoc, type FormatterContext } from "../context.js";
 import { concat, type Doc, space } from "../doc.js";
+import { formatSourceRange } from "./tokens.js";
 
 interface StringInterpolation extends ParserRuleContext {
     ENTER_INTERPOLATION(): TerminalNode;
@@ -25,23 +26,25 @@ export function formatStringConstructor(
     const content = node.stringConstructorContent() as StringContent;
     const interpolations = content.stringConstructorInterpolation();
     if (interpolations.length === 0) {
-        return composeTokenDoc(context.formatTokenRange(node.start!, node.stop!));
+        return formatSourceRange(context, node);
     }
 
-    const docs: Doc[] = [composeTokenDoc(context.formatToken(open))];
-    let previous = open.symbol;
-    for (const interpolation of interpolations) {
-        docs.push(context.formatVerbatimBetween(previous, interpolation.start!));
-        docs.push(
-            composeTokenDoc(context.formatToken(interpolation.ENTER_INTERPOLATION())),
-            space,
-            visit(interpolation.expr()),
-            space,
-            composeTokenDoc(context.formatToken(interpolation.EXIT_INTERPOLATION())),
-        );
-        previous = interpolation.stop!;
-    }
-    docs.push(context.formatVerbatimBetween(previous, close.symbol));
-    docs.push(composeTokenDoc(context.formatToken(close)));
-    return concat(docs);
+    const text = context.formatBetweenSourceText(
+        open.symbol,
+        interpolations,
+        close.symbol,
+        (interpolation) =>
+            concat([
+                composeTokenDoc(context.formatToken(interpolation.ENTER_INTERPOLATION())),
+                space,
+                visit(interpolation.expr()),
+                space,
+                composeTokenDoc(context.formatToken(interpolation.EXIT_INTERPOLATION())),
+            ]),
+    );
+    return concat([
+        composeTokenDoc(context.formatToken(open)),
+        text,
+        composeTokenDoc(context.formatToken(close)),
+    ]);
 }

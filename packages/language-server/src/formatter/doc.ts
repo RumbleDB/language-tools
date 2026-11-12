@@ -41,6 +41,8 @@ interface LineDoc {
     readonly hard: boolean;
     /** If true, prints nothing when flat (instead of space) */
     readonly soft: boolean;
+    /** If true, this hard newline prints nothing when the line so far holds only indentation. */
+    readonly unlessAtLineStart?: boolean;
 }
 
 // ─── Constants & Constructors ──────────────────────────────────────────────────
@@ -51,6 +53,13 @@ export const space: TextDoc = { kind: "text", text: " " };
 export const line: LineDoc = { kind: "line", hard: false, soft: false };
 export const softline: LineDoc = { kind: "line", hard: false, soft: true };
 export const hardline: LineDoc = { kind: "line", hard: true, soft: false };
+/** Starts a new line unless the current one holds only indentation, such as before a comment on its own line. */
+export const lineStart: LineDoc = {
+    kind: "line",
+    hard: true,
+    soft: false,
+    unlessAtLineStart: true,
+};
 
 export function text(str: string): Doc {
     if (str === "") {

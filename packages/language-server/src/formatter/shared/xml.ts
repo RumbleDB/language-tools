@@ -1,9 +1,9 @@
 import { type ParseTree, ParserRuleContext, TerminalNode } from "antlr4ng";
 
-import { composeTokenDoc, FormatterContext } from "../context.js";
+import type { FormatterContext } from "../context.js";
 import { concat, type Doc, group, hardline, indent, join, line, softline } from "../doc.js";
 import { formatBlockDoc } from "../helpers.js";
-import type { SourceTerminal } from "./tokens.js";
+import { formatSourceRange, type SourceTerminal } from "./tokens.js";
 
 // JSONiq names tags with `directConstructorQName`, which admits dotted names; XQuery uses `qname`.
 interface DirectAttributeList extends ParserRuleContext {
@@ -118,12 +118,12 @@ function formatDirectConstructorContent(
     const singleTag = node.dirElemConstructorSingleTag();
 
     if (!openAngle || !name || !attributes || (!openClose && !singleTag)) {
-        return composeTokenDoc(context.formatTokenRange(node.start!, node.stop!));
+        return formatSourceRange(context, node);
     }
 
     const tagStart = concat([
         formatTerminal(openAngle, tokens.LANGLE),
-        context.formatVerbatimRange(name.start!, name.stop!),
+        formatSourceRange(context, name),
     ]);
     const attributeDocs = formatDirectAttributes(
         context,
@@ -145,18 +145,24 @@ function formatDirectConstructorContent(
     }
 
     if (!openClose) {
-        return composeTokenDoc(context.formatTokenRange(node.start!, node.stop!));
+        return formatSourceRange(context, node);
     }
 
+    // The body is formatted before the `>` that opens it, so that the comments its text keeps are not also printed
+    // after the `>`.
+    const body = formatDirectBody(
+        context,
+        tokens,
+        openClose,
+        formatTerminal,
+        formatEnclosedExpression,
+    );
     const openingTag = formatDirectTag(
         tagStart,
         attributeDocs,
         formatTerminal(openClose.RANGLE(0), tokens.RANGLE),
     );
-    return concat([
-        openingTag,
-        formatDirectBody(context, tokens, openClose, formatTerminal, formatEnclosedExpression),
-    ]);
+    return concat([openingTag, body]);
 }
 
 function formatDirectBody(
@@ -218,18 +224,14 @@ function formatBodyWithOriginalWhitespace(
         return context.formatVerbatimRange(node.LANGLE().symbol, node.stop!);
     }
 
-    const docs: Doc[] = [];
-    let previous = openingEnd;
-    for (const content of contents) {
-        docs.push(context.formatVerbatimBetween(previous, content.start!));
-        docs.push(
+    const body = context.formatBetweenSourceText(
+        openingEnd,
+        contents,
+        node.LANGLE().symbol,
+        (content) =>
             formatDirectContent(context, tokens, content, formatTerminal, formatEnclosedExpression),
-        );
-        previous = content.stop!;
-    }
-    docs.push(context.formatVerbatimBetween(previous, node.LANGLE().symbol));
-    docs.push(formatClosingTag(context, tokens, node, formatTerminal));
-    return concat(docs);
+    );
+    return concat([body, formatClosingTag(context, tokens, node, formatTerminal)]);
 }
 
 /** Formats `</name>`, dropping the whitespace XML allows before `>`. */
@@ -247,7 +249,7 @@ function formatClosingTag(
     return concat([
         formatTerminal(node.LANGLE(), tokens.LANGLE),
         formatTerminal(node.SLASH(), tokens.SLASH),
-        context.formatVerbatimRange(name.start!, name.stop!),
+        formatSourceRange(context, name),
         formatTerminal(close, tokens.RANGLE),
     ]);
 }
@@ -320,7 +322,7 @@ function formatDirectAttributes(
 
     return names.map((name, index) =>
         concat([
-            context.formatVerbatimRange(name.start!, name.stop!),
+            formatSourceRange(context, name),
             formatTerminal(node.EQUAL(index), tokens.EQUAL),
             formatDirectAttributeValue(
                 context,
@@ -364,7 +366,7 @@ function formatDirectAttributeValue(
         );
     }
 
-    return context.formatVerbatimRange(value.start!, value.stop!);
+    return formatSourceRange(context, value);
 }
 
 function formatDelimitedAttributeValue(
@@ -378,19 +380,20 @@ function formatDelimitedAttributeValue(
 ): Doc {
     const expressions = contents.filter(isEnclosedExpressionContent);
     if (expressions.length === 0 || !openQuote || !closeQuote) {
-        return context.formatVerbatimRange(value.start!, value.stop!);
+        return formatSourceRange(context, value);
     }
 
-    const docs: Doc[] = [formatTerminal(openQuote, openQuote.symbol.type)];
-    let previous = openQuote.symbol;
-    for (const expression of expressions) {
-        docs.push(context.formatVerbatimBetween(previous, expression.start!));
-        docs.push(formatEnclosedExpression(expression));
-        previous = expression.stop!;
-    }
-    docs.push(context.formatVerbatimBetween(previous, closeQuote.symbol));
-    docs.push(formatTerminal(closeQuote, closeQuote.symbol.type));
-    return concat(docs);
+    const content = context.formatBetweenSourceText(
+        openQuote.symbol,
+        expressions,
+        closeQuote.symbol,
+        formatEnclosedExpression,
+    );
+    return concat([
+        formatTerminal(openQuote, openQuote.symbol.type),
+        content,
+        formatTerminal(closeQuote, closeQuote.symbol.type),
+    ]);
 }
 
 function isEnclosedExpressionContent(node: ParserRuleContext): node is EnclosedExpressionContent {
