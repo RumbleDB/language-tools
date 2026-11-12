@@ -32,13 +32,6 @@ export function formatParsedDocument(
         return undefined;
     }
 
-    // A comment is emitted with the source token it is attached to. Every construct prints its source tokens, so all
-    // comments are emitted. Should a construct print a token from its text instead, the document is left as it is
-    // rather than losing the comment.
-    if (!ctx.hasEmittedAllComments()) {
-        return undefined;
-    }
-
     let formatted = printDocToString(docTree, resolvedOptions);
 
     // Ensure final newline

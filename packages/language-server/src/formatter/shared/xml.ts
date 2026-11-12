@@ -1,9 +1,9 @@
-import { type ParseTree, ParserRuleContext, TerminalNode, type Token } from "antlr4ng";
+import { type ParseTree, ParserRuleContext, TerminalNode } from "antlr4ng";
 
-import { composeTokenDoc, FormatterContext } from "../context.js";
+import type { FormatterContext } from "../context.js";
 import { concat, type Doc, group, hardline, indent, join, line, softline } from "../doc.js";
 import { formatBlockDoc } from "../helpers.js";
-import type { SourceTerminal } from "./tokens.js";
+import { formatSourceRange, type SourceTerminal } from "./tokens.js";
 
 // JSONiq names tags with `directConstructorQName`, which admits dotted names; XQuery uses `qname`.
 interface DirectAttributeList extends ParserRuleContext {
@@ -118,10 +118,13 @@ function formatDirectConstructorContent(
     const singleTag = node.dirElemConstructorSingleTag();
 
     if (!openAngle || !name || !attributes || (!openClose && !singleTag)) {
-        return composeTokenDoc(context.formatTokenRange(node.start!, node.stop!));
+        return formatSourceRange(context, node);
     }
 
-    const tagStart = concat([formatTerminal(openAngle, tokens.LANGLE), formatName(context, name)]);
+    const tagStart = concat([
+        formatTerminal(openAngle, tokens.LANGLE),
+        formatSourceRange(context, name),
+    ]);
     const attributeDocs = formatDirectAttributes(
         context,
         tokens,
@@ -142,7 +145,7 @@ function formatDirectConstructorContent(
     }
 
     if (!openClose) {
-        return composeTokenDoc(context.formatTokenRange(node.start!, node.stop!));
+        return formatSourceRange(context, node);
     }
 
     // The body is formatted before the `>` that opens it, so that the comments its text keeps are not also printed
@@ -221,8 +224,7 @@ function formatBodyWithOriginalWhitespace(
         return context.formatVerbatimRange(node.LANGLE().symbol, node.stop!);
     }
 
-    const body = formatBetweenSourceText(
-        context,
+    const body = context.formatBetweenSourceText(
         openingEnd,
         contents,
         node.LANGLE().symbol,
@@ -247,7 +249,7 @@ function formatClosingTag(
     return concat([
         formatTerminal(node.LANGLE(), tokens.LANGLE),
         formatTerminal(node.SLASH(), tokens.SLASH),
-        formatName(context, name),
+        formatSourceRange(context, name),
         formatTerminal(close, tokens.RANGLE),
     ]);
 }
@@ -308,11 +310,6 @@ function isStructuralContent(content: DirectElementContent): boolean {
     );
 }
 
-/** Formats the name of a tag or an attribute as written, with the comments around it. */
-function formatName(context: FormatterContext, name: ParserRuleContext): Doc {
-    return composeTokenDoc(context.formatTokenRange(name.start!, name.stop!));
-}
-
 function formatDirectAttributes(
     context: FormatterContext,
     tokens: XmlTokenTypes,
@@ -325,7 +322,7 @@ function formatDirectAttributes(
 
     return names.map((name, index) =>
         concat([
-            formatName(context, name),
+            formatSourceRange(context, name),
             formatTerminal(node.EQUAL(index), tokens.EQUAL),
             formatDirectAttributeValue(
                 context,
@@ -369,7 +366,7 @@ function formatDirectAttributeValue(
         );
     }
 
-    return composeTokenDoc(context.formatTokenRange(value.start!, value.stop!));
+    return formatSourceRange(context, value);
 }
 
 function formatDelimitedAttributeValue(
@@ -383,11 +380,10 @@ function formatDelimitedAttributeValue(
 ): Doc {
     const expressions = contents.filter(isEnclosedExpressionContent);
     if (expressions.length === 0 || !openQuote || !closeQuote) {
-        return composeTokenDoc(context.formatTokenRange(value.start!, value.stop!));
+        return formatSourceRange(context, value);
     }
 
-    const content = formatBetweenSourceText(
-        context,
+    const content = context.formatBetweenSourceText(
         openQuote.symbol,
         expressions,
         closeQuote.symbol,
@@ -397,29 +393,6 @@ function formatDelimitedAttributeValue(
         formatTerminal(openQuote, openQuote.symbol.type),
         content,
         formatTerminal(closeQuote, closeQuote.symbol.type),
-    ]);
-}
-
-/**
- * Formats the nodes between two tokens, keeping the source text around them as written. The lexer may read text such
- * as `(: … :)` in it as a comment, which the text then prints. So the text is taken before the nodes and the two
- * tokens are formatted, and they leave those comments to it instead of printing them a second time.
- */
-function formatBetweenSourceText<T extends ParserRuleContext>(
-    context: FormatterContext,
-    open: Token,
-    nodes: readonly T[],
-    close: Token,
-    format: (node: T) => Doc,
-): Doc {
-    const starts = nodes.map((node) => node.start!);
-    const stops = nodes.map((node) => node.stop!);
-    const texts = [open, ...stops].map((left, index) =>
-        context.formatVerbatimBetween(left, starts[index] ?? close),
-    );
-    return concat([
-        texts[0]!,
-        ...nodes.flatMap((node, index) => [format(node), texts[index + 1]!]),
     ]);
 }
 
