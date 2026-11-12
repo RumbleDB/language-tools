@@ -1,7 +1,7 @@
 {
     "name": "jsoniq-vscode",
     "displayName": "JSONiq and XQuery Language Support",
-    "version": "1.15.0",
+    "version": "1.15.1",
     "private": true,
     "description": "Language support for JSONiq and XQuery: completion, type checking, inferred types on hover, syntax highlighting, and running queries with RumbleDB.",
     "categories": [

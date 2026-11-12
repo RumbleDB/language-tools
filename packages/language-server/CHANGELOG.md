@@ -1,5 +1,11 @@
 # jsoniq-language-server
 
+## 2.20.1
+
+### Patch Changes
+
+- [#138](https://github.com/RumbleDB/language-tools/pull/138) [`431a679`](https://github.com/RumbleDB/language-tools/commit/431a67930b90b2ab50ccdc41b355262d1520c7f2) - Fix the production wrapper jar so Spark finds its data sources, such as Delta, Parquet and JSON, and ship the dependencies' license and notice files.
+
 ## 2.20.0
 
 ### Minor Changes
