@@ -13,8 +13,10 @@ export type StaticTypecheckResponse = WrapperDaemonResponse<
     StaticTypecheckWireResult
 >;
 
-interface CachedStaticTypecheck {
+/** The static typecheck of one version of a document, with the text of that version. */
+export interface CachedStaticTypecheck {
     version: number;
+    source: string;
     response: StaticTypecheckResponse;
 }
 
@@ -41,6 +43,7 @@ function createEmptyStaticTypecheckResponse(): StaticTypecheckResponse {
         responseType: REQUEST_TYPE_STATIC_TYPECHECK,
         body: {
             errors: [],
+            bindings: [],
         },
         error: null,
     };
@@ -64,7 +67,8 @@ export async function getStaticTypecheck(
         return pending.promise;
     }
 
-    const request = createStaticTypecheckRequest(document);
+    const source = getDocumentText(document);
+    const request = createStaticTypecheckRequest(document.uri, source);
     const documentVersion = document.version;
 
     const typecheckPromise = client
@@ -74,6 +78,7 @@ export async function getStaticTypecheck(
             if (existingCache === undefined || existingCache.version <= documentVersion) {
                 staticTypecheckCache.set(document.uri, {
                     version: documentVersion,
+                    source,
                     response,
                 });
             }
@@ -105,12 +110,28 @@ export async function getStaticTypecheck(
     return typecheckPromise;
 }
 
-function createStaticTypecheckRequest(
+/**
+ * The newest static typecheck of the document, which may be of an earlier version, without waiting for one. Asks for
+ * the current version when no version is being checked, so that typing does not queue one check per version.
+ */
+export function getLatestStaticTypecheck(
     document: TextDocument,
+    client: WrapperClient,
+): CachedStaticTypecheck | undefined {
+    const cached = staticTypecheckCache.get(document.uri);
+    if (cached?.version !== document.version && !pendingStaticTypecheckByUri.has(document.uri)) {
+        void getStaticTypecheck(document, client);
+    }
+    return cached;
+}
+
+function createStaticTypecheckRequest(
+    documentUri: DocumentUri,
+    source: string,
 ): StaticTypecheckRequestSpec["request"] {
     return {
         requestType: REQUEST_TYPE_STATIC_TYPECHECK,
-        body: Buffer.from(getDocumentText(document), "utf8").toString("base64"),
-        documentUri: document.uri,
+        body: Buffer.from(source, "utf8").toString("base64"),
+        documentUri,
     };
 }

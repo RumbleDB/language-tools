@@ -1,5 +1,6 @@
 import type { AnalysisResult, ScopeDefinition } from "server/analysis/index.js";
 import type { FocusAtPositionWireResult } from "server/integrations/rumble/operations/focus-at-position/protocol.js";
+import type { VariableTypes } from "server/integrations/rumble/operations/static-typecheck/variable-types.js";
 import type { CompletionIntent } from "server/parser/types/completion.js";
 import type { ParseResult } from "server/parser/types/result.js";
 import type { CompletionItem } from "vscode-languageserver";
@@ -22,6 +23,8 @@ export interface CompletionContext {
      * when the user types on, since the editor then ignores the answer.
      */
     getFocusAt(offset: number): Promise<FocusAtPositionWireResult>;
+    /** The variable types that RumbleDB last inferred for the document, which may be from an earlier version. */
+    getVariableTypes(): VariableTypes | undefined;
 }
 
 /** `null` means the provider does not apply. An empty array means it applies but has no items. */

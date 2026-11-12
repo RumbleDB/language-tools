@@ -9,6 +9,7 @@ import {
 import type { WrapperClient } from "server/integrations/rumble/client.js";
 import type { FocusAtPositionWireResult } from "server/integrations/rumble/operations/focus-at-position/protocol.js";
 import { getFocusAtPosition } from "server/integrations/rumble/operations/focus-at-position/service.js";
+import { getLatestVariableTypes } from "server/integrations/rumble/operations/static-typecheck/variable-types.js";
 import type { ParserService } from "server/parser/index.js";
 import type { CompletionIntent } from "server/parser/types/completion.js";
 import { defaultTokenAt, defaultTokenBefore, getDocumentText } from "server/parser/utils.js";
@@ -70,6 +71,9 @@ export function createCompletionContext(
                 focuses.set(offset, focus);
             }
             return focus;
+        },
+        getVariableTypes() {
+            return getLatestVariableTypes(document, wrapper);
         },
         getVisibleDeclarations() {
             visibleDeclarations ??= this.getAnalysis().then((analysis) =>

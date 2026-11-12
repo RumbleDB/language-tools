@@ -24,6 +24,7 @@ import org.rumbledb.exceptions.NotLibraryModuleException;
 import org.rumbledb.exceptions.RumbleException;
 import org.rumbledb.exceptions.StaticTypeErrorsException;
 import org.rumbledb.exceptions.UnexpectedStaticTypeException;
+import org.rumbledb.expressions.module.Module;
 
 public final class StaticTypeChecker implements RequestHandler {
 
@@ -33,9 +34,13 @@ public final class StaticTypeChecker implements RequestHandler {
      */
     public record StaticTypeError(String code, String message, String location, Range range, boolean certain) {}
 
-    public record Result(List<StaticTypeError> errors) implements ResponseBody {}
+    /**
+     * The errors, and the types of the variables that the query binds, which editors show while suggesting variables.
+     * The variables are typed even when the query has errors, as far as its valid parts allow.
+     */
+    public record Result(List<StaticTypeError> errors, List<TypeAtPosition.Binding> bindings) implements ResponseBody {}
 
-    public static final Result EMPTY_RESULT = new Result(List.of());
+    public static final Result EMPTY_RESULT = new Result(List.of(), List.of());
 
     private final RumbleConfiguration strictConfiguration;
 
@@ -52,10 +57,10 @@ public final class StaticTypeChecker implements RequestHandler {
         }
 
         try {
-            parseModule(query, documentUri, this.strictConfiguration);
-            return EMPTY_RESULT;
+            return new Result(
+                    List.of(), TypeAtPosition.bindingsOf(parseModule(query, documentUri, this.strictConfiguration)));
         } catch (RumbleException exception) {
-            return new Result(collectErrors(query, documentUri, compilationErrors(exception)));
+            return typeWithErrors(query, documentUri, compilationErrors(exception));
         }
     }
 
@@ -68,15 +73,15 @@ public final class StaticTypeChecker implements RequestHandler {
      * Compilation reports every static type error, but any other pass stops at the first error, before typing. The
      * tolerant compiler, which also types a module with such an error, finds the type errors in the rest. The errors of
      * compilation are kept even if the tolerant compiler does not find them, because they can come from a pass that
-     * only compilation runs.
+     * only compilation runs. The variables are those that the tolerant compiler types.
      */
-    private List<StaticTypeError> collectErrors(
-            String query, URI documentUri, List<RumbleException> compilationErrors) {
+    private Result typeWithErrors(String query, URI documentUri, List<RumbleException> compilationErrors) {
         // A problem may be found both by compilation and by the tolerant compiler.
         Set<StaticTypeError> errors = new LinkedHashSet<>();
+        List<TypeAtPosition.Binding> bindings = List.of();
         try {
-            TolerantCompiler.compile(
-                    query, documentUri, this.strictConfiguration, error -> errors.add(toTypeError(error)));
+            bindings = TypeAtPosition.bindingsOf(TolerantCompiler.compile(
+                    query, documentUri, this.strictConfiguration, error -> errors.add(toTypeError(error))));
         } catch (RuntimeException exception) {
             // The errors of compilation are still worth reporting.
         }
@@ -90,7 +95,7 @@ public final class StaticTypeChecker implements RequestHandler {
         sorted.sort(
                 Comparator.comparing((StaticTypeError error) -> error.range().start())
                         .thenComparing(error -> error.range().end()));
-        return sorted;
+        return new Result(sorted, bindings);
     }
 
     /**
@@ -110,11 +115,11 @@ public final class StaticTypeChecker implements RequestHandler {
      * analyzing anything. An import that is not a library module is reported as a module that was not found instead,
      * so the rejection is always about this source.
      */
-    private static void parseModule(String query, URI documentUri, RumbleConfiguration configuration) {
+    private static Module parseModule(String query, URI documentUri, RumbleConfiguration configuration) {
         try {
-            CompilationPipeline.analyzeLibraryModule(query, documentUri, configuration);
+            return CompilationPipeline.analyzeLibraryModule(query, documentUri, configuration);
         } catch (NotLibraryModuleException notALibrary) {
-            CompilationPipeline.compileMainModule(
+            return CompilationPipeline.compileMainModule(
                     query, documentUri, new CompilationConfiguration(configuration), ExternalBindings.empty());
         }
     }
