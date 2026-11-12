@@ -3,7 +3,8 @@ import { type ParseTree, ParserRuleContext, TerminalNode } from "antlr4ng";
 import type { FormatterContext } from "../context.js";
 import { concat, type Doc, group, hardline, indent, join, line, softline } from "../doc.js";
 import { formatBlockDoc } from "../helpers.js";
-import { formatSourceRange, type SourceTerminal } from "./tokens.js";
+import { formatSourceRange } from "./tokens.js";
+import type { SourceTerminal } from "./types.js";
 
 // JSONiq names tags with `directConstructorQName`, which admits dotted names; XQuery uses `qname`.
 interface DirectAttributeList extends ParserRuleContext {

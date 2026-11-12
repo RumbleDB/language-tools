@@ -1,4 +1,4 @@
-import { ParserRuleContext, TerminalNode, type ParseTree, type Token } from "antlr4ng";
+import { ParserRuleContext, TerminalNode, type ParseTree } from "antlr4ng";
 import type * as ctx from "server/parser/context.js";
 
 import type { FormatterContext } from "../context.js";
@@ -16,11 +16,8 @@ import {
 } from "../doc.js";
 import { formatBlockDoc, formatIfExpressionDoc, formatTryCatchDoc } from "../helpers.js";
 import { formatIntroducedExpression } from "./flwor.js";
-import { formatTokenSeparatedDocs } from "./tokens.js";
-
-type SourceTerminal = TerminalNode | TerminalNode[] | Token | null | undefined;
-type FormatTerminal = (terminal: SourceTerminal, expectedToken: number | string) => Doc;
-type Visit = (node: ParseTree | null | undefined) => Doc;
+import { formatBarSeparatedDocs, formatCommaSeparatedDocs } from "./tokens.js";
+import type { FormatTerminal, SourceTerminal, Visit } from "./types.js";
 
 interface PrologRuleTypes {
     readonly RULE_moduleImport: number;
@@ -89,15 +86,10 @@ export function formatModule(node: ctx.ModuleContext, visit: Visit): Doc {
 
 export function formatParameterList(
     node: ctx.ParamListContext,
-    commaTokenType: number,
     visit: Visit,
     formatTerminal: FormatTerminal,
 ): Doc {
-    return formatTokenSeparatedDocs(
-        node.param().map(visit),
-        node.getTokens(commaTokenType),
-        (comma) => formatTerminal(comma, ","),
-    );
+    return formatCommaSeparatedDocs(node.param().map(visit), node.COMMA(), formatTerminal);
 }
 
 export function formatParameter(
@@ -118,10 +110,12 @@ export function formatAnnotations(node: ctx.AnnotationsContext, visit: Visit): D
 
 export function formatAnnotation(
     node: ctx.AnnotationContext,
-    commaTokenType: number,
     visit: Visit,
     formatTerminal: FormatTerminal,
 ): Doc {
+    if (node.KW_UPDATING() !== null) {
+        return formatTerminal(node.KW_UPDATING(), "updating");
+    }
     const prefix = concat([formatTerminal(node.MOD(), "%"), visit(node._name)]);
     const literals = node.literal().map(visit);
     if (literals.length === 0) {
@@ -130,9 +124,7 @@ export function formatAnnotation(
     return concat([
         prefix,
         formatTerminal(node.LPAREN(), "("),
-        formatTokenSeparatedDocs(literals, node.getTokens(commaTokenType), (comma) =>
-            formatTerminal(comma, ","),
-        ),
+        formatCommaSeparatedDocs(literals, node.COMMA(), formatTerminal),
         formatTerminal(node.RPAREN(), ")"),
     ]);
 }
@@ -487,15 +479,7 @@ export function formatCatchClause(
     formatTerminal: FormatTerminal,
 ): Doc {
     const targets = node.nameTest().map(visit);
-    const target = concat([
-        space,
-        formatTokenSeparatedDocs(
-            targets,
-            node.VBAR(),
-            (bar) => concat([space, formatTerminal(bar, "|")]),
-            space,
-        ),
-    ]);
+    const target = concat([space, formatBarSeparatedDocs(targets, node.VBAR(), formatTerminal)]);
 
     const body = formatBlockDoc(
         formatTerminal(node.LBRACE(), "{"),
@@ -503,6 +487,28 @@ export function formatCatchClause(
         formatTerminal(node.RBRACE(), "}"),
     );
     return concat([formatTerminal(node.KW_CATCH(), "catch"), target, space, body]);
+}
+
+/**
+ * Formats a `switch` or `typeswitch` expression or statement: its keyword and condition, then each case and its default
+ * case on a line of its own.
+ */
+export function formatSwitch(
+    keyword: Doc,
+    node: { LPAREN(): SourceTerminal; RPAREN(): SourceTerminal },
+    condition: Doc,
+    cases: readonly Doc[],
+    defaultCase: Doc,
+    formatTerminal: FormatTerminal,
+): Doc {
+    return concat([
+        keyword,
+        space,
+        formatTerminal(node.LPAREN(), "("),
+        condition,
+        formatTerminal(node.RPAREN(), ")"),
+        indent(concat([hardline, join(hardline, [...cases, defaultCase])])),
+    ]);
 }
 
 export function formatSwitchExpression(
@@ -520,24 +526,14 @@ export function formatSwitchExpression(
         ]),
     );
     return group(
-        concat([
+        formatSwitch(
             formatTerminal(node.KW_SWITCH(), "switch"),
-            space,
-            formatTerminal(node.LPAREN(), "("),
+            node,
             visit(node._cond),
-            formatTerminal(node.RPAREN(), ")"),
-            indent(
-                concat([
-                    hardline,
-                    join(
-                        hardline,
-                        node.switchCaseClause().map((clause) => visit(clause)),
-                    ),
-                    hardline,
-                    defaultClause,
-                ]),
-            ),
-        ]),
+            node.switchCaseClause().map(visit),
+            defaultClause,
+            formatTerminal,
+        ),
     );
 }
 
@@ -578,24 +574,14 @@ export function formatTypeswitchExpression(
         ]),
     );
     return group(
-        concat([
+        formatSwitch(
             formatTerminal(node.KW_TYPESWITCH(), "typeswitch"),
-            space,
-            formatTerminal(node.LPAREN(), "("),
+            node,
             visit(node._cond),
-            formatTerminal(node.RPAREN(), ")"),
-            indent(
-                concat([
-                    hardline,
-                    join(
-                        hardline,
-                        node.caseClause().map((clause) => visit(clause)),
-                    ),
-                    hardline,
-                    defaultClause,
-                ]),
-            ),
-        ]),
+            node.caseClause().map(visit),
+            defaultClause,
+            formatTerminal,
+        ),
     );
 }
 
@@ -607,11 +593,10 @@ export function formatCaseClause(
     const variable = node._var_ref
         ? concat([visit(node._var_ref), space, formatTerminal(node.KW_AS(), "as"), space])
         : NIL;
-    const unionTypes = formatTokenSeparatedDocs(
+    const unionTypes = formatBarSeparatedDocs(
         (node._union ?? []).map((type) => visit(type)),
         node.VBAR(),
-        (bar) => concat([space, formatTerminal(bar, "|")]),
-        space,
+        formatTerminal,
     );
     return group(
         concat([

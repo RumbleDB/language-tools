@@ -1,12 +1,8 @@
-import type { ParseTree, ParserRuleContext, TerminalNode, Token } from "antlr4ng";
 import type * as ctx from "server/parser/context.js";
 
 import { concat, type Doc, group, hardline, indent, join, NIL, space } from "../doc.js";
-import { formatTokenSeparatedDocs } from "./tokens.js";
-
-type SourceTerminal = TerminalNode | TerminalNode[] | Token | null | undefined;
-type FormatTerminal = (terminal: SourceTerminal, expectedToken: number | string) => Doc;
-type Visit = (node: ParseTree | null | undefined) => Doc;
+import { formatCommaSeparatedDocs } from "./tokens.js";
+import type { FormatTerminal, Visit } from "./types.js";
 
 export function formatFlworExpression(
     node: ctx.FlworExprContext,
@@ -47,21 +43,8 @@ export function formatIntroducedExpression(
     return concat([introducer, space, visit(expression)]);
 }
 
-function formatCommaSeparatedChildren(
-    node: ParserRuleContext,
-    items: readonly ParseTree[],
-    commaTokenType: number,
-    visit: Visit,
-    formatTerminal: FormatTerminal,
-): Doc {
-    return formatTokenSeparatedDocs(items.map(visit), node.getTokens(commaTokenType), (comma) =>
-        formatTerminal(comma, ","),
-    );
-}
-
 export function formatForClause(
     node: ctx.ForClauseContext,
-    commaTokenType: number,
     visit: Visit,
     formatTerminal: FormatTerminal,
 ): Doc {
@@ -69,7 +52,7 @@ export function formatForClause(
         concat([
             formatTerminal(node.KW_FOR(), "for"),
             space,
-            formatCommaSeparatedChildren(node, node._vars, commaTokenType, visit, formatTerminal),
+            formatCommaSeparatedDocs(node._vars.map(visit), node.COMMA(), formatTerminal),
         ]),
     );
 }
@@ -98,7 +81,6 @@ export function formatForVariable(
 
 export function formatLetClause(
     node: ctx.LetClauseContext,
-    commaTokenType: number,
     visit: Visit,
     formatTerminal: FormatTerminal,
 ): Doc {
@@ -106,7 +88,7 @@ export function formatLetClause(
         concat([
             formatTerminal(node.KW_LET(), "let"),
             space,
-            formatCommaSeparatedChildren(node, node._vars, commaTokenType, visit, formatTerminal),
+            formatCommaSeparatedDocs(node._vars.map(visit), node.COMMA(), formatTerminal),
         ]),
     );
 }
@@ -137,7 +119,6 @@ export function formatWhereClause(
 
 export function formatGroupByClause(
     node: ctx.GroupByClauseContext,
-    commaTokenType: number,
     visit: Visit,
     formatTerminal: FormatTerminal,
 ): Doc {
@@ -147,7 +128,7 @@ export function formatGroupByClause(
             space,
             formatTerminal(node.KW_BY(), "by"),
             space,
-            formatCommaSeparatedChildren(node, node._vars, commaTokenType, visit, formatTerminal),
+            formatCommaSeparatedDocs(node._vars.map(visit), node.COMMA(), formatTerminal),
         ]),
     );
 }
@@ -171,7 +152,6 @@ export function formatGroupByVariable(
 
 export function formatOrderByClause(
     node: ctx.OrderByClauseContext,
-    commaTokenType: number,
     visit: Visit,
     formatTerminal: FormatTerminal,
 ): Doc {
@@ -185,7 +165,7 @@ export function formatOrderByClause(
             space,
             formatTerminal(node.KW_BY(), "by"),
             space,
-            formatCommaSeparatedChildren(node, node._specs, commaTokenType, visit, formatTerminal),
+            formatCommaSeparatedDocs(node._specs.map(visit), node.COMMA(), formatTerminal),
         ]),
     );
 }
@@ -232,17 +212,10 @@ export function formatCountClause(
 
 export function formatExpressionSequence(
     node: ctx.ExprContext,
-    commaTokenType: number,
     visit: Visit,
     formatTerminal: FormatTerminal,
 ): Doc {
     return group(
-        formatCommaSeparatedChildren(
-            node,
-            node.exprSingle(),
-            commaTokenType,
-            visit,
-            formatTerminal,
-        ),
+        formatCommaSeparatedDocs(node.exprSingle().map(visit), node.COMMA(), formatTerminal),
     );
 }

@@ -1,5 +1,5 @@
 import type { TokenDoc } from "./context.js";
-import { concat, Doc, group, hardline, indent, join, line, space } from "./doc.js";
+import { concat, Doc, group, hardline, indent, isEmptyDoc, join, line, space } from "./doc.js";
 
 /**
  * Starts a layout group with a source token while keeping that token's leading
@@ -20,7 +20,10 @@ export function groupStartingWith(
  * Resolves the literal string representation of a token type from a Lexer's literalNames array.
  * E.g., for KW_FUNCTION with "'function'", returns "function".
  */
-export function getTokenLiteral(tokenType: number, literalNames: (string | null)[]): string {
+export function getTokenLiteral(
+    tokenType: number,
+    literalNames: readonly (string | null)[],
+): string {
     const raw = literalNames[tokenType];
     if (!raw) {
         return "";
@@ -49,7 +52,7 @@ export function formatBlockDoc(
     rightBrace: Doc,
     options: { shouldBreak?: boolean } = {},
 ): Doc {
-    if (doc.kind === "text" && doc.text === "") {
+    if (isEmptyDoc(doc)) {
         return concat([leftBrace, rightBrace]);
     }
     return group(concat([leftBrace, indent(concat([line, doc])), line, rightBrace]), options);

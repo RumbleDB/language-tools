@@ -8,8 +8,9 @@ import {
 import type { SharedRuleIndexes } from "server/parser/context.js";
 
 import type { FormatterContext } from "../context.js";
-import { concat, type Doc, group, indent, line, NIL, space } from "../doc.js";
+import { concat, type Doc, group, indent, isEmptyDoc, line, NIL, space } from "../doc.js";
 import { type CompactTokenTypes, formatCompact } from "./path.js";
+import type { Visit } from "./types.js";
 
 /**
  * The layout of the rules that a language adapter does not format with a visitor of its own. Most rules are laid out
@@ -23,22 +24,60 @@ export interface DefaultLayoutRules {
     readonly binaryOperators: ReadonlySet<number>;
 }
 
-type Visit = (node: ParseTree) => Doc;
+/** A parser, as the indexes of its rules and the token types that the compact layout spaces. */
+export type LayoutGrammar = SharedRuleIndexes & CompactTokenTypes;
 
-/** The binary operator rules of a parser, whose children alternate between operands and operators. */
-export function binaryOperatorRules(parser: SharedRuleIndexes): ReadonlySet<number> {
-    return new Set([
-        parser.RULE_orExpr,
-        parser.RULE_andExpr,
-        parser.RULE_comparisonExpr,
-        parser.RULE_stringConcatExpr,
-        parser.RULE_rangeExpr,
-        parser.RULE_additiveExpr,
-        parser.RULE_multiplicativeExpr,
-        parser.RULE_unionExpr,
-        parser.RULE_intersectExceptExpr,
-        parser.RULE_simpleMapExpr,
-    ]);
+/** The default layout rules of a parser. */
+export function defaultLayoutRules(parser: LayoutGrammar): DefaultLayoutRules {
+    return {
+        // Path steps and type tests, whose parts are written without spaces between them.
+        compact: new Set([
+            parser.RULE_pathExpr,
+            parser.RULE_relativePathExpr,
+            parser.RULE_axisStep,
+            parser.RULE_forwardStep,
+            parser.RULE_reverseStep,
+            parser.RULE_forwardAxis,
+            parser.RULE_reverseAxis,
+            parser.RULE_abbrevForwardStep,
+            parser.RULE_nodeTest,
+            parser.RULE_nameTest,
+            parser.RULE_predicateList,
+            parser.RULE_itemType,
+            parser.RULE_anyKindTest,
+            parser.RULE_binaryNodeTest,
+            parser.RULE_documentTest,
+            parser.RULE_textTest,
+            parser.RULE_commentTest,
+            parser.RULE_namespaceNodeTest,
+            parser.RULE_piTest,
+            parser.RULE_attributeTest,
+            parser.RULE_schemaAttributeTest,
+            parser.RULE_elementTest,
+            parser.RULE_schemaElementTest,
+            parser.RULE_anyFunctionTest,
+            parser.RULE_typedFunctionTest,
+            parser.RULE_anyMapTest,
+            parser.RULE_typedMapTest,
+            parser.RULE_anyArrayTest,
+            parser.RULE_typedArrayTest,
+            parser.RULE_parenthesizedItemTest,
+        ]),
+        compactTokens: parser,
+        // The binary operator rules, whose children alternate between operands and operators.
+        binaryOperators: new Set([
+            parser.RULE_orExpr,
+            parser.RULE_andExpr,
+            parser.RULE_comparisonExpr,
+            parser.RULE_stringConcatExpr,
+            parser.RULE_rangeExpr,
+            parser.RULE_additiveExpr,
+            parser.RULE_multiplicativeExpr,
+            parser.RULE_unionExpr,
+            parser.RULE_intersectExceptExpr,
+            parser.RULE_simpleMapExpr,
+        ]),
+    };
 }
 
 /**
@@ -109,7 +148,7 @@ function formatWithSourceSpacing(
     for (const child of node.children) {
         const doc = visit(child);
         const tokens = sourceTokens(child);
-        if (tokens === null || isEmpty(doc)) {
+        if (tokens === null || isEmptyDoc(doc)) {
             continue;
         }
         if (previous !== null && context.hasGapBetween(previous, tokens.start)) {
@@ -130,8 +169,4 @@ function sourceTokens(node: ParseTree): { start: Token; stop: Token } | null {
         return { start: node.start, stop: node.stop };
     }
     return null;
-}
-
-function isEmpty(doc: Doc): boolean {
-    return doc.kind === "text" && doc.text === "";
 }

@@ -1,10 +1,9 @@
-import type { ParserRuleContext, TerminalNode, Token } from "antlr4ng";
+import type { ParserRuleContext, TerminalNode } from "antlr4ng";
 
 import { composeTokenDoc, type FormatterContext, type TokenDoc } from "../context.js";
-import { concat, type Doc, line, NIL } from "../doc.js";
+import { concat, type Doc, line, NIL, space } from "../doc.js";
 import { getTokenLiteral } from "../helpers.js";
-
-export type SourceTerminal = TerminalNode | Token | null | undefined;
+import type { SourceTerminal } from "./types.js";
 
 /** Formats a visited terminal, ignoring the parser's synthetic EOF node. */
 export function formatSourceTerminal(context: FormatterContext, node: TerminalNode): Doc {
@@ -22,9 +21,9 @@ export function formatSourceRange(context: FormatterContext, node: ParserRuleCon
 /** Formats a real source token, with a synthetic fallback for generated accessors. */
 export function formatTokenDoc(
     context: FormatterContext,
-    terminal: SourceTerminal | SourceTerminal[],
+    terminal: SourceTerminal,
     expectedToken: number | string,
-    literalNames: (string | null)[],
+    literalNames: readonly (string | null)[],
 ): TokenDoc {
     if (Array.isArray(terminal)) {
         terminal = terminal[0] ?? null;
@@ -56,4 +55,28 @@ export function formatTokenSeparatedDocs(
         docs.push(formatSeparator(separators[index - 1]), breakDoc, items[index]!);
     }
     return concat(docs);
+}
+
+/** Joins items using the commas between them in the source, with their comments. */
+export function formatCommaSeparatedDocs(
+    items: readonly Doc[],
+    commas: readonly TerminalNode[],
+    formatTerminal: (terminal: SourceTerminal, expectedToken: string) => Doc,
+    breakDoc: Doc = line,
+): Doc {
+    return formatTokenSeparatedDocs(items, commas, (comma) => formatTerminal(comma, ","), breakDoc);
+}
+
+/** Joins alternatives, such as the types of a `case` or the errors of a `catch`, with the `|` between them. */
+export function formatBarSeparatedDocs(
+    items: readonly Doc[],
+    bars: readonly TerminalNode[],
+    formatTerminal: (terminal: SourceTerminal, expectedToken: string) => Doc,
+): Doc {
+    return formatTokenSeparatedDocs(
+        items,
+        bars,
+        (bar) => concat([space, formatTerminal(bar, "|")]),
+        space,
+    );
 }
