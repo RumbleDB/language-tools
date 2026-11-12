@@ -49,6 +49,9 @@ public final class TypeAtPosition implements RequestHandler {
 
     public record Result(SequenceType sequenceType, Range range) implements ResponseBody {}
 
+    /** A variable, by the range of its name where it is bound, and the type that RumbleDB infers for it there. */
+    public record Binding(Range range, SequenceType sequenceType) {}
+
     private final RumbleConfiguration configuration;
 
     public TypeAtPosition() {
@@ -97,6 +100,21 @@ public final class TypeAtPosition implements RequestHandler {
         }
     }
 
+    /** The variables that a compiled module binds and whose type RumbleDB knows, wherever they are visible. */
+    public static List<Binding> bindingsOf(Module module) {
+        try {
+            return new TypeAtPositionVisitor()
+                    .visit(module, new ArrayList<>()).stream()
+                            .filter(candidate -> candidate.kind() == CandidateKind.BINDING)
+                            .filter(candidate -> !TolerantCompiler.isUnknown(candidate.sequenceType()))
+                            .map(candidate -> new Binding(
+                                    candidate.resultRange(), SequenceType.fromSequenceType(candidate.sequenceType())))
+                            .toList();
+        } catch (Throwable throwable) {
+            return List.of();
+        }
+    }
+
     /** Compiles the query as RumbleDB would, or when it rejects the query, as far as its valid parts allow. */
     private Module compile(String query, URI documentUri) {
         try {
@@ -108,6 +126,9 @@ public final class TypeAtPosition implements RequestHandler {
     }
 
     private enum CandidateKind {
+        /** A variable where it is bound. */
+        BINDING,
+        /** Another name whose type is not that of an expression ending there, such as a lookup key. */
         EXPLICIT,
         EXPRESSION
     }
@@ -166,7 +187,7 @@ public final class TypeAtPosition implements RequestHandler {
 
     private static Candidate selectCandidate(List<Candidate> candidates, Position position) {
         Candidate explicit = candidates.stream()
-                .filter(candidate -> candidate.kind() == CandidateKind.EXPLICIT)
+                .filter(candidate -> candidate.kind() != CandidateKind.EXPRESSION)
                 .filter(candidate -> candidate.contains(position))
                 .reduce(Candidate::preferSmallest)
                 .orElse(null);
@@ -359,7 +380,7 @@ public final class TypeAtPosition implements RequestHandler {
 
         private static void addBindingCandidate(
                 List<Candidate> candidates, ExceptionMetadata metadata, org.rumbledb.types.SequenceType sequenceType) {
-            addCandidate(candidates, Candidate.create(CandidateKind.EXPLICIT, metadata, metadata, sequenceType));
+            addCandidate(candidates, Candidate.create(CandidateKind.BINDING, metadata, metadata, sequenceType));
         }
 
         /** Adds a binding whose type is the one inferred in the scope where the variable is visible. */

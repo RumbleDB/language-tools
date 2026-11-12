@@ -41,6 +41,7 @@ function createEmptyStaticTypecheckResponse(): StaticTypecheckResponse {
         responseType: REQUEST_TYPE_STATIC_TYPECHECK,
         body: {
             errors: [],
+            bindings: [],
         },
         error: null,
     };

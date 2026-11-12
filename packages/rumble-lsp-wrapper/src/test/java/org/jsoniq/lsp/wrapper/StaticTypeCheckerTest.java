@@ -2,6 +2,8 @@ package org.jsoniq.lsp.wrapper;
 
 import java.net.URI;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 import org.jsoniq.lsp.wrapper.handlers.StaticTypeChecker;
 import org.junit.jupiter.api.Test;
@@ -207,5 +209,61 @@ class StaticTypeCheckerTest {
         StaticTypeChecker.Result result = checkWithoutThrow(query);
 
         assertTrue(result.errors().isEmpty(), () -> result.errors().toString());
+    }
+
+    @Test
+    void typesTheVariablesOfAValidQuery() {
+        String query =
+                """
+                declare variable $global := 1;
+                declare function local:f($p as xs:string) { $p };
+                for $item in (1, 2) let $text := "a" return ($item, $text)""";
+
+        StaticTypeChecker.Result result = checkWithoutThrow(query);
+
+        assertTrue(result.errors().isEmpty(), () -> result.errors().toString());
+        assertEquals(
+                Map.of("$global", "xs:integer", "$p", "xs:string", "$item", "xs:integer", "$text", "xs:string"),
+                typesByName(query, result));
+    }
+
+    @Test
+    void typesTheVariablesOfAnUnfinishedQuery() {
+        String query =
+                """
+                declare variable $global := 1;
+                for $item in (1, 2) let $text := "a" return $""";
+
+        StaticTypeChecker.Result result = checkWithoutThrow(query);
+
+        assertEquals(
+                Map.of("$global", "xs:integer", "$item", "xs:integer", "$text", "xs:string"),
+                typesByName(query, result));
+    }
+
+    @Test
+    void typesTheVariablesOfAQueryWithTypeErrors() {
+        String query = "let $text := \"a\" return $text + 1";
+
+        StaticTypeChecker.Result result = checkWithoutThrow(query);
+
+        assertFalse(result.errors().isEmpty());
+        assertEquals(Map.of("$text", "xs:string"), typesByName(query, result));
+    }
+
+    @Test
+    void emptyQueryBindsNoVariables() {
+        assertTrue(checkWithoutThrow("").bindings().isEmpty());
+    }
+
+    /** The bindings by the text of their range, which is the name of the variable including its `$`. */
+    private static Map<String, String> typesByName(String query, StaticTypeChecker.Result result) {
+        String[] lines = query.split("\n", -1);
+        return result.bindings().stream()
+                .collect(Collectors.toMap(
+                        binding -> lines[binding.range().start().line()].substring(
+                                binding.range().start().character(),
+                                binding.range().end().character()),
+                        binding -> binding.sequenceType().toString()));
     }
 }

@@ -1,9 +1,9 @@
-import { findCompletions, resolveCompletionItem } from "server/lsp/features/completion.js";
+import { findCompletionList, resolveCompletionItem } from "server/lsp/features/completion.js";
 import { describe, expect, it } from "vitest";
 import { CancellationTokenSource, MarkupKind } from "vscode-languageserver";
 
 import { parserService, workspaceService, wrapperClient } from "./services.js";
-import { createMockWrapperClient, testDocumentFromUri } from "./test-utils.js";
+import { createMockWrapperClient, findCompletions, testDocumentFromUri } from "./test-utils.js";
 
 function documentAtEnd(name: string, source: string) {
     const document = testDocumentFromUri(source, { uri: `file:///${name}.jq` });
@@ -53,7 +53,7 @@ describe("completion cancelled while RumbleDB is busy", () => {
             'declare variable $o := {"a": 1}; $o.',
         );
         const cancellation = new CancellationTokenSource();
-        const items = findCompletions(
+        const list = findCompletionList(
             document,
             position,
             parserService,
@@ -64,6 +64,6 @@ describe("completion cancelled while RumbleDB is busy", () => {
         cancellation.cancel();
 
         // The editor ignores the answer to a cancelled request; it only matters that one is given.
-        await expect(items).resolves.toEqual([]);
+        await expect(list).resolves.toMatchObject({ items: [] });
     });
 });

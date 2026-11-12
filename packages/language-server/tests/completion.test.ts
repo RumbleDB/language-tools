@@ -1,4 +1,3 @@
-import { findCompletions } from "server/lsp/features/completion.js";
 import { describe, expect, it } from "vitest";
 import {
     CompletionItemKind,
@@ -10,7 +9,7 @@ import {
 import { TextDocument } from "vscode-languageserver-textdocument";
 
 import { parserService, workspaceService, wrapperClient } from "./services.js";
-import { positionAtNth, testDocument, testDocumentFromUri } from "./test-utils.js";
+import { findCompletions, positionAtNth, testDocument, testDocumentFromUri } from "./test-utils.js";
 
 describe("JSONiq completion", () => {
     it("returns visible declarations in", async () => {

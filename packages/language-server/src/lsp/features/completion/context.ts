@@ -9,6 +9,7 @@ import {
 import type { WrapperClient } from "server/integrations/rumble/client.js";
 import type { FocusAtPositionWireResult } from "server/integrations/rumble/operations/focus-at-position/protocol.js";
 import { getFocusAtPosition } from "server/integrations/rumble/operations/focus-at-position/service.js";
+import { getVariableTypes } from "server/integrations/rumble/operations/static-typecheck/variable-types.js";
 import type { ParserService } from "server/parser/index.js";
 import type { CompletionIntent } from "server/parser/types/completion.js";
 import { defaultTokenAt, defaultTokenBefore, getDocumentText } from "server/parser/utils.js";
@@ -22,6 +23,13 @@ import {
 import type { TextDocument } from "vscode-languageserver-textdocument";
 
 import type { CompletionContext } from "./types.js";
+
+/**
+ * How long variable completion waits for RumbleDB to type the document. Once RumbleDB runs, that takes milliseconds,
+ * or tens of them for long modules, so the wait mostly ends early just after it starts. The variables are then
+ * labelled with their kinds, and the editor asks again as the user types.
+ */
+const VARIABLE_TYPES_WAIT_MS = 200;
 
 export function createCompletionContext(
     document: TextDocument,
@@ -70,6 +78,9 @@ export function createCompletionContext(
                 focuses.set(offset, focus);
             }
             return focus;
+        },
+        getVariableTypes() {
+            return getVariableTypes(document, wrapper, { waitMs: VARIABLE_TYPES_WAIT_MS, token });
         },
         getVisibleDeclarations() {
             visibleDeclarations ??= this.getAnalysis().then((analysis) =>

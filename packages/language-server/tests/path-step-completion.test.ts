@@ -3,12 +3,11 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 
-import { findCompletions } from "server/lsp/features/completion.js";
 import { describe, expect, it } from "vitest";
 import { CompletionItemKind, type CompletionItem } from "vscode-languageserver";
 
 import { parserService, workspaceService, wrapperClient } from "./services.js";
-import { testDocumentFromUri } from "./test-utils.js";
+import { findCompletions, testDocumentFromUri } from "./test-utils.js";
 
 const SCHEMA = `<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:o="urn:order"
            targetNamespace="urn:order" elementFormDefault="qualified">
