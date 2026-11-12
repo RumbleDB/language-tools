@@ -4,10 +4,10 @@ import type * as xquery from "./adapters/xquery/grammar/XQueryParser.js";
 /** Shared CST types. A node belongs to either grammar, so these are unions. */
 
 /** The name of the index constant of a rule of both grammars, such as `RULE_orExpr`. */
-export type SharedRule = Extract<keyof typeof jsoniq.JsoniqParser, `RULE_${string}`> &
+type SharedRule = Extract<keyof typeof jsoniq.JsoniqParser, `RULE_${string}`> &
     Extract<keyof typeof xquery.XQueryParser, `RULE_${string}`>;
 
-/** A parser of either grammar, as the indexes of the rules they share. */
+/** A parser of either grammar, as the indexes of the rules they share, such as `parser.RULE_orExpr`. */
 export type SharedRuleIndexes = Readonly<Record<SharedRule, number>>;
 
 export type AnnotatedDeclContext = jsoniq.AnnotatedDeclContext | xquery.AnnotatedDeclContext;

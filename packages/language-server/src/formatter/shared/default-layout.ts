@@ -5,7 +5,7 @@ import {
     TerminalNode,
     type Token,
 } from "antlr4ng";
-import type { SharedRule, SharedRuleIndexes } from "server/parser/context.js";
+import type { SharedRuleIndexes } from "server/parser/context.js";
 
 import type { FormatterContext } from "../context.js";
 import { concat, type Doc, group, indent, isEmptyDoc, line, NIL, space } from "../doc.js";
@@ -24,63 +24,59 @@ export interface DefaultLayoutRules {
     readonly binaryOperators: ReadonlySet<number>;
 }
 
-/** Path steps and type tests, whose parts are written without spaces between them. */
-const COMPACT_RULES: readonly SharedRule[] = [
-    "RULE_pathExpr",
-    "RULE_relativePathExpr",
-    "RULE_axisStep",
-    "RULE_forwardStep",
-    "RULE_reverseStep",
-    "RULE_forwardAxis",
-    "RULE_reverseAxis",
-    "RULE_abbrevForwardStep",
-    "RULE_nodeTest",
-    "RULE_nameTest",
-    "RULE_predicateList",
-    "RULE_itemType",
-    "RULE_anyKindTest",
-    "RULE_binaryNodeTest",
-    "RULE_documentTest",
-    "RULE_textTest",
-    "RULE_commentTest",
-    "RULE_namespaceNodeTest",
-    "RULE_piTest",
-    "RULE_attributeTest",
-    "RULE_schemaAttributeTest",
-    "RULE_elementTest",
-    "RULE_schemaElementTest",
-    "RULE_anyFunctionTest",
-    "RULE_typedFunctionTest",
-    "RULE_anyMapTest",
-    "RULE_typedMapTest",
-    "RULE_anyArrayTest",
-    "RULE_typedArrayTest",
-    "RULE_parenthesizedItemTest",
-];
-
-/** The binary operator rules, whose children alternate between operands and operators. */
-const BINARY_OPERATOR_RULES: readonly SharedRule[] = [
-    "RULE_orExpr",
-    "RULE_andExpr",
-    "RULE_comparisonExpr",
-    "RULE_stringConcatExpr",
-    "RULE_rangeExpr",
-    "RULE_additiveExpr",
-    "RULE_multiplicativeExpr",
-    "RULE_unionExpr",
-    "RULE_intersectExceptExpr",
-    "RULE_simpleMapExpr",
-];
-
 /** A parser, as the indexes of its rules and the token types that the compact layout spaces. */
 export type LayoutGrammar = SharedRuleIndexes & CompactTokenTypes;
 
 /** The default layout rules of a parser. */
 export function defaultLayoutRules(parser: LayoutGrammar): DefaultLayoutRules {
     return {
-        compact: new Set(COMPACT_RULES.map((rule) => parser[rule])),
+        // Path steps and type tests, whose parts are written without spaces between them.
+        compact: new Set([
+            parser.RULE_pathExpr,
+            parser.RULE_relativePathExpr,
+            parser.RULE_axisStep,
+            parser.RULE_forwardStep,
+            parser.RULE_reverseStep,
+            parser.RULE_forwardAxis,
+            parser.RULE_reverseAxis,
+            parser.RULE_abbrevForwardStep,
+            parser.RULE_nodeTest,
+            parser.RULE_nameTest,
+            parser.RULE_predicateList,
+            parser.RULE_itemType,
+            parser.RULE_anyKindTest,
+            parser.RULE_binaryNodeTest,
+            parser.RULE_documentTest,
+            parser.RULE_textTest,
+            parser.RULE_commentTest,
+            parser.RULE_namespaceNodeTest,
+            parser.RULE_piTest,
+            parser.RULE_attributeTest,
+            parser.RULE_schemaAttributeTest,
+            parser.RULE_elementTest,
+            parser.RULE_schemaElementTest,
+            parser.RULE_anyFunctionTest,
+            parser.RULE_typedFunctionTest,
+            parser.RULE_anyMapTest,
+            parser.RULE_typedMapTest,
+            parser.RULE_anyArrayTest,
+            parser.RULE_typedArrayTest,
+            parser.RULE_parenthesizedItemTest,
+        ]),
         compactTokens: parser,
-        binaryOperators: new Set(BINARY_OPERATOR_RULES.map((rule) => parser[rule])),
+        // The binary operator rules, whose children alternate between operands and operators.
+        binaryOperators: new Set([
+            parser.RULE_orExpr,
+            parser.RULE_andExpr,
+            parser.RULE_comparisonExpr,
+            parser.RULE_stringConcatExpr,
+            parser.RULE_rangeExpr,
+            parser.RULE_additiveExpr,
+            parser.RULE_multiplicativeExpr,
+            parser.RULE_unionExpr,
+            parser.RULE_intersectExceptExpr,
+            parser.RULE_simpleMapExpr,
+        ]),
     };
 }
 
