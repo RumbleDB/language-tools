@@ -5,6 +5,7 @@ import {
     TerminalNode,
     type Token,
 } from "antlr4ng";
+import type { SharedRule, SharedRuleIndexes } from "server/parser/context.js";
 
 import type { FormatterContext } from "../context.js";
 import { concat, type Doc, group, indent, isEmptyDoc, line, NIL, space } from "../doc.js";
@@ -24,69 +25,63 @@ export interface DefaultLayoutRules {
 }
 
 /** Path steps and type tests, whose parts are written without spaces between them. */
-const COMPACT_RULE_NAMES = [
-    "pathExpr",
-    "relativePathExpr",
-    "axisStep",
-    "forwardStep",
-    "reverseStep",
-    "forwardAxis",
-    "reverseAxis",
-    "abbrevForwardStep",
-    "nodeTest",
-    "nameTest",
-    "predicateList",
-    "itemType",
-    "anyKindTest",
-    "binaryNodeTest",
-    "documentTest",
-    "textTest",
-    "commentTest",
-    "namespaceNodeTest",
-    "piTest",
-    "attributeTest",
-    "schemaAttributeTest",
-    "elementTest",
-    "schemaElementTest",
-    "anyFunctionTest",
-    "typedFunctionTest",
-    "anyMapTest",
-    "typedMapTest",
-    "anyArrayTest",
-    "typedArrayTest",
-    "parenthesizedItemTest",
+const COMPACT_RULES: readonly SharedRule[] = [
+    "RULE_pathExpr",
+    "RULE_relativePathExpr",
+    "RULE_axisStep",
+    "RULE_forwardStep",
+    "RULE_reverseStep",
+    "RULE_forwardAxis",
+    "RULE_reverseAxis",
+    "RULE_abbrevForwardStep",
+    "RULE_nodeTest",
+    "RULE_nameTest",
+    "RULE_predicateList",
+    "RULE_itemType",
+    "RULE_anyKindTest",
+    "RULE_binaryNodeTest",
+    "RULE_documentTest",
+    "RULE_textTest",
+    "RULE_commentTest",
+    "RULE_namespaceNodeTest",
+    "RULE_piTest",
+    "RULE_attributeTest",
+    "RULE_schemaAttributeTest",
+    "RULE_elementTest",
+    "RULE_schemaElementTest",
+    "RULE_anyFunctionTest",
+    "RULE_typedFunctionTest",
+    "RULE_anyMapTest",
+    "RULE_typedMapTest",
+    "RULE_anyArrayTest",
+    "RULE_typedArrayTest",
+    "RULE_parenthesizedItemTest",
 ];
 
 /** The binary operator rules, whose children alternate between operands and operators. */
-const BINARY_OPERATOR_RULE_NAMES = [
-    "orExpr",
-    "andExpr",
-    "comparisonExpr",
-    "stringConcatExpr",
-    "rangeExpr",
-    "additiveExpr",
-    "multiplicativeExpr",
-    "unionExpr",
-    "intersectExceptExpr",
-    "simpleMapExpr",
+const BINARY_OPERATOR_RULES: readonly SharedRule[] = [
+    "RULE_orExpr",
+    "RULE_andExpr",
+    "RULE_comparisonExpr",
+    "RULE_stringConcatExpr",
+    "RULE_rangeExpr",
+    "RULE_additiveExpr",
+    "RULE_multiplicativeExpr",
+    "RULE_unionExpr",
+    "RULE_intersectExceptExpr",
+    "RULE_simpleMapExpr",
 ];
 
-/** A parser, whose rule names give the indexes of the rules of each layout. */
-export interface LayoutGrammar extends CompactTokenTypes {
-    readonly ruleNames: readonly string[];
-}
+/** A parser, as the indexes of its rules and the token types that the compact layout spaces. */
+export type LayoutGrammar = SharedRuleIndexes & CompactTokenTypes;
 
 /** The default layout rules of a parser. */
-export function defaultLayoutRules(grammar: LayoutGrammar): DefaultLayoutRules {
+export function defaultLayoutRules(parser: LayoutGrammar): DefaultLayoutRules {
     return {
-        compact: ruleIndexes(grammar.ruleNames, COMPACT_RULE_NAMES),
-        compactTokens: grammar,
-        binaryOperators: ruleIndexes(grammar.ruleNames, BINARY_OPERATOR_RULE_NAMES),
+        compact: new Set(COMPACT_RULES.map((rule) => parser[rule])),
+        compactTokens: parser,
+        binaryOperators: new Set(BINARY_OPERATOR_RULES.map((rule) => parser[rule])),
     };
-}
-
-function ruleIndexes(ruleNames: readonly string[], names: readonly string[]): ReadonlySet<number> {
-    return new Set(names.map((name) => ruleNames.indexOf(name)).filter((index) => index >= 0));
 }
 
 /**
