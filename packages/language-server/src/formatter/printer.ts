@@ -75,15 +75,9 @@ export function printDocToString(doc: Doc, options: FormatterOptions): string {
             }
             case "line": {
                 if (current.unlessAtLineStart) {
-                    const lineSoFar = output.slice(output.lastIndexOf("\n") + 1);
-                    if (lineSoFar.trim() === "") {
-                        // Already on a fresh line: only make sure it has this indentation.
-                        output =
-                            output.slice(0, output.length - lineSoFar.length) +
-                            indentStr.repeat(indent);
-                    } else {
-                        output = output.trimEnd() + "\n" + indentStr.repeat(indent);
-                    }
+                    output =
+                        startLine(output, current.afterBlankLine === true) +
+                        indentStr.repeat(indent);
                     currentColumn = indent * options.indentSize;
                     break;
                 }
@@ -197,6 +191,23 @@ function fits(
     }
 
     return restWidth >= 0;
+}
+
+/**
+ * Ends the output with a new line, without indentation, and after a blank line if requested. A line that holds only
+ * indentation is reused rather than followed by another, and a blank line is never doubled.
+ */
+function startLine(output: string, afterBlankLine: boolean): string {
+    const lineSoFar = output.slice(output.lastIndexOf("\n") + 1);
+    let result =
+        lineSoFar.trim() === ""
+            ? output.slice(0, output.length - lineSoFar.length)
+            : output.trimEnd() + "\n";
+    // The start of the document needs no blank line before it.
+    if (afterBlankLine && result !== "" && !result.endsWith("\n\n")) {
+        result += "\n";
+    }
+    return result;
 }
 
 function firstNewlineIndex(value: string): number {

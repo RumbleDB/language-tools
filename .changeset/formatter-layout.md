@@ -7,3 +7,5 @@ The formatter keeps the spacing of constructs it has no layout for, instead of p
 An object no longer expands just because it has more than two fields: it stays on one line when it fits, unless it is written with a line break after `{`. A function body written on its own lines stays on its own lines.
 
 A FLWOR expression bound to a variable or returned by another FLWOR starts on its own line, indented, so its `return` is no longer aligned with that of the enclosing FLWOR. The start and end conditions of a `for tumbling window` or `for sliding window` clause are on lines of their own, instead of one long line.
+
+Blank lines are kept: one between two declarations that the source separates with one, and one before or after a comment on its own line, such as after a header comment. Several blank lines in a row become one.

@@ -193,31 +193,35 @@ export function formatProlog(
     rules: PrologRuleTypes,
     visit: Visit,
 ): Doc {
-    const declarations: { doc: Doc; type: DeclarationType }[] = [];
+    const declarations: { node: ParserRuleContext; doc: Doc; type: DeclarationType }[] = [];
     for (let index = 0; index < node.getChildCount(); index++) {
         const child = node.getChild(index);
-        if (child === null || child instanceof TerminalNode) {
+        if (!(child instanceof ParserRuleContext)) {
             continue;
         }
         const declaration = visit(child);
         if (declaration.kind !== "text" || declaration.text !== "") {
-            declarations.push({ doc: declaration, type: findDeclarationType(child, rules) });
+            declarations.push({
+                node: child,
+                doc: declaration,
+                type: findDeclarationType(child, rules),
+            });
         }
     }
     if (declarations.length === 0) {
         return NIL;
     }
 
+    // A blank line separates declarations of different kinds, and any that the source separates with one. The
+    // blank lines around the comments before a declaration are kept with the comments.
     const docs: Doc[] = [declarations[0]!.doc];
     for (let index = 1; index < declarations.length; index++) {
         const previous = declarations[index - 1]!;
         const current = declarations[index]!;
-        docs.push(
-            context.options.blankLineBetweenDeclarations && previous.type !== current.type
-                ? concat([hardline, hardline])
-                : hardline,
-            current.doc,
-        );
+        const blankLine =
+            (context.options.blankLineBetweenDeclarations && previous.type !== current.type) ||
+            context.hasBlankLineAfter(previous.node.stop!);
+        docs.push(blankLine ? concat([hardline, hardline]) : hardline, current.doc);
     }
     return concat(docs);
 }

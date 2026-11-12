@@ -139,6 +139,63 @@ describe.each(BOTH)("%s layout", (languageId) => {
         });
     });
 
+    describe("blank lines", () => {
+        it("keeps a blank line between declarations of the same kind", () => {
+            expectLayout(
+                [
+                    "declare variable $a := 1;",
+                    "",
+                    "declare variable $b := 2;",
+                    "declare variable $c := 3;",
+                    "$a",
+                ],
+                [
+                    "declare variable $a := 1;",
+                    "",
+                    "declare variable $b := 2;",
+                    "declare variable $c := 3;",
+                    "",
+                    "$a",
+                ],
+                languageId,
+            );
+        });
+
+        it("keeps the blank lines around a comment on its own line", () => {
+            expectLayout(
+                [
+                    "(: header :)",
+                    "",
+                    "declare variable $a := 1;",
+                    "(: about b :)",
+                    "",
+                    "declare variable $b := 2;",
+                    "$a",
+                ],
+                [
+                    "(: header :)",
+                    "",
+                    "declare variable $a := 1;",
+                    "(: about b :)",
+                    "",
+                    "declare variable $b := 2;",
+                    "",
+                    "$a",
+                ],
+                languageId,
+            );
+            expectLayout(
+                ["let $x := 1", "", "(: explain y :)", "let $y := 2", "return $x + $y"],
+                ["let $x := 1", "", "(: explain y :)", "let $y := 2", "return $x + $y"],
+                languageId,
+            );
+        });
+
+        it("keeps at most one blank line", () => {
+            expectLayout(["(: header :)", "", "", "", "1"], ["(: header :)", "", "1"], languageId);
+        });
+    });
+
     it("keeps a chain on one line after a comment on its own line", () => {
         expectLayout(
             ["(: header :)", "(1 to 10) ! string()"],

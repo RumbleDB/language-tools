@@ -45,6 +45,8 @@ interface LineDoc {
     readonly soft: boolean;
     /** If true, this hard newline prints nothing when the line so far holds only indentation. */
     readonly unlessAtLineStart?: boolean;
+    /** With `unlessAtLineStart`, the new line also follows a blank line, unless there already is one. */
+    readonly afterBlankLine?: boolean;
 }
 
 // ─── Constants & Constructors ──────────────────────────────────────────────────
@@ -62,6 +64,8 @@ export const lineStart: LineDoc = {
     soft: false,
     unlessAtLineStart: true,
 };
+/** Like `lineStart`, and also leaves one blank line before the new line, such as one the source has there. */
+export const blankLineStart: LineDoc = { ...lineStart, afterBlankLine: true };
 
 export function text(str: string): Doc {
     if (str === "") {
