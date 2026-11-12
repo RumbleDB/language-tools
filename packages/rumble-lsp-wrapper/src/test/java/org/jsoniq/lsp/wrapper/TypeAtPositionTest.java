@@ -1,15 +1,21 @@
 package org.jsoniq.lsp.wrapper;
 
+import java.io.IOException;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Base64;
+import java.util.List;
 
+import org.jsoniq.lsp.wrapper.handlers.StaticTypeChecker;
 import org.jsoniq.lsp.wrapper.handlers.TypeAtPosition;
 import org.jsoniq.lsp.wrapper.messages.Request;
 import org.jsoniq.lsp.wrapper.types.TypeDefinition.ArrayTypeDefinition;
 import org.jsoniq.lsp.wrapper.types.TypeDefinition.ObjectTypeDefinition;
 import org.jsoniq.lsp.wrapper.types.TypeDefinition.UnionTypeDefinition;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
@@ -377,6 +383,44 @@ class TypeAtPositionTest {
 
         assertNull(result.sequenceType());
         assertNull(result.range());
+    }
+
+    /** A library whose function is declared on the same line as the importing module's variable. */
+    private static final String LIBRARY =
+            """
+            module namespace l = "urn:l";
+            declare function l:twice($x as xs:double) as xs:double { $x * 2 };
+            """;
+
+    private static final String IMPORTING_QUERY =
+            """
+            import module namespace l = "urn:l" at "lib.xqm";
+            declare variable $v := l:twice(1);
+            $v
+            """;
+
+    @Test
+    void ignoresTheExpressionsOfImportedModules(@TempDir Path directory) throws IOException {
+        Files.writeString(directory.resolve("lib.xqm"), LIBRARY);
+        URI uri = directory.resolve("main.xq").toUri();
+
+        TypeAtPosition.Result result = this.typeAtPosition.findType(IMPORTING_QUERY, uri, new Position(1, 0));
+
+        assertNull(result.sequenceType());
+        assertNull(result.range());
+        assertVariableType(IMPORTING_QUERY, uri, "$v", 0, "xs:double");
+    }
+
+    @Test
+    void bindsOnlyTheVariablesOfTheModuleItself(@TempDir Path directory) throws IOException {
+        Files.writeString(directory.resolve("lib.xqm"), LIBRARY);
+        URI uri = directory.resolve("main.xq").toUri();
+
+        StaticTypeChecker.Result result = new StaticTypeChecker().infer(IMPORTING_QUERY, uri);
+
+        assertEquals(
+                List.of(new Range(new Position(1, 17), new Position(1, 19))),
+                result.bindings().stream().map(TypeAtPosition.Binding::range).toList());
     }
 
     private static Position positionAtOffset(String source, int offset) {
