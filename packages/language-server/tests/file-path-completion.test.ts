@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
@@ -11,8 +11,8 @@ import { parserService, workspaceService } from "./services.js";
 import { createMockWrapperClient, findCompletions } from "./test-utils.js";
 
 /**
- * A query next to `notes.txt`, a `data` directory with `users.json`, `.hidden` and an `events` directory, and a `lib`
- * directory with `module.jq`, `readme.md` and a `nested` directory.
+ * A query next to `notes.txt`, a `data` directory with `users.json`, `.hidden` and an `events` directory, a `lib`
+ * directory with `module.jq`, `readme.md` and a `nested` directory, and a `linked` link to the `data` directory.
  */
 const root = mkdtempSync(path.join(tmpdir(), "jsoniq-file-paths-"));
 mkdirSync(path.join(root, "data", "events"), { recursive: true });
@@ -22,16 +22,17 @@ writeFileSync(path.join(root, "data", ".hidden"), "");
 mkdirSync(path.join(root, "lib", "nested"), { recursive: true });
 writeFileSync(path.join(root, "lib", "module.jq"), "");
 writeFileSync(path.join(root, "lib", "readme.md"), "");
+symlinkSync(path.join(root, "data"), path.join(root, "linked"));
 
 afterAll(() => rmSync(root, { recursive: true, force: true }));
 
 let documents = 0;
 
 /** Completes where `¦` is, in a query saved in the temporary directory. */
-async function complete(query: string) {
+async function complete(query: string, extension = "jq") {
     const text = query.replace("¦", "");
-    const uri = pathToFileURL(path.join(root, `query-${documents++}.jq`)).href;
-    const document = TextDocument.create(uri, "jsoniq", 1, text);
+    const uri = pathToFileURL(path.join(root, `query-${documents++}.${extension}`)).href;
+    const document = TextDocument.create(uri, extension === "xq" ? "xquery" : "jsoniq", 1, text);
     return findCompletions(
         document,
         document.positionAt(query.indexOf("¦")),
@@ -67,6 +68,40 @@ describe("file path completion", () => {
             range: { start: { line: 0, character: 17 }, end: { line: 0, character: 19 } },
             newText: "users.json",
         });
+    });
+
+    it("replaces the whole name that the cursor is in", async () => {
+        const items = await complete('json-lines("data/us¦ers.json")');
+
+        expect(items.find((item) => item.label === "users.json")?.textEdit).toEqual({
+            range: { start: { line: 0, character: 17 }, end: { line: 0, character: 27 } },
+            newText: "users.json",
+        });
+    });
+
+    it("replaces the slash after the name of a directory too", async () => {
+        const items = await complete('json-lines("data/ev¦ents/2024.json")');
+
+        expect(items.find((item) => item.label === "events/")?.textEdit).toEqual({
+            range: { start: { line: 0, character: 17 }, end: { line: 0, character: 24 } },
+            newText: "events/",
+        });
+    });
+
+    it("lists a link to a directory as a directory", async () => {
+        const items = await complete('json-lines("¦');
+
+        expect(items.find((item) => item.label === "linked/")).toMatchObject({
+            kind: CompletionItemKind.Folder,
+        });
+        expect(await labels('json-lines("linked/¦')).toEqual(["events/", "users.json"]);
+    });
+
+    it("lists the files that XQuery reads", async () => {
+        expect((await complete('doc("data/¦")', "xq")).map((item) => item.label).sort()).toEqual([
+            "events/",
+            "users.json",
+        ]);
     });
 
     it.each([

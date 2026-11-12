@@ -8,7 +8,7 @@ Running queries and type checking need Java 17 or newer. See [Requirements](#req
 
 ## Features
 
-- **Completion** for keywords, functions, variables, types, object fields and path steps
+- **Completion** for keywords, functions, variables, types, object fields, path steps and file paths
 - **Type checking** and syntax errors as you type
 - **Inferred types** and function documentation on hover
 - **Go to definition**, find references and rename
@@ -28,6 +28,8 @@ Syntax errors show up as you type. RumbleDB's static type checker catches type p
 ### Completion and hover
 
 Object fields in completion come from the inferred type, so `$o.` lists the fields that `$o` actually has. Types from imported schemas are included too.
+
+In the path of a file that a function reads, such as `json-lines("data/")`, or of a module or schema import, completion lists the files and directories there.
 
 ![Completion after $o. listing the fields customer, id and total with their types](https://github.com/user-attachments/assets/7d398180-82bc-4ed7-b404-af1aa038c6b8)
 

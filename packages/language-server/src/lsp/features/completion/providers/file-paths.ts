@@ -1,5 +1,5 @@
-import type { Dirent } from "node:fs";
-import { readdir } from "node:fs/promises";
+import { readdir, stat } from "node:fs/promises";
+import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import {
@@ -54,7 +54,13 @@ const FILE_FUNCTIONS = new Map([
 /** A string that is a path: where its relative paths start, and which entries it can name. */
 interface PathString {
     readonly baseUri: string | undefined;
-    accepts(entry: Dirent): boolean;
+    accepts(entry: DirectoryEntry): boolean;
+}
+
+interface DirectoryEntry {
+    readonly name: string;
+    /** Whether it is a directory, or a link to one. */
+    readonly isDirectory: boolean;
 }
 
 /**
@@ -66,34 +72,48 @@ export const provideFilePathCompletions: CompletionProvider = async (context) =>
     if (stringStart === undefined) {
         return null;
     }
-    const path = await findPathString(context, stringStart);
-    if (path === undefined) {
+    const pathString = await findPathString(context, stringStart);
+    if (pathString === undefined) {
         return null;
     }
 
-    // The directory is listed, and the name after it is replaced, so that the editor filters the entries by that name.
-    const typed = context.source.slice(stringStart + 1, context.cursorOffset);
+    // The directory is listed, and the name in it is replaced, so that the editor filters the entries by that name.
+    const { source, cursorOffset } = context;
+    const typed = source.slice(stringStart + 1, cursorOffset);
     const directory = typed.slice(0, typed.lastIndexOf("/") + 1);
     const name = typed.slice(directory.length);
-    const nameStart = context.cursorOffset - name.length;
+    const nameStart = cursorOffset - name.length;
+    const nameEnd = endOfName(source, cursorOffset, source[stringStart]!);
 
-    const entries = (await listDirectory(directory, path.baseUri)).filter(
+    const entries = (await listDirectory(directory, pathString.baseUri)).filter(
         // Hidden entries, such as `.git`, show only once their name is being typed.
-        (entry) => path.accepts(entry) && (!entry.name.startsWith(".") || name.startsWith(".")),
+        (entry) =>
+            pathString.accepts(entry) && (!entry.name.startsWith(".") || name.startsWith(".")),
     );
-    return entries.map((entry) => {
-        const label = entry.isDirectory() ? `${entry.name}/` : entry.name;
+    return entries.map(({ name, isDirectory }) => {
+        const label = isDirectory ? `${name}/` : name;
+        // A directory replaces the slash after the name too, which its label ends with.
+        const end = isDirectory && source[nameEnd] === "/" ? nameEnd + 1 : nameEnd;
         return {
             label,
-            kind: entry.isDirectory() ? CompletionItemKind.Folder : CompletionItemKind.File,
-            textEdit: replaceRange(context.document, nameStart, context.cursorOffset, label),
+            kind: isDirectory ? CompletionItemKind.Folder : CompletionItemKind.File,
+            textEdit: replaceRange(context.document, nameStart, end, label),
             // The inserted slash is not typed, so it does not trigger completion for the directory's entries.
-            ...(entry.isDirectory()
+            ...(isDirectory
                 ? { command: { title: "Suggest", command: "editor.action.triggerSuggest" } }
                 : {}),
         };
     });
 };
+
+/** Where the name of a path that continues after the offset ends: at a slash, at the closing quote, or with the line. */
+function endOfName(source: string, offset: number, quote: string): number {
+    let end = offset;
+    while (end < source.length && !["/", quote, "\n"].includes(source[end]!)) {
+        end++;
+    }
+    return end;
+}
 
 /** What kind of path the string that starts at the offset is, if any. Relative paths resolve as RumbleDB does. */
 async function findPathString(
@@ -114,7 +134,7 @@ async function findPathString(
         return {
             baseUri: document.uri,
             accepts: (entry) =>
-                entry.isDirectory() || languageIdForWorkspacePath(entry.name) !== undefined,
+                entry.isDirectory || languageIdForWorkspacePath(entry.name) !== undefined,
         };
     }
 
@@ -149,13 +169,35 @@ function readsFiles(call: FunctionCallNode): boolean {
 }
 
 /** The entries of a local directory, which is empty for a path that is not local or cannot be read. */
-async function listDirectory(directory: string, baseUri: string | undefined): Promise<Dirent[]> {
-    try {
-        const url = new URL(directory === "" ? "." : directory, baseUri);
-        return url.protocol === "file:"
-            ? await readdir(fileURLToPath(url), { withFileTypes: true })
-            : [];
-    } catch {
+async function listDirectory(
+    directory: string,
+    baseUri: string | undefined,
+): Promise<DirectoryEntry[]> {
+    const directoryPath = localPath(directory === "" ? "." : directory, baseUri);
+    if (directoryPath === undefined) {
         return [];
+    }
+    const entries = await readdir(directoryPath, { withFileTypes: true }).catch(() => []);
+    return Promise.all(
+        entries.map(async (entry) => ({
+            name: entry.name,
+            // A link describes only itself, so what it links to is looked up.
+            isDirectory: entry.isSymbolicLink()
+                ? await stat(path.join(directoryPath, entry.name)).then(
+                      (target) => target.isDirectory(),
+                      () => false,
+                  )
+                : entry.isDirectory(),
+        })),
+    );
+}
+
+/** The file system path of a URI reference, or undefined when it is not a local file. */
+function localPath(reference: string, baseUri: string | undefined): string | undefined {
+    try {
+        const url = new URL(reference, baseUri);
+        return url.protocol === "file:" ? fileURLToPath(url) : undefined;
+    } catch {
+        return undefined;
     }
 }
