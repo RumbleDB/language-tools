@@ -1,5 +1,19 @@
 # jsoniq-vscode
 
+## 1.15.0
+
+### Minor Changes
+
+- [#129](https://github.com/RumbleDB/language-tools/pull/129) [`3fa16d6`](https://github.com/RumbleDB/language-tools/commit/3fa16d662fe22ca168576016b315c07282dcf506) - Add the `jsoniq.lsp.wrapper.lakehouseFormats` setting, whose `delta` checkbox lets the RumbleDB wrapper read Delta Lake tables with `delta-file()` and `table()`, and the `jsoniq.lsp.wrapper.sparkConf` setting for any other Spark property. Changing a wrapper setting now asks to restart the language server instead of needing a window reload.
+
+- [#132](https://github.com/RumbleDB/language-tools/pull/132) [`f483823`](https://github.com/RumbleDB/language-tools/commit/f483823a961a9b395a71e9e7e1545f62cb4013b9) - Completion suggests the files and directories of a path in a string: the file that a function reads, such as `json-lines("data/¦")`, `parquet-file`, `delta-file`, `json-doc` or `unparsed-text`, and the location of a module or schema import. Relative paths start where RumbleDB resolves them: a module next to the module that imports it, and a schema or a file at the query's `declare base-uri`, or else next to the query. Module imports list only directories and modules. Hidden entries show once their name is being typed, and links to directories count as directories. An entry replaces the whole name that the cursor is in, and choosing a directory suggests its entries in turn. The extension now suggests as the user types inside strings, so the paths show without asking for completion.
+
+### Patch Changes
+
+- [#127](https://github.com/RumbleDB/language-tools/pull/127) [`d2ff362`](https://github.com/RumbleDB/language-tools/commit/d2ff362d77badd3c2b5d6cc5e2e727d63d676769) - Highlight an unquoted object key as a property, also when it spells a keyword, as in `{ for: 1 }` or `{ a?: xs:string }`.
+- Updated dependencies [[`452cf5f`](https://github.com/RumbleDB/language-tools/commit/452cf5f066b100fdb97e9349b0a1abde4698debc), [`53d34e5`](https://github.com/RumbleDB/language-tools/commit/53d34e5644b7eb7bc0751ce035a7ae39a3493c36), [`d05b55e`](https://github.com/RumbleDB/language-tools/commit/d05b55e7ae5b5dd9954261fb41ff86a0db204f43), [`3fa16d6`](https://github.com/RumbleDB/language-tools/commit/3fa16d662fe22ca168576016b315c07282dcf506), [`148731b`](https://github.com/RumbleDB/language-tools/commit/148731b0b97988fb4ba78f8efc4f97bead4958a7), [`e018386`](https://github.com/RumbleDB/language-tools/commit/e018386a13c766eb6fad5d25fceb938f2813931d), [`f483823`](https://github.com/RumbleDB/language-tools/commit/f483823a961a9b395a71e9e7e1545f62cb4013b9), [`c6fc25b`](https://github.com/RumbleDB/language-tools/commit/c6fc25b1fce0c9407ab2553c341b3532cc26674b), [`b8813e8`](https://github.com/RumbleDB/language-tools/commit/b8813e828aad98a17de16a31838011b30007a2b6), [`9057e93`](https://github.com/RumbleDB/language-tools/commit/9057e9377249979b5bf1ac03240374d0886fe6ae), [`62a6af0`](https://github.com/RumbleDB/language-tools/commit/62a6af004c1a56b5fe647879834984615bdcb0a1), [`a1bc623`](https://github.com/RumbleDB/language-tools/commit/a1bc6238e7a85a93b2c95a9d9763ebe39d083771), [`4cc2604`](https://github.com/RumbleDB/language-tools/commit/4cc2604c33bba9d6e1d1a173af5f55a1219fec79), [`36cd1fd`](https://github.com/RumbleDB/language-tools/commit/36cd1fdec5d9aed961bfce7c2933ff4300c190a9), [`6679339`](https://github.com/RumbleDB/language-tools/commit/6679339717eb9bca8c4197b97ca8c96b1a99ca9f)]:
+  - jsoniq-language-server@2.20.0
+
 ## 1.14.0
 
 ### Minor Changes

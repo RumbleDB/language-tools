@@ -1,5 +1,23 @@
 # rumble-lsp-wrapper
 
+## 0.16.0
+
+### Minor Changes
+
+- [#131](https://github.com/RumbleDB/language-tools/pull/131) [`d05b55e`](https://github.com/RumbleDB/language-tools/commit/d05b55e7ae5b5dd9954261fb41ff86a0db204f43) - Variable completion shows the type that RumbleDB infers for each variable, such as `xs:integer` or `{ id, items, … 2 more }`, instead of only "Variable" or "Parameter". The types come from the static typecheck that diagnostics already run, so a valid document is not compiled again. Completion waits up to 200 ms for RumbleDB to check the document, which takes milliseconds once RumbleDB runs. When it takes longer, as just after it starts, completion shows the kinds of the variables, and the editor asks again as the user types.
+  
+  The wrapper's `static-typecheck` response also lists the types of the variables that the query binds, even when the query has errors.
+
+- [#128](https://github.com/RumbleDB/language-tools/pull/128) [`36cd1fd`](https://github.com/RumbleDB/language-tools/commit/36cd1fdec5d9aed961bfce7c2933ff4300c190a9) - Report every static type error in a document instead of only the first one, including type errors after a syntax error. Errors caused by another error, such as using a variable whose value has a type error, are not reported again. A static type error that always occurs, such as `1 + "a"`, is shown as an error, and one that only occurs for some values, such as an `item*` argument for an `xs:integer` parameter, as a warning; all were warnings before. The variables of a `copy` clause are typed by the kind of their source.
+
+### Patch Changes
+
+- [#118](https://github.com/RumbleDB/language-tools/pull/118) [`978ad4a`](https://github.com/RumbleDB/language-tools/commit/978ad4af8c87728091bcad649c5fdefc4d363be5) - Fix "Main module expected, but library module found" on library modules that start with a comment between `module` and `namespace`, a comment after the version declaration, or an `xquery encoding` declaration without a version.
+
+- [#134](https://github.com/RumbleDB/language-tools/pull/134) [`2fd2ab7`](https://github.com/RumbleDB/language-tools/commit/2fd2ab7bffd83cc19b138066ee1f439f497f8e65) - Hover and variable completion no longer show types from imported modules. The wrapper took the positions of expressions and variables in an imported library for positions in the open document, so hovering on `declare variable` in a main module could show the type of a function that the library declares on the same line.
+
+- [#133](https://github.com/RumbleDB/language-tools/pull/133) [`2072a47`](https://github.com/RumbleDB/language-tools/commit/2072a47ff090576b1107e4bd7ebb1edc1a36aa35) - Upgrade RumbleDB to https://github.com/RumbleDB/rumble/commit/939a4769f2e20fb54a7c576a9fa11c08df2ea8e6. The variables of `typeswitch` cases get the type of their case again ([RumbleDB/rumble#2100](https://github.com/RumbleDB/rumble/pull/2100)), and a query that reads a Parquet file or Delta table whose schema cannot be read is still typed, with the type of that data left unknown ([RumbleDB/rumble#2101](https://github.com/RumbleDB/rumble/pull/2101)).
+
 ## 0.15.0
 
 ### Minor Changes

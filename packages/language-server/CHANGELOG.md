@@ -1,5 +1,57 @@
 # jsoniq-language-server
 
+## 2.20.0
+
+### Minor Changes
+
+- [#131](https://github.com/RumbleDB/language-tools/pull/131) [`d05b55e`](https://github.com/RumbleDB/language-tools/commit/d05b55e7ae5b5dd9954261fb41ff86a0db204f43) - Variable completion shows the type that RumbleDB infers for each variable, such as `xs:integer` or `{ id, items, … 2 more }`, instead of only "Variable" or "Parameter". The types come from the static typecheck that diagnostics already run, so a valid document is not compiled again. Completion waits up to 200 ms for RumbleDB to check the document, which takes milliseconds once RumbleDB runs. When it takes longer, as just after it starts, completion shows the kinds of the variables, and the editor asks again as the user types.
+  
+  The wrapper's `static-typecheck` response also lists the types of the variables that the query binds, even when the query has errors.
+
+- [#129](https://github.com/RumbleDB/language-tools/pull/129) [`3fa16d6`](https://github.com/RumbleDB/language-tools/commit/3fa16d662fe22ca168576016b315c07282dcf506) - Add the `jsoniq.lsp.wrapper.lakehouseFormats` setting, whose `delta` checkbox lets the RumbleDB wrapper read Delta Lake tables with `delta-file()` and `table()`, and the `jsoniq.lsp.wrapper.sparkConf` setting for any other Spark property. Changing a wrapper setting now asks to restart the language server instead of needing a window reload.
+
+- [#132](https://github.com/RumbleDB/language-tools/pull/132) [`f483823`](https://github.com/RumbleDB/language-tools/commit/f483823a961a9b395a71e9e7e1545f62cb4013b9) - Completion suggests the files and directories of a path in a string: the file that a function reads, such as `json-lines("data/¦")`, `parquet-file`, `delta-file`, `json-doc` or `unparsed-text`, and the location of a module or schema import. Relative paths start where RumbleDB resolves them: a module next to the module that imports it, and a schema or a file at the query's `declare base-uri`, or else next to the query. Module imports list only directories and modules. Hidden entries show once their name is being typed, and links to directories count as directories. An entry replaces the whole name that the cursor is in, and choosing a directory suggests its entries in turn. The extension now suggests as the user types inside strings, so the paths show without asking for completion.
+
+- [#128](https://github.com/RumbleDB/language-tools/pull/128) [`36cd1fd`](https://github.com/RumbleDB/language-tools/commit/36cd1fdec5d9aed961bfce7c2933ff4300c190a9) - Report every static type error in a document instead of only the first one, including type errors after a syntax error. Errors caused by another error, such as using a variable whose value has a type error, are not reported again. A static type error that always occurs, such as `1 + "a"`, is shown as an error, and one that only occurs for some values, such as an `item*` argument for an `xs:integer` parameter, as a warning; all were warnings before. The variables of a `copy` clause are typed by the kind of their source.
+
+- [#125](https://github.com/RumbleDB/language-tools/pull/125) [`6679339`](https://github.com/RumbleDB/language-tools/commit/6679339717eb9bca8c4197b97ca8c96b1a99ca9f) - Keep large inferred types, such as the schema of a Parquet file, readable: completion details fit a wide object on one line by hiding nested objects, then field types, then fields (`{ id?, actor?, repo?, … 2 more }`), and hover lists the first 20 fields of a wide object one per line, with what is nested in them summarized.
+
+### Patch Changes
+
+- [#121](https://github.com/RumbleDB/language-tools/pull/121) [`452cf5f`](https://github.com/RumbleDB/language-tools/commit/452cf5f066b100fdb97e9349b0a1abde4698debc) - Fix function name completion after the arrow operator in JSONiq and XQuery.
+
+- [#130](https://github.com/RumbleDB/language-tools/pull/130) [`53d34e5`](https://github.com/RumbleDB/language-tools/commit/53d34e5644b7eb7bc0751ce035a7ae39a3493c36) - Completion lists are smaller and keep up with typing. The documentation of builtin functions is sent only for the item that is selected, instead of for every builtin in each list. A completion request that the editor cancels, as when the user types on, no longer waits for RumbleDB to find object fields or path steps.
+
+- [`148731b`](https://github.com/RumbleDB/language-tools/commit/148731b0b97988fb4ba78f8efc4f97bead4958a7) - After an object lookup dot, such as `$o.`, completion offers only the object's fields instead of also every variable in scope. Variables are still offered once a `$` is typed, as in `$o.$key`.
+
+- [#123](https://github.com/RumbleDB/language-tools/pull/123) [`e018386`](https://github.com/RumbleDB/language-tools/commit/e018386a13c766eb6fad5d25fceb938f2813931d) - Restore variable, function, and nested type completion inside dynamic JSONiq dot lookup keys while preserving static field completion.
+
+- [#136](https://github.com/RumbleDB/language-tools/pull/136) [`c6fc25b`](https://github.com/RumbleDB/language-tools/commit/c6fc25b1fce0c9407ab2553c341b3532cc26674b) - The formatter no longer changes what a query means or drops its comments:
+  
+  - It keeps `()` as a sequence type in JSONiq (`$x treat as ()`), which it deleted.
+  - It keeps the `collation` of a `group by` variable, the default value of an `external` variable, and the `map` keyword of a `map { … }` constructor.
+  - It keeps a comment after a comma in a parenthesized sequence or a `{| … |}` constructor, such as one ending each line of `( … )`.
+  - A comment on its own line stays on its own line, so formatting a document again no longer moves it.
+  - It keeps a comment inside the tags of an XML element constructor, and prints a comment in the content of an element or attribute once instead of twice.
+
+- [#135](https://github.com/RumbleDB/language-tools/pull/135) [`b8813e8`](https://github.com/RumbleDB/language-tools/commit/b8813e828aad98a17de16a31838011b30007a2b6) - The formatter keeps the spacing of constructs it has no layout for, instead of putting a space between all their parts: `import module namespace m = "m.jq";`, `concat#2`, `-1`, `"a" => upper-case()` and `function($x)` are no longer printed as `"m.jq" ;`, `concat # 2`, `- 1`, `upper-case ()` and `function ( $x )`. Binary operators, such as `+`, `and` and `||`, are spaced, and a long chain of them breaks before an operator rather than inside a function call. A comment on its own line no longer makes the code after it break.
+  
+  An object no longer expands just because it has more than two fields: it stays on one line when it fits, unless it is written with a line break after `{`. A function body written on its own lines stays on its own lines.
+  
+  A FLWOR expression bound to a variable or returned by another FLWOR starts on its own line, indented, so its `return` is no longer aligned with that of the enclosing FLWOR. The start and end conditions of a `for tumbling window` or `for sliding window` clause are on lines of their own, instead of one long line.
+  
+  Blank lines are kept: one between two declarations that the source separates with one, and one before or after a comment on its own line, such as after a header comment. Several blank lines in a row become one.
+  
+  An expression interpolated in a string constructor, such as `` `{ string-join($xs, ", ") }` ``, stays on one line instead of breaking inside the template.
+
+- [#137](https://github.com/RumbleDB/language-tools/pull/137) [`9057e93`](https://github.com/RumbleDB/language-tools/commit/9057e9377249979b5bf1ac03240374d0886fe6ae) - The formatter keeps the `updating` annotation of an XQuery function, which it printed as `%`: `declare updating function` became `declare % function`.
+
+- [#122](https://github.com/RumbleDB/language-tools/pull/122) [`62a6af0`](https://github.com/RumbleDB/language-tools/commit/62a6af004c1a56b5fe647879834984615bdcb0a1) - Use grammar candidates to complete types in nested type expressions, typeswitch cases, validation, and static type assertions. Preserve expression completion after non-type uses of `as`.
+
+- [#126](https://github.com/RumbleDB/language-tools/pull/126) [`a1bc623`](https://github.com/RumbleDB/language-tools/commit/a1bc6238e7a85a93b2c95a9d9763ebe39d083771) - Hover shows the type of an expression without repeating its source text, which the editor already highlights. A variable is still shown as `$x as xs:integer`, and a declared function as `local:f($v) as xs:integer`.
+
+- [#124](https://github.com/RumbleDB/language-tools/pull/124) [`4cc2604`](https://github.com/RumbleDB/language-tools/commit/4cc2604c33bba9d6e1d1a173af5f55a1219fec79) - Complete grammar keywords after declarations, imports, validation, and update-expression introducers in JSONiq and XQuery, such as `module` and `schema` after `import`. Keep compound suggestions such as `order by` specific to their syntax context. Where an expression can start, also offer the update expressions `copy`, `delete`, `insert`, `rename`, `replace` and `append`. Offer no query completion in literal XML text and attribute values.
+
 ## 2.19.0
 
 ### Minor Changes
