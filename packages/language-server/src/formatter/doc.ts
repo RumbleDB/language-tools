@@ -25,11 +25,18 @@ interface ConcatDoc {
     readonly docs: readonly Doc[];
 }
 
+/**
+ * How a group decides between flat, with its lines as spaces, and broken, with its lines as line breaks:
+ * - `fit`: flat if it fits on the line;
+ * - `break`: always broken, as are the groups around it, as if it contained a hard line;
+ * - `flat`: always flat, with the groups inside it, however long the line.
+ */
+export type GroupLayout = "fit" | "break" | "flat";
+
 interface GroupDoc {
     readonly kind: "group";
     readonly doc: Doc;
-    /** If true, the group always breaks, as do the groups around it, as if it contained a hard line. */
-    readonly shouldBreak: boolean;
+    readonly layout: GroupLayout;
 }
 
 interface IndentDoc {
@@ -116,10 +123,16 @@ export function concat(docs: readonly Doc[]): Doc {
 }
 
 export function group(doc: Doc, { shouldBreak = false }: { shouldBreak?: boolean } = {}): Doc {
+    const layout = shouldBreak ? "break" : "fit";
     if (doc.kind === "group") {
-        return shouldBreak ? { ...doc, shouldBreak } : doc;
+        return shouldBreak ? { ...doc, layout } : doc;
     }
-    return { kind: "group", doc, shouldBreak };
+    return { kind: "group", doc, layout };
+}
+
+/** Keeps a document on one line, such as an expression interpolated in a string, which no line break shortens. */
+export function flat(doc: Doc): Doc {
+    return { kind: "group", doc, layout: "flat" };
 }
 
 export function indent(doc: Doc): Doc {

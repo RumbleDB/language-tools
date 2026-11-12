@@ -1,4 +1,4 @@
-import type { Doc } from "./doc.js";
+import type { Doc, GroupLayout } from "./doc.js";
 import type { FormatterOptions } from "./options.js";
 
 type Mode = "flat" | "break";
@@ -60,16 +60,16 @@ export function printDocToString(doc: Doc, options: FormatterOptions): string {
                 break;
             }
             case "group": {
-                const groupMode =
-                    !current.shouldBreak &&
-                    (mode === "flat" ||
+                const groupMode = chooseGroupMode(
+                    current.layout,
+                    () =>
+                        mode === "flat" ||
                         fits(
                             width - currentColumn,
                             { indent, mode: "flat", doc: current.doc },
                             cmds,
-                        ))
-                        ? "flat"
-                        : "break";
+                        ),
+                );
                 cmds.push({ indent, mode: groupMode, doc: current.doc });
                 break;
             }
@@ -102,6 +102,17 @@ export function printDocToString(doc: Doc, options: FormatterOptions): string {
     }
 
     return output;
+}
+
+function chooseGroupMode(layout: GroupLayout, fitsFlat: () => boolean): Mode {
+    switch (layout) {
+        case "break":
+            return "break";
+        case "flat":
+            return "flat";
+        case "fit":
+            return fitsFlat() ? "flat" : "break";
+    }
 }
 
 /**
@@ -161,7 +172,7 @@ function fits(
                 break;
             }
             case "group": {
-                if (current.shouldBreak) {
+                if (current.layout === "break") {
                     // Like a hard line: the group being measured cannot be flat, and the line after it ends at
                     // the group's first line.
                     if (!isContinuation) {
@@ -170,7 +181,8 @@ function fits(
                     cmds.push({ indent, mode: "break", doc: current.doc });
                     break;
                 }
-                cmds.push({ indent, mode: isContinuation ? mode : "flat", doc: current.doc });
+                const flat = current.layout === "flat" || !isContinuation;
+                cmds.push({ indent, mode: flat ? "flat" : mode, doc: current.doc });
                 break;
             }
             case "line": {

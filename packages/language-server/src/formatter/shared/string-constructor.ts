@@ -2,7 +2,7 @@ import type { ParseTree, ParserRuleContext, TerminalNode } from "antlr4ng";
 import type * as ctx from "server/parser/context.js";
 
 import { composeTokenDoc, type FormatterContext } from "../context.js";
-import { concat, type Doc, space } from "../doc.js";
+import { concat, type Doc, flat, space } from "../doc.js";
 
 interface StringInterpolation extends ParserRuleContext {
     ENTER_INTERPOLATION(): TerminalNode;
@@ -14,7 +14,10 @@ interface StringContent extends ParserRuleContext {
     stringConstructorInterpolation(): StringInterpolation[];
 }
 
-/** Preserves literal template text while formatting embedded expressions. */
+/**
+ * Preserves literal template text while formatting embedded expressions. An embedded expression stays on one line,
+ * because a line break in it cannot shorten the template text around it.
+ */
 export function formatStringConstructor(
     context: FormatterContext,
     node: ctx.StringConstructorContext,
@@ -35,7 +38,7 @@ export function formatStringConstructor(
         docs.push(
             composeTokenDoc(context.formatToken(interpolation.ENTER_INTERPOLATION())),
             space,
-            visit(interpolation.expr()),
+            flat(visit(interpolation.expr())),
             space,
             composeTokenDoc(context.formatToken(interpolation.EXIT_INTERPOLATION())),
         );

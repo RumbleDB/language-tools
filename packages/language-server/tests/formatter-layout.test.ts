@@ -196,6 +196,16 @@ describe.each(BOTH)("%s layout", (languageId) => {
         });
     });
 
+    it("keeps an expression interpolated in a string constructor on one line", () => {
+        const query =
+            'for $x in (1, 2) return ``[`{ $x }` (`{ round($x) }` km): the averages are `{ string-join(("a", "b") ! string(), " - ") }` today]``';
+        expectLayout(
+            [query],
+            ["for $x in (1, 2)", query.replace("for $x in (1, 2) ", "")],
+            languageId,
+        );
+    });
+
     it("keeps a chain on one line after a comment on its own line", () => {
         expectLayout(
             ["(: header :)", "(1 to 10) ! string()"],
