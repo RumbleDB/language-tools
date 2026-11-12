@@ -1,7 +1,7 @@
 import { CommonTokenStream, TerminalNode, Token } from "antlr4ng";
 
 import { buildCommentAttachmentMap, CommentAttachmentMap } from "./comments.js";
-import { concat, Doc, hardline, NIL, space, text, verbatim } from "./doc.js";
+import { concat, Doc, hardline, lineStart, NIL, space, text, verbatim } from "./doc.js";
 import type { FormatterOptions } from "./options.js";
 
 /**
@@ -137,6 +137,9 @@ export class FormatterContext {
         for (const c of leading) {
             if (!this.emittedComments.has(c.tokenIndex)) {
                 this.emittedComments.add(c.tokenIndex);
+                // The comment was on its own line, so it must stay there, or the next format would attach it to
+                // the token before it as a trailing comment.
+                docs.push(lineStart);
                 docs.push(verbatim(c.text?.trim() ?? ""));
                 docs.push(hardline);
             }
@@ -162,6 +165,13 @@ export class FormatterContext {
             }
         }
         return concat(docs);
+    }
+
+    /** Whether every comment of the document has been emitted. */
+    public hasEmittedAllComments(): boolean {
+        const { leading, trailing, dangling } = this.attachmentMap;
+        const all = [...leading.values(), ...trailing.values(), dangling].flat();
+        return all.every((comment) => this.emittedComments.has(comment.tokenIndex));
     }
 
     /**

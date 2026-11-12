@@ -202,8 +202,10 @@ export function formatSwitchCaseStatement(
     formatTerminal: FormatTerminal,
 ): Doc {
     const conditions = node.exprSingle().map(visit);
-    const caseDocs = conditions.flatMap((condition) => [
-        formatTerminal(node.KW_CASE(), "case"),
+    // Each condition has its own `case` keyword, with its own comments.
+    const caseKeywords = node.KW_CASE();
+    const caseDocs = conditions.flatMap((condition, index) => [
+        formatTerminal(caseKeywords[index], "case"),
         space,
         condition,
         space,
