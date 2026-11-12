@@ -1073,23 +1073,37 @@ describe("JSONiq completion", () => {
         expect(intent?.allowFunctions).toBe(false);
     });
 
-    it.each([
-        "(: note",
-        "(: note ",
-        "(:",
-        "1 + (: note",
-        "(: a (: b :) c",
-        '"open ',
-        "'open ",
-        '1 + "open string ',
-    ])("offers nothing inside the unterminated %s", (source) => {
-        for (const extension of ["jq", "xq"]) {
-            const document = testDocumentFromUri(source, {
-                uri: `file:///completion-unterminated-${encodeURIComponent(source)}.${extension}`,
-            });
-            expect(parserService.collectCompletionIntent(document, source.length)).toBeNull();
-        }
-    });
+    it.each(["(: note", "(: note ", "(:", "1 + (: note", "(: a (: b :) c"])(
+        "offers nothing inside the unterminated %s",
+        (source) => {
+            for (const extension of ["jq", "xq"]) {
+                const document = testDocumentFromUri(source, {
+                    uri: `file:///completion-unterminated-${encodeURIComponent(source)}.${extension}`,
+                });
+                expect(parserService.collectCompletionIntent(document, source.length)).toBeNull();
+            }
+        },
+    );
+
+    it.each(['"open ', "'open ", '1 + "open string ', '"closed" || "open', '"a(: b'])(
+        "offers only where the string starts inside the unterminated %s",
+        (source) => {
+            for (const extension of ["jq", "xq"]) {
+                const document = testDocumentFromUri(source, {
+                    uri: `file:///completion-string-${encodeURIComponent(source)}.${extension}`,
+                });
+                expect(parserService.collectCompletionIntent(document, source.length)).toEqual({
+                    allowVariableReferences: false,
+                    allowFunctions: false,
+                    allowObjectLookup: false,
+                    allowTypes: false,
+                    allowErrorCodeTargets: false,
+                    keywords: [],
+                    stringStart: source.search(/["'][^"']*$/),
+                });
+            }
+        },
+    );
 
     it.each(['"(: a" + ', "(: a :) ", "(", '"a" ', "1 (: a :) + "])(
         "still offers items after %s",

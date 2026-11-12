@@ -22,6 +22,7 @@ import {
     provideVariableCompletions,
 } from "./completion/providers/declarations.js";
 import { provideErrorCodeCompletions } from "./completion/providers/error-codes.js";
+import { provideFilePathCompletions } from "./completion/providers/file-paths.js";
 import { provideKeywordCompletions } from "./completion/providers/keywords.js";
 import { provideObjectFieldCompletions } from "./completion/providers/object-fields.js";
 import { providePathStepCompletions } from "./completion/providers/path-steps.js";
@@ -32,6 +33,7 @@ import type { FeatureRegistrationContext } from "./context.js";
 
 /** The items of all providers that apply are combined. */
 const allProviders: CompletionProvider[] = [
+    provideFilePathCompletions,
     provideErrorCodeCompletions,
     provideObjectFieldCompletions,
     providePathStepCompletions,

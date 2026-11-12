@@ -102,11 +102,21 @@
         "configurationDefaults": {
             "[jsoniq]": {
                 "editor.wordBasedSuggestions": "off",
-                "editor.suggest.showWords": false
+                "editor.suggest.showWords": false,
+                "editor.quickSuggestions": {
+                    "other": "on",
+                    "comments": "off",
+                    "strings": "on"
+                }
             },
             "[xquery]": {
                 "editor.wordBasedSuggestions": "off",
-                "editor.suggest.showWords": false
+                "editor.suggest.showWords": false,
+                "editor.quickSuggestions": {
+                    "other": "on",
+                    "comments": "off",
+                    "strings": "on"
+                }
             }
         },
         "commands": [

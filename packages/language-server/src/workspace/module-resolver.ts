@@ -37,11 +37,22 @@ export function resolveSchemaLocations(
     imported: SchemaImportAstNode,
     declaredBaseUri?: string,
 ): readonly ResolvedModuleLocation[] {
+    const baseUri = staticBaseUri(documentUri, declaredBaseUri);
+    // Rumble reports invalid base URIs when loading the schema catalog.
+    return baseUri === undefined ? [] : resolveModuleLocations(baseUri, imported);
+}
+
+/**
+ * The URI that relative URIs in a query resolve against: its `declare base-uri`, itself resolved against the document,
+ * or else the document. Undefined when the declared base URI is invalid.
+ */
+export function staticBaseUri(
+    documentUri: DocumentUri,
+    declaredBaseUri: string | undefined,
+): string | undefined {
     try {
-        const baseUri = new URL(declaredBaseUri ?? documentUri, documentUri).href;
-        return resolveModuleLocations(baseUri, imported);
+        return new URL(declaredBaseUri ?? documentUri, documentUri).href;
     } catch {
-        // Rumble reports invalid base URIs when loading the schema catalog.
-        return [];
+        return undefined;
     }
 }

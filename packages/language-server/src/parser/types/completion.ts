@@ -10,6 +10,8 @@ export interface CompletionIntent {
     allowObjectLookup: boolean;
     allowErrorCodeTargets: boolean;
     keywords: KeywordCompletion[];
+    /** Where the string literal that the cursor is in starts, at its opening quote. Nothing else is allowed there. */
+    stringStart?: number;
 }
 
 export interface CompletionTokenContext {

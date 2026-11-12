@@ -60,8 +60,20 @@ export function getCompletionIntent<T extends TokenContextAnalyzer>(
 ): CompletionIntent | null {
     // Strings and comments may contain any token, such as `/` in a URI, so the grammar
     // would accept every keyword there.
-    if (isInCommentOrString(parsed, cursorOffset, options)) {
+    if (isInComment(parsed, cursorOffset, options)) {
         return null;
+    }
+    const stringStart = findStringStart(parsed, cursorOffset, options.isStringLiteralRule);
+    if (stringStart !== undefined) {
+        return {
+            allowVariableReferences: false,
+            allowFunctions: false,
+            allowObjectLookup: false,
+            allowTypes: false,
+            allowErrorCodeTargets: false,
+            keywords: [],
+            stringStart,
+        };
     }
 
     const candidates = collectCompletionCandidates(parsed, cursorOffset, options);
@@ -116,8 +128,8 @@ export function getCompletionIntent<T extends TokenContextAnalyzer>(
     };
 }
 
-/** Whether the cursor is inside a comment or after the opening quote of a string literal. */
-function isInCommentOrString(
+/** Whether the cursor is inside a comment. */
+function isInComment(
     parsed: ParseResult,
     cursorOffset: number,
     options: Pick<
@@ -130,15 +142,20 @@ function isInCommentOrString(
     const token = parsed.tokens[after - 1];
     const inComment =
         token !== undefined && options.isCommentToken(token.type) && cursorOffset <= token.stop;
-    if (inComment || isInUnterminatedComment(parsed, cursorOffset, options.isStringLiteralRule)) {
-        return true;
-    }
+    return inComment || isInUnterminatedComment(parsed, cursorOffset, options.isStringLiteralRule);
+}
+
+/** Where the string literal starts, at its opening quote, when the cursor is after that quote. */
+function findStringStart(
+    { tokens, tree }: ParseResult,
+    cursorOffset: number,
+    isStringLiteralRule: (ruleIndex: number) => boolean,
+): number | undefined {
     // Whitespace after an unterminated string is not part of its rule, so look from the end of the last token.
-    const previous = defaultTokenBefore(parsed.tokens, cursorOffset);
-    return (
-        previous !== undefined &&
-        containsStringAt(parsed.tree, previous.stop + 1, options.isStringLiteralRule)
-    );
+    const previous = defaultTokenBefore(tokens, cursorOffset);
+    return previous === undefined
+        ? undefined
+        : findStringAt(tree, previous.stop + 1, isStringLiteralRule)?.start?.start;
 }
 
 /** The lexer only makes a comment token of a closed comment. Without one, `(:` stays two tokens to the end of the text. */
@@ -152,29 +169,35 @@ function isInUnterminatedComment(
             token.text === "(" &&
             tokens[index + 1]?.text === ":" &&
             tokens[index + 1]!.stop < cursorOffset &&
-            !containsStringAt(tree, token.start, isStringLiteralRule),
+            findStringAt(tree, token.start, isStringLiteralRule) === undefined,
     );
 }
 
-function containsStringAt(
+/** The string literal whose opening quote is before the offset, and whose closing quote, if any, is not. */
+function findStringAt(
     context: ParserRuleContext,
     offset: number,
     isStringLiteralRule: (ruleIndex: number) => boolean,
-): boolean {
+): ParserRuleContext | undefined {
     const { start, stop } = context;
     if (start === null || offset <= start.start || (stop !== null && offset > stop.stop + 1)) {
-        return false;
+        return undefined;
     }
     if (isStringLiteralRule(context.ruleIndex)) {
         // Up to the closing quote, or to the end when the string is unterminated.
         const closed = stop !== null && stop !== start && stop.type === start.type;
-        return !closed || offset <= stop.start;
+        return !closed || offset <= stop.start ? context : undefined;
     }
-    return context.children.some(
-        (child) =>
-            child instanceof ParserRuleContext &&
-            containsStringAt(child, offset, isStringLiteralRule),
-    );
+    for (const child of context.children) {
+        const string =
+            child instanceof ParserRuleContext
+                ? findStringAt(child, offset, isStringLiteralRule)
+                : undefined;
+        if (string !== undefined) {
+            return string;
+        }
+    }
+    return undefined;
 }
 
 /** Use the closest expression or direct XML constructor to resolve C3's text/code ambiguity. */
