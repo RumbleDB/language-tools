@@ -35,12 +35,12 @@
         <dependency>
             <groupId>org.apache.spark</groupId>
             <artifactId>spark-sql_2.13</artifactId>
-            <version>4.0.1</version>
+            <version>4.0.5</version>
         </dependency>
         <dependency>
             <groupId>org.apache.spark</groupId>
             <artifactId>spark-hive_2.13</artifactId>
-            <version>4.0.1</version>
+            <version>4.0.5</version>
             <exclusions>
                 <exclusion>
                     <groupId>org.apache.hadoop</groupId>
@@ -59,12 +59,7 @@
         <dependency>
             <groupId>org.apache.spark</groupId>
             <artifactId>spark-mllib_2.13</artifactId>
-            <version>4.0.1</version>
-        </dependency>
-        <dependency>
-            <groupId>com.fasterxml.jackson.core</groupId>
-            <artifactId>jackson-databind</artifactId>
-            <version>2.22.4</version>
+            <version>4.0.5</version>
         </dependency>
         <dependency>
             <groupId>org.junit.jupiter</groupId>
@@ -221,6 +216,21 @@
                                     <createDependencyReducedPom>false</createDependencyReducedPom>
                                     <shadedArtifactAttached>true</shadedArtifactAttached>
                                     <shadedClassifierName>all</shadedClassifierName>
+                                    <transformers>
+                                        <!-- Merge service registrations (e.g. Spark data sources) instead of keeping only the first copy -->
+                                        <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
+                                        <!-- Apache-2.0 requires redistributing NOTICE files: merge them into one -->
+                                        <transformer implementation="org.apache.maven.plugins.shade.resource.ApacheNoticeResourceTransformer">
+                                            <addHeader>false</addHeader>
+                                        </transformer>
+                                        <!-- Concatenate dependency licenses instead of keeping only the first copy -->
+                                        <transformer implementation="org.apache.maven.plugins.shade.resource.AppendingTransformer">
+                                            <resource>META-INF/LICENSE</resource>
+                                        </transformer>
+                                        <transformer implementation="org.apache.maven.plugins.shade.resource.AppendingTransformer">
+                                            <resource>META-INF/LICENSE.txt</resource>
+                                        </transformer>
+                                    </transformers>
                                     <filters>
                                         <filter>
                                             <artifact>*:*</artifact>
@@ -231,8 +241,6 @@
                                                 <exclude>META-INF/*.RSA</exclude>
                                                 <exclude>META-INF/maven/**</exclude>
                                                 <exclude>META-INF/DEPENDENCIES</exclude>
-                                                <exclude>META-INF/LICENSE*</exclude>
-                                                <exclude>META-INF/NOTICE*</exclude>
                                                 <exclude>META-INF/*.markdown</exclude>
                                                 <!-- Native binaries for non-target architectures -->
                                                 <exclude>librocksdbjni-linux-ppc64le*.so</exclude>
@@ -261,7 +269,6 @@
                                                 <exclude>org/apache/hadoop/hdfs/server/**</exclude>
                                                 <exclude>org/datanucleus/**</exclude>
                                                 <exclude>org/postgresql/**</exclude>
-                                                <exclude>com/mongodb/**</exclude>
                                                 <exclude>org/projectnessie/**</exclude>
                                                 <exclude>org/locationtech/**</exclude>
                                             </excludes>
