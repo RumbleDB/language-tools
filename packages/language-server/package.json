@@ -34,7 +34,7 @@
         "build:assets": "pnpm run compile:function-docs && pnpm run compile:builtins",
         "build:assets:prod": "pnpm run compile:function-docs && pnpm run compile:builtins:force",
         "bundle": "tsdown",
-        "bundle:prod": "tsdown --no-sourcemap --minify",
+        "bundle:prod": "tsdown -c tsdown.prod.config.ts",
         "watch:bundle": "tsdown --watch --no-clean",
         "build": "pnpm run build:assets && run-p typecheck bundle",
         "build:prod": "pnpm run build:assets:prod && run-p typecheck bundle:prod",
