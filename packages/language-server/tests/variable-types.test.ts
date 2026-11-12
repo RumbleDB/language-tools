@@ -84,18 +84,13 @@ describe("variable types", () => {
         expect(sendRequest).toHaveBeenCalledOnce();
     });
 
-    it("gives up waiting after the wait, and types from what it knows then", async () => {
-        const { wrapper, answer } = deferredWrapper();
-        const uri = "file:///variable-types-given-up.jq";
-        void getVariableTypes(version(uri, 1, "let $a := 1 return $a"), wrapper, {
-            waitMs: 1000,
-        });
-        await answer([A_BINDING]);
+    it("types nothing when the wait is over first", async () => {
+        const { wrapper } = deferredWrapper();
+        const source = version("file:///variable-types-given-up.jq", 1, "let $a := 1 return $a");
 
-        const edited = version(uri, 2, "let $a := 1 return $a + ");
-        const types = await getVariableTypes(edited, wrapper, { waitMs: WAIT_MS });
+        const types = await getVariableTypes(source, wrapper, { waitMs: WAIT_MS });
 
-        expect(types.typeOf(A_NAME)).toBe(INTEGER);
+        expect(types.typeOf(A_NAME)).toBeUndefined();
         expect(types.isUpdating).toBe(true);
     });
 
@@ -140,21 +135,16 @@ describe("variable types", () => {
         expect(sendRequest).toHaveBeenCalledOnce();
     });
 
-    it("types a variable only where a binding of that name still ends", async () => {
-        const uri = "file:///variable-types-edited.jq";
+    it("types nothing when the document changes while RumbleDB checks it", async () => {
         const { wrapper, answer } = deferredWrapper();
-        void getVariableTypes(version(uri, 1, "let $a := 1 return $a"), wrapper, {
-            waitMs: 1000,
-        });
+        const source = version("file:///variable-types-changed.jq", 1, "let $a := 1 return $a");
+
+        const types = getVariableTypes(source, wrapper, { waitMs: 1000 });
+        TextDocument.update(source, [{ text: "let  $a := 1 return $a" }], 2);
         await answer([A_BINDING]);
 
-        const renamed = version(uri, 2, "let $b := 1 return $b");
-        const renamedTypes = await getVariableTypes(renamed, wrapper, { waitMs: 0 });
-        expect(renamedTypes.typeOf(A_NAME)).toBeUndefined();
-        const shifted = version(uri, 3, "let  $a := 1 return $a");
-        const shiftedName = { start: { line: 0, character: 6 }, end: { line: 0, character: 7 } };
-        const shiftedTypes = await getVariableTypes(shifted, wrapper, { waitMs: 0 });
-        expect(shiftedTypes.typeOf(shiftedName)).toBeUndefined();
+        expect((await types).typeOf(A_NAME)).toBeUndefined();
+        expect((await types).isUpdating).toBe(true);
     });
 });
 

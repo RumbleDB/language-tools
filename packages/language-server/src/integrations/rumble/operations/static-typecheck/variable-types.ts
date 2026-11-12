@@ -1,88 +1,59 @@
 import type { SequenceType } from "server/analysis/index.js";
 import type { WrapperClient } from "server/integrations/rumble/client.js";
 import type { CancellationToken, Disposable, Range } from "vscode-languageserver";
-import { TextDocument } from "vscode-languageserver-textdocument";
+import type { TextDocument } from "vscode-languageserver-textdocument";
 
-import {
-    getCachedStaticTypecheck,
-    getStaticTypecheck,
-    type CachedStaticTypecheck,
-} from "./service.js";
+import { getStaticTypecheck } from "./service.js";
 
-/** The variable types that the latest static typecheck of a document inferred. */
+/** The variable types that the static typecheck of a document infers. */
 export interface VariableTypes {
     /** The type of the variable whose name is at the range, as in its declaration. */
     typeOf(nameRange: Range): SequenceType | undefined;
-    /** Whether RumbleDB is checking the document, after which the types may change. */
+    /** Whether RumbleDB is still checking the document, after which variables may be typed. */
     readonly isUpdating: boolean;
 }
 
-/** A checked binding, by the offset where its name ends in the checked version. */
-type BindingsByNameEnd = Map<number, { name: string; sequenceType: SequenceType }>;
-
-const indexed = new WeakMap<CachedStaticTypecheck, BindingsByNameEnd>();
-
 /**
- * The variable types of the current version of the document, or when RumbleDB takes longer than the wait or the
- * request is cancelled, of the newest version that it has checked. That version may be older, so a binding only types
- * a variable of the same name whose name ends at the same offset. Names before an edit do not move, and the name
- * guards against those after it.
+ * The variable types of the document, when RumbleDB checks it before the wait is over and before the request is
+ * cancelled. The check is shared with diagnostics.
  */
 export async function getVariableTypes(
     document: TextDocument,
     wrapper: WrapperClient,
     options: { waitMs: number; token?: CancellationToken | undefined },
 ): Promise<VariableTypes> {
-    // The check of the current version is shared with diagnostics, and kept when it succeeds.
-    const checked = await waitAtMost(getStaticTypecheck(document, wrapper), options);
-    const latest = getCachedStaticTypecheck(document.uri);
-    const bindings = latest === undefined ? undefined : indexBindings(latest);
+    const { version } = document;
+    const typecheck = await waitAtMost(getStaticTypecheck(document, wrapper), options);
+    // The document is updated in place, so it may have changed while RumbleDB checked it.
+    const checked = document.version === version ? typecheck?.body.bindings : undefined;
+    // RumbleDB's range of a name includes the `$`, so only where it ends is the same as in the declaration.
+    const byNameEnd = new Map(
+        (checked ?? []).map(({ range, sequenceType }) => [
+            document.offsetAt(range.end),
+            sequenceType,
+        ]),
+    );
     return {
-        typeOf(nameRange) {
-            const binding = bindings?.get(document.offsetAt(nameRange.end));
-            return binding?.name === unsigiled(document.getText(nameRange))
-                ? binding.sequenceType
-                : undefined;
-        },
-        isUpdating: !checked,
+        typeOf: (nameRange) => byNameEnd.get(document.offsetAt(nameRange.end)),
+        isUpdating: checked === undefined,
     };
 }
 
-/** Whether the promise settles before the wait is over and before the request is cancelled. */
-async function waitAtMost(
-    promise: Promise<unknown>,
+/** What the promise gives, or `undefined` when the wait is over or the request is cancelled first. */
+async function waitAtMost<T>(
+    promise: Promise<T>,
     { waitMs, token }: { waitMs: number; token?: CancellationToken | undefined },
-): Promise<boolean> {
+): Promise<T | undefined> {
     let timeout: NodeJS.Timeout | undefined;
     let cancellation: Disposable | undefined;
-    const givenUp = new Promise<false>((resolve) => {
-        timeout = setTimeout(() => resolve(false), waitMs);
-        cancellation = token?.onCancellationRequested(() => resolve(false));
+    const givenUp = new Promise<undefined>((resolve) => {
+        timeout = setTimeout(() => resolve(undefined), waitMs);
+        cancellation = token?.onCancellationRequested(() => resolve(undefined));
     });
     try {
-        return await Promise.race([promise.then(() => true), givenUp]);
+        return await Promise.race([promise, givenUp]);
     } finally {
         clearTimeout(timeout);
         cancellation?.dispose();
     }
-}
-
-function indexBindings(typecheck: CachedStaticTypecheck): BindingsByNameEnd {
-    let bindings = indexed.get(typecheck);
-    if (bindings === undefined) {
-        const checked = TextDocument.create("", "", typecheck.version, typecheck.source);
-        bindings = new Map(
-            typecheck.response.body.bindings.map(({ range, sequenceType }) => [
-                checked.offsetAt(range.end),
-                { name: unsigiled(checked.getText(range)), sequenceType },
-            ]),
-        );
-        indexed.set(typecheck, bindings);
-    }
-    return bindings;
-}
-
-/** The name without the `$` that RumbleDB includes in its ranges. */
-function unsigiled(name: string): string {
-    return name.startsWith("$") ? name.slice(1) : name;
 }

@@ -25,11 +25,11 @@ import type { TextDocument } from "vscode-languageserver-textdocument";
 import type { CompletionContext } from "./types.js";
 
 /**
- * How long variable completion waits for RumbleDB to type the current version of the document. Once RumbleDB runs,
- * that takes milliseconds, or tens of them for long modules, so the wait only ends early just after it starts. The
- * variables are then labelled with the types of an earlier version, or with their kinds.
+ * How long variable completion waits for RumbleDB to type the document. Once RumbleDB runs, that takes milliseconds,
+ * or tens of them for long modules, so the wait mostly ends early just after it starts. The variables are then
+ * labelled with their kinds, and the editor asks again as the user types.
  */
-const VARIABLE_TYPES_WAIT_MS = 500;
+const VARIABLE_TYPES_WAIT_MS = 200;
 
 export function createCompletionContext(
     document: TextDocument,

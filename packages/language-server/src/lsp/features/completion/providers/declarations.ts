@@ -97,7 +97,7 @@ export const provideSourceTypeCompletions: CompletionProvider = async (context) 
     return applyQNamePrefixFilter(items, context) ?? items;
 };
 
-/** Labels a variable with the type that RumbleDB last inferred for it, or else with its kind. */
+/** Labels a variable with the type that RumbleDB infers for it, or else with its kind. */
 function toVariableCompletionItem(
     declaration: ScopeDefinition,
     types: VariableTypes,

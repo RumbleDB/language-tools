@@ -13,10 +13,8 @@ export type StaticTypecheckResponse = WrapperDaemonResponse<
     StaticTypecheckWireResult
 >;
 
-/** The static typecheck of one version of a document, with the text of that version. */
-export interface CachedStaticTypecheck {
+interface CachedStaticTypecheck {
     version: number;
-    source: string;
     response: StaticTypecheckResponse;
 }
 
@@ -67,8 +65,7 @@ export async function getStaticTypecheck(
         return pending.promise;
     }
 
-    const source = getDocumentText(document);
-    const request = createStaticTypecheckRequest(document.uri, source);
+    const request = createStaticTypecheckRequest(document);
     const documentVersion = document.version;
 
     const typecheckPromise = client
@@ -78,7 +75,6 @@ export async function getStaticTypecheck(
             if (existingCache === undefined || existingCache.version <= documentVersion) {
                 staticTypecheckCache.set(document.uri, {
                     version: documentVersion,
-                    source,
                     response,
                 });
             }
@@ -110,18 +106,12 @@ export async function getStaticTypecheck(
     return typecheckPromise;
 }
 
-/** The newest static typecheck of the document that succeeded, which may be of an earlier version. */
-export function getCachedStaticTypecheck(uri: DocumentUri): CachedStaticTypecheck | undefined {
-    return staticTypecheckCache.get(uri);
-}
-
 function createStaticTypecheckRequest(
-    documentUri: DocumentUri,
-    source: string,
+    document: TextDocument,
 ): StaticTypecheckRequestSpec["request"] {
     return {
         requestType: REQUEST_TYPE_STATIC_TYPECHECK,
-        body: Buffer.from(source, "utf8").toString("base64"),
-        documentUri,
+        body: Buffer.from(getDocumentText(document), "utf8").toString("base64"),
+        documentUri: document.uri,
     };
 }
