@@ -6,7 +6,7 @@ import {
     Token,
 } from "antlr4ng";
 
-import { buildCommentAttachmentMap, CommentAttachmentMap } from "./comments.js";
+import { buildCommentAttachmentMap, CommentAttachmentMap, isComment } from "./comments.js";
 import {
     blankLineStart,
     concat,
@@ -78,19 +78,20 @@ export class FormatterContext {
      * omits whitespace tokens that the parser did not consume.
      */
     public formatTokenRange(start: Token, stop: Token): TokenDoc {
-        const tokenText = this.getSourceText(start, stop);
         return {
             leading: this.flushLeadingDoc(start.tokenIndex),
-            value: verbatim(tokenText),
+            value: this.formatVerbatimRange(start, stop),
             trailing: this.flushTrailingDoc(stop.tokenIndex),
         };
     }
 
     /**
-     * Returns source text exactly as written without attaching formatter comments.
-     * Use for semantic text regions nested inside a larger formatted construct.
+     * Returns source text exactly as written, with the comments inside it, but not
+     * the comments attached before or after it. Use for semantic text regions
+     * nested inside a larger formatted construct.
      */
     public formatVerbatimRange(start: Token, stop: Token): Doc {
+        this.markCommentsAsEmitted(start.tokenIndex, stop.tokenIndex);
         return verbatim(this.getSourceText(start, stop));
     }
 
@@ -103,8 +104,18 @@ export class FormatterContext {
         if (left.stop >= right.start - 1) {
             return NIL;
         }
+        this.markCommentsAsEmitted(left.tokenIndex + 1, right.tokenIndex - 1);
         const inputStream = left.inputStream ?? right.inputStream;
         return verbatim(inputStream?.getTextFromRange(left.stop + 1, right.start - 1) ?? "");
+    }
+
+    /** Records the comments among the tokens from first to last as emitted, because their text is printed as is. */
+    private markCommentsAsEmitted(first: number, last: number): void {
+        for (let index = first; index <= last; index++) {
+            if (isComment(this.tokenStream.get(index))) {
+                this.emittedComments.add(index);
+            }
+        }
     }
 
     /** Returns the exact source text covered by two tokens. */

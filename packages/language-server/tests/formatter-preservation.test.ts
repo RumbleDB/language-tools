@@ -129,8 +129,23 @@ describe("Formatting keeps every token and comment", () => {
         });
     });
 
-    it("leaves the document as it is rather than dropping a comment that it cannot place", () => {
-        // A comment inside the start tag of an element constructor is attached to a name that is printed whole.
-        expect(format('<a (: inside the tag :) b="1"/>', "xquery")).toBeUndefined();
+    describe.each(BOTH)("%s XML constructors", (languageId) => {
+        it.each(['<a (: c :) b="1"/>', '<a b="1" (: c :)/>', "<a>{ 1 }</a (: c :)>"])(
+            "keeps a comment inside the tags of %s",
+            (source) => {
+                expect(formatPreserving(source, languageId)).toBe(`${source}\n`);
+            },
+        );
+
+        // The lexer reads `(: … :)` in the content of an element or an attribute as a comment, which the content
+        // prints as written. The tokens around it must not print it a second time.
+        it.each([
+            "<a>(: c :)</a>",
+            "<a>{ 1 }(: c :)</a>",
+            '<a b="(: c :){ 1 }"/>',
+            '<a b="{ 1 }(: c :)"/>',
+        ])("prints a comment in the content of %s once", (source) => {
+            expect(formatPreserving(source, languageId)).toBe(`${source}\n`);
+        });
     });
 });
