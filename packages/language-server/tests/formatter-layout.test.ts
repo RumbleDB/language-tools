@@ -74,11 +74,64 @@ describe.each(BOTH)("%s layout", (languageId) => {
         });
     });
 
+    describe("line breaks kept from the source", () => {
+        it("keeps a function body on its own lines", () => {
+            expectLayout(
+                ["declare function local:f($x) {", "  $x + 1", "};", "local:f(1)"],
+                ["declare function local:f($x) {", "    $x + 1", "};", "", "local:f(1)"],
+                languageId,
+            );
+        });
+
+        it("keeps a function body on the line of its signature", () => {
+            expectLayout(
+                ["declare function local:f($x) { $x + 1 };", "local:f(1)"],
+                ["declare function local:f($x) { $x + 1 };", "", "local:f(1)"],
+                languageId,
+            );
+        });
+    });
+
     it("keeps a chain on one line after a comment on its own line", () => {
         expectLayout(
             ["(: header :)", "(1 to 10) ! string()"],
             ["(: header :)", "(1 to 10) ! string()"],
             languageId,
+        );
+    });
+});
+
+describe("jsoniq objects", () => {
+    it("keeps an object with several fields on one line when it fits", () => {
+        expectLayout(['{ "a": 1, "b": 2, "c": 3 }'], ['{ "a": 1, "b": 2, "c": 3 }'], "jsoniq");
+    });
+
+    it("keeps an object expanded when its source is", () => {
+        expectLayout(
+            ["{", '  "a": 1, "b": 2', "}"],
+            ["{", '    "a": 1,', '    "b": 2', "}"],
+            "jsoniq",
+        );
+    });
+
+    it("keeps each object of a long sequence on one line", () => {
+        expectLayout(
+            [
+                "declare variable $sales := (",
+                '  { "day": 1, "shop": "Amsterdam", "revenue": 1210.50 },',
+                '  { "day": 2, "shop": "Amsterdam", "revenue": 980.00, "promotion": "stroopwafel" }',
+                ");",
+                "$sales",
+            ],
+            [
+                "declare variable $sales := (",
+                '    { "day": 1, "shop": "Amsterdam", "revenue": 1210.50 },',
+                '    { "day": 2, "shop": "Amsterdam", "revenue": 980.00, "promotion": "stroopwafel" }',
+                ");",
+                "",
+                "$sales",
+            ],
+            "jsoniq",
         );
     });
 });

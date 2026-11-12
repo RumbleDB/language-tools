@@ -246,7 +246,12 @@ export class XQueryFormatterVisitor extends XQueryParserVisitor<Doc> {
     // ─── Declarations ─────────────────────────────────────────────────────────
 
     public override visitFunctionDecl = (node: ctx.FunctionDeclContext): Doc => {
-        return formatFunctionDeclaration(node, this.v, this.kw);
+        return formatFunctionDeclaration(
+            node,
+            this.v,
+            this.kw,
+            this.ctx.breaksLineAfter(node.LBRACE(), node._fn_body),
+        );
     };
 
     public override visitVarDecl = (node: ctx.VarDeclContext): Doc => {
@@ -449,7 +454,15 @@ export class XQueryFormatterVisitor extends XQueryParserVisitor<Doc> {
         const rb = this.kw(node.RBRACE(), XQueryParser.RBRACE);
         const pairs = node.pairConstructor().map((p) => this.v(p));
         const commas = node.getTokens(XQueryParser.COMMA);
-        return formatPairObjectConstructor(kwMap, concat([space, lb]), rb, pairs, commas, this.kw);
+        return formatPairObjectConstructor(
+            kwMap,
+            concat([space, lb]),
+            rb,
+            pairs,
+            commas,
+            this.kw,
+            this.ctx.breaksLineAfter(node.LBRACE(), node.pairConstructor()[0]),
+        );
     };
 
     public override visitPairConstructor = (node: ctx.PairConstructorContext): Doc => {

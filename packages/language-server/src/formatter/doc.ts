@@ -28,6 +28,8 @@ interface ConcatDoc {
 interface GroupDoc {
     readonly kind: "group";
     readonly doc: Doc;
+    /** If true, the group always breaks, as do the groups around it, as if it contained a hard line. */
+    readonly shouldBreak: boolean;
 }
 
 interface IndentDoc {
@@ -109,11 +111,11 @@ export function concat(docs: readonly Doc[]): Doc {
     return { kind: "concat", docs: flattened };
 }
 
-export function group(doc: Doc): Doc {
+export function group(doc: Doc, { shouldBreak = false }: { shouldBreak?: boolean } = {}): Doc {
     if (doc.kind === "group") {
-        return doc;
+        return shouldBreak ? { ...doc, shouldBreak } : doc;
     }
-    return { kind: "group", doc };
+    return { kind: "group", doc, shouldBreak };
 }
 
 export function indent(doc: Doc): Doc {

@@ -61,8 +61,13 @@ export function printDocToString(doc: Doc, options: FormatterOptions): string {
             }
             case "group": {
                 const groupMode =
-                    mode === "flat" ||
-                    fits(width - currentColumn, { indent, mode: "flat", doc: current.doc }, cmds)
+                    !current.shouldBreak &&
+                    (mode === "flat" ||
+                        fits(
+                            width - currentColumn,
+                            { indent, mode: "flat", doc: current.doc },
+                            cmds,
+                        ))
                         ? "flat"
                         : "break";
                 cmds.push({ indent, mode: groupMode, doc: current.doc });
@@ -162,6 +167,15 @@ function fits(
                 break;
             }
             case "group": {
+                if (current.shouldBreak) {
+                    // Like a hard line: the group being measured cannot be flat, and the line after it ends at
+                    // the group's first line.
+                    if (!isContinuation) {
+                        return false;
+                    }
+                    cmds.push({ indent, mode: "break", doc: current.doc });
+                    break;
+                }
                 cmds.push({ indent, mode: isContinuation ? mode : "flat", doc: current.doc });
                 break;
             }

@@ -275,10 +275,15 @@ export function formatAnnotatedDeclaration(node: ctx.AnnotatedDeclContext, visit
     return concat(parts);
 }
 
+/**
+ * Formats a function declaration. Its body is on the same line as the signature when it fits, unless the source puts
+ * it on its own lines, with a line break after `{`.
+ */
 export function formatFunctionDeclaration(
     node: ctx.FunctionDeclContext,
     visit: Visit,
     formatTerminal: FormatTerminal,
+    bodyExpanded: boolean,
 ): Doc {
     const declaration = formatTerminal(node.KW_DECLARE(), "declare");
     const annotations = visit(node.annotations());
@@ -329,6 +334,7 @@ export function formatFunctionDeclaration(
             formatTerminal(node.LBRACE(), "{"),
             visit(node._fn_body),
             formatTerminal(node.RBRACE(), "}"),
+            { shouldBreak: bodyExpanded },
         ),
         semicolon,
     ]);

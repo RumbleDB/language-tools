@@ -1,4 +1,10 @@
-import { CommonTokenStream, TerminalNode, Token } from "antlr4ng";
+import {
+    CommonTokenStream,
+    type ParseTree,
+    ParserRuleContext,
+    TerminalNode,
+    Token,
+} from "antlr4ng";
 
 import { buildCommentAttachmentMap, CommentAttachmentMap } from "./comments.js";
 import { concat, Doc, hardline, lineStart, NIL, space, text, verbatim } from "./doc.js";
@@ -97,6 +103,30 @@ export class FormatterContext {
             start.inputStream?.getTextFromRange(start.start, stop.stop) ??
             this.tokenStream.getTextFromRange(start, stop)
         );
+    }
+
+    /**
+     * Checks whether the source breaks the line between an opening bracket and the first item after it. A construct
+     * written that way, such as an object with one field per line, is kept expanded.
+     */
+    public breaksLineAfter(
+        opening: TerminalNode | null,
+        first: ParseTree | null | undefined,
+    ): boolean {
+        const next =
+            first instanceof TerminalNode
+                ? first.symbol
+                : first instanceof ParserRuleContext
+                  ? first.start
+                  : null;
+        if (opening === null || next === null || next === undefined) {
+            return false;
+        }
+        const gap = opening.symbol.inputStream?.getTextFromRange(
+            opening.symbol.stop + 1,
+            next.start - 1,
+        );
+        return gap?.includes("\n") ?? false;
     }
 
     /** Checks whether the source has any text, such as whitespace or a comment, between two tokens. */

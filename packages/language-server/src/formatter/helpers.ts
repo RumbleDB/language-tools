@@ -6,8 +6,12 @@ import { concat, Doc, group, hardline, indent, join, line, space } from "./doc.j
  * comments outside the group. The token itself and trailing comments remain
  * part of the group's layout decision.
  */
-export function groupStartingWith(first: TokenDoc, rest: Doc): Doc {
-    return concat([first.leading, group(concat([first.value, first.trailing, rest]))]);
+export function groupStartingWith(
+    first: TokenDoc,
+    rest: Doc,
+    options: { shouldBreak?: boolean } = {},
+): Doc {
+    return concat([first.leading, group(concat([first.value, first.trailing, rest]), options)]);
 }
 
 // ─── Lexer Token Literal Helper ───────────────────────────────────────────────
@@ -39,11 +43,16 @@ export function getTokenLiteral(tokenType: number, literalNames: (string | null)
  * }
  * ```
  */
-export function formatBlockDoc(leftBrace: Doc, doc: Doc, rightBrace: Doc): Doc {
+export function formatBlockDoc(
+    leftBrace: Doc,
+    doc: Doc,
+    rightBrace: Doc,
+    options: { shouldBreak?: boolean } = {},
+): Doc {
     if (doc.kind === "text" && doc.text === "") {
         return concat([leftBrace, rightBrace]);
     }
-    return group(concat([leftBrace, indent(concat([line, doc])), line, rightBrace]));
+    return group(concat([leftBrace, indent(concat([line, doc])), line, rightBrace]), options);
 }
 
 // ─── FLWOR Formatting ─────────────────────────────────────────────────────────

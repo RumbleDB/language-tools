@@ -260,7 +260,12 @@ export class JsoniqFormatterVisitor extends JsoniqParserVisitor<Doc> {
     // ─── Declarations ─────────────────────────────────────────────────────────
 
     public override visitFunctionDecl = (node: ctx.FunctionDeclContext): Doc => {
-        return formatFunctionDeclaration(node, this.v, this.kw);
+        return formatFunctionDeclaration(
+            node,
+            this.v,
+            this.kw,
+            this.ctx.breaksLineAfter(node.LBRACE(), node._fn_body),
+        );
     };
 
     public override visitVarDecl = (node: ctx.VarDeclContext): Doc => {
@@ -533,6 +538,7 @@ export class JsoniqFormatterVisitor extends JsoniqParserVisitor<Doc> {
             pairs,
             node.getTokens(JsoniqParser.COMMA),
             this.kw,
+            this.ctx.breaksLineAfter(node.LBRACE(), node.pairConstructor()[0]),
         );
     };
 
