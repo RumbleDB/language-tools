@@ -99,6 +99,11 @@ export class FormatterContext {
         );
     }
 
+    /** Checks whether the source has any text, such as whitespace or a comment, between two tokens. */
+    public hasGapBetween(left: Token, right: Token): boolean {
+        return left.stop < right.start - 1;
+    }
+
     /** Checks whether the source gap between two tokens contains only whitespace. */
     public hasOnlyWhitespaceBetween(left: Token, right: Token): boolean {
         if (left.stop >= right.start - 1) {
