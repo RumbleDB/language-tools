@@ -2,7 +2,7 @@ import type { SequenceType } from "server/analysis/index.js";
 import { clearStaticTypecheckCache } from "server/integrations/rumble/operations/static-typecheck/service.js";
 import type { VariableBinding } from "server/integrations/rumble/operations/static-typecheck/types.js";
 import { getLatestVariableTypes } from "server/integrations/rumble/operations/static-typecheck/variable-types.js";
-import { findCompletions } from "server/lsp/features/completion.js";
+import { findCompletionList, findCompletions } from "server/lsp/features/completion.js";
 import { describe, expect, it, vi } from "vitest";
 import type { Range } from "vscode-languageserver";
 import { TextDocument } from "vscode-languageserver-textdocument";
@@ -71,10 +71,14 @@ describe("variable types", () => {
         const { wrapper, sendRequest, answer } = deferredWrapper();
         const source = version("file:///variable-types-latest.jq", 1, "let $a := 1 return $a");
 
-        expect(getLatestVariableTypes(source, wrapper)).toBeUndefined();
+        const checking = getLatestVariableTypes(source, wrapper);
+        expect(checking.typeOf(A_NAME)).toBeUndefined();
+        expect(checking.isUpdating).toBe(true);
         await answer([A_BINDING]);
 
-        expect(getLatestVariableTypes(source, wrapper)?.typeOf(A_NAME)).toBe(INTEGER);
+        const checked = getLatestVariableTypes(source, wrapper);
+        expect(checked.typeOf(A_NAME)).toBe(INTEGER);
+        expect(checked.isUpdating).toBe(false);
         expect(sendRequest).toHaveBeenCalledOnce();
     });
 
@@ -90,7 +94,8 @@ describe("variable types", () => {
         await answer([A_BINDING]);
         // The answer is for version 1, so version 3 is checked next, while version 1 still types `$a`.
         const types = getLatestVariableTypes(version(uri, 3, "let $a := 1 return $a + "), wrapper);
-        expect(types?.typeOf(A_NAME)).toBe(INTEGER);
+        expect(types.typeOf(A_NAME)).toBe(INTEGER);
+        expect(types.isUpdating).toBe(true);
         expect(sendRequest).toHaveBeenCalledTimes(2);
     });
 
@@ -101,10 +106,47 @@ describe("variable types", () => {
         await answer([A_BINDING]);
 
         const renamed = version(uri, 2, "let $b := 1 return $b");
-        expect(getLatestVariableTypes(renamed, wrapper)?.typeOf(A_NAME)).toBeUndefined();
+        expect(getLatestVariableTypes(renamed, wrapper).typeOf(A_NAME)).toBeUndefined();
         const shifted = version(uri, 3, "let  $a := 1 return $a");
         const shiftedName = { start: { line: 0, character: 6 }, end: { line: 0, character: 7 } };
-        expect(getLatestVariableTypes(shifted, wrapper)?.typeOf(shiftedName)).toBeUndefined();
+        expect(getLatestVariableTypes(shifted, wrapper).typeOf(shiftedName)).toBeUndefined();
+    });
+});
+
+describe("variable completion while RumbleDB checks the document", () => {
+    const text = "let $a := 1 return $";
+    const complete = (source: TextDocument, wrapper: ReturnType<typeof createMockWrapperClient>) =>
+        findCompletionList(
+            source,
+            source.positionAt(text.length),
+            parserService,
+            workspaceService,
+            wrapper,
+        );
+    const labelOfA = (list: Awaited<ReturnType<typeof complete>>) =>
+        list.items.find((item) => item.label === "$a")?.labelDetails?.description;
+
+    it("is incomplete until the types arrive, so that the editor asks again as the user types", async () => {
+        const { wrapper, answer } = deferredWrapper();
+        const source = version("file:///variable-types-incomplete.jq", 1, text);
+
+        const checking = await complete(source, wrapper);
+        expect(checking.isIncomplete).toBe(true);
+        expect(labelOfA(checking)).toBe("Variable");
+
+        await answer([A_BINDING]);
+        const checked = await complete(source, wrapper);
+        expect(checked.isIncomplete).toBe(false);
+        expect(labelOfA(checked)).toBe("xs:integer");
+    });
+
+    it("is complete when RumbleDB is unavailable", async () => {
+        const wrapper = createMockWrapperClient({ isUsable: () => false });
+        const source = version("file:///variable-types-unavailable.jq", 1, text);
+
+        const list = await complete(source, wrapper);
+        expect(list.isIncomplete).toBe(false);
+        expect(labelOfA(list)).toBe("Variable");
     });
 });
 

@@ -24,7 +24,12 @@ export interface CompletionContext {
      */
     getFocusAt(offset: number): Promise<FocusAtPositionWireResult>;
     /** The variable types that RumbleDB last inferred for the document, which may be from an earlier version. */
-    getVariableTypes(): VariableTypes | undefined;
+    getVariableTypes(): VariableTypes;
+    /**
+     * Whether the items may change before the user types on, as when RumbleDB is still checking the document for the
+     * types of the variables offered. The editor then asks again as the user types, rather than filtering these items.
+     */
+    readonly isIncomplete: boolean;
 }
 
 /** `null` means the provider does not apply. An empty array means it applies but has no items. */

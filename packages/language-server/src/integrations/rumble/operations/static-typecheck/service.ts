@@ -117,12 +117,13 @@ export async function getStaticTypecheck(
 export function getLatestStaticTypecheck(
     document: TextDocument,
     client: WrapperClient,
-): CachedStaticTypecheck | undefined {
-    const cached = staticTypecheckCache.get(document.uri);
-    if (cached?.version !== document.version && !pendingStaticTypecheckByUri.has(document.uri)) {
+): { latest: CachedStaticTypecheck | undefined; checking: boolean } {
+    const latest = staticTypecheckCache.get(document.uri);
+    if (latest?.version !== document.version && !pendingStaticTypecheckByUri.has(document.uri)) {
         void getStaticTypecheck(document, client);
     }
-    return cached;
+    // A check is recorded as soon as it is asked for.
+    return { latest, checking: pendingStaticTypecheckByUri.has(document.uri) };
 }
 
 function createStaticTypecheckRequest(

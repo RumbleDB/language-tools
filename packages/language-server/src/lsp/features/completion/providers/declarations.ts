@@ -111,7 +111,7 @@ function toVariableCompletionItem(
 /** Only the variables of this document are typed. */
 function variableType(declaration: ScopeDefinition, context: CompletionContext) {
     return declaration.origin === "source" && declaration.uri === context.document.uri
-        ? context.getVariableTypes()?.typeOf(declaration.selectionRange)
+        ? context.getVariableTypes().typeOf(declaration.selectionRange)
         : undefined;
 }
 

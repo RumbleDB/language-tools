@@ -3,6 +3,6 @@
 "rumble-lsp-wrapper": minor
 ---
 
-Variable completion shows the type that RumbleDB infers for each variable, such as `xs:integer` or `object{id, items, …}`, instead of only "Variable" or "Parameter". Completion does not wait for RumbleDB: it shows the types from the last version of the document that RumbleDB has checked, and asks it to check the current one. The types come from the static typecheck that diagnostics already run, so a valid document is not compiled again. A variable that RumbleDB has not typed yet is still labelled with its kind.
+Variable completion shows the type that RumbleDB infers for each variable, such as `xs:integer` or `object{id, items, …}`, instead of only "Variable" or "Parameter". Completion does not wait for RumbleDB: it shows the types from the last version of the document that RumbleDB has checked, and asks it to check the current one. The types come from the static typecheck that diagnostics already run, so a valid document is not compiled again. A variable that RumbleDB has not typed yet is still labelled with its kind, and while RumbleDB checks the document, the editor asks for the list again as the user types, so that the types appear without retyping.
 
 The wrapper's `static-typecheck` response also lists the types of the variables that the query binds, even when the query has errors.

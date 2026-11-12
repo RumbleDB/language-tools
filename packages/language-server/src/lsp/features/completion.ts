@@ -1,7 +1,12 @@
 import type { WrapperClient } from "server/integrations/rumble/client.js";
 import type { ParserService } from "server/parser/index.js";
 import type { WorkspaceService } from "server/workspace/service.js";
-import type { CancellationToken, CompletionItem, Position } from "vscode-languageserver";
+import type {
+    CancellationToken,
+    CompletionItem,
+    CompletionList,
+    Position,
+} from "vscode-languageserver";
 import type { TextDocument } from "vscode-languageserver-textdocument";
 
 import { createCompletionContext } from "./completion/context.js";
@@ -51,7 +56,14 @@ export function registerCompletion({
         const document = documents.get(params.textDocument.uri);
         return document === undefined
             ? []
-            : await findCompletions(document, params.position, parser, workspace, wrapper, token);
+            : await findCompletionList(
+                  document,
+                  params.position,
+                  parser,
+                  workspace,
+                  wrapper,
+                  token,
+              );
     });
     connection.onCompletionResolve(resolveCompletionItem);
 }
@@ -67,17 +79,30 @@ export async function findCompletions(
     parser: ParserService,
     workspace: WorkspaceService,
     wrapper: WrapperClient,
-    token?: CancellationToken,
 ): Promise<CompletionItem[]> {
+    return (await findCompletionList(document, position, parser, workspace, wrapper)).items;
+}
+
+export async function findCompletionList(
+    document: TextDocument,
+    position: Position,
+    parser: ParserService,
+    workspace: WorkspaceService,
+    wrapper: WrapperClient,
+    token?: CancellationToken,
+): Promise<CompletionList> {
     const context = createCompletionContext(document, position, parser, workspace, wrapper, token);
     if (context === null) {
-        return [];
+        return { isIncomplete: false, items: [] };
     }
 
     const items = await Promise.all(allProviders.map((provider) => provider(context)));
 
-    return finalizeCompletionItems(
-        items.flatMap((providerItems) => providerItems ?? []),
-        context,
-    );
+    return {
+        isIncomplete: context.isIncomplete,
+        items: finalizeCompletionItems(
+            items.flatMap((providerItems) => providerItems ?? []),
+            context,
+        ),
+    };
 }

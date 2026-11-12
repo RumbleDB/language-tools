@@ -9,7 +9,10 @@ import {
 import type { WrapperClient } from "server/integrations/rumble/client.js";
 import type { FocusAtPositionWireResult } from "server/integrations/rumble/operations/focus-at-position/protocol.js";
 import { getFocusAtPosition } from "server/integrations/rumble/operations/focus-at-position/service.js";
-import { getLatestVariableTypes } from "server/integrations/rumble/operations/static-typecheck/variable-types.js";
+import {
+    getLatestVariableTypes,
+    type VariableTypes,
+} from "server/integrations/rumble/operations/static-typecheck/variable-types.js";
 import type { ParserService } from "server/parser/index.js";
 import type { CompletionIntent } from "server/parser/types/completion.js";
 import { defaultTokenAt, defaultTokenBefore, getDocumentText } from "server/parser/utils.js";
@@ -46,6 +49,9 @@ export function createCompletionContext(
     let analysis: Promise<AnalysisResult> | undefined;
     // Object fields and path steps often ask about the same position.
     const focuses = new Map<number, Promise<FocusAtPositionWireResult>>();
+    // Whether the types were being checked is taken when they label the variables, since a check that ends later does
+    // not change those labels.
+    let variableTypes: VariableTypes | undefined;
 
     return {
         document,
@@ -73,7 +79,10 @@ export function createCompletionContext(
             return focus;
         },
         getVariableTypes() {
-            return getLatestVariableTypes(document, wrapper);
+            return (variableTypes ??= getLatestVariableTypes(document, wrapper));
+        },
+        get isIncomplete() {
+            return variableTypes?.isUpdating ?? false;
         },
         getVisibleDeclarations() {
             visibleDeclarations ??= this.getAnalysis().then((analysis) =>

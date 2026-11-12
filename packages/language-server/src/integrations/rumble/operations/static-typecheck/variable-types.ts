@@ -9,6 +9,8 @@ import { getLatestStaticTypecheck, type CachedStaticTypecheck } from "./service.
 export interface VariableTypes {
     /** The type of the variable whose name is at the range, as in its declaration. */
     typeOf(nameRange: Range): SequenceType | undefined;
+    /** Whether RumbleDB is checking the document, after which the types may change. */
+    readonly isUpdating: boolean;
 }
 
 /** A checked binding, by the offset where its name ends in the checked version. */
@@ -24,19 +26,17 @@ const indexed = new WeakMap<CachedStaticTypecheck, BindingsByNameEnd>();
 export function getLatestVariableTypes(
     document: TextDocument,
     wrapper: WrapperClient,
-): VariableTypes | undefined {
-    const typecheck = getLatestStaticTypecheck(document, wrapper);
-    if (typecheck === undefined) {
-        return undefined;
-    }
-    const bindings = indexBindings(typecheck);
+): VariableTypes {
+    const { latest, checking } = getLatestStaticTypecheck(document, wrapper);
+    const bindings = latest === undefined ? undefined : indexBindings(latest);
     return {
         typeOf(nameRange) {
-            const binding = bindings.get(document.offsetAt(nameRange.end));
+            const binding = bindings?.get(document.offsetAt(nameRange.end));
             return binding?.name === unsigiled(document.getText(nameRange))
                 ? binding.sequenceType
                 : undefined;
         },
+        isUpdating: checking,
     };
 }
 
