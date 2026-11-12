@@ -1,7 +1,7 @@
 import type { WrapperClient } from "server/integrations/rumble/client.js";
 import type { ParserService } from "server/parser/index.js";
 import type { WorkspaceService } from "server/workspace/service.js";
-import type { CompletionItem, Position } from "vscode-languageserver";
+import type { CancellationToken, CompletionItem, Position } from "vscode-languageserver";
 import type { TextDocument } from "vscode-languageserver-textdocument";
 
 import { createCompletionContext } from "./completion/context.js";
@@ -9,6 +9,7 @@ import { finalizeCompletionItems } from "./completion/finalize.js";
 import {
     provideBuiltinFunctionCompletions,
     provideBuiltinTypeCompletions,
+    resolveBuiltinFunctionCompletion,
 } from "./completion/providers/builtins.js";
 import {
     provideSourceFunctionCompletions,
@@ -46,12 +47,18 @@ export function registerCompletion({
     workspace,
     wrapper,
 }: FeatureRegistrationContext): void {
-    connection.onCompletion(async (params) => {
+    connection.onCompletion(async (params, token) => {
         const document = documents.get(params.textDocument.uri);
         return document === undefined
             ? []
-            : await findCompletions(document, params.position, parser, workspace, wrapper);
+            : await findCompletions(document, params.position, parser, workspace, wrapper, token);
     });
+    connection.onCompletionResolve(resolveCompletionItem);
+}
+
+/** Adds what is left out of the list to keep it small, such as the documentation of builtin functions. */
+export function resolveCompletionItem(item: CompletionItem): CompletionItem {
+    return resolveBuiltinFunctionCompletion(item) ?? item;
 }
 
 export async function findCompletions(
@@ -60,8 +67,9 @@ export async function findCompletions(
     parser: ParserService,
     workspace: WorkspaceService,
     wrapper: WrapperClient,
+    token?: CancellationToken,
 ): Promise<CompletionItem[]> {
-    const context = createCompletionContext(document, position, parser, workspace, wrapper);
+    const context = createCompletionContext(document, position, parser, workspace, wrapper, token);
     if (context === null) {
         return [];
     }

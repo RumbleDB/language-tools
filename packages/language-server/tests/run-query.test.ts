@@ -4,6 +4,7 @@ import {
 } from "server/integrations/rumble/operations/run-query/service.js";
 import type { RunQueryItem } from "server/lsp/protocol/requests/run-query.js";
 import { describe, expect, it, vi } from "vitest";
+import { CancellationTokenSource, type CancellationToken } from "vscode-languageserver";
 
 import { createMockWrapperClient, testDocument } from "./test-utils.js";
 
@@ -132,8 +133,7 @@ describe("run query service", () => {
                 body: Buffer.from("1 + 1", "utf8").toString("base64"),
                 documentUri: document.uri,
             },
-            undefined,
-            undefined,
+            { restartOnCancel: true },
         );
         expect(result.items?.[0]?.serialized).toBe("2");
         expect(result.error).toBeNull();
@@ -209,8 +209,7 @@ describe("run query service", () => {
         await runQueryFromSource("untitled:Untitled-1", "()", wrapper);
         expect(wrapper.sendRequest).toHaveBeenCalledWith(
             expect.objectContaining({ documentUri: "untitled:Untitled-1" }),
-            undefined,
-            undefined,
+            { restartOnCancel: true },
         );
     });
 
@@ -244,71 +243,62 @@ describe("run query service", () => {
                 body: Buffer.from("40 + 2", "utf8").toString("base64"),
                 documentUri: "file:///test.jq",
             },
-            undefined,
-            undefined,
+            { restartOnCancel: true },
         );
         expect(result.items?.[0]?.serialized).toBe("42");
     });
 
-    it("returns an error result when an already-aborted signal is passed", async () => {
-        const controller = new AbortController();
-        controller.abort();
-
+    /** A wrapper that, like the real one, rejects a request when its token is cancelled. */
+    function cancellableWrapper() {
         const sendRequest = vi.fn().mockImplementation(
-            (_payload: unknown, _timeout: unknown, signal: AbortSignal) =>
+            (_payload: unknown, { token }: { token: CancellationToken }) =>
                 new Promise((_resolve, reject) => {
-                    if (signal.aborted) {
-                        reject(
-                            signal.reason instanceof Error
-                                ? signal.reason
-                                : new Error("Run-query was cancelled."),
-                        );
+                    if (token.isCancellationRequested) {
+                        reject(new Error("Operation was cancelled."));
                         return;
                     }
-                    signal.addEventListener("abort", () =>
-                        reject(
-                            signal.reason instanceof Error
-                                ? signal.reason
-                                : new Error("Run-query was cancelled."),
-                        ),
+                    token.onCancellationRequested(() =>
+                        reject(new Error("Operation was cancelled.")),
                     );
                 }),
         );
-        const wrapper = createMockWrapperClient({ sendRequest });
+        return { sendRequest, wrapper: createMockWrapperClient({ sendRequest }) };
+    }
 
-        const result = await runQueryFromSource("file:///test.jq", "1", wrapper, controller.signal);
+    it("returns an error result when the token is already cancelled", async () => {
+        const cancellation = new CancellationTokenSource();
+        cancellation.cancel();
+        const { wrapper } = cancellableWrapper();
+
+        const result = await runQueryFromSource(
+            "file:///test.jq",
+            "1",
+            wrapper,
+            cancellation.token,
+        );
 
         expect(result.items).toBeNull();
-        expect(result.error?.message).toBe("This operation was aborted");
+        expect(result.error?.message).toBe("Operation was cancelled.");
     });
 
-    it("returns an error result when the signal is aborted mid-flight", async () => {
-        const controller = new AbortController();
-
-        const sendRequest = vi.fn().mockImplementation(
-            (_payload: unknown, _timeout: unknown, signal: AbortSignal) =>
-                new Promise((_resolve, reject) => {
-                    signal.addEventListener("abort", () =>
-                        reject(
-                            signal.reason instanceof Error
-                                ? signal.reason
-                                : new Error("Run-query was cancelled."),
-                        ),
-                    );
-                }),
-        );
-        const wrapper = createMockWrapperClient({ sendRequest });
+    it("restarts RumbleDB when cancelled mid-flight", async () => {
+        const cancellation = new CancellationTokenSource();
+        const { wrapper, sendRequest } = cancellableWrapper();
 
         const resultPromise = runQueryFromSource(
             "file:///test.jq",
             "1",
             wrapper,
-            controller.signal,
+            cancellation.token,
         );
-        controller.abort();
+        cancellation.cancel();
         const result = await resultPromise;
 
+        expect(sendRequest).toHaveBeenCalledWith(expect.anything(), {
+            token: cancellation.token,
+            restartOnCancel: true,
+        });
         expect(result.items).toBeNull();
-        expect(result.error?.message).toBe("This operation was aborted");
+        expect(result.error?.message).toBe("Operation was cancelled.");
     });
 });

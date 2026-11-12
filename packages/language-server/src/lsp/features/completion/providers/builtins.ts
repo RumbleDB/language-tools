@@ -3,6 +3,7 @@ import {
     formatSequenceType,
     QNameToString,
     BuiltinFunctionDefinition,
+    type QName,
 } from "server/analysis/index.js";
 import { getActiveParserId } from "server/parser/utils.js";
 import { builtinFunctions } from "server/resources/builtin-functions.js";
@@ -31,6 +32,11 @@ const BUILTIN_FUNCTION_COMPLETION_ITEMS = {
 };
 const BUILTIN_TYPE_COMPLETION_ITEMS = createBuiltinTypeCompletionItems();
 
+/** What resolving a builtin function item needs to give it its documentation. */
+interface BuiltinFunctionItemData {
+    builtinFunction: { qname: QName; arity: number | undefined };
+}
+
 export const provideBuiltinFunctionCompletions: CompletionProvider = async (context) => {
     if (!context.intent.allowFunctions) {
         return null;
@@ -57,6 +63,29 @@ export const provideBuiltinTypeCompletions: CompletionProvider = (context) => {
         BUILTIN_TYPE_COMPLETION_ITEMS
     );
 };
+
+/** Gives a builtin function item the documentation that was left out of the completion list. */
+export function resolveBuiltinFunctionCompletion(item: CompletionItem): CompletionItem | undefined {
+    if (!isBuiltinFunctionItemData(item.data)) {
+        return undefined;
+    }
+    const { qname, arity } = item.data.builtinFunction;
+    const documentation = getBuiltinFunctionDocumentation(qname);
+    return {
+        ...item,
+        documentation: {
+            kind: MarkupKind.Markdown,
+            value:
+                documentation === undefined
+                    ? "No documentation available."
+                    : formatFunctionDocEntry(documentation, arity),
+        },
+    };
+}
+
+function isBuiltinFunctionItemData(data: unknown): data is BuiltinFunctionItemData {
+    return typeof data === "object" && data !== null && "builtinFunction" in data;
+}
 
 function createBuiltinFunctionCompletionItems(
     language: "jsoniq" | "xquery",
@@ -91,7 +120,7 @@ function createBuiltinFunctionCompletionItems(
                 .join(", ");
             const signatureSuffix = `(${parameterTypes}) as ${formatSequenceType(definition.signature.returnType)}`;
             const signature = `${functionName}${signatureSuffix}`;
-            const documentation = getBuiltinFunctionDocumentation(definition.name.qname);
+            const data: BuiltinFunctionItemData = { builtinFunction: { qname, arity } };
             const item: CompletionItem = {
                 label: functionName,
                 kind: CompletionItemKind.Function,
@@ -104,13 +133,8 @@ function createBuiltinFunctionCompletionItems(
                         : arity === undefined
                           ? signature
                           : `${signature} / ${arity}`,
-                documentation: {
-                    kind: MarkupKind.Markdown,
-                    value:
-                        documentation === undefined
-                            ? "No documentation available."
-                            : formatFunctionDocEntry(documentation, arity),
-                },
+                // Documented when resolved, since the list has hundreds of builtins.
+                data,
             };
 
             const existing = itemsByName.get(functionName);

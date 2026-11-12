@@ -1,5 +1,4 @@
 import { summarizeObjectField, type ObjectTypeDefinition } from "server/analysis/index.js";
-import { getFocusAtPosition } from "server/integrations/rumble/operations/focus-at-position/service.js";
 import { CompletionItemKind } from "vscode-languageserver";
 
 import { lookupDotAtCursor, nameEnd, nameStart, replaceRange } from "../context.js";
@@ -18,11 +17,7 @@ export const provideObjectFieldCompletions: CompletionProvider = async (context)
     const { tokens } = context.getParseResult();
     const fieldStart = nameStart(tokens, cursorOffset);
 
-    const focus = await getFocusAtPosition(
-        document,
-        document.positionAt(dot.stop + 1),
-        context.wrapper,
-    );
+    const focus = await context.getFocusAt(dot.stop + 1);
     const objectType = focus.sequenceType?.itemType;
 
     if (objectType?.kind !== "object") {

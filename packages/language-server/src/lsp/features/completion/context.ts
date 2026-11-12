@@ -7,11 +7,18 @@ import {
     type QName,
 } from "server/analysis/index.js";
 import type { WrapperClient } from "server/integrations/rumble/client.js";
+import type { FocusAtPositionWireResult } from "server/integrations/rumble/operations/focus-at-position/protocol.js";
+import { getFocusAtPosition } from "server/integrations/rumble/operations/focus-at-position/service.js";
 import type { ParserService } from "server/parser/index.js";
 import type { CompletionIntent } from "server/parser/types/completion.js";
 import { defaultTokenAt, defaultTokenBefore, getDocumentText } from "server/parser/utils.js";
 import type { WorkspaceService } from "server/workspace/service.js";
-import { TextEdit, type CompletionItem, type Position } from "vscode-languageserver";
+import {
+    TextEdit,
+    type CancellationToken,
+    type CompletionItem,
+    type Position,
+} from "vscode-languageserver";
 import type { TextDocument } from "vscode-languageserver-textdocument";
 
 import type { CompletionContext } from "./types.js";
@@ -22,6 +29,7 @@ export function createCompletionContext(
     parser: ParserService,
     workspace: WorkspaceService,
     wrapper: WrapperClient,
+    token?: CancellationToken,
 ): CompletionContext | null {
     const source = getDocumentText(document);
     const cursorOffset = document.offsetAt(position);
@@ -35,13 +43,14 @@ export function createCompletionContext(
     const intents = new Map<number, CompletionIntent | null>([[cursorOffset, intent]]);
     let visibleDeclarations: Promise<ScopeDefinition[]> | undefined;
     let analysis: Promise<AnalysisResult> | undefined;
+    // Object fields and path steps often ask about the same position.
+    const focuses = new Map<number, Promise<FocusAtPositionWireResult>>();
 
     return {
         document,
         source,
         cursorOffset,
         intent,
-        wrapper,
         getIntentAt(offset) {
             if (!intents.has(offset)) {
                 intents.set(offset, parser.collectCompletionIntent(document, offset));
@@ -53,6 +62,14 @@ export function createCompletionContext(
         },
         getParseResult() {
             return parser.parse(document);
+        },
+        getFocusAt(offset) {
+            let focus = focuses.get(offset);
+            if (focus === undefined) {
+                focus = getFocusAtPosition(document, document.positionAt(offset), wrapper, token);
+                focuses.set(offset, focus);
+            }
+            return focus;
         },
         getVisibleDeclarations() {
             visibleDeclarations ??= this.getAnalysis().then((analysis) =>
