@@ -73,6 +73,9 @@ export type NamedFunctionRefContext =
     | jsoniq.NamedFunctionRefContext
     | xquery.NamedFunctionRefContext;
 export type NamespaceDeclContext = jsoniq.NamespaceDeclContext | xquery.NamespaceDeclContext;
+export type ObjectConstructorContext =
+    | jsoniq.ObjectConstructorContext
+    | xquery.ObjectConstructorContext;
 export type OrderByClauseContext = jsoniq.OrderByClauseContext | xquery.OrderByClauseContext;
 export type PairConstructorContext = jsoniq.PairConstructorContext | xquery.PairConstructorContext;
 export type ParamContext = jsoniq.ParamContext | xquery.ParamContext;

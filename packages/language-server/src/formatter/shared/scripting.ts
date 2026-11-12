@@ -1,19 +1,23 @@
-import type { ParseTree, TerminalNode, Token } from "antlr4ng";
 import type * as ctx from "server/parser/context.js";
 
-import { concat, type Doc, group, hardline, indent, join, line, NIL, space } from "../doc.js";
-import { formatTokenSeparatedDocs } from "./tokens.js";
-
-type SourceTerminal = TerminalNode | TerminalNode[] | Token | null | undefined;
-type FormatTerminal = (terminal: SourceTerminal, expectedToken: number | string) => Doc;
-type Visit = (node: ParseTree | null | undefined) => Doc;
-
-function isEmpty(doc: Doc): boolean {
-    return doc.kind === "text" && doc.text === "";
-}
+import {
+    concat,
+    type Doc,
+    group,
+    hardline,
+    indent,
+    isEmptyDoc,
+    join,
+    line,
+    NIL,
+    space,
+} from "../doc.js";
+import { formatSwitch } from "./query.js";
+import { formatBarSeparatedDocs, formatCommaSeparatedDocs } from "./tokens.js";
+import type { FormatTerminal, Visit } from "./types.js";
 
 function formatStatementBlock(leftBrace: Doc, statements: Doc, rightBrace: Doc): Doc {
-    return isEmpty(statements)
+    return isEmptyDoc(statements)
         ? concat([leftBrace, rightBrace])
         : concat([leftBrace, indent(concat([hardline, statements])), hardline, rightBrace]);
 }
@@ -32,7 +36,7 @@ export function formatStatementsAndExpression(
 ): Doc {
     const statements = visit(node.statements());
     const expression = visit(node.expr());
-    return isEmpty(statements) ? expression : concat([statements, hardline, expression]);
+    return isEmptyDoc(statements) ? expression : concat([statements, hardline, expression]);
 }
 
 export function formatStatementsAndOptionalExpression(
@@ -41,10 +45,10 @@ export function formatStatementsAndOptionalExpression(
 ): Doc {
     const statements = visit(node.statements());
     const expression = visit(node.expr());
-    if (isEmpty(statements)) {
+    if (isEmptyDoc(statements)) {
         return expression;
     }
-    return isEmpty(expression) ? statements : concat([statements, hardline, expression]);
+    return isEmptyDoc(expression) ? statements : concat([statements, hardline, expression]);
 }
 
 export function formatApplyStatement(
@@ -131,7 +135,7 @@ export function formatFlworStatement(
         const child = node.getChild(index);
         if (child !== null && child !== node.KW_RETURN() && child !== node.statement()) {
             const clause = visit(child);
-            if (!isEmpty(clause)) {
+            if (!isEmptyDoc(clause)) {
                 clauses.push(clause);
             }
         }
@@ -186,14 +190,14 @@ export function formatSwitchStatement(
         space,
         visit(node.statement()),
     ]);
-    return concat([
+    return formatSwitch(
         formatTerminal(node.KW_SWITCH(), "switch"),
-        space,
-        formatTerminal(node.LPAREN(), "("),
+        node,
         visit(node.expr()),
-        formatTerminal(node.RPAREN(), ")"),
-        indent(concat([hardline, join(hardline, cases), hardline, defaultCase])),
-    ]);
+        cases,
+        defaultCase,
+        formatTerminal,
+    );
 }
 
 export function formatSwitchCaseStatement(
@@ -241,12 +245,7 @@ export function formatCatchCaseStatement(
     return concat([
         formatTerminal(node.KW_CATCH(), "catch"),
         space,
-        formatTokenSeparatedDocs(
-            targets,
-            node.VBAR(),
-            (bar) => concat([space, formatTerminal(bar, "|"), space]),
-            NIL,
-        ),
+        formatBarSeparatedDocs(targets, node.VBAR(), formatTerminal),
         space,
         visit(node.blockStatement()),
     ]);
@@ -267,14 +266,14 @@ export function formatTypeswitchStatement(
         space,
         visit(node.statement()),
     ]);
-    return concat([
+    return formatSwitch(
         formatTerminal(node.KW_TYPESWITCH(), "typeswitch"),
-        space,
-        formatTerminal(node.LPAREN(), "("),
+        node,
         visit(node.expr()),
-        formatTerminal(node.RPAREN(), ")"),
-        indent(concat([hardline, join(hardline, cases), hardline, defaultCase])),
-    ]);
+        cases,
+        defaultCase,
+        formatTerminal,
+    );
 }
 
 export function formatCaseStatement(
@@ -290,12 +289,7 @@ export function formatCaseStatement(
         formatTerminal(node.KW_CASE(), "case"),
         space,
         binding,
-        formatTokenSeparatedDocs(
-            types,
-            node.VBAR(),
-            (bar) => concat([space, formatTerminal(bar, "|"), space]),
-            NIL,
-        ),
+        formatBarSeparatedDocs(types, node.VBAR(), formatTerminal),
         space,
         formatTerminal(node.KW_RETURN(), "return"),
         space,
@@ -305,20 +299,19 @@ export function formatCaseStatement(
 
 export function formatVariableDeclarationStatement(
     node: ctx.VarDeclStatementContext,
-    commaTokenType: number,
     visit: Visit,
     formatTerminal: FormatTerminal,
 ): Doc {
     const annotations = visit(node.annotations());
     return concat([
         annotations,
-        isEmpty(annotations) ? NIL : space,
+        isEmptyDoc(annotations) ? NIL : space,
         formatTerminal(node.KW_VARIABLE(), "variable"),
         space,
-        formatTokenSeparatedDocs(
+        formatCommaSeparatedDocs(
             node.varDeclForStatement().map(visit),
-            node.getTokens(commaTokenType),
-            (comma) => formatTerminal(comma, ","),
+            node.COMMA(),
+            formatTerminal,
         ),
         formatTerminal(node.SEMICOLON(), ";"),
     ]);

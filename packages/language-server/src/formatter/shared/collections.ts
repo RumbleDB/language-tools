@@ -1,69 +1,57 @@
-import type { ParseTree, TerminalNode, Token } from "antlr4ng";
+import type { TerminalNode } from "antlr4ng";
 import type * as ctx from "server/parser/context.js";
 
 import { composeTokenDoc, type TokenDoc } from "../context.js";
-import { concat, type Doc, group, indent, line, softline, space } from "../doc.js";
+import { concat, type Doc, indent, line, softline, space } from "../doc.js";
 import { groupStartingWith } from "../helpers.js";
-import { formatTokenSeparatedDocs } from "./tokens.js";
+import { formatCommaSeparatedDocs } from "./tokens.js";
+import type { FormatTerminal, FormatToken, Visit } from "./types.js";
 
-type SourceTerminal = TerminalNode | TerminalNode[] | Token | null | undefined;
-type FormatTerminal = (terminal: SourceTerminal, expectedToken: number | string) => Doc;
-type FormatToken = (terminal: SourceTerminal, expectedToken: number | string) => TokenDoc;
-type Visit = (node: ParseTree | null | undefined) => Doc;
+interface BracketedListOptions {
+    /** The line inside the brackets: `line` spaces them, as in `[ 1, 2 ]`, and `softline` does not, as in `(1, 2)`. */
+    readonly padding?: Doc;
+    /** Puts one item per line even when the list fits on one, because the source does. */
+    readonly expanded?: boolean;
+}
 
 /**
- * Formats an object or map constructor on one line when it fits. It is expanded, with one pair per line, when it does
- * not fit, or when the source is expanded, with a line break after `{`.
+ * Formats a comma-separated list between an opening and a closing token. It is on one line when it fits, and has one
+ * item per line otherwise.
  */
-export function formatPairObjectConstructor(
-    firstToken: TokenDoc,
-    afterFirstToken: Doc,
-    rightBrace: Doc,
-    pairs: readonly Doc[],
+export function formatBracketedList(
+    opening: TokenDoc,
+    items: readonly Doc[],
     commas: readonly TerminalNode[],
+    closing: Doc,
     formatTerminal: FormatTerminal,
-    expanded: boolean,
+    { padding = line, expanded = false }: BracketedListOptions = {},
 ): Doc {
-    if (pairs.length === 0) {
-        return concat([composeTokenDoc(firstToken), afterFirstToken, rightBrace]);
+    if (items.length === 0) {
+        return concat([composeTokenDoc(opening), closing]);
     }
-    const formattedPairs = formatTokenSeparatedDocs(pairs, commas, (comma) =>
-        formatTerminal(comma, ","),
-    );
     return groupStartingWith(
-        firstToken,
-        concat([afterFirstToken, indent(concat([line, formattedPairs])), line, rightBrace]),
+        opening,
+        concat([
+            indent(concat([padding, formatCommaSeparatedDocs(items, commas, formatTerminal)])),
+            padding,
+            closing,
+        ]),
         { shouldBreak: expanded },
     );
 }
 
 export function formatSquareArrayConstructor(
     node: ctx.SquareArrayConstructorContext,
-    commaTokenType: number,
     visit: Visit,
     formatToken: FormatToken,
     formatTerminal: FormatTerminal,
 ): Doc {
-    const leftBracket = formatToken(node.LBRACKET(), "[");
-    const rightBracket = formatTerminal(node.RBRACKET(), "]");
-    const items = node.exprSingle().map(visit);
-    if (items.length === 0) {
-        return concat([composeTokenDoc(leftBracket), rightBracket]);
-    }
-    return groupStartingWith(
-        leftBracket,
-        concat([
-            indent(
-                concat([
-                    line,
-                    formatTokenSeparatedDocs(items, node.getTokens(commaTokenType), (comma) =>
-                        formatTerminal(comma, ","),
-                    ),
-                ]),
-            ),
-            line,
-            rightBracket,
-        ]),
+    return formatBracketedList(
+        formatToken(node.LBRACKET(), "["),
+        node.exprSingle().map(visit),
+        node.COMMA(),
+        formatTerminal(node.RBRACKET(), "]"),
+        formatTerminal,
     );
 }
 
@@ -87,56 +75,21 @@ export function formatPostfixExpression(node: ctx.PostfixExprContext, visit: Vis
     return concat(parts);
 }
 
-function formatParenthesizedList(
-    leftParenthesis: SourceTerminal,
-    rightParenthesis: SourceTerminal,
-    items: Doc[],
-    commas: TerminalNode[],
-    formatTerminal: FormatTerminal,
-): Doc {
-    const left = formatTerminal(leftParenthesis, "(");
-    const right = formatTerminal(rightParenthesis, ")");
-    if (items.length === 0) {
-        return concat([left, right]);
-    }
-    return concat([
-        left,
-        group(
-            concat([
-                indent(
-                    concat([
-                        softline,
-                        formatTokenSeparatedDocs(items, commas, (comma) =>
-                            formatTerminal(comma, ","),
-                        ),
-                    ]),
-                ),
-                softline,
-                right,
-            ]),
-        ),
-    ]);
-}
-
 export function formatParenthesizedExpression(
     node: ctx.ParenthesizedExprContext,
-    commaTokenType: number,
     visit: Visit,
+    formatToken: FormatToken,
     formatTerminal: FormatTerminal,
 ): Doc {
     const expression = node.expr();
-    const items = expression
-        ? "exprSingle" in expression && typeof expression.exprSingle === "function"
-            ? expression.exprSingle().map(visit)
-            : [visit(expression)]
-        : [];
-    return formatParenthesizedList(
-        node.LPAREN(),
-        node.RPAREN(),
-        items,
+    return formatBracketedList(
+        formatToken(node.LPAREN(), "("),
+        expression?.exprSingle().map(visit) ?? [],
         // The commas separate the items of the inner expression, so they are its tokens.
-        expression?.getTokens(commaTokenType) ?? [],
+        expression?.COMMA() ?? [],
+        formatTerminal(node.RPAREN(), ")"),
         formatTerminal,
+        { padding: softline },
     );
 }
 
@@ -146,16 +99,17 @@ export function formatFunctionCall(node: ctx.FunctionCallContext, visit: Visit):
 
 export function formatArgumentList(
     node: ctx.ArgumentListContext,
-    commaTokenType: number,
     visit: Visit,
+    formatToken: FormatToken,
     formatTerminal: FormatTerminal,
 ): Doc {
-    return formatParenthesizedList(
-        node.LPAREN(),
-        node.RPAREN(),
+    return formatBracketedList(
+        formatToken(node.LPAREN(), "("),
         node.argument().map(visit),
-        node.getTokens(commaTokenType),
+        node.COMMA(),
+        formatTerminal(node.RPAREN(), ")"),
         formatTerminal,
+        { padding: softline },
     );
 }
 

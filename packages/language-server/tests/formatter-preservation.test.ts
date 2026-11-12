@@ -88,6 +88,11 @@ describe("Formatting keeps every token and comment", () => {
             formatPreserving('declare variable $x as xs:string external := "foo";\n$x', languageId);
         });
 
+        it("keeps the updating annotation of a function", () => {
+            const source = "declare updating function local:f() { () };\n\nlocal:f()";
+            expect(formatPreserving(source, languageId)).toBe(`${source}\n`);
+        });
+
         it("starts a comment that was on its own line on its own line", () => {
             const formatted = formatPreserving(
                 "let $x := 1\nreturn\n(: the value :)\n$x + 1",

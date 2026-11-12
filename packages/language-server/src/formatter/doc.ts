@@ -74,6 +74,11 @@ export const lineStart: LineDoc = {
 /** Like `lineStart`, and also leaves one blank line before the new line, such as one the source has there. */
 export const blankLineStart: LineDoc = { ...lineStart, afterBlankLine: true };
 
+/** Whether a document prints nothing, such as `NIL`. */
+export function isEmptyDoc(doc: Doc): boolean {
+    return doc.kind === "text" && doc.text === "";
+}
+
 export function text(str: string): Doc {
     if (str === "") {
         return NIL;
@@ -104,7 +109,7 @@ export function verbatim(str: string): Doc {
 export function concat(docs: readonly Doc[]): Doc {
     const flattened: Doc[] = [];
     for (const d of docs) {
-        if (d.kind === "text" && d.text === "") {
+        if (isEmptyDoc(d)) {
             continue;
         }
         if (d.kind === "concat") {
@@ -136,7 +141,7 @@ export function flat(doc: Doc): Doc {
 }
 
 export function indent(doc: Doc): Doc {
-    if (doc.kind === "text" && doc.text === "") {
+    if (isEmptyDoc(doc)) {
         return NIL;
     }
     return { kind: "indent", doc };
@@ -160,8 +165,6 @@ export function join(sep: Doc, docs: readonly Doc[]): Doc {
  * Convenience helper to join items with spaced delimiter (e.g. `$a`, `$b`).
  */
 export function spacedDocs(...parts: (Doc | null | undefined)[]): Doc {
-    const valid = parts.filter(
-        (p): p is Doc => p !== null && p !== undefined && !(p.kind === "text" && p.text === ""),
-    );
+    const valid = parts.filter((p): p is Doc => p !== null && p !== undefined && !isEmptyDoc(p));
     return join(text(" "), valid);
 }

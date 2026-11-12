@@ -7,8 +7,9 @@ import {
 } from "antlr4ng";
 
 import type { FormatterContext } from "../context.js";
-import { concat, type Doc, group, indent, line, NIL, space } from "../doc.js";
+import { concat, type Doc, group, indent, isEmptyDoc, line, NIL, space } from "../doc.js";
 import { type CompactTokenTypes, formatCompact } from "./path.js";
+import type { Visit } from "./types.js";
 
 /**
  * The layout of the rules that a language adapter does not format with a visitor of its own. Most rules are laid out
@@ -22,7 +23,39 @@ export interface DefaultLayoutRules {
     readonly binaryOperators: ReadonlySet<number>;
 }
 
-type Visit = (node: ParseTree) => Doc;
+/** Path steps and type tests, whose parts are written without spaces between them. */
+const COMPACT_RULE_NAMES = [
+    "pathExpr",
+    "relativePathExpr",
+    "axisStep",
+    "forwardStep",
+    "reverseStep",
+    "forwardAxis",
+    "reverseAxis",
+    "abbrevForwardStep",
+    "nodeTest",
+    "nameTest",
+    "predicateList",
+    "itemType",
+    "anyKindTest",
+    "binaryNodeTest",
+    "documentTest",
+    "textTest",
+    "commentTest",
+    "namespaceNodeTest",
+    "piTest",
+    "attributeTest",
+    "schemaAttributeTest",
+    "elementTest",
+    "schemaElementTest",
+    "anyFunctionTest",
+    "typedFunctionTest",
+    "anyMapTest",
+    "typedMapTest",
+    "anyArrayTest",
+    "typedArrayTest",
+    "parenthesizedItemTest",
+];
 
 /** The binary operator rules, whose children alternate between operands and operators. */
 const BINARY_OPERATOR_RULE_NAMES = [
@@ -38,13 +71,22 @@ const BINARY_OPERATOR_RULE_NAMES = [
     "simpleMapExpr",
 ];
 
-/** The indexes of the binary operator rules among the rules of a parser. */
-export function binaryOperatorRules(ruleNames: readonly string[]): ReadonlySet<number> {
-    return new Set(
-        BINARY_OPERATOR_RULE_NAMES.map((name) => ruleNames.indexOf(name)).filter(
-            (index) => index >= 0,
-        ),
-    );
+/** A parser, whose rule names give the indexes of the rules of each layout. */
+export interface LayoutGrammar extends CompactTokenTypes {
+    readonly ruleNames: readonly string[];
+}
+
+/** The default layout rules of a parser. */
+export function defaultLayoutRules(grammar: LayoutGrammar): DefaultLayoutRules {
+    return {
+        compact: ruleIndexes(grammar.ruleNames, COMPACT_RULE_NAMES),
+        compactTokens: grammar,
+        binaryOperators: ruleIndexes(grammar.ruleNames, BINARY_OPERATOR_RULE_NAMES),
+    };
+}
+
+function ruleIndexes(ruleNames: readonly string[], names: readonly string[]): ReadonlySet<number> {
+    return new Set(names.map((name) => ruleNames.indexOf(name)).filter((index) => index >= 0));
 }
 
 /**
@@ -115,7 +157,7 @@ function formatWithSourceSpacing(
     for (const child of node.children) {
         const doc = visit(child);
         const tokens = sourceTokens(child);
-        if (tokens === null || isEmpty(doc)) {
+        if (tokens === null || isEmptyDoc(doc)) {
             continue;
         }
         if (previous !== null && context.hasGapBetween(previous, tokens.start)) {
@@ -136,8 +178,4 @@ function sourceTokens(node: ParseTree): { start: Token; stop: Token } | null {
         return { start: node.start, stop: node.stop };
     }
     return null;
-}
-
-function isEmpty(doc: Doc): boolean {
-    return doc.kind === "text" && doc.text === "";
 }
