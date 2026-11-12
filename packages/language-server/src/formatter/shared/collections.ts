@@ -2,7 +2,7 @@ import type { ParseTree, TerminalNode, Token } from "antlr4ng";
 import type * as ctx from "server/parser/context.js";
 
 import { composeTokenDoc, type TokenDoc } from "../context.js";
-import { concat, type Doc, group, hardline, indent, line, softline, space } from "../doc.js";
+import { concat, type Doc, group, indent, line, softline, space } from "../doc.js";
 import { groupStartingWith } from "../helpers.js";
 import { formatTokenSeparatedDocs } from "./tokens.js";
 
@@ -11,6 +11,10 @@ type FormatTerminal = (terminal: SourceTerminal, expectedToken: number | string)
 type FormatToken = (terminal: SourceTerminal, expectedToken: number | string) => TokenDoc;
 type Visit = (node: ParseTree | null | undefined) => Doc;
 
+/**
+ * Formats an object or map constructor on one line when it fits. It is expanded, with one pair per line, when it does
+ * not fit, or when the source is expanded, with a line break after `{`.
+ */
 export function formatPairObjectConstructor(
     firstToken: TokenDoc,
     afterFirstToken: Doc,
@@ -18,26 +22,18 @@ export function formatPairObjectConstructor(
     pairs: readonly Doc[],
     commas: readonly TerminalNode[],
     formatTerminal: FormatTerminal,
+    expanded: boolean,
 ): Doc {
-    const opening = concat([composeTokenDoc(firstToken), afterFirstToken]);
     if (pairs.length === 0) {
-        return concat([opening, rightBrace]);
+        return concat([composeTokenDoc(firstToken), afterFirstToken, rightBrace]);
     }
-
-    const formatPairs = (breakDoc: Doc): Doc =>
-        formatTokenSeparatedDocs(pairs, commas, (comma) => formatTerminal(comma, ","), breakDoc);
-    if (pairs.length > 2) {
-        return concat([
-            opening,
-            indent(concat([hardline, formatPairs(hardline)])),
-            hardline,
-            rightBrace,
-        ]);
-    }
-
+    const formattedPairs = formatTokenSeparatedDocs(pairs, commas, (comma) =>
+        formatTerminal(comma, ","),
+    );
     return groupStartingWith(
         firstToken,
-        concat([afterFirstToken, indent(concat([line, formatPairs(line)])), line, rightBrace]),
+        concat([afterFirstToken, indent(concat([line, formattedPairs])), line, rightBrace]),
+        { shouldBreak: expanded },
     );
 }
 

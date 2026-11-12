@@ -25,9 +25,18 @@ interface ConcatDoc {
     readonly docs: readonly Doc[];
 }
 
+/**
+ * How a group decides between flat, with its lines as spaces, and broken, with its lines as line breaks:
+ * - `fit`: flat if it fits on the line;
+ * - `break`: always broken, as are the groups around it, as if it contained a hard line;
+ * - `flat`: always flat, with the groups inside it, however long the line.
+ */
+export type GroupLayout = "fit" | "break" | "flat";
+
 interface GroupDoc {
     readonly kind: "group";
     readonly doc: Doc;
+    readonly layout: GroupLayout;
 }
 
 interface IndentDoc {
@@ -43,6 +52,8 @@ interface LineDoc {
     readonly soft: boolean;
     /** If true, this hard newline prints nothing when the line so far holds only indentation. */
     readonly unlessAtLineStart?: boolean;
+    /** With `unlessAtLineStart`, the new line also follows a blank line, unless there already is one. */
+    readonly afterBlankLine?: boolean;
 }
 
 // ─── Constants & Constructors ──────────────────────────────────────────────────
@@ -60,6 +71,8 @@ export const lineStart: LineDoc = {
     soft: false,
     unlessAtLineStart: true,
 };
+/** Like `lineStart`, and also leaves one blank line before the new line, such as one the source has there. */
+export const blankLineStart: LineDoc = { ...lineStart, afterBlankLine: true };
 
 export function text(str: string): Doc {
     if (str === "") {
@@ -109,11 +122,17 @@ export function concat(docs: readonly Doc[]): Doc {
     return { kind: "concat", docs: flattened };
 }
 
-export function group(doc: Doc): Doc {
+export function group(doc: Doc, { shouldBreak = false }: { shouldBreak?: boolean } = {}): Doc {
+    const layout = shouldBreak ? "break" : "fit";
     if (doc.kind === "group") {
-        return doc;
+        return shouldBreak ? { ...doc, layout } : doc;
     }
-    return { kind: "group", doc };
+    return { kind: "group", doc, layout };
+}
+
+/** Keeps a document on one line, such as an expression interpolated in a string, which no line break shortens. */
+export function flat(doc: Doc): Doc {
+    return { kind: "group", doc, layout: "flat" };
 }
 
 export function indent(doc: Doc): Doc {

@@ -15,6 +15,7 @@ import {
     spacedDocs,
 } from "../doc.js";
 import { formatBlockDoc, formatIfExpressionDoc, formatTryCatchDoc } from "../helpers.js";
+import { formatIntroducedExpression } from "./flwor.js";
 import { formatTokenSeparatedDocs } from "./tokens.js";
 
 type SourceTerminal = TerminalNode | TerminalNode[] | Token | null | undefined;
@@ -192,31 +193,35 @@ export function formatProlog(
     rules: PrologRuleTypes,
     visit: Visit,
 ): Doc {
-    const declarations: { doc: Doc; type: DeclarationType }[] = [];
+    const declarations: { node: ParserRuleContext; doc: Doc; type: DeclarationType }[] = [];
     for (let index = 0; index < node.getChildCount(); index++) {
         const child = node.getChild(index);
-        if (child === null || child instanceof TerminalNode) {
+        if (!(child instanceof ParserRuleContext)) {
             continue;
         }
         const declaration = visit(child);
         if (declaration.kind !== "text" || declaration.text !== "") {
-            declarations.push({ doc: declaration, type: findDeclarationType(child, rules) });
+            declarations.push({
+                node: child,
+                doc: declaration,
+                type: findDeclarationType(child, rules),
+            });
         }
     }
     if (declarations.length === 0) {
         return NIL;
     }
 
+    // A blank line separates declarations of different kinds, and any that the source separates with one. The
+    // blank lines around the comments before a declaration are kept with the comments.
     const docs: Doc[] = [declarations[0]!.doc];
     for (let index = 1; index < declarations.length; index++) {
         const previous = declarations[index - 1]!;
         const current = declarations[index]!;
-        docs.push(
-            context.options.blankLineBetweenDeclarations && previous.type !== current.type
-                ? concat([hardline, hardline])
-                : hardline,
-            current.doc,
-        );
+        const blankLine =
+            (context.options.blankLineBetweenDeclarations && previous.type !== current.type) ||
+            context.hasBlankLineAfter(previous.node.stop!);
+        docs.push(blankLine ? concat([hardline, hardline]) : hardline, current.doc);
     }
     return concat(docs);
 }
@@ -275,10 +280,15 @@ export function formatAnnotatedDeclaration(node: ctx.AnnotatedDeclContext, visit
     return concat(parts);
 }
 
+/**
+ * Formats a function declaration. Its body is on the same line as the signature when it fits, unless the source puts
+ * it on its own lines, with a line break after `{`.
+ */
 export function formatFunctionDeclaration(
     node: ctx.FunctionDeclContext,
     visit: Visit,
     formatTerminal: FormatTerminal,
+    bodyExpanded: boolean,
 ): Doc {
     const declaration = formatTerminal(node.KW_DECLARE(), "declare");
     const annotations = visit(node.annotations());
@@ -329,6 +339,7 @@ export function formatFunctionDeclaration(
             formatTerminal(node.LBRACE(), "{"),
             visit(node._fn_body),
             formatTerminal(node.RBRACE(), "}"),
+            { shouldBreak: bodyExpanded },
         ),
         semicolon,
     ]);
@@ -360,7 +371,14 @@ export function formatVariableDeclaration(
         typed,
         external,
         expression
-            ? concat([space, formatTerminal(node.COLON_EQ(), ":="), space, visit(expression)])
+            ? concat([
+                  space,
+                  formatIntroducedExpression(
+                      formatTerminal(node.COLON_EQ(), ":="),
+                      expression,
+                      visit,
+                  ),
+              ])
             : NIL,
         semicolon,
     ]);

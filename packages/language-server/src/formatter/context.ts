@@ -1,7 +1,23 @@
-import { CommonTokenStream, type ParserRuleContext, TerminalNode, Token } from "antlr4ng";
+import {
+    CommonTokenStream,
+    type ParseTree,
+    ParserRuleContext,
+    TerminalNode,
+    Token,
+} from "antlr4ng";
 
 import { buildCommentAttachmentMap, CommentAttachmentMap, isComment } from "./comments.js";
-import { concat, Doc, hardline, lineStart, NIL, space, text, verbatim } from "./doc.js";
+import {
+    blankLineStart,
+    concat,
+    Doc,
+    hardline,
+    lineStart,
+    NIL,
+    space,
+    text,
+    verbatim,
+} from "./doc.js";
 import type { FormatterOptions } from "./options.js";
 
 /**
@@ -129,6 +145,63 @@ export class FormatterContext {
         );
     }
 
+    /**
+     * Checks whether the source breaks the line between an opening bracket and the first item after it. A construct
+     * written that way, such as an object with one field per line, is kept expanded.
+     */
+    public breaksLineAfter(
+        opening: TerminalNode | null,
+        first: ParseTree | null | undefined,
+    ): boolean {
+        const next =
+            first instanceof TerminalNode
+                ? first.symbol
+                : first instanceof ParserRuleContext
+                  ? first.start
+                  : null;
+        if (opening === null || next === null || next === undefined) {
+            return false;
+        }
+        const gap = opening.symbol.inputStream?.getTextFromRange(
+            opening.symbol.stop + 1,
+            next.start - 1,
+        );
+        return gap?.includes("\n") ?? false;
+    }
+
+    /** Checks whether the source has a blank line between two tokens. */
+    public hasBlankLineBetween(left: Token, right: Token): boolean {
+        const gap = left.inputStream?.getTextFromRange(left.stop + 1, right.start - 1) ?? "";
+        return /\n[ \t\r]*\n/.test(gap);
+    }
+
+    /** Checks whether the source has a blank line right after a token, before the next comment or token. */
+    public hasBlankLineAfter(token: Token): boolean {
+        for (let index = token.tokenIndex + 1; index < this.tokenStream.size; index++) {
+            const next = this.tokenStream.get(index);
+            if (next.type === Token.EOF || (next.text ?? "").trim() !== "") {
+                return this.hasBlankLineBetween(token, next);
+            }
+        }
+        return false;
+    }
+
+    /** The last token before an index that the parser reads, or null at the start of the document. */
+    private previousDefaultToken(tokenIndex: number): Token | null {
+        for (let index = tokenIndex - 1; index >= 0; index--) {
+            const token = this.tokenStream.get(index);
+            if (token.channel === Token.DEFAULT_CHANNEL) {
+                return token;
+            }
+        }
+        return null;
+    }
+
+    /** Checks whether the source has any text, such as whitespace or a comment, between two tokens. */
+    public hasGapBetween(left: Token, right: Token): boolean {
+        return left.stop < right.start - 1;
+    }
+
     /** Checks whether the source gap between two tokens contains only whitespace. */
     public hasOnlyWhitespaceBetween(left: Token, right: Token): boolean {
         if (left.stop >= right.start - 1) {
@@ -155,25 +228,31 @@ export class FormatterContext {
     }
 
     /**
-     * Emits any un-emitted leading comments for a token index as a Doc.
+     * Emits any un-emitted leading comments for a token index as a Doc. Each comment was on its own line, so it stays
+     * there, or the next format would attach it to the token before it as a trailing comment. A blank line before or
+     * after a comment in the source is kept.
      */
     public flushLeadingDoc(tokenIndex: number): Doc {
-        const leading = this.attachmentMap.leading.get(tokenIndex);
-        if (!leading || leading.length === 0) {
+        const comments = (this.attachmentMap.leading.get(tokenIndex) ?? []).filter(
+            (comment) => !this.emittedComments.has(comment.tokenIndex),
+        );
+        if (comments.length === 0) {
             return NIL;
         }
 
         const docs: Doc[] = [];
-        for (const c of leading) {
-            if (!this.emittedComments.has(c.tokenIndex)) {
-                this.emittedComments.add(c.tokenIndex);
-                // The comment was on its own line, so it must stay there, or the next format would attach it to
-                // the token before it as a trailing comment.
-                docs.push(lineStart);
-                docs.push(verbatim(c.text?.trim() ?? ""));
-                docs.push(hardline);
-            }
+        let previous = this.previousDefaultToken(comments[0]!.tokenIndex);
+        for (const comment of comments) {
+            this.emittedComments.add(comment.tokenIndex);
+            const blankBefore = previous !== null && this.hasBlankLineBetween(previous, comment);
+            docs.push(
+                blankBefore ? blankLineStart : lineStart,
+                verbatim(comment.text?.trim() ?? ""),
+            );
+            previous = comment;
         }
+        const next = this.tokenStream.get(tokenIndex);
+        docs.push(this.hasBlankLineBetween(previous!, next) ? blankLineStart : hardline);
         return concat(docs);
     }
 

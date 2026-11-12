@@ -1,6 +1,6 @@
 import { ParseTree, ParserRuleContext, TerminalNode, Token } from "antlr4ng";
 import { composeTokenDoc, FormatterContext, type TokenDoc } from "server/formatter/context.js";
-import { concat, Doc, indent, line, NIL, space, spacedDocs } from "server/formatter/doc.js";
+import { concat, Doc, indent, line, NIL, space } from "server/formatter/doc.js";
 import { groupStartingWith } from "server/formatter/helpers.js";
 import {
     formatArgument,
@@ -13,6 +13,12 @@ import {
     formatSquareArrayConstructor,
 } from "server/formatter/shared/collections.js";
 import {
+    binaryOperatorRules,
+    type DefaultLayoutRules,
+    formatWithDefaultLayout,
+    visitWithLeadingComments,
+} from "server/formatter/shared/default-layout.js";
+import {
     formatCountClause,
     formatExpressionSequence,
     formatFlworExpression,
@@ -24,8 +30,8 @@ import {
     formatLetVariable,
     formatOrderByClause,
     formatWhereClause,
+    formatWindowClause,
 } from "server/formatter/shared/flwor.js";
-import { formatCompact } from "server/formatter/shared/path.js";
 import {
     formatBoundarySpaceDeclaration,
     formatAnnotation,
@@ -125,6 +131,12 @@ const COMPACT_RULES = new Set([
     JsoniqParser.RULE_parenthesizedItemTest,
 ]);
 
+const DEFAULT_LAYOUT_RULES: DefaultLayoutRules = {
+    compact: COMPACT_RULES,
+    compactTokens: JsoniqParser,
+    binaryOperators: binaryOperatorRules(JsoniqParser),
+};
+
 export class JsoniqFormatterVisitor extends JsoniqParserVisitor<Doc> {
     public constructor(private readonly ctx: FormatterContext) {
         super();
@@ -134,15 +146,8 @@ export class JsoniqFormatterVisitor extends JsoniqParserVisitor<Doc> {
      * Visit any parse tree node (terminal or rule context).
      * Terminals are routed through formatToken for comment attachment.
      */
-    private v = (child: ParseTree | null | undefined): Doc => {
-        if (child === null || child === undefined) {
-            return NIL;
-        }
-        if ("accept" in child && typeof child.accept === "function") {
-            return child.accept(this) ?? NIL;
-        }
-        return NIL;
-    };
+    private v = (child: ParseTree | null | undefined): Doc =>
+        visitWithLeadingComments(this.ctx, child, this);
 
     /**
      * Visit a keyword or punctuation terminal (or token).
@@ -174,19 +179,15 @@ export class JsoniqFormatterVisitor extends JsoniqParserVisitor<Doc> {
             breakDoc,
         );
 
+    /** Formats a rule that this visitor does not format itself. */
     public override visitChildren(node: ParseTree): Doc {
-        if (node instanceof ParserRuleContext && COMPACT_RULES.has(node.ruleIndex)) {
-            return formatCompact(node, JsoniqParser, this.v);
-        }
-        return super.visitChildren(node) ?? NIL;
+        return node instanceof ParserRuleContext
+            ? formatWithDefaultLayout(this.ctx, node, DEFAULT_LAYOUT_RULES, this.v)
+            : NIL;
     }
 
     protected override defaultResult(): Doc {
         return NIL;
-    }
-
-    protected override aggregateResult(aggregate: Doc, nextResult: Doc): Doc {
-        return spacedDocs(aggregate, nextResult);
     }
 
     public override visitTerminal = (node: TerminalNode): Doc => {
@@ -260,7 +261,12 @@ export class JsoniqFormatterVisitor extends JsoniqParserVisitor<Doc> {
     // ─── Declarations ─────────────────────────────────────────────────────────
 
     public override visitFunctionDecl = (node: ctx.FunctionDeclContext): Doc => {
-        return formatFunctionDeclaration(node, this.v, this.kw);
+        return formatFunctionDeclaration(
+            node,
+            this.v,
+            this.kw,
+            this.ctx.breaksLineAfter(node.LBRACE(), node._fn_body),
+        );
     };
 
     public override visitVarDecl = (node: ctx.VarDeclContext): Doc => {
@@ -443,6 +449,24 @@ export class JsoniqFormatterVisitor extends JsoniqParserVisitor<Doc> {
         return formatOrderByClause(node, JsoniqParser.COMMA, this.v, this.kw);
     };
 
+    public override visitTumblingWindowClause = (node: ctx.TumblingWindowClauseContext): Doc => {
+        return formatWindowClause(
+            this.kw(node.KW_TUMBLING(), JsoniqParser.KW_TUMBLING),
+            node,
+            this.v,
+            this.kw,
+        );
+    };
+
+    public override visitSlidingWindowClause = (node: ctx.SlidingWindowClauseContext): Doc => {
+        return formatWindowClause(
+            this.kw(node.KW_SLIDING(), JsoniqParser.KW_SLIDING),
+            node,
+            this.v,
+            this.kw,
+        );
+    };
+
     public override visitCountClause = (node: ctx.CountClauseContext): Doc => {
         return formatCountClause(node, this.v, this.kw);
     };
@@ -533,6 +557,7 @@ export class JsoniqFormatterVisitor extends JsoniqParserVisitor<Doc> {
             pairs,
             node.getTokens(JsoniqParser.COMMA),
             this.kw,
+            this.ctx.breaksLineAfter(node.LBRACE(), node.pairConstructor()[0]),
         );
     };
 

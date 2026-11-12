@@ -2,6 +2,14 @@ import type * as jsoniq from "./adapters/jsoniq/grammar/JsoniqParser.js";
 import type * as xquery from "./adapters/xquery/grammar/XQueryParser.js";
 
 /** Shared CST types. A node belongs to either grammar, so these are unions. */
+
+/** The name of the index constant of a rule of both grammars, such as `RULE_orExpr`. */
+type SharedRule = Extract<keyof typeof jsoniq.JsoniqParser, `RULE_${string}`> &
+    Extract<keyof typeof xquery.XQueryParser, `RULE_${string}`>;
+
+/** A parser of either grammar, as the indexes of the rules they share, such as `parser.RULE_orExpr`. */
+export type SharedRuleIndexes = Readonly<Record<SharedRule, number>>;
+
 export type AnnotatedDeclContext = jsoniq.AnnotatedDeclContext | xquery.AnnotatedDeclContext;
 export type AnnotationContext = jsoniq.AnnotationContext | xquery.AnnotationContext;
 export type AnnotationsContext = jsoniq.AnnotationsContext | xquery.AnnotationsContext;
@@ -43,6 +51,7 @@ export type EnclosedExpressionContext =
     | xquery.EnclosedExpressionContext;
 export type ExitStatementContext = jsoniq.ExitStatementContext | xquery.ExitStatementContext;
 export type ExprContext = jsoniq.ExprContext | xquery.ExprContext;
+export type ExprSingleContext = jsoniq.ExprSingleContext | xquery.ExprSingleContext;
 export type FlworExprContext = jsoniq.FlworExprContext | xquery.FlworExprContext;
 export type FlworStatementContext = jsoniq.FlworStatementContext | xquery.FlworStatementContext;
 export type ForClauseContext = jsoniq.ForClauseContext | xquery.ForClauseContext;

@@ -1,4 +1,4 @@
-import type { Doc } from "./doc.js";
+import type { Doc, GroupLayout } from "./doc.js";
 import type { FormatterOptions } from "./options.js";
 
 type Mode = "flat" | "break";
@@ -60,25 +60,24 @@ export function printDocToString(doc: Doc, options: FormatterOptions): string {
                 break;
             }
             case "group": {
-                const groupMode =
-                    mode === "flat" ||
-                    fits(width - currentColumn, { indent, mode: "flat", doc: current.doc }, cmds)
-                        ? "flat"
-                        : "break";
+                const groupMode = chooseGroupMode(
+                    current.layout,
+                    () =>
+                        mode === "flat" ||
+                        fits(
+                            width - currentColumn,
+                            { indent, mode: "flat", doc: current.doc },
+                            cmds,
+                        ),
+                );
                 cmds.push({ indent, mode: groupMode, doc: current.doc });
                 break;
             }
             case "line": {
                 if (current.unlessAtLineStart) {
-                    const lineSoFar = output.slice(output.lastIndexOf("\n") + 1);
-                    if (lineSoFar.trim() === "") {
-                        // Already on a fresh line: only make sure it has this indentation.
-                        output =
-                            output.slice(0, output.length - lineSoFar.length) +
-                            indentStr.repeat(indent);
-                    } else {
-                        output = output.trimEnd() + "\n" + indentStr.repeat(indent);
-                    }
+                    output =
+                        startLine(output, current.afterBlankLine === true) +
+                        indentStr.repeat(indent);
                     currentColumn = indent * options.indentSize;
                     break;
                 }
@@ -103,6 +102,17 @@ export function printDocToString(doc: Doc, options: FormatterOptions): string {
     }
 
     return output;
+}
+
+function chooseGroupMode(layout: GroupLayout, fitsFlat: () => boolean): Mode {
+    switch (layout) {
+        case "break":
+            return "break";
+        case "flat":
+            return "flat";
+        case "fit":
+            return fitsFlat() ? "flat" : "break";
+    }
 }
 
 /**
@@ -162,7 +172,17 @@ function fits(
                 break;
             }
             case "group": {
-                cmds.push({ indent, mode: isContinuation ? mode : "flat", doc: current.doc });
+                if (current.layout === "break") {
+                    // Like a hard line: the group being measured cannot be flat, and the line after it ends at
+                    // the group's first line.
+                    if (!isContinuation) {
+                        return false;
+                    }
+                    cmds.push({ indent, mode: "break", doc: current.doc });
+                    break;
+                }
+                const flat = current.layout === "flat" || !isContinuation;
+                cmds.push({ indent, mode: flat ? "flat" : mode, doc: current.doc });
                 break;
             }
             case "line": {
@@ -183,6 +203,23 @@ function fits(
     }
 
     return restWidth >= 0;
+}
+
+/**
+ * Ends the output with a new line, without indentation, and after a blank line if requested. A line that holds only
+ * indentation is reused rather than followed by another, and a blank line is never doubled.
+ */
+function startLine(output: string, afterBlankLine: boolean): string {
+    const lineSoFar = output.slice(output.lastIndexOf("\n") + 1);
+    let result =
+        lineSoFar.trim() === ""
+            ? output.slice(0, output.length - lineSoFar.length)
+            : output.trimEnd() + "\n";
+    // The start of the document needs no blank line before it.
+    if (afterBlankLine && result !== "" && !result.endsWith("\n\n")) {
+        result += "\n";
+    }
+    return result;
 }
 
 function firstNewlineIndex(value: string): number {

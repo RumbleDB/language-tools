@@ -1,8 +1,7 @@
 import type { ParseTree, ParserRuleContext, TerminalNode, Token } from "antlr4ng";
 import type * as ctx from "server/parser/context.js";
 
-import { concat, type Doc, group, NIL, space } from "../doc.js";
-import { formatFlworExpressionDoc } from "../helpers.js";
+import { concat, type Doc, group, hardline, indent, join, NIL, space } from "../doc.js";
 import { formatTokenSeparatedDocs } from "./tokens.js";
 
 type SourceTerminal = TerminalNode | TerminalNode[] | Token | null | undefined;
@@ -25,13 +24,27 @@ export function formatFlworExpression(
             clauses.push(clause);
         }
     }
-    return group(
-        formatFlworExpressionDoc(
-            clauses,
-            formatTerminal(node.KW_RETURN(), "return"),
-            visit(node._return_expr),
-        ),
+    const returnClause = formatIntroducedExpression(
+        formatTerminal(node.KW_RETURN(), "return"),
+        node._return_expr,
+        visit,
     );
+    return join(hardline, [...clauses, returnClause]);
+}
+
+/**
+ * Formats an expression after the keyword or operator that introduces it, such as `:=`, `in` or `return`. A FLWOR
+ * expression starts on its own line, indented, so that its clauses are not read as those of the enclosing FLWOR.
+ */
+export function formatIntroducedExpression(
+    introducer: Doc,
+    expression: ctx.ExprSingleContext | null | undefined,
+    visit: Visit,
+): Doc {
+    if (expression?.flworExpr()) {
+        return concat([introducer, indent(concat([hardline, visit(expression)]))]);
+    }
+    return concat([introducer, space, visit(expression)]);
 }
 
 function formatCommaSeparatedChildren(
@@ -79,9 +92,7 @@ export function formatForVariable(
         allowingEmpty,
         positionalVariable,
         space,
-        formatTerminal(node.KW_IN(), "in"),
-        space,
-        visit(node._ex),
+        formatIntroducedExpression(formatTerminal(node.KW_IN(), "in"), node._ex, visit),
     ]);
 }
 
@@ -112,9 +123,7 @@ export function formatLetVariable(
         visit(node._var_ref),
         sequenceType,
         space,
-        formatTerminal(node.COLON_EQ(), ":="),
-        space,
-        visit(node._ex),
+        formatIntroducedExpression(formatTerminal(node.COLON_EQ(), ":="), node._ex, visit),
     ]);
 }
 
@@ -179,6 +188,38 @@ export function formatOrderByClause(
             formatCommaSeparatedChildren(node, node._specs, commaTokenType, visit, formatTerminal),
         ]),
     );
+}
+
+/**
+ * Formats the window of a `for tumbling window` or `for sliding window` clause, with its start and end conditions
+ * on lines of their own:
+ * ```
+ * for sliding window $w in $readings
+ *     start at $first when true()
+ *     only end at $last when $last - $first eq 2
+ * ```
+ */
+export function formatWindowClause(
+    kind: Doc,
+    node: ctx.TumblingWindowClauseContext | ctx.SlidingWindowClauseContext,
+    visit: Visit,
+    formatTerminal: FormatTerminal,
+): Doc {
+    const type = node._type_ ? concat([space, visit(node._type_)]) : NIL;
+    const conditions = [node.windowStartCondition(), node.windowEndCondition()].map((condition) =>
+        condition ? concat([hardline, visit(condition)]) : NIL,
+    );
+    return concat([
+        kind,
+        space,
+        formatTerminal(node.KW_WINDOW(), "window"),
+        space,
+        visit(node._name),
+        type,
+        space,
+        formatIntroducedExpression(formatTerminal(node.KW_IN(), "in"), node.exprSingle(), visit),
+        indent(concat(conditions)),
+    ]);
 }
 
 export function formatCountClause(

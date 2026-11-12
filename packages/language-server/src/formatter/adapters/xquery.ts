@@ -1,6 +1,6 @@
 import { ParseTree, ParserRuleContext, TerminalNode, Token } from "antlr4ng";
 import { composeTokenDoc, FormatterContext, type TokenDoc } from "server/formatter/context.js";
-import { concat, Doc, NIL, space, spacedDocs } from "server/formatter/doc.js";
+import { concat, Doc, NIL, space } from "server/formatter/doc.js";
 import {
     formatArgument,
     formatArgumentList,
@@ -11,6 +11,12 @@ import {
     formatPostfixExpression,
     formatSquareArrayConstructor,
 } from "server/formatter/shared/collections.js";
+import {
+    binaryOperatorRules,
+    type DefaultLayoutRules,
+    formatWithDefaultLayout,
+    visitWithLeadingComments,
+} from "server/formatter/shared/default-layout.js";
 import {
     formatCountClause,
     formatExpressionSequence,
@@ -23,8 +29,8 @@ import {
     formatLetVariable,
     formatOrderByClause,
     formatWhereClause,
+    formatWindowClause,
 } from "server/formatter/shared/flwor.js";
-import { formatCompact } from "server/formatter/shared/path.js";
 import {
     formatBoundarySpaceDeclaration,
     formatAnnotation,
@@ -123,6 +129,12 @@ const COMPACT_RULES = new Set([
     XQueryParser.RULE_parenthesizedItemTest,
 ]);
 
+const DEFAULT_LAYOUT_RULES: DefaultLayoutRules = {
+    compact: COMPACT_RULES,
+    compactTokens: XQueryParser,
+    binaryOperators: binaryOperatorRules(XQueryParser),
+};
+
 export class XQueryFormatterVisitor extends XQueryParserVisitor<Doc> {
     public constructor(private readonly ctx: FormatterContext) {
         super();
@@ -132,15 +144,8 @@ export class XQueryFormatterVisitor extends XQueryParserVisitor<Doc> {
      * Visit any parse tree node (terminal or rule context).
      * Terminals are routed through formatToken for comment attachment.
      */
-    private v = (child: ParseTree | null | undefined): Doc => {
-        if (child === null || child === undefined) {
-            return NIL;
-        }
-        if ("accept" in child && typeof child.accept === "function") {
-            return child.accept(this) ?? NIL;
-        }
-        return NIL;
-    };
+    private v = (child: ParseTree | null | undefined): Doc =>
+        visitWithLeadingComments(this.ctx, child, this);
 
     /**
      * Visit a keyword or punctuation terminal (or token).
@@ -160,19 +165,15 @@ export class XQueryFormatterVisitor extends XQueryParserVisitor<Doc> {
         return composeTokenDoc(this.token(terminal, expectedToken));
     };
 
+    /** Formats a rule that this visitor does not format itself. */
     public override visitChildren(node: ParseTree): Doc {
-        if (node instanceof ParserRuleContext && COMPACT_RULES.has(node.ruleIndex)) {
-            return formatCompact(node, XQueryParser, this.v);
-        }
-        return super.visitChildren(node) ?? NIL;
+        return node instanceof ParserRuleContext
+            ? formatWithDefaultLayout(this.ctx, node, DEFAULT_LAYOUT_RULES, this.v)
+            : NIL;
     }
 
     protected override defaultResult(): Doc {
         return NIL;
-    }
-
-    protected override aggregateResult(aggregate: Doc, nextResult: Doc): Doc {
-        return spacedDocs(aggregate, nextResult);
     }
 
     public override visitTerminal = (node: TerminalNode): Doc => {
@@ -246,7 +247,12 @@ export class XQueryFormatterVisitor extends XQueryParserVisitor<Doc> {
     // ─── Declarations ─────────────────────────────────────────────────────────
 
     public override visitFunctionDecl = (node: ctx.FunctionDeclContext): Doc => {
-        return formatFunctionDeclaration(node, this.v, this.kw);
+        return formatFunctionDeclaration(
+            node,
+            this.v,
+            this.kw,
+            this.ctx.breaksLineAfter(node.LBRACE(), node._fn_body),
+        );
     };
 
     public override visitVarDecl = (node: ctx.VarDeclContext): Doc => {
@@ -403,6 +409,24 @@ export class XQueryFormatterVisitor extends XQueryParserVisitor<Doc> {
         return formatOrderByClause(node, XQueryParser.COMMA, this.v, this.kw);
     };
 
+    public override visitTumblingWindowClause = (node: ctx.TumblingWindowClauseContext): Doc => {
+        return formatWindowClause(
+            this.kw(node.KW_TUMBLING(), XQueryParser.KW_TUMBLING),
+            node,
+            this.v,
+            this.kw,
+        );
+    };
+
+    public override visitSlidingWindowClause = (node: ctx.SlidingWindowClauseContext): Doc => {
+        return formatWindowClause(
+            this.kw(node.KW_SLIDING(), XQueryParser.KW_SLIDING),
+            node,
+            this.v,
+            this.kw,
+        );
+    };
+
     public override visitCountClause = (node: ctx.CountClauseContext): Doc => {
         return formatCountClause(node, this.v, this.kw);
     };
@@ -449,7 +473,15 @@ export class XQueryFormatterVisitor extends XQueryParserVisitor<Doc> {
         const rb = this.kw(node.RBRACE(), XQueryParser.RBRACE);
         const pairs = node.pairConstructor().map((p) => this.v(p));
         const commas = node.getTokens(XQueryParser.COMMA);
-        return formatPairObjectConstructor(kwMap, concat([space, lb]), rb, pairs, commas, this.kw);
+        return formatPairObjectConstructor(
+            kwMap,
+            concat([space, lb]),
+            rb,
+            pairs,
+            commas,
+            this.kw,
+            this.ctx.breaksLineAfter(node.LBRACE(), node.pairConstructor()[0]),
+        );
     };
 
     public override visitPairConstructor = (node: ctx.PairConstructorContext): Doc => {
