@@ -1,4 +1,4 @@
-import { CommonTokenStream, TerminalNode, Token } from "antlr4ng";
+import { CommonTokenStream, type ParserRuleContext, TerminalNode, Token } from "antlr4ng";
 
 import { buildCommentAttachmentMap, CommentAttachmentMap, isComment } from "./comments.js";
 import { concat, Doc, hardline, lineStart, NIL, space, text, verbatim } from "./doc.js";
@@ -80,11 +80,30 @@ export class FormatterContext {
     }
 
     /**
-     * Returns the exact source gap between two tokens without attaching comments.
-     * This is used for semantic XML boundary whitespace, which must retain its
-     * original spelling under `declare boundary-space preserve`.
+     * Formats the nodes between two tokens, keeping the source text around them as written, such as the text of a
+     * string constructor or of an XML element around its enclosed expressions.
+     *
+     * The lexer may read text such as `(: … :)` in it as a comment, which the text then prints. So the text is taken
+     * before the nodes and the two tokens are formatted, and they leave those comments to it instead of printing them
+     * a second time. The caller formats the two tokens after calling this.
      */
-    public formatVerbatimBetween(left: Token, right: Token): Doc {
+    public formatBetweenSourceText<T extends ParserRuleContext>(
+        open: Token,
+        nodes: readonly T[],
+        close: Token,
+        format: (node: T) => Doc,
+    ): Doc {
+        const texts = [open, ...nodes.map((node) => node.stop!)].map((left, index) =>
+            this.formatVerbatimBetween(left, nodes[index]?.start ?? close),
+        );
+        return concat([
+            texts[0]!,
+            ...nodes.flatMap((node, index) => [format(node), texts[index + 1]!]),
+        ]);
+    }
+
+    /** Returns the source text between two tokens as written, with the comments in it. */
+    private formatVerbatimBetween(left: Token, right: Token): Doc {
         if (left.stop >= right.start - 1) {
             return NIL;
         }
@@ -176,13 +195,6 @@ export class FormatterContext {
             }
         }
         return concat(docs);
-    }
-
-    /** Whether every comment of the document has been emitted. */
-    public hasEmittedAllComments(): boolean {
-        const { leading, trailing, dangling } = this.attachmentMap;
-        const all = [...leading.values(), ...trailing.values(), dangling].flat();
-        return all.every((comment) => this.emittedComments.has(comment.tokenIndex));
     }
 
     /**
