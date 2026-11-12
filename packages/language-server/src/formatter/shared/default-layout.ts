@@ -5,7 +5,7 @@ import {
     TerminalNode,
     type Token,
 } from "antlr4ng";
-import type { SharedRule, SharedRuleIndexes } from "server/parser/context.js";
+import type { SharedRuleIndexes } from "server/parser/context.js";
 
 import type { FormatterContext } from "../context.js";
 import { concat, type Doc, group, indent, line, NIL, space } from "../doc.js";
@@ -25,23 +25,20 @@ export interface DefaultLayoutRules {
 
 type Visit = (node: ParseTree) => Doc;
 
-/** The binary operator rules, whose children alternate between operands and operators. */
-const BINARY_OPERATOR_RULES: readonly SharedRule[] = [
-    "RULE_orExpr",
-    "RULE_andExpr",
-    "RULE_comparisonExpr",
-    "RULE_stringConcatExpr",
-    "RULE_rangeExpr",
-    "RULE_additiveExpr",
-    "RULE_multiplicativeExpr",
-    "RULE_unionExpr",
-    "RULE_intersectExceptExpr",
-    "RULE_simpleMapExpr",
-];
-
-/** The indexes of the binary operator rules of a parser. */
+/** The binary operator rules of a parser, whose children alternate between operands and operators. */
 export function binaryOperatorRules(parser: SharedRuleIndexes): ReadonlySet<number> {
-    return new Set(BINARY_OPERATOR_RULES.map((rule) => parser[rule]));
+    return new Set([
+        parser.RULE_orExpr,
+        parser.RULE_andExpr,
+        parser.RULE_comparisonExpr,
+        parser.RULE_stringConcatExpr,
+        parser.RULE_rangeExpr,
+        parser.RULE_additiveExpr,
+        parser.RULE_multiplicativeExpr,
+        parser.RULE_unionExpr,
+        parser.RULE_intersectExceptExpr,
+        parser.RULE_simpleMapExpr,
+    ]);
 }
 
 /**
