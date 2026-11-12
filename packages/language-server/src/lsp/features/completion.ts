@@ -96,12 +96,14 @@ export async function findCompletionList(
         return { isIncomplete: false, items: [] };
     }
 
-    const items = await Promise.all(allProviders.map((provider) => provider(context)));
+    const lists = (await Promise.all(allProviders.map((provider) => provider(context)))).map(
+        (result) => (Array.isArray(result) ? { isIncomplete: false, items: result } : result),
+    );
 
     return {
-        isIncomplete: context.isIncomplete,
+        isIncomplete: lists.some((list) => list?.isIncomplete === true),
         items: finalizeCompletionItems(
-            items.flatMap((providerItems) => providerItems ?? []),
+            lists.flatMap((list) => list?.items ?? []),
             context,
         ),
     };

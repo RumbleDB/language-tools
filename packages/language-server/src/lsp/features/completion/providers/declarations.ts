@@ -9,6 +9,7 @@ import {
     type SourceFunctionDefinition,
     type SourceTypeDefinition,
 } from "server/analysis/index.js";
+import type { VariableTypes } from "server/integrations/rumble/operations/static-typecheck/variable-types.js";
 import { getActiveParserId } from "server/parser/utils.js";
 import {
     CompletionItemKind,
@@ -16,6 +17,7 @@ import {
     MarkupKind,
     type CompletionItem,
 } from "vscode-languageserver";
+import type { TextDocument } from "vscode-languageserver-textdocument";
 
 import {
     referenceStart,
@@ -23,7 +25,7 @@ import {
     getQNameCompletionLabels,
     lookupDotAtCursor,
 } from "../context.js";
-import type { CompletionContext, CompletionProvider } from "../types.js";
+import type { CompletionProvider } from "../types.js";
 import { createFunctionCallSnippet } from "./snippets.js";
 
 export const provideVariableCompletions: CompletionProvider = async (context) => {
@@ -45,10 +47,17 @@ export const provideVariableCompletions: CompletionProvider = async (context) =>
     // XQuery writes the context item as `.`, not as a variable.
     const offerContextItem = getActiveParserId(context.document) !== "xquery";
 
-    return declarations
-        .filter((definition) => definition.kind === "variable" || definition.kind === "parameter")
-        .filter((definition) => offerContextItem || !isContextItem(definition))
-        .map((definition) => toVariableCompletionItem(definition, context));
+    const types = context.getVariableTypes();
+    return {
+        // The types that RumbleDB is inferring would not replace the labels of a list that the editor filters.
+        isIncomplete: types.isUpdating,
+        items: declarations
+            .filter(
+                (definition) => definition.kind === "variable" || definition.kind === "parameter",
+            )
+            .filter((definition) => offerContextItem || !isContextItem(definition))
+            .map((definition) => toVariableCompletionItem(definition, types, context.document)),
+    };
 };
 
 export const provideSourceFunctionCompletions: CompletionProvider = async (context) => {
@@ -91,9 +100,14 @@ export const provideSourceTypeCompletions: CompletionProvider = async (context) 
 /** Labels a variable with the type that RumbleDB last inferred for it, or else with its kind. */
 function toVariableCompletionItem(
     declaration: ScopeDefinition,
-    context: CompletionContext,
+    types: VariableTypes,
+    document: TextDocument,
 ): CompletionItem {
-    const type = variableType(declaration, context);
+    // Only the variables of this document are typed.
+    const type =
+        declaration.origin === "source" && declaration.uri === document.uri
+            ? types.typeOf(declaration.selectionRange)
+            : undefined;
     return {
         label: definitionNameToString(declaration),
         kind: CompletionItemKind.Variable,
@@ -106,13 +120,6 @@ function toVariableCompletionItem(
                       : declaration.kind.charAt(0).toUpperCase() + declaration.kind.slice(1),
         },
     };
-}
-
-/** Only the variables of this document are typed. */
-function variableType(declaration: ScopeDefinition, context: CompletionContext) {
-    return declaration.origin === "source" && declaration.uri === context.document.uri
-        ? context.getVariableTypes().typeOf(declaration.selectionRange)
-        : undefined;
 }
 
 function toFunctionCompletionItem(

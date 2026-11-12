@@ -3,7 +3,7 @@ import type { FocusAtPositionWireResult } from "server/integrations/rumble/opera
 import type { VariableTypes } from "server/integrations/rumble/operations/static-typecheck/variable-types.js";
 import type { CompletionIntent } from "server/parser/types/completion.js";
 import type { ParseResult } from "server/parser/types/result.js";
-import type { CompletionItem } from "vscode-languageserver";
+import type { CompletionItem, CompletionList } from "vscode-languageserver";
 import type { TextDocument } from "vscode-languageserver-textdocument";
 
 export interface CompletionContext {
@@ -25,15 +25,13 @@ export interface CompletionContext {
     getFocusAt(offset: number): Promise<FocusAtPositionWireResult>;
     /** The variable types that RumbleDB last inferred for the document, which may be from an earlier version. */
     getVariableTypes(): VariableTypes;
-    /**
-     * Whether the items may change before the user types on, as when RumbleDB is still checking the document for the
-     * types of the variables offered. The editor then asks again as the user types, rather than filtering these items.
-     */
-    readonly isIncomplete: boolean;
 }
 
-/** `null` means the provider does not apply. An empty array means it applies but has no items. */
-export type CompletionProviderResult = CompletionItem[] | null;
+/**
+ * `null` means the provider does not apply. An empty array means it applies but has no items. An incomplete list has
+ * items that may change before the user types on, so that the editor asks again rather than filtering them.
+ */
+export type CompletionProviderResult = CompletionItem[] | CompletionList | null;
 
 export type CompletionProvider = (
     context: CompletionContext,

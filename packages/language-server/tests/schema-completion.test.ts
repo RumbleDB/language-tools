@@ -37,9 +37,17 @@ const catalog: SchemaCatalogWireResult = {
 };
 
 async function complete(source: string, language: string, result = catalog) {
-    const sendRequest = vi
-        .fn()
-        .mockResolvedValue({ id: 1, responseType: "schema-catalog", body: result, error: null });
+    // Variable completion also asks for a static typecheck, which finds no variables here.
+    const sendRequest = vi.fn().mockImplementation(async ({ requestType }) =>
+        requestType === "schema-catalog"
+            ? { id: 1, responseType: "schema-catalog", body: result, error: null }
+            : {
+                  id: 1,
+                  responseType: requestType,
+                  body: { errors: [], bindings: [] },
+                  error: null,
+              },
+    );
     const wrapper = createMockWrapperClient({ sendRequest });
     const { parser, workspace } = createServerContext({} as Connection, wrapper);
     const document = testDocumentFromUri(source, {
