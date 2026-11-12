@@ -40,7 +40,7 @@ export function TableView(props: TableViewProps) {
                             )}
                         </For>
                     </colgroup>
-                    <thead class="sticky top-0 z-10">
+                    <thead class="sticky top-0 z-10 bg-surface-container">
                         <tr>
                             <For each={props.table.getHeaderGroups()}>
                                 {(headerGroup) => (
@@ -48,10 +48,10 @@ export function TableView(props: TableViewProps) {
                                         {(header) => (
                                             <th
                                                 onClick={header.column.getToggleSortingHandler()}
-                                                class={`sticky top-0 z-20 border-b border-r border-outline-variant py-1.5 font-bold tracking-wider select-none last:border-r-0 ${
+                                                class={`relative border-b border-r border-outline-variant py-1.5 font-bold tracking-wider select-none last:border-r-0 ${
                                                     header.column.id === "__index"
-                                                        ? "bg-surface-container text-secondary/70 text-right px-3"
-                                                        : "bg-surface-container text-on-container px-2"
+                                                        ? "text-secondary/70 text-right px-3"
+                                                        : "text-on-container px-2"
                                                 } ${
                                                     header.column.getCanSort()
                                                         ? "cursor-pointer hover:bg-row-hover"
