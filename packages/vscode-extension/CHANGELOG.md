@@ -1,5 +1,11 @@
 # jsoniq-vscode
 
+## 1.15.2
+
+### Patch Changes
+
+- [#141](https://github.com/RumbleDB/language-tools/pull/141) [`59a095b`](https://github.com/RumbleDB/language-tools/commit/59a095b4bbf78e495f4a5249c0f0018b5a9a7f82) - Keep the results table header opaque on hover, so rows scrolled beneath it no longer show through.
+
 ## 1.15.1
 
 ### Patch Changes
