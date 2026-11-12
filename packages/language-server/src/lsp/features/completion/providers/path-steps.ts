@@ -1,6 +1,5 @@
 import { collectModuleProlog, summarizeSequenceType } from "server/analysis/index.js";
 import type { PathStep } from "server/integrations/rumble/operations/focus-at-position/protocol.js";
-import { getFocusAtPosition } from "server/integrations/rumble/operations/focus-at-position/service.js";
 import { defaultTokenAt, defaultTokenBefore } from "server/parser/utils.js";
 import { CompletionItemKind, type CompletionItem } from "vscode-languageserver";
 
@@ -38,11 +37,7 @@ export const providePathStepCompletions: CompletionProvider = async (context) =>
     if (!afterSlash && collectModuleProlog(context.document.uri, ast).schemaImports.length === 0) {
         return null;
     }
-    const { pathSteps } = await getFocusAtPosition(
-        context.document,
-        context.document.positionAt(previous.stop + 1),
-        context.wrapper,
-    );
+    const { pathSteps } = await context.getFocusAt(previous.stop + 1);
     return pathSteps === undefined ? null : stepCompletions(context, step, pathSteps);
 };
 

@@ -3,6 +3,7 @@ import { ChildProcessWithoutNullStreams, spawn } from "node:child_process";
 import pidusage from "pidusage";
 import { config } from "server/app/configuration.js";
 import { createLogger } from "server/utils/logger.js";
+import type { CancellationToken, Disposable } from "vscode-languageserver";
 
 import { type WrapperResolutionOptions, resolveWrapperLaunchConfig } from "./executable/index.js";
 import { REQUEST_TYPE_HANDSHAKE, type HandshakeRequestSpec } from "./handshake.js";
@@ -23,8 +24,21 @@ interface PendingRequest {
     resolve: (response: AnyWrapperResponse) => void;
     reject: (error: Error) => void;
     timeout: NodeJS.Timeout | undefined;
-    signal: AbortSignal | undefined;
-    onAbort?: () => void;
+    cancellation: Disposable | undefined;
+}
+
+export interface WrapperRequestOptions {
+    timeoutMs?: number;
+    /**
+     * Rejects the request when cancelled. RumbleDB still answers it, since it handles one request at a time, and the
+     * answer is ignored.
+     */
+    token?: CancellationToken | undefined;
+    /**
+     * Also restarts RumbleDB when cancelled, so that the next request need not wait for this one, as for a query that
+     * may run for long. Restarting is too slow for requests that are cancelled as the user types.
+     */
+    restartOnCancel?: boolean;
 }
 
 export type WrapperMemoryUsage = {
@@ -40,8 +54,7 @@ export interface WrapperClient {
     restart?(): Promise<void>;
     sendRequest<Spec extends AnyWrapperRequestSpec>(
         payload: Spec["request"],
-        timeoutMs?: number,
-        signal?: AbortSignal,
+        options?: WrapperRequestOptions,
     ): Promise<WrapperDaemonResponse<Spec["requestType"], Spec["response"]>>;
     dispose?(): void;
     getRumbleVersion?(): string | null;
@@ -160,7 +173,7 @@ export class RumbleWrapperClient implements WrapperClient {
                 {
                     requestType: REQUEST_TYPE_HANDSHAKE,
                 },
-                30_000,
+                { timeoutMs: 30_000 },
             );
 
             this.rumbleVersion = handshakeResponse.body.rumbleVersion;
@@ -205,8 +218,7 @@ export class RumbleWrapperClient implements WrapperClient {
 
     public async sendRequest<Spec extends AnyWrapperRequestSpec>(
         payload: Spec["request"],
-        timeoutMs?: number,
-        signal?: AbortSignal,
+        options: WrapperRequestOptions = {},
     ): Promise<WrapperDaemonResponse<Spec["requestType"], Spec["response"]>> {
         if (!this.isConfiguredEnabled()) {
             throw new Error("LSP wrapper is disabled.");
@@ -217,7 +229,7 @@ export class RumbleWrapperClient implements WrapperClient {
         }
 
         await this.connect();
-        return this.sendRequestInternal<Spec>(payload, timeoutMs, signal);
+        return this.sendRequestInternal<Spec>(payload, options);
     }
 
     private markUnavailable(error: Error): void {
@@ -231,8 +243,7 @@ export class RumbleWrapperClient implements WrapperClient {
 
     private async sendRequestInternal<Spec extends AnyWrapperRequestSpec>(
         payload: Spec["request"],
-        timeoutMs?: number,
-        signal?: AbortSignal,
+        { timeoutMs, token, restartOnCancel = false }: WrapperRequestOptions = {},
     ): Promise<WrapperDaemonResponse<Spec["requestType"], Spec["response"]>> {
         const id = this.nextRequestId;
         this.nextRequestId += 1;
@@ -250,44 +261,36 @@ export class RumbleWrapperClient implements WrapperClient {
             throw new Error("Wrapper process is not available.");
         }
 
-        if (signal?.aborted === true) {
-            throw signal.reason instanceof Error
-                ? signal.reason
-                : new Error("Operation was cancelled.");
+        if (token?.isCancellationRequested === true) {
+            throw new Error("Operation was cancelled.");
         }
 
         return new Promise<WrapperDaemonResponse<Spec["requestType"], Spec["response"]>>(
             (resolve, reject) => {
                 const timeout =
                     timeoutMs !== undefined
-                        ? setTimeout(() => {
-                              this.pending.delete(id);
-                              reject(new Error("Wrapper timed out."));
-                          }, timeoutMs)
+                        ? setTimeout(
+                              () => this.rejectPending(id, new Error("Wrapper timed out.")),
+                              timeoutMs,
+                          )
                         : undefined;
 
-                const onAbort = () => {
-                    // Reject with AbortError before dispose() can reject it generically
-                    const reason =
-                        signal?.reason instanceof Error
-                            ? signal.reason
-                            : new Error("Operation was cancelled.");
-                    this.rejectPending(id, reason);
-                    // Kill the Java process so it's immediately free for the next request.
-                    // Next sendRequest call will reconnect lazily via connect().
-                    this.dispose();
-                    this.unavailableError = null;
-                };
-
-                signal?.addEventListener("abort", onAbort, { once: true });
+                const cancellation = token?.onCancellationRequested(() => {
+                    // Reject with the cancellation before dispose() can reject it generically.
+                    this.rejectPending(id, new Error("Operation was cancelled."));
+                    if (restartOnCancel) {
+                        // The next sendRequest call reconnects lazily via connect().
+                        this.dispose();
+                        this.unavailableError = null;
+                    }
+                });
 
                 this.pending.set(id, {
                     expectedResponseType: payload.requestType,
                     resolve: resolve as (response: AnyWrapperResponse) => void,
                     reject,
                     timeout,
-                    signal,
-                    onAbort,
+                    cancellation,
                 });
 
                 try {
@@ -345,9 +348,7 @@ export class RumbleWrapperClient implements WrapperClient {
         if (pendingRequest.timeout !== undefined) {
             clearTimeout(pendingRequest.timeout);
         }
-        if (pendingRequest.onAbort !== undefined) {
-            pendingRequest.signal?.removeEventListener("abort", pendingRequest.onAbort);
-        }
+        pendingRequest.cancellation?.dispose();
         this.pending.delete(response.id);
 
         logger.debug(`Received response from wrapper: ${JSON.stringify(response, null, 2)}`);
@@ -373,9 +374,7 @@ export class RumbleWrapperClient implements WrapperClient {
         if (pendingRequest.timeout !== undefined) {
             clearTimeout(pendingRequest.timeout);
         }
-        if (pendingRequest.onAbort !== undefined) {
-            pendingRequest.signal?.removeEventListener("abort", pendingRequest.onAbort);
-        }
+        pendingRequest.cancellation?.dispose();
         this.pending.delete(id);
         pendingRequest.reject(error);
     }
@@ -385,9 +384,7 @@ export class RumbleWrapperClient implements WrapperClient {
             if (pendingRequest.timeout !== undefined) {
                 clearTimeout(pendingRequest.timeout);
             }
-            if (pendingRequest.onAbort !== undefined) {
-                pendingRequest.signal?.removeEventListener("abort", pendingRequest.onAbort);
-            }
+            pendingRequest.cancellation?.dispose();
             pendingRequest.reject(error);
             this.pending.delete(id);
         }

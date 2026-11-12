@@ -18,22 +18,10 @@ export function registerRunQuery(
     connection.onRequest(
         RUN_QUERY_LSP_METHOD,
         async (params: RunQueryLSPParams, token: CancellationToken) => {
-            const controller = new AbortController();
-            const { dispose } = token.onCancellationRequested(() => controller.abort());
-            try {
-                const document = documents.get(params.uri);
-                if (document !== undefined)
-                    return await runQuery(document, wrapper, controller.signal);
-
-                return await runQueryFromSource(
-                    params.uri,
-                    params.query,
-                    wrapper,
-                    controller.signal,
-                );
-            } finally {
-                dispose();
-            }
+            const document = documents.get(params.uri);
+            return document !== undefined
+                ? await runQuery(document, wrapper, token)
+                : await runQueryFromSource(params.uri, params.query, wrapper, token);
         },
     );
 }

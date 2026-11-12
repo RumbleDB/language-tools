@@ -1,6 +1,7 @@
 import type { WrapperClient } from "server/integrations/rumble/client.js";
 import { getDocumentText } from "server/parser/utils.js";
 import { createLogger } from "server/utils/logger.js";
+import type { CancellationToken } from "vscode-languageserver";
 import type { TextDocument } from "vscode-languageserver-textdocument";
 
 import { REQUEST_TYPE_RUN_QUERY, RunQueryRequest, type RunQueryRequestSpec } from "./protocol.js";
@@ -11,16 +12,16 @@ const logger = createLogger("run-query");
 export async function runQuery(
     document: TextDocument,
     wrapper: WrapperClient,
-    signal?: AbortSignal,
+    token?: CancellationToken,
 ): Promise<RunQueryWireResult> {
-    return runQueryFromSource(document.uri, getDocumentText(document), wrapper, signal);
+    return runQueryFromSource(document.uri, getDocumentText(document), wrapper, token);
 }
 
 export async function runQueryFromSource(
     documentUri: string,
     source: string | undefined,
     client: WrapperClient,
-    signal?: AbortSignal,
+    token?: CancellationToken,
 ): Promise<RunQueryWireResult> {
     if (!client.isUsable()) {
         const unavailableErr = client.getUnavailableError();
@@ -48,11 +49,11 @@ export async function runQueryFromSource(
         if (!documentUri) {
             throw new Error("A document URI is required for run-query.");
         }
-        const response = await client.sendRequest<RunQueryRequestSpec>(
-            request,
-            undefined, // no timeout — rely on AbortSignal for cancellation
-            signal,
-        );
+        // No timeout, since a query may run for long. Cancelling restarts RumbleDB to stop the query.
+        const response = await client.sendRequest<RunQueryRequestSpec>(request, {
+            token,
+            restartOnCancel: true,
+        });
         return response.body;
     } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
