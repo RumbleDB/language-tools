@@ -73,16 +73,6 @@ export function resolveCompletionItem(item: CompletionItem): CompletionItem {
     return resolveBuiltinFunctionCompletion(item) ?? item;
 }
 
-export async function findCompletions(
-    document: TextDocument,
-    position: Position,
-    parser: ParserService,
-    workspace: WorkspaceService,
-    wrapper: WrapperClient,
-): Promise<CompletionItem[]> {
-    return (await findCompletionList(document, position, parser, workspace, wrapper)).items;
-}
-
 export async function findCompletionList(
     document: TextDocument,
     position: Position,

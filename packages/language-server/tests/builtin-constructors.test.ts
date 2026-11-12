@@ -1,12 +1,11 @@
 import { findSymbolAtPosition } from "server/analysis/index.js";
-import { findCompletions } from "server/lsp/features/completion.js";
 import { findHover } from "server/lsp/features/hover.js";
 import { findSignatureHelp } from "server/lsp/features/signature-help.js";
 import { builtinFunctions } from "server/resources/builtin-functions.js";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { parserService, workspaceService, wrapperClient } from "./services.js";
-import { positionAt, testDocumentFromUri } from "./test-utils.js";
+import { findCompletions, positionAt, testDocumentFromUri } from "./test-utils.js";
 
 beforeEach(() => {
     vi.spyOn(wrapperClient, "isUsable").mockReturnValue(false);

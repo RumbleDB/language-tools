@@ -1,10 +1,9 @@
 import { createServerContext } from "server/app/context.js";
 import type { SchemaCatalogWireResult } from "server/integrations/rumble/operations/schema-catalog/protocol.js";
-import { findCompletions } from "server/lsp/features/completion.js";
 import { describe, expect, it, vi } from "vitest";
 import { CompletionItemKind, InsertTextFormat, type Connection } from "vscode-languageserver/node";
 
-import { createMockWrapperClient, testDocumentFromUri } from "./test-utils.js";
+import { createMockWrapperClient, findCompletions, testDocumentFromUri } from "./test-utils.js";
 
 const qname = { namespaceUri: "urn:test", localName: "Code" };
 const catalog: SchemaCatalogWireResult = {

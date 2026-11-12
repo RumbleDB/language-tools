@@ -1,4 +1,5 @@
-import { type Position } from "vscode-languageserver";
+import { findCompletionList } from "server/lsp/features/completion.js";
+import { type CompletionItem, type Position } from "vscode-languageserver";
 import { TextDocument } from "vscode-languageserver-textdocument";
 
 type TestDocumentSource = string | string[];
@@ -85,4 +86,11 @@ export function createMockWrapperClient(
                 : { id: 0, responseType: "", body: {}, error: null },
         ...overrides,
     };
+}
+
+/** The items of a completion list, for tests that do not look at whether it is complete. */
+export async function findCompletions(
+    ...args: Parameters<typeof findCompletionList>
+): Promise<CompletionItem[]> {
+    return (await findCompletionList(...args)).items;
 }

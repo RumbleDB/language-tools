@@ -1,11 +1,10 @@
 import type { SequenceType } from "server/analysis/index.js";
 import type { WrapperClient } from "server/integrations/rumble/client.js";
-import { findCompletions } from "server/lsp/features/completion.js";
 import { describe, expect, it } from "vitest";
 import { CompletionItemKind } from "vscode-languageserver";
 
 import { parserService, workspaceService } from "./services.js";
-import { createMockWrapperClient, testDocumentFromUri } from "./test-utils.js";
+import { createMockWrapperClient, findCompletions, testDocumentFromUri } from "./test-utils.js";
 
 const wrapper = createMockWrapperClient();
 

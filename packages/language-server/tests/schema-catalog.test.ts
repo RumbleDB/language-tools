@@ -8,7 +8,6 @@ import { createServerContext } from "server/app/context.js";
 import { RumbleWrapperClient } from "server/integrations/rumble/client.js";
 import type { SchemaCatalogWireResult } from "server/integrations/rumble/operations/schema-catalog/protocol.js";
 import { getSchemaCatalog } from "server/integrations/rumble/operations/schema-catalog/service.js";
-import { findCompletions } from "server/lsp/features/completion.js";
 import { findDefinitionLocation } from "server/lsp/features/definition.js";
 import { findHover } from "server/lsp/features/hover.js";
 import { findSignatureHelp } from "server/lsp/features/signature-help.js";
@@ -16,7 +15,12 @@ import { describe, expect, it, vi } from "vitest";
 import { TextDocument } from "vscode-languageserver-textdocument";
 import { FileChangeType, type Connection } from "vscode-languageserver/node";
 
-import { createMockWrapperClient, positionAt, testDocument } from "./test-utils.js";
+import {
+    createMockWrapperClient,
+    findCompletions,
+    positionAt,
+    testDocument,
+} from "./test-utils.js";
 
 describe("schema catalog", () => {
     it("sends schema imports and base URI and returns schema-loading errors", async () => {

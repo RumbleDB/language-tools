@@ -2,13 +2,13 @@ import type { SequenceType } from "server/analysis/index.js";
 import { clearStaticTypecheckCache } from "server/integrations/rumble/operations/static-typecheck/service.js";
 import type { VariableBinding } from "server/integrations/rumble/operations/static-typecheck/types.js";
 import { getVariableTypes } from "server/integrations/rumble/operations/static-typecheck/variable-types.js";
-import { findCompletionList, findCompletions } from "server/lsp/features/completion.js";
+import { findCompletionList } from "server/lsp/features/completion.js";
 import { describe, expect, it, vi } from "vitest";
 import { CancellationTokenSource, type Range } from "vscode-languageserver";
 import { TextDocument } from "vscode-languageserver-textdocument";
 
 import { parserService, workspaceService, wrapperClient } from "./services.js";
-import { createMockWrapperClient } from "./test-utils.js";
+import { createMockWrapperClient, findCompletions } from "./test-utils.js";
 
 const INTEGER: SequenceType = {
     itemType: {

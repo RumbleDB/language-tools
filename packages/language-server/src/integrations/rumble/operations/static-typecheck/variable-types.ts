@@ -60,9 +60,7 @@ async function waitAtMost(
         cancellation = token?.onCancellationRequested(() => resolve(false));
     });
     try {
-        return token?.isCancellationRequested === true
-            ? false
-            : await Promise.race([promise.then(() => true), givenUp]);
+        return await Promise.race([promise.then(() => true), givenUp]);
     } finally {
         clearTimeout(timeout);
         cancellation?.dispose();
