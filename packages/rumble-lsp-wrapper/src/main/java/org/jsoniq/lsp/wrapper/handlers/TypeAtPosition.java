@@ -87,7 +87,7 @@ public final class TypeAtPosition implements RequestHandler {
 
         try {
             Module module = compile(query, documentUri);
-            List<Candidate> candidates = new TypeAtPositionVisitor().visit(module, new ArrayList<>());
+            List<Candidate> candidates = candidatesOf(module);
             Candidate candidate = selectCandidate(candidates, position);
             if (candidate == null
                     || candidate.sequenceType() == null
@@ -103,16 +103,27 @@ public final class TypeAtPosition implements RequestHandler {
     /** The variables that a compiled module binds and whose type RumbleDB knows, wherever they are visible. */
     public static List<Binding> bindingsOf(Module module) {
         try {
-            return new TypeAtPositionVisitor()
-                    .visit(module, new ArrayList<>()).stream()
-                            .filter(candidate -> candidate.kind() == CandidateKind.BINDING)
-                            .filter(candidate -> !TolerantCompiler.isUnknown(candidate.sequenceType()))
-                            .map(candidate -> new Binding(
-                                    candidate.resultRange(), SequenceType.fromSequenceType(candidate.sequenceType())))
-                            .toList();
+            return candidatesOf(module).stream()
+                    .filter(candidate -> candidate.kind() == CandidateKind.BINDING)
+                    .filter(candidate -> !TolerantCompiler.isUnknown(candidate.sequenceType()))
+                    .map(candidate -> new Binding(
+                            candidate.resultRange(), SequenceType.fromSequenceType(candidate.sequenceType())))
+                    .toList();
         } catch (Throwable throwable) {
             return List.of();
         }
+    }
+
+    /**
+     * The candidates in the module's own source. The visitor also walks the modules that it imports, whose positions
+     * are in other files and would otherwise be taken for positions in this one.
+     */
+    private static List<Candidate> candidatesOf(Module module) {
+        String location = module.getMetadata().getLocation();
+        return new TypeAtPositionVisitor()
+                .visit(module, new ArrayList<>()).stream()
+                        .filter(candidate -> Objects.equals(candidate.location(), location))
+                        .toList();
     }
 
     /** Compiles the query as RumbleDB would, or when it rejects the query, as far as its valid parts allow. */
@@ -135,6 +146,8 @@ public final class TypeAtPosition implements RequestHandler {
 
     private record Candidate(
             CandidateKind kind,
+            /** The module in which the candidate is, as RumbleDB locates it. */
+            String location,
             Range activationRange,
             Range resultRange,
             org.rumbledb.types.SequenceType sequenceType) {
@@ -152,6 +165,7 @@ public final class TypeAtPosition implements RequestHandler {
             }
             return new Candidate(
                     kind,
+                    activationMetadata.getLocation(),
                     Range.fromExceptionMetadata(activationMetadata),
                     Range.fromExceptionMetadata(resultMetadata),
                     sequenceType);
