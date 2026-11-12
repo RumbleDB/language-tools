@@ -2,24 +2,6 @@ import { Token } from "antlr4ng";
 
 import { CompletionTokenContext } from "./types/completion.js";
 
-const DEFAULT_CONTEXT: CompletionTokenContext = {
-    kind: "default",
-    allowKeywords: true,
-    allowPrologKeywords: false,
-    allowReferences: true,
-    qnamePrefix: false,
-};
-
-const TOP_LEVEL_PROLOG_CONTEXT: CompletionTokenContext = {
-    kind: "top-level-prolog",
-    allowKeywords: true,
-    allowPrologKeywords: true,
-    allowReferences: true,
-    qnamePrefix: false,
-};
-
-export { DEFAULT_CONTEXT, TOP_LEVEL_PROLOG_CONTEXT };
-
 export abstract class TokenContextAnalyzer {
     protected readonly tokensBeforeCursor: Token[];
 
@@ -31,8 +13,6 @@ export abstract class TokenContextAnalyzer {
                 token.start < cursorOffset,
         );
     }
-
-    public abstract isAtTopLevelProlog(): boolean;
 
     /**
      * Returns true when the last two real tokens before the cursor are an NCName-like
@@ -103,9 +83,5 @@ export function getCompletionTokenContext<T extends TokenContextAnalyzer>(
 ): CompletionTokenContext {
     const cursor = new tokenContextAnalyzer(tokens, cursorOffset);
 
-    if (cursor.isAtTopLevelProlog()) {
-        return { ...TOP_LEVEL_PROLOG_CONTEXT, qnamePrefix: cursor.isAfterQNamePrefix() };
-    }
-
-    return { ...DEFAULT_CONTEXT, qnamePrefix: cursor.isAfterQNamePrefix() };
+    return { qnamePrefix: cursor.isAfterQNamePrefix() };
 }

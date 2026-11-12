@@ -136,16 +136,20 @@ export class CommonAstBuilder {
         ];
     };
 
-    public visitDefaultNamespaceDecl = (node: ctx.DefaultNamespaceDeclContext): AstVisitResult => [
-        {
-            kind: "default-namespace-declaration",
-            namespaceKind: node.KW_ELEMENT() === null ? "function" : "element",
-            namespaceUri: unquoteStringLiteral(node.stringLiteral().getText()),
-            namespaceUriRange: rangeFromNode(node.stringLiteral(), this.document),
-            range: rangeFromNode(node, this.document),
-            children: [],
-        },
-    ];
+    public visitDefaultNamespaceDecl = (node: ctx.DefaultNamespaceDeclContext): AstVisitResult => {
+        const namespaceUri = node.stringLiteral();
+        if (namespaceUri === null) return [];
+        return [
+            {
+                kind: "default-namespace-declaration",
+                namespaceKind: node.KW_ELEMENT() === null ? "function" : "element",
+                namespaceUri: unquoteStringLiteral(namespaceUri.getText()),
+                namespaceUriRange: rangeFromNode(namespaceUri, this.document),
+                range: rangeFromNode(node, this.document),
+                children: [],
+            },
+        ];
+    };
 
     public visitNamespaceDecl = (node: ctx.NamespaceDeclContext): AstVisitResult => {
         const nameNode = node.ncName();

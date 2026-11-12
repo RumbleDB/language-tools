@@ -18,25 +18,4 @@ export class JsoniqTokenContextAnalyzer extends TokenContextAnalyzer {
     protected override get lexerSymbolicNames(): ReadonlyArray<string | null> {
         return JsoniqLexer.symbolicNames;
     }
-
-    public override isAtTopLevelProlog(): boolean {
-        if (this.tokensBeforeCursor.length === 0) {
-            return true;
-        }
-
-        return this.braceDepth === 0 && this.previous?.type === JsoniqLexer.SEMICOLON;
-    }
-
-    private get braceDepth(): number {
-        let depth = 0;
-        for (const token of this.tokensBeforeCursor) {
-            if (token.type === JsoniqLexer.LBRACE) {
-                depth += 1;
-            } else if (token.type === JsoniqLexer.RBRACE) {
-                depth = Math.max(depth - 1, 0);
-            }
-        }
-
-        return depth;
-    }
 }

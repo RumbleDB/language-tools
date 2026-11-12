@@ -139,21 +139,27 @@ describe("path step completion", () => {
         45_000,
     );
 
-    it("suggests nothing after '@' outside a schema-typed path", async () => {
+    it("offers node tests but no schema fields after '@' outside a schema-typed path", async () => {
         const document = testDocumentFromUri("let $x := <a/> return $x/@", {
             uri: "file:///path-step-attribute.xq",
             languageId: "xquery",
         });
 
-        await expect(
-            findCompletions(
-                document,
-                document.positionAt(document.getText().length),
-                parserService,
-                workspaceService,
-                wrapperClient,
+        const items = await findCompletions(
+            document,
+            document.positionAt(document.getText().length),
+            parserService,
+            workspaceService,
+            wrapperClient,
+        );
+        expect(items.map((item) => item.label)).toContain("node");
+        expect(
+            items.some(
+                (item) =>
+                    item.kind === CompletionItemKind.Field ||
+                    item.kind === CompletionItemKind.Property,
             ),
-        ).resolves.toEqual([]);
+        ).toBe(false);
     }, 45_000);
 
     it("replaces an attribute step after the cursor", async () => {

@@ -8,14 +8,14 @@ import { createMockWrapperClient, testDocumentFromUri } from "./test-utils.js";
 const wrapper = createMockWrapperClient();
 
 describe.each(["jsoniq", "xquery"])("%s query keyword completion", (languageId) => {
-    async function completions(source: string) {
+    async function completions(source: string, offset = source.length) {
         const document = testDocumentFromUri(source, {
             uri: `file:///keyword-completion-${languageId}-${encodeURIComponent(source)}.${languageId === "jsoniq" ? "jq" : "xq"}`,
             languageId,
         });
         return findCompletions(
             document,
-            document.positionAt(source.length),
+            document.positionAt(offset),
             parserService,
             workspaceService,
             wrapper,
@@ -43,15 +43,15 @@ describe.each(["jsoniq", "xquery"])("%s query keyword completion", (languageId) 
             detail: "local:f($arg)",
         });
         const labels = items.map((item) => item.label);
-        expect(labels).toEqual(expect.arrayContaining(["if", "for", "$global", "fn:concat"]));
+        expect(labels).toEqual(
+            expect.arrayContaining(["if", "for", "$global", "fn:concat", "copy", "delete"]),
+        );
         for (const label of [
             "case",
             "group by",
             "ascending",
             "or",
             "instance of",
-            "copy",
-            "delete",
             "while",
             "break loop",
         ]) {
@@ -90,6 +90,110 @@ describe.each(["jsoniq", "xquery"])("%s query keyword completion", (languageId) 
                 expression;
             const labels = (await completions(source)).map((item) => item.label);
             expect(labels).toContain(expression.endsWith("$") ? "$f" : "local:f");
+        },
+    );
+
+    it.each([
+        ["declare ", ["function", "variable", "option", "namespace"]],
+        ["declare default ", ["element", "function", "collation", "order"]],
+        ["declare default function ", ["namespace"]],
+        ["declare default element ", ["namespace"]],
+        ["import ", ["module", "schema"]],
+        ["validate ", ["strict", "lax", "type"]],
+        ["replace ", ["value"]],
+        ["insert ", ["json"]],
+        ["1 is ", ["statically"]],
+    ] as const)("offers grammar continuations after '%s'", async (source, expected) => {
+        expect(await syntaxLabels(source)).toEqual(expect.arrayContaining([...expected]));
+    });
+
+    it.each(["declare ", "import ", "validate ", "replace "])(
+        "excludes expression operators after the syntax introducer '%s'",
+        async (source) => {
+            expect(await syntaxLabels(source)).not.toContain("and");
+            expect((await completions(source)).map((item) => item.label)).not.toContain(
+                "fn:concat",
+            );
+        },
+    );
+
+    it.each(["declare namespace ", "declare option ", "declare function "])(
+        "does not suggest syntax when a new name is expected after '%s'",
+        async (source) => {
+            expect(await syntaxLabels(source)).toEqual([]);
+        },
+    );
+
+    it.each(["declare variable $x := 1;", "declare function local:f() { 1 };"])(
+        "preserves prolog order after '%s'",
+        async (declaration) => {
+            const labels = await syntaxLabels(declaration + " declare ");
+            expect(labels).toEqual(expect.arrayContaining(["function", "variable"]));
+            for (const label of ["namespace", "base-uri", "default", "and"]) {
+                expect(labels).not.toContain(label);
+            }
+        },
+    );
+
+    it.each([
+        "<root>text ¦</root>",
+        "<root>¦</root>",
+        "<root>text ¦",
+        '<root a="text ¦"/>',
+        "<root a='¦'/>",
+        "<root>{{¦}}</root>",
+        "<root>{1} ¦</root>",
+        "<root><child>text ¦</child></root>",
+    ])("suppresses query completion in literal XML at %s", async (source) => {
+        expect(await completions(source.replace("¦", ""), source.indexOf("¦"))).toEqual([]);
+    });
+
+    it.each([
+        "<root>{¦}</root>",
+        "<root>{1 + ¦}</root>",
+        '<root a="{¦}"/>',
+        "<root><child a='{1 + ¦}'/></root>",
+        "<root>{<child>{1 + ¦}</child>}</root>",
+    ])("offers query completion inside XML expressions at %s", async (source) => {
+        const items = await completions(source.replace("¦", ""), source.indexOf("¦"));
+        expect(items.map((item) => item.label)).toContain("fn:concat");
+    });
+
+    if (languageId === "jsoniq") {
+        it("uses the parsed expression when braces could also be literal XML", async () => {
+            const source = '<root>{ {"name": fn:con¦cat("a", "b")}.name }</root>';
+            const items = await completions(source.replace("¦", ""), source.indexOf("¦"));
+            expect(items.map((item) => item.label)).toContain("fn:concat");
+        });
+    }
+
+    it("uses order instead of order by in the default-order declaration", async () => {
+        const labels = await syntaxLabels("declare default ");
+        expect(labels).toContain("order");
+        expect(labels).not.toContain("order by");
+        expect(await syntaxLabels("declare default order ")).toEqual(["empty"]);
+    });
+
+    it("offers prolog keywords while typing their prefixes", async () => {
+        expect(await syntaxLabels("decl")).toContain("declare function");
+        expect(await syntaxLabels("imp")).toContain("import");
+    });
+
+    it("keeps prolog suggestions out of ordinary expressions", async () => {
+        const labels = await syntaxLabels("let $x := ");
+        expect(labels).not.toContain("declare function");
+        expect(labels).not.toContain("import");
+        expect(labels).not.toContain("module");
+    });
+
+    it.each(["let $x := 1 return ", "(1, "])(
+        "offers no axes, kind tests or statements where an expression starts after '%s'",
+        async (source) => {
+            const labels = await syntaxLabels(source);
+            expect(labels).toContain("if");
+            for (const label of ["child", "node", "element", "map", "function", "while", "break"]) {
+                expect(labels).not.toContain(label);
+            }
         },
     );
 

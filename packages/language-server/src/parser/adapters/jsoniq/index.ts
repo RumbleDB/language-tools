@@ -4,9 +4,11 @@ import { getActiveParserId } from "server/parser/utils.js";
 import { TextDocument } from "vscode-languageserver-textdocument";
 
 import {
-    CLAUSE_START_RULES,
+    COMPLETION_START_RULES,
+    EXPRESSION_KEYWORDS,
     IGNORED_COMPLETION_TOKENS,
     KEYWORD_COMPLETIONS,
+    LITERAL_XML_RULES,
     PREFERRED_COMPLETION_RULES,
 } from "./completion-data.js";
 import { JsoniqTokenContextAnalyzer } from "./completion-token-context.js";
@@ -22,15 +24,31 @@ export const jsoniqParserAdapter: ParserAdapter = {
         getCompletionIntent(parsed, cursorOffset, {
             tokenContextAnalyzer: JsoniqTokenContextAnalyzer,
             ignoredTokens: IGNORED_COMPLETION_TOKENS,
-            clauseStartRules: CLAUSE_START_RULES,
+            completionStartRules: COMPLETION_START_RULES,
             preferredRules: PREFERRED_COMPLETION_RULES,
             languageKeywords: KEYWORD_COMPLETIONS,
+            expressionKeywords: EXPRESSION_KEYWORDS,
             // Calls, named function references, and named arrow specifiers.
             isFunctionReferenceRule: (ruleIndex, candidate) =>
                 (ruleIndex === JsoniqParser.RULE_functionName &&
                     candidate?.ruleList.at(-1) !== JsoniqParser.RULE_functionDecl) ||
                 (ruleIndex === JsoniqParser.RULE_eqName &&
                     candidate?.ruleList.at(-1) === JsoniqParser.RULE_arrowFunctionSpecifier),
+            isObjectLookupRule: (ruleIndex) => ruleIndex === JsoniqParser.RULE_objectLookupKey,
+            // Names being introduced are not keyword or reference completion sites.
+            isDeclarationNameRule: (_ruleIndex, candidate) =>
+                [
+                    JsoniqParser.RULE_functionDecl,
+                    JsoniqParser.RULE_varBinding,
+                    JsoniqParser.RULE_namespaceDecl,
+                    JsoniqParser.RULE_libraryModule,
+                    JsoniqParser.RULE_moduleImport,
+                    JsoniqParser.RULE_schemaPrefix,
+                    JsoniqParser.RULE_optionDecl,
+                    JsoniqParser.RULE_annotation,
+                    JsoniqParser.RULE_decimalFormatDecl,
+                    JsoniqParser.RULE_typeDecl,
+                ].includes(candidate?.ruleList.at(-1) ?? -1),
             isTypeReferenceRule: (ruleIndex, candidate) =>
                 ruleIndex === JsoniqParser.RULE_eqName &&
                 [
@@ -38,8 +56,8 @@ export const jsoniqParserAdapter: ParserAdapter = {
                     JsoniqParser.RULE_typeName,
                     JsoniqParser.RULE_typedMapTest,
                 ].includes(candidate?.ruleList.at(-1) ?? -1),
-            isObjectLookupRule: (ruleIndex) => ruleIndex === JsoniqParser.RULE_objectLookupKey,
             isCommentToken: (tokenType) => tokenType === JsoniqLexer.XQComment,
+            isLiteralXmlRule: (ruleIndex) => LITERAL_XML_RULES.has(ruleIndex),
             isStringLiteralRule: (ruleIndex) => ruleIndex === JsoniqParser.RULE_stringLiteral,
             isCatchErrorTargetRule: (ruleIndex, candidate) =>
                 ruleIndex === JsoniqParser.RULE_nameTest &&

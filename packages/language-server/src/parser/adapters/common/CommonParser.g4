@@ -595,14 +595,22 @@ dirAttributeContentQuot
    : LBRACE LBRACE
    | RBRACE RBRACE
    | LBRACE expr? RBRACE
-   | ~ (Quot | LBRACE | RBRACE | Ampersand | PredefinedEntityRef | CharRef | LANGLE | COMMENT | XMLDECL | PI | CDATA)
+   | dirAttributeTextQuot
+   ;
+
+dirAttributeTextQuot
+   : ~ (Quot | LBRACE | RBRACE | Ampersand | PredefinedEntityRef | CharRef | LANGLE | COMMENT | XMLDECL | PI | CDATA)
    ;
 
 dirAttributeContentApos
    : LBRACE LBRACE
    | RBRACE RBRACE
    | LBRACE expr? RBRACE
-   | ~ (Apos | LBRACE | RBRACE | Ampersand | PredefinedEntityRef | CharRef | LANGLE | COMMENT | XMLDECL | PI | CDATA)
+   | dirAttributeTextApos
+   ;
+
+dirAttributeTextApos
+   : ~ (Apos | LBRACE | RBRACE | Ampersand | PredefinedEntityRef | CharRef | LANGLE | COMMENT | XMLDECL | PI | CDATA)
    ;
 
 escapedQuot

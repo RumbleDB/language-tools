@@ -12,13 +12,7 @@ export interface CompletionIntent {
     keywords: KeywordCompletion[];
 }
 
-export type CompletionTokenContextKind = "default" | "top-level-prolog";
-
 export interface CompletionTokenContext {
-    kind: CompletionTokenContextKind;
-    allowKeywords: boolean;
-    allowPrologKeywords: boolean;
-    allowReferences: boolean;
     /** True when the last two tokens before the cursor are `SomeName ':'`, i.e. a QName
      * prefix that hasn't been completed yet (e.g. the user typed `fn:`). In this case
      * the candidates are collected before the prefix, where the name starts. */
@@ -29,5 +23,7 @@ export interface LanguageKeywordCompletion {
     tokenType: number;
     label: string;
     insertText?: string;
-    prologOnly?: boolean;
+    /** Required continuation for a compound syntax suggestion, such as `by` in `order by`. */
+    followingTokens?: number[];
+    fallbackLabel?: string;
 }

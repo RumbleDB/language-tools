@@ -1,5 +1,7 @@
+import type { CompletionStartRule } from "server/parser/completion.js";
 import { LanguageKeywordCompletion } from "server/parser/types/completion.js";
 
+import { withGrammarKeywords } from "../common/completion-data.js";
 import { JsoniqLexer } from "./grammar/JsoniqLexer.js";
 import { JsoniqParser } from "./grammar/JsoniqParser.js";
 
@@ -26,7 +28,15 @@ export const IGNORED_COMPLETION_TOKENS = new Set([
     JsoniqLexer.COMMA,
 ]);
 
+// Literal XML tokens are data. Embedded expressions are separate grammar alternatives.
+export const LITERAL_XML_RULES = new Set([
+    JsoniqParser.RULE_noQuotesNoBracesNoAmpNoLAng,
+    JsoniqParser.RULE_dirAttributeTextQuot,
+    JsoniqParser.RULE_dirAttributeTextApos,
+]);
+
 export const PREFERRED_COMPLETION_RULES = new Set([
+    ...LITERAL_XML_RULES,
     JsoniqParser.RULE_nameTest,
     JsoniqParser.RULE_varRef,
     JsoniqParser.RULE_qname,
@@ -42,95 +52,107 @@ export const PREFERRED_COMPLETION_RULES = new Set([
     JsoniqParser.RULE_objectLookupKey,
 ]);
 
-// Prefer query clauses when their opening keyword is also a legal name.
-export const CLAUSE_START_RULES = new Map([
-    [JsoniqLexer.KW_FOR, JsoniqParser.RULE_flworExpr],
-    [JsoniqLexer.KW_LET, JsoniqParser.RULE_flworExpr],
-    [JsoniqLexer.KW_SOME, JsoniqParser.RULE_quantifiedExpr],
-    [JsoniqLexer.KW_EVERY, JsoniqParser.RULE_quantifiedExpr],
+// Where an expression can start, the grammar also allows axes, kind tests, constructors and statements.
+// They are rarely typed there as keywords, so offer only these, which start an expression or follow one.
+export const EXPRESSION_KEYWORDS = new Set([
+    JsoniqLexer.DOLLAR,
+    JsoniqLexer.KW_EVERY,
+    JsoniqLexer.KW_FOR,
+    JsoniqLexer.KW_IF,
+    JsoniqLexer.KW_LET,
+    JsoniqLexer.KW_SOME,
+    JsoniqLexer.KW_SWITCH,
+    JsoniqLexer.KW_TRY,
+    JsoniqLexer.KW_TYPESWITCH,
+    JsoniqLexer.KW_TRUE,
+    JsoniqLexer.KW_FALSE,
+    JsoniqLexer.KW_NULL,
+    JsoniqLexer.KW_NOT,
+    JsoniqLexer.KW_ORDERED,
+    JsoniqLexer.KW_UNORDERED,
+    JsoniqLexer.KW_NAMESPACE,
+    JsoniqLexer.KW_VALIDATE,
+    JsoniqLexer.KW_DECLARE,
+    JsoniqLexer.KW_IMPORT,
+    JsoniqLexer.KW_JSONIQ,
+    JsoniqLexer.KW_MODULE,
+    JsoniqLexer.KW_COPY,
+    JsoniqLexer.KW_DELETE,
+    JsoniqLexer.KW_INSERT,
+    JsoniqLexer.KW_RENAME,
+    JsoniqLexer.KW_REPLACE,
+    JsoniqLexer.KW_APPEND,
+    JsoniqLexer.KW_STATICALLY,
+    JsoniqLexer.KW_JSON,
 ]);
 
-export const KEYWORD_COMPLETIONS: LanguageKeywordCompletion[] = [
-    createLanguageKeyword(JsoniqLexer.DOLLAR),
-    ...[
-        JsoniqLexer.KW_EVERY,
+// A required continuation distinguishes syntax from a path or function with the same name.
+export const COMPLETION_START_RULES = new Map<number, CompletionStartRule>([
+    [
+        JsoniqLexer.KW_VARIABLE,
+        {
+            ruleIndex: JsoniqParser.RULE_varBinding,
+            requiredToken: JsoniqLexer.DOLLAR,
+            startAfterIntroducer: true,
+        },
+    ],
+    [
         JsoniqLexer.KW_FOR,
-        JsoniqLexer.KW_IF,
+        { ruleIndex: JsoniqParser.RULE_flworExpr, requiredToken: JsoniqLexer.DOLLAR },
+    ],
+    [
         JsoniqLexer.KW_LET,
+        { ruleIndex: JsoniqParser.RULE_flworExpr, requiredToken: JsoniqLexer.DOLLAR },
+    ],
+    [
         JsoniqLexer.KW_SOME,
-        JsoniqLexer.KW_SWITCH,
-        JsoniqLexer.KW_TRY,
-        JsoniqLexer.KW_TYPESWITCH,
-        JsoniqLexer.KW_TRUE,
-        JsoniqLexer.KW_FALSE,
-    ].map((tokenType) => createLanguageKeyword(tokenType)),
-    createLanguageKeyword(JsoniqLexer.KW_ORDERED),
-    createLanguageKeyword(JsoniqLexer.KW_UNORDERED),
-    createLanguageKeyword(JsoniqLexer.KW_NULL, "null"),
-    prologKeyword(JsoniqLexer.KW_DECLARE, "declare function", "declare function "),
-    prologKeyword(JsoniqLexer.KW_DECLARE, "declare variable", "declare variable "),
-    prologKeyword(JsoniqLexer.KW_IMPORT),
-    prologKeyword(JsoniqLexer.KW_JSONIQ, "jsoniq version"),
-    prologKeyword(JsoniqLexer.KW_MODULE),
-    ...[
-        JsoniqLexer.KW_AND,
-        JsoniqLexer.KW_AS,
-        JsoniqLexer.KW_ASCENDING,
-        JsoniqLexer.KW_AT,
-        JsoniqLexer.KW_BY,
-        JsoniqLexer.KW_CASE,
-        JsoniqLexer.KW_CATCH,
-        JsoniqLexer.KW_COUNT,
-        JsoniqLexer.KW_COLLATION,
-        JsoniqLexer.KW_DEFAULT,
-        JsoniqLexer.KW_DESCENDING,
-        JsoniqLexer.KW_DIV,
-        JsoniqLexer.KW_ELSE,
-        JsoniqLexer.KW_EMPTY,
-        JsoniqLexer.KW_EQ,
-        JsoniqLexer.KW_EXCEPT,
-        JsoniqLexer.KW_GE,
-        JsoniqLexer.KW_GREATEST,
-        JsoniqLexer.KW_GT,
-        JsoniqLexer.KW_IDIV,
-        JsoniqLexer.KW_IN,
-        JsoniqLexer.KW_INTERSECT,
-        JsoniqLexer.KW_IS,
-        JsoniqLexer.KW_LE,
-        JsoniqLexer.KW_LEAST,
-        JsoniqLexer.KW_LT,
-        JsoniqLexer.KW_MOD,
-        JsoniqLexer.KW_NAMESPACE,
-        JsoniqLexer.KW_NE,
-        JsoniqLexer.KW_NOT,
-        JsoniqLexer.KW_OF,
-        JsoniqLexer.KW_OR,
-        JsoniqLexer.KW_RETURN,
-        JsoniqLexer.KW_SATISFIES,
-        JsoniqLexer.KW_THEN,
-        JsoniqLexer.KW_TO,
-        JsoniqLexer.KW_UNION,
+        { ruleIndex: JsoniqParser.RULE_quantifiedExpr, requiredToken: JsoniqLexer.DOLLAR },
+    ],
+    [
+        JsoniqLexer.KW_EVERY,
+        { ruleIndex: JsoniqParser.RULE_quantifiedExpr, requiredToken: JsoniqLexer.DOLLAR },
+    ],
+    [
+        JsoniqLexer.KW_DECLARE,
+        { ruleIndex: JsoniqParser.RULE_prolog, requiredToken: JsoniqLexer.KW_FUNCTION },
+    ],
+    [
+        JsoniqLexer.KW_IMPORT,
+        { ruleIndex: JsoniqParser.RULE_prologHeader, requiredToken: JsoniqLexer.KW_SCHEMA },
+    ],
+    [
         JsoniqLexer.KW_VALIDATE,
-        JsoniqLexer.KW_WHERE,
-        JsoniqLexer.KW_WINDOW,
-        JsoniqLexer.KW_START,
-        JsoniqLexer.KW_WHEN,
-        JsoniqLexer.KW_END,
-        JsoniqLexer.KW_PREVIOUS,
-        JsoniqLexer.KW_NEXT,
-    ].map((tokenType) => createLanguageKeyword(tokenType)),
-    createLanguageKeyword(JsoniqLexer.KW_TUMBLING, "tumbling window"),
-    createLanguageKeyword(JsoniqLexer.KW_SLIDING, "sliding window"),
-    createLanguageKeyword(JsoniqLexer.KW_ONLY, "only end"),
-    createLanguageKeyword(JsoniqLexer.KW_ALLOWING, "allowing empty"),
-    createLanguageKeyword(JsoniqLexer.KW_CAST, "cast as"),
-    createLanguageKeyword(JsoniqLexer.KW_CASTABLE, "castable as"),
-    createLanguageKeyword(JsoniqLexer.KW_INSTANCE, "instance of"),
-    createLanguageKeyword(JsoniqLexer.KW_TREAT, "treat as"),
-    createLanguageKeyword(JsoniqLexer.KW_GROUP, "group by"),
-    createLanguageKeyword(JsoniqLexer.KW_ORDER, "order by"),
-    createLanguageKeyword(JsoniqLexer.KW_STABLE, "stable order by"),
-];
+        { ruleIndex: JsoniqParser.RULE_validateExpr, requiredToken: JsoniqLexer.KW_STRICT },
+    ],
+    [
+        JsoniqLexer.KW_REPLACE,
+        { ruleIndex: JsoniqParser.RULE_replaceExpr, requiredToken: JsoniqLexer.KW_VALUE },
+    ],
+]);
+
+export const KEYWORD_COMPLETIONS: LanguageKeywordCompletion[] = withGrammarKeywords(
+    [
+        createLanguageKeyword(JsoniqLexer.DOLLAR),
+        createLanguageKeyword(JsoniqLexer.KW_DECLARE, "declare function", "declare function "),
+        createLanguageKeyword(JsoniqLexer.KW_DECLARE, "declare variable", "declare variable "),
+        createLanguageKeyword(JsoniqLexer.KW_IMPORT),
+        createLanguageKeyword(JsoniqLexer.KW_JSONIQ, "jsoniq version"),
+        createLanguageKeyword(JsoniqLexer.KW_MODULE),
+        createLanguageKeyword(JsoniqLexer.KW_TUMBLING, "tumbling window"),
+        createLanguageKeyword(JsoniqLexer.KW_SLIDING, "sliding window"),
+        createLanguageKeyword(JsoniqLexer.KW_ONLY, "only end"),
+        createLanguageKeyword(JsoniqLexer.KW_ALLOWING, "allowing empty"),
+        createLanguageKeyword(JsoniqLexer.KW_CAST, "cast as"),
+        createLanguageKeyword(JsoniqLexer.KW_CASTABLE, "castable as"),
+        createLanguageKeyword(JsoniqLexer.KW_INSTANCE, "instance of"),
+        createLanguageKeyword(JsoniqLexer.KW_TREAT, "treat as"),
+        createLanguageKeyword(JsoniqLexer.KW_GROUP, "group by"),
+        createLanguageKeyword(JsoniqLexer.KW_ORDER, "order by"),
+        createLanguageKeyword(JsoniqLexer.KW_STABLE, "stable order by"),
+    ],
+    JsoniqLexer.symbolicNames,
+    JsoniqLexer.literalNames,
+);
 
 function createLanguageKeyword(
     tokenType: number,
@@ -141,17 +163,6 @@ function createLanguageKeyword(
         tokenType,
         label,
         ...(insertText === undefined ? {} : { insertText }),
-    };
-}
-
-function prologKeyword(
-    tokenType: number,
-    label = tokenLabel(tokenType),
-    insertText?: string,
-): LanguageKeywordCompletion {
-    return {
-        ...createLanguageKeyword(tokenType, label, insertText),
-        prologOnly: true,
     };
 }
 
