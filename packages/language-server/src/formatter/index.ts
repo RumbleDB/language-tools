@@ -9,7 +9,7 @@ import { printDocToString } from "./printer.js";
 /**
  * Formats a parsed document and returns the formatted text.
  *
- * Returns undefined if the document has syntax errors, its parser is unsupported, or formatting would drop a comment.
+ * Returns undefined if the document has syntax errors or its parser is unsupported.
  */
 export function formatParsedDocument(
     parsed: ParseResult,
