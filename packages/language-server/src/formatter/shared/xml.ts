@@ -1,4 +1,4 @@
-import { type ParseTree, ParserRuleContext, TerminalNode } from "antlr4ng";
+import { type ParseTree, ParserRuleContext, TerminalNode, type Token } from "antlr4ng";
 
 import { composeTokenDoc, FormatterContext } from "../context.js";
 import { concat, type Doc, group, hardline, indent, join, line, softline } from "../doc.js";
@@ -121,10 +121,7 @@ function formatDirectConstructorContent(
         return composeTokenDoc(context.formatTokenRange(node.start!, node.stop!));
     }
 
-    const tagStart = concat([
-        formatTerminal(openAngle, tokens.LANGLE),
-        context.formatVerbatimRange(name.start!, name.stop!),
-    ]);
+    const tagStart = concat([formatTerminal(openAngle, tokens.LANGLE), formatName(context, name)]);
     const attributeDocs = formatDirectAttributes(
         context,
         tokens,
@@ -148,15 +145,21 @@ function formatDirectConstructorContent(
         return composeTokenDoc(context.formatTokenRange(node.start!, node.stop!));
     }
 
+    // The body is formatted before the `>` that opens it, so that the comments its text keeps are not also printed
+    // after the `>`.
+    const body = formatDirectBody(
+        context,
+        tokens,
+        openClose,
+        formatTerminal,
+        formatEnclosedExpression,
+    );
     const openingTag = formatDirectTag(
         tagStart,
         attributeDocs,
         formatTerminal(openClose.RANGLE(0), tokens.RANGLE),
     );
-    return concat([
-        openingTag,
-        formatDirectBody(context, tokens, openClose, formatTerminal, formatEnclosedExpression),
-    ]);
+    return concat([openingTag, body]);
 }
 
 function formatDirectBody(
@@ -218,18 +221,15 @@ function formatBodyWithOriginalWhitespace(
         return context.formatVerbatimRange(node.LANGLE().symbol, node.stop!);
     }
 
-    const docs: Doc[] = [];
-    let previous = openingEnd;
-    for (const content of contents) {
-        docs.push(context.formatVerbatimBetween(previous, content.start!));
-        docs.push(
+    const body = formatBetweenSourceText(
+        context,
+        openingEnd,
+        contents,
+        node.LANGLE().symbol,
+        (content) =>
             formatDirectContent(context, tokens, content, formatTerminal, formatEnclosedExpression),
-        );
-        previous = content.stop!;
-    }
-    docs.push(context.formatVerbatimBetween(previous, node.LANGLE().symbol));
-    docs.push(formatClosingTag(context, tokens, node, formatTerminal));
-    return concat(docs);
+    );
+    return concat([body, formatClosingTag(context, tokens, node, formatTerminal)]);
 }
 
 /** Formats `</name>`, dropping the whitespace XML allows before `>`. */
@@ -247,7 +247,7 @@ function formatClosingTag(
     return concat([
         formatTerminal(node.LANGLE(), tokens.LANGLE),
         formatTerminal(node.SLASH(), tokens.SLASH),
-        context.formatVerbatimRange(name.start!, name.stop!),
+        formatName(context, name),
         formatTerminal(close, tokens.RANGLE),
     ]);
 }
@@ -308,6 +308,11 @@ function isStructuralContent(content: DirectElementContent): boolean {
     );
 }
 
+/** Formats the name of a tag or an attribute as written, with the comments around it. */
+function formatName(context: FormatterContext, name: ParserRuleContext): Doc {
+    return composeTokenDoc(context.formatTokenRange(name.start!, name.stop!));
+}
+
 function formatDirectAttributes(
     context: FormatterContext,
     tokens: XmlTokenTypes,
@@ -320,7 +325,7 @@ function formatDirectAttributes(
 
     return names.map((name, index) =>
         concat([
-            context.formatVerbatimRange(name.start!, name.stop!),
+            formatName(context, name),
             formatTerminal(node.EQUAL(index), tokens.EQUAL),
             formatDirectAttributeValue(
                 context,
@@ -364,7 +369,7 @@ function formatDirectAttributeValue(
         );
     }
 
-    return context.formatVerbatimRange(value.start!, value.stop!);
+    return composeTokenDoc(context.formatTokenRange(value.start!, value.stop!));
 }
 
 function formatDelimitedAttributeValue(
@@ -378,19 +383,44 @@ function formatDelimitedAttributeValue(
 ): Doc {
     const expressions = contents.filter(isEnclosedExpressionContent);
     if (expressions.length === 0 || !openQuote || !closeQuote) {
-        return context.formatVerbatimRange(value.start!, value.stop!);
+        return composeTokenDoc(context.formatTokenRange(value.start!, value.stop!));
     }
 
-    const docs: Doc[] = [formatTerminal(openQuote, openQuote.symbol.type)];
-    let previous = openQuote.symbol;
-    for (const expression of expressions) {
-        docs.push(context.formatVerbatimBetween(previous, expression.start!));
-        docs.push(formatEnclosedExpression(expression));
-        previous = expression.stop!;
-    }
-    docs.push(context.formatVerbatimBetween(previous, closeQuote.symbol));
-    docs.push(formatTerminal(closeQuote, closeQuote.symbol.type));
-    return concat(docs);
+    const content = formatBetweenSourceText(
+        context,
+        openQuote.symbol,
+        expressions,
+        closeQuote.symbol,
+        formatEnclosedExpression,
+    );
+    return concat([
+        formatTerminal(openQuote, openQuote.symbol.type),
+        content,
+        formatTerminal(closeQuote, closeQuote.symbol.type),
+    ]);
+}
+
+/**
+ * Formats the nodes between two tokens, keeping the source text around them as written. The lexer may read text such
+ * as `(: … :)` in it as a comment, which the text then prints. So the text is taken before the nodes and the two
+ * tokens are formatted, and they leave those comments to it instead of printing them a second time.
+ */
+function formatBetweenSourceText<T extends ParserRuleContext>(
+    context: FormatterContext,
+    open: Token,
+    nodes: readonly T[],
+    close: Token,
+    format: (node: T) => Doc,
+): Doc {
+    const starts = nodes.map((node) => node.start!);
+    const stops = nodes.map((node) => node.stop!);
+    const texts = [open, ...stops].map((left, index) =>
+        context.formatVerbatimBetween(left, starts[index] ?? close),
+    );
+    return concat([
+        texts[0]!,
+        ...nodes.flatMap((node, index) => [format(node), texts[index + 1]!]),
+    ]);
 }
 
 function isEnclosedExpressionContent(node: ParserRuleContext): node is EnclosedExpressionContent {
