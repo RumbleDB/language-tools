@@ -1,5 +1,11 @@
 # jsoniq-language-server
 
+## 2.20.2
+
+### Patch Changes
+
+- [#143](https://github.com/RumbleDB/language-tools/pull/143) [`ec47588`](https://github.com/RumbleDB/language-tools/commit/ec475888a371c94c75166b53001b3f74a95eb369) - Fix completion that stopped working in XQuery files after completing in a JSONiq file, or the other way around, until the window was reloaded. The release build now keeps class names when it minifies: the JSONiq and XQuery parsers got the same name, and the completion library caches its grammar data by that name.
+
 ## 2.20.1
 
 ### Patch Changes
