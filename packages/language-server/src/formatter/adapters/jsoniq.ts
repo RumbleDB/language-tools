@@ -134,7 +134,7 @@ const COMPACT_RULES = new Set([
 const DEFAULT_LAYOUT_RULES: DefaultLayoutRules = {
     compact: COMPACT_RULES,
     compactTokens: JsoniqParser,
-    binaryOperators: binaryOperatorRules(JsoniqParser.ruleNames),
+    binaryOperators: binaryOperatorRules(JsoniqParser),
 };
 
 export class JsoniqFormatterVisitor extends JsoniqParserVisitor<Doc> {

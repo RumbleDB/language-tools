@@ -132,7 +132,7 @@ const COMPACT_RULES = new Set([
 const DEFAULT_LAYOUT_RULES: DefaultLayoutRules = {
     compact: COMPACT_RULES,
     compactTokens: XQueryParser,
-    binaryOperators: binaryOperatorRules(XQueryParser.ruleNames),
+    binaryOperators: binaryOperatorRules(XQueryParser),
 };
 
 export class XQueryFormatterVisitor extends XQueryParserVisitor<Doc> {

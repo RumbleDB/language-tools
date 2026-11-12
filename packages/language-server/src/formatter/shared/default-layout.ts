@@ -5,6 +5,7 @@ import {
     TerminalNode,
     type Token,
 } from "antlr4ng";
+import type { SharedRule, SharedRuleIndexes } from "server/parser/context.js";
 
 import type { FormatterContext } from "../context.js";
 import { concat, type Doc, group, indent, line, NIL, space } from "../doc.js";
@@ -25,26 +26,22 @@ export interface DefaultLayoutRules {
 type Visit = (node: ParseTree) => Doc;
 
 /** The binary operator rules, whose children alternate between operands and operators. */
-const BINARY_OPERATOR_RULE_NAMES = [
-    "orExpr",
-    "andExpr",
-    "comparisonExpr",
-    "stringConcatExpr",
-    "rangeExpr",
-    "additiveExpr",
-    "multiplicativeExpr",
-    "unionExpr",
-    "intersectExceptExpr",
-    "simpleMapExpr",
+const BINARY_OPERATOR_RULES: readonly SharedRule[] = [
+    "RULE_orExpr",
+    "RULE_andExpr",
+    "RULE_comparisonExpr",
+    "RULE_stringConcatExpr",
+    "RULE_rangeExpr",
+    "RULE_additiveExpr",
+    "RULE_multiplicativeExpr",
+    "RULE_unionExpr",
+    "RULE_intersectExceptExpr",
+    "RULE_simpleMapExpr",
 ];
 
-/** The indexes of the binary operator rules among the rules of a parser. */
-export function binaryOperatorRules(ruleNames: readonly string[]): ReadonlySet<number> {
-    return new Set(
-        BINARY_OPERATOR_RULE_NAMES.map((name) => ruleNames.indexOf(name)).filter(
-            (index) => index >= 0,
-        ),
-    );
+/** The indexes of the binary operator rules of a parser. */
+export function binaryOperatorRules(parser: SharedRuleIndexes): ReadonlySet<number> {
+    return new Set(BINARY_OPERATOR_RULES.map((rule) => parser[rule]));
 }
 
 /**
