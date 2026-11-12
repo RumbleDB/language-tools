@@ -47,9 +47,9 @@ export const provideVariableCompletions: CompletionProvider = async (context) =>
     // XQuery writes the context item as `.`, not as a variable.
     const offerContextItem = getActiveParserId(context.document) !== "xquery";
 
-    const types = context.getVariableTypes();
+    const types = await context.getVariableTypes();
     return {
-        // The types that RumbleDB is inferring would not replace the labels of a list that the editor filters.
+        // The types that RumbleDB is still inferring would not replace the labels of a list that the editor filters.
         isIncomplete: types.isUpdating,
         items: declarations
             .filter(

@@ -110,20 +110,9 @@ export async function getStaticTypecheck(
     return typecheckPromise;
 }
 
-/**
- * The newest static typecheck of the document, which may be of an earlier version, without waiting for one. Asks for
- * the current version when no version is being checked, so that typing does not queue one check per version.
- */
-export function getLatestStaticTypecheck(
-    document: TextDocument,
-    client: WrapperClient,
-): { latest: CachedStaticTypecheck | undefined; checking: boolean } {
-    const latest = staticTypecheckCache.get(document.uri);
-    if (latest?.version !== document.version && !pendingStaticTypecheckByUri.has(document.uri)) {
-        void getStaticTypecheck(document, client);
-    }
-    // A check is recorded as soon as it is asked for.
-    return { latest, checking: pendingStaticTypecheckByUri.has(document.uri) };
+/** The newest static typecheck of the document that succeeded, which may be of an earlier version. */
+export function getCachedStaticTypecheck(uri: DocumentUri): CachedStaticTypecheck | undefined {
+    return staticTypecheckCache.get(uri);
 }
 
 function createStaticTypecheckRequest(

@@ -23,8 +23,8 @@ export interface CompletionContext {
      * when the user types on, since the editor then ignores the answer.
      */
     getFocusAt(offset: number): Promise<FocusAtPositionWireResult>;
-    /** The variable types that RumbleDB last inferred for the document, which may be from an earlier version. */
-    getVariableTypes(): VariableTypes;
+    /** The variable types that RumbleDB infers for the document, which may be from an earlier version. */
+    getVariableTypes(): Promise<VariableTypes>;
 }
 
 /**

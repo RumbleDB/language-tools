@@ -1,10 +1,10 @@
 import type { SequenceType } from "server/analysis/index.js";
 import { clearStaticTypecheckCache } from "server/integrations/rumble/operations/static-typecheck/service.js";
 import type { VariableBinding } from "server/integrations/rumble/operations/static-typecheck/types.js";
-import { getLatestVariableTypes } from "server/integrations/rumble/operations/static-typecheck/variable-types.js";
+import { getVariableTypes } from "server/integrations/rumble/operations/static-typecheck/variable-types.js";
 import { findCompletionList, findCompletions } from "server/lsp/features/completion.js";
 import { describe, expect, it, vi } from "vitest";
-import type { Range } from "vscode-languageserver";
+import { CancellationTokenSource, type Range } from "vscode-languageserver";
 import { TextDocument } from "vscode-languageserver-textdocument";
 
 import { parserService, workspaceService, wrapperClient } from "./services.js";
@@ -31,29 +31,34 @@ const A_BINDING: VariableBinding = {
 /** `a` in `let $a := 1 return $a`, as the analysis declares it. */
 const A_NAME: Range = { start: { line: 0, character: 5 }, end: { line: 0, character: 6 } };
 
-/** A wrapper whose static typechecks are answered when the test says so. */
+/** Short enough for the tests that wait it out. */
+const WAIT_MS = 20;
+
+/** A wrapper whose static typechecks are answered, in order, when the test says so. */
 function deferredWrapper() {
-    const answers: Array<(bindings: VariableBinding[]) => void> = [];
+    const answers: Array<(bindings: VariableBinding[] | Error) => void> = [];
     const sendRequest = vi.fn().mockImplementation(
         () =>
-            new Promise((resolve) => {
+            new Promise((resolve, reject) => {
                 answers.push((bindings) =>
-                    resolve({
-                        id: 0,
-                        responseType: "static-typecheck",
-                        body: { errors: [], bindings },
-                        error: null,
-                    }),
+                    bindings instanceof Error
+                        ? reject(bindings)
+                        : resolve({
+                              id: 0,
+                              responseType: "static-typecheck",
+                              body: { errors: [], bindings },
+                              error: null,
+                          }),
                 );
             }),
     );
     return {
         wrapper: createMockWrapperClient({ sendRequest }),
         sendRequest,
-        /** Answers the oldest check, and lets the service take in the answer. */
-        answer: async (bindings: VariableBinding[]) => {
+        /** Answers the next check once it is asked for, with bindings, or by failing. */
+        answer: async (bindings: VariableBinding[] | Error) => {
+            await vi.waitFor(() => expect(answers).not.toHaveLength(0));
             answers.shift()!(bindings);
-            await new Promise((resolve) => setImmediate(resolve));
         },
     };
 }
@@ -67,49 +72,89 @@ function version(uri: string, version: number, text: string) {
 }
 
 describe("variable types", () => {
-    it("asks for a static typecheck without waiting, then types from it", async () => {
+    it("waits for RumbleDB to type the current version", async () => {
         const { wrapper, sendRequest, answer } = deferredWrapper();
-        const source = version("file:///variable-types-latest.jq", 1, "let $a := 1 return $a");
+        const source = version("file:///variable-types-wait.jq", 1, "let $a := 1 return $a");
 
-        const checking = getLatestVariableTypes(source, wrapper);
-        expect(checking.typeOf(A_NAME)).toBeUndefined();
-        expect(checking.isUpdating).toBe(true);
+        const types = getVariableTypes(source, wrapper, { waitMs: 1000 });
         await answer([A_BINDING]);
 
-        const checked = getLatestVariableTypes(source, wrapper);
-        expect(checked.typeOf(A_NAME)).toBe(INTEGER);
-        expect(checked.isUpdating).toBe(false);
+        expect((await types).typeOf(A_NAME)).toBe(INTEGER);
+        expect((await types).isUpdating).toBe(false);
         expect(sendRequest).toHaveBeenCalledOnce();
     });
 
-    it("keeps one check in flight while the document changes", async () => {
-        const uri = "file:///variable-types-in-flight.jq";
-        const { wrapper, sendRequest, answer } = deferredWrapper();
-
-        getLatestVariableTypes(version(uri, 1, "let $a := 1 return $a"), wrapper);
-        getLatestVariableTypes(version(uri, 2, "let $a := 1 return $a +"), wrapper);
-        getLatestVariableTypes(version(uri, 3, "let $a := 1 return $a + "), wrapper);
-        expect(sendRequest).toHaveBeenCalledOnce();
-
+    it("gives up waiting after the wait, and types from what it knows then", async () => {
+        const { wrapper, answer } = deferredWrapper();
+        const uri = "file:///variable-types-given-up.jq";
+        void getVariableTypes(version(uri, 1, "let $a := 1 return $a"), wrapper, {
+            waitMs: 1000,
+        });
         await answer([A_BINDING]);
-        // The answer is for version 1, so version 3 is checked next, while version 1 still types `$a`.
-        const types = getLatestVariableTypes(version(uri, 3, "let $a := 1 return $a + "), wrapper);
+
+        const edited = version(uri, 2, "let $a := 1 return $a + ");
+        const types = await getVariableTypes(edited, wrapper, { waitMs: WAIT_MS });
+
         expect(types.typeOf(A_NAME)).toBe(INTEGER);
         expect(types.isUpdating).toBe(true);
+    });
+
+    it("gives up waiting when the request is cancelled", async () => {
+        const { wrapper } = deferredWrapper();
+        const source = version("file:///variable-types-cancelled.jq", 1, "let $a := 1 return $a");
+        const cancellation = new CancellationTokenSource();
+
+        const types = getVariableTypes(source, wrapper, {
+            waitMs: 60_000,
+            token: cancellation.token,
+        });
+        cancellation.cancel();
+
+        expect((await types).isUpdating).toBe(true);
+    });
+
+    it("keeps waiting for the current version when an earlier one is answered", async () => {
+        const uri = "file:///variable-types-earlier.jq";
+        const { wrapper, sendRequest, answer } = deferredWrapper();
+        void getVariableTypes(version(uri, 1, "let $a := 1 return $a"), wrapper, { waitMs: 0 });
+
+        const current = version(uri, 2, "let $a := 1 return $a + 1");
+        const types = getVariableTypes(current, wrapper, { waitMs: 1000 });
+        await answer([]);
+        await answer([A_BINDING]);
+
+        expect((await types).typeOf(A_NAME)).toBe(INTEGER);
+        expect((await types).isUpdating).toBe(false);
         expect(sendRequest).toHaveBeenCalledTimes(2);
+    });
+
+    it("stops waiting when the check fails", async () => {
+        const { wrapper, sendRequest, answer } = deferredWrapper();
+        const source = version("file:///variable-types-failed.jq", 1, "let $a := 1 return $a");
+
+        const types = getVariableTypes(source, wrapper, { waitMs: 1000 });
+        await answer(new Error("RumbleDB failed"));
+
+        expect((await types).typeOf(A_NAME)).toBeUndefined();
+        expect((await types).isUpdating).toBe(false);
+        expect(sendRequest).toHaveBeenCalledOnce();
     });
 
     it("types a variable only where a binding of that name still ends", async () => {
         const uri = "file:///variable-types-edited.jq";
         const { wrapper, answer } = deferredWrapper();
-        getLatestVariableTypes(version(uri, 1, "let $a := 1 return $a"), wrapper);
+        void getVariableTypes(version(uri, 1, "let $a := 1 return $a"), wrapper, {
+            waitMs: 1000,
+        });
         await answer([A_BINDING]);
 
         const renamed = version(uri, 2, "let $b := 1 return $b");
-        expect(getLatestVariableTypes(renamed, wrapper).typeOf(A_NAME)).toBeUndefined();
+        const renamedTypes = await getVariableTypes(renamed, wrapper, { waitMs: 0 });
+        expect(renamedTypes.typeOf(A_NAME)).toBeUndefined();
         const shifted = version(uri, 3, "let  $a := 1 return $a");
         const shiftedName = { start: { line: 0, character: 6 }, end: { line: 0, character: 7 } };
-        expect(getLatestVariableTypes(shifted, wrapper).typeOf(shiftedName)).toBeUndefined();
+        const shiftedTypes = await getVariableTypes(shifted, wrapper, { waitMs: 0 });
+        expect(shiftedTypes.typeOf(shiftedName)).toBeUndefined();
     });
 });
 
@@ -126,18 +171,29 @@ describe("variable completion while RumbleDB checks the document", () => {
     const labelOfA = (list: Awaited<ReturnType<typeof complete>>) =>
         list.items.find((item) => item.label === "$a")?.labelDetails?.description;
 
-    it("is incomplete until the types arrive, so that the editor asks again as the user types", async () => {
+    it("labels variables with the types that RumbleDB infers while it waits", async () => {
         const { wrapper, answer } = deferredWrapper();
-        const source = version("file:///variable-types-incomplete.jq", 1, text);
+        const source = version("file:///variable-types-completion-wait.jq", 1, text);
 
-        const checking = await complete(source, wrapper);
-        expect(checking.isIncomplete).toBe(true);
-        expect(labelOfA(checking)).toBe("Variable");
+        const list = complete(source, wrapper);
+        await answer([A_BINDING]);
+
+        expect((await list).isIncomplete).toBe(false);
+        expect(labelOfA(await list)).toBe("xs:integer");
+    });
+
+    it("is incomplete when RumbleDB takes too long, so that the editor asks again", async () => {
+        const { wrapper, answer } = deferredWrapper();
+        const source = version("file:///variable-types-completion-slow.jq", 1, text);
+
+        const slow = await complete(source, wrapper);
+        expect(slow.isIncomplete).toBe(true);
+        expect(labelOfA(slow)).toBe("Variable");
 
         await answer([A_BINDING]);
-        const checked = await complete(source, wrapper);
-        expect(checked.isIncomplete).toBe(false);
-        expect(labelOfA(checked)).toBe("xs:integer");
+        const asked = await complete(source, wrapper);
+        expect(asked.isIncomplete).toBe(false);
+        expect(labelOfA(asked)).toBe("xs:integer");
     });
 
     it("is complete when RumbleDB is unavailable", async () => {
@@ -166,9 +222,7 @@ describe("variable completion with RumbleDB", () => {
             const description = (items: Awaited<ReturnType<typeof complete>>, label: string) =>
                 items.find((item) => item.label === label)?.labelDetails?.description;
 
-            // The first completion does not wait for RumbleDB.
-            expect(description(await complete(), "$count")).toBe("Variable");
-
+            // RumbleDB may still be starting, and then the editor asks again as the user types.
             await vi.waitFor(
                 async () => {
                     const items = await complete();

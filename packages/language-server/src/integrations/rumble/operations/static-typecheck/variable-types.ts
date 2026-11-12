@@ -1,9 +1,13 @@
 import type { SequenceType } from "server/analysis/index.js";
 import type { WrapperClient } from "server/integrations/rumble/client.js";
-import type { Range } from "vscode-languageserver";
+import type { CancellationToken, Disposable, Range } from "vscode-languageserver";
 import { TextDocument } from "vscode-languageserver-textdocument";
 
-import { getLatestStaticTypecheck, type CachedStaticTypecheck } from "./service.js";
+import {
+    getCachedStaticTypecheck,
+    getStaticTypecheck,
+    type CachedStaticTypecheck,
+} from "./service.js";
 
 /** The variable types that the latest static typecheck of a document inferred. */
 export interface VariableTypes {
@@ -19,15 +23,19 @@ type BindingsByNameEnd = Map<number, { name: string; sequenceType: SequenceType 
 const indexed = new WeakMap<CachedStaticTypecheck, BindingsByNameEnd>();
 
 /**
- * The variable types of the newest version of the document that RumbleDB has checked, without waiting for it. That
- * version may be older, so a binding only types a variable of the same name whose name ends at the same offset. Names
- * before an edit do not move, and the name guards against those after it.
+ * The variable types of the current version of the document, or when RumbleDB takes longer than the wait or the
+ * request is cancelled, of the newest version that it has checked. That version may be older, so a binding only types
+ * a variable of the same name whose name ends at the same offset. Names before an edit do not move, and the name
+ * guards against those after it.
  */
-export function getLatestVariableTypes(
+export async function getVariableTypes(
     document: TextDocument,
     wrapper: WrapperClient,
-): VariableTypes {
-    const { latest, checking } = getLatestStaticTypecheck(document, wrapper);
+    options: { waitMs: number; token?: CancellationToken | undefined },
+): Promise<VariableTypes> {
+    // The check of the current version is shared with diagnostics, and kept when it succeeds.
+    const checked = await waitAtMost(getStaticTypecheck(document, wrapper), options);
+    const latest = getCachedStaticTypecheck(document.uri);
     const bindings = latest === undefined ? undefined : indexBindings(latest);
     return {
         typeOf(nameRange) {
@@ -36,8 +44,29 @@ export function getLatestVariableTypes(
                 ? binding.sequenceType
                 : undefined;
         },
-        isUpdating: checking,
+        isUpdating: !checked,
     };
+}
+
+/** Whether the promise settles before the wait is over and before the request is cancelled. */
+async function waitAtMost(
+    promise: Promise<unknown>,
+    { waitMs, token }: { waitMs: number; token?: CancellationToken | undefined },
+): Promise<boolean> {
+    let timeout: NodeJS.Timeout | undefined;
+    let cancellation: Disposable | undefined;
+    const givenUp = new Promise<false>((resolve) => {
+        timeout = setTimeout(() => resolve(false), waitMs);
+        cancellation = token?.onCancellationRequested(() => resolve(false));
+    });
+    try {
+        return token?.isCancellationRequested === true
+            ? false
+            : await Promise.race([promise.then(() => true), givenUp]);
+    } finally {
+        clearTimeout(timeout);
+        cancellation?.dispose();
+    }
 }
 
 function indexBindings(typecheck: CachedStaticTypecheck): BindingsByNameEnd {
