@@ -73,8 +73,7 @@ function createSignatureInformation(
     functionName: string,
     parameters: { label: string; documentation?: string }[],
     documentationSections: string[],
-    returnType?: string,
-    arrow = false,
+    { returnType, arrow = false }: { returnType?: string | undefined; arrow?: boolean } = {},
 ): SignatureInformation {
     const returnSuffix = returnType ? ` as ${returnType}` : "";
     const labels = parameters.map((parameter) => parameter.label);
@@ -139,8 +138,7 @@ function getBuiltinSignatures(
                 };
             }),
             documentationSections,
-            signature.returnType,
-            arrow,
+            { returnType: signature.returnType, arrow },
         ),
     );
 }
@@ -160,8 +158,7 @@ function getSourceSignatures(
                 label: definitionNameToString(parameter),
             })),
             [],
-            undefined,
-            arrow,
+            { arrow },
         ),
     ];
 }
@@ -193,8 +190,10 @@ function resolveSignatures(
                         label: `$arg${index + 1} as ${formatSequenceType(parameter.type)}`,
                     })),
                     [],
-                    formatSequenceType(resolvedDeclaration.signature.returnType),
-                    arrow,
+                    {
+                        returnType: formatSequenceType(resolvedDeclaration.signature.returnType),
+                        arrow,
+                    },
                 ),
             ],
             activeSignature: 0,

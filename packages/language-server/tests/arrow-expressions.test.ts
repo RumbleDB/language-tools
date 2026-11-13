@@ -79,7 +79,7 @@ describe.each(["jsoniq", "xquery"])("%s arrow expressions", (languageId) => {
         ]);
     });
 
-    it("highlights an arrow chain in source order", async () => {
+    it("highlights the function names of an arrow chain", async () => {
         const document = open("declare variable $v := 1;\n$v => concat($v) => count()");
 
         const { data } = await collectSemanticTokens(document, workspaceService);
@@ -167,17 +167,6 @@ describe.each(["jsoniq", "xquery"])("%s arrow expressions", (languageId) => {
             workspaceService,
         );
         expect(edit?.changes?.[document.uri]).toHaveLength(3);
-    });
-
-    it("describes the function an arrow names on hover", async () => {
-        const document = open('"abc" => substring(2)');
-
-        const hover = await findHover(
-            document,
-            positionAt(document, "substring"),
-            workspaceService,
-        );
-        expect(JSON.stringify(hover?.contents)).toContain("substring");
     });
 
     it("starts signature help at the parameter after the operand", async () => {

@@ -1,11 +1,6 @@
-import type { Position } from "vscode-languageserver";
-
 import type { FunctionCallNode } from "../analysis/model/ast.js";
 import type { SourceFunctionDefinition } from "../analysis/model/definitions.js";
-import type { AnalysisResult } from "../analysis/model/result.js";
-import { findNodesThatContainPosition } from "../analysis/queries.js";
 import { getBuiltinFunctionDocumentation } from "../resources/function-docs.js";
-import { rangeContainsPosition } from "./range.js";
 
 export function chooseBestSignatureIndex(
     parameterCounts: number[],
@@ -34,9 +29,7 @@ export function chooseBestSignatureIndex(
     return smallestMatchingIndex ?? largestIndex;
 }
 
-export function findResolvedSourceFunction(
-    call: FunctionCallNode,
-): SourceFunctionDefinition | undefined {
+function findResolvedSourceFunction(call: FunctionCallNode): SourceFunctionDefinition | undefined {
     const declaration = call.reference.resolution?.declaration;
     return declaration?.origin === "source" && declaration.kind === "function"
         ? declaration
@@ -73,25 +66,4 @@ export function getParameterName(call: FunctionCallNode, index: number): string 
 /** Whether the call is an arrow step, whose first argument is the expression before `=>`. */
 export function isArrowCall(call: FunctionCallNode): boolean {
     return call.arguments[0]?.piped === true;
-}
-
-/** The arrow step whose function name holds the position. */
-export function findArrowCallByName(
-    analysis: AnalysisResult,
-    position: Position,
-): FunctionCallNode | undefined {
-    return findNodesThatContainPosition(analysis, position).findLast(
-        (node): node is FunctionCallNode =>
-            node.kind === "function-call" &&
-            isArrowCall(node) &&
-            rangeContainsPosition(node.selectionRange, position),
-    );
-}
-
-/** Explains that the expression before `=>` fills the first parameter, named when it is known. */
-export function describeArrowOperand(call: FunctionCallNode): string {
-    const name = getParameterName(call, 0);
-    return name === undefined
-        ? "The first argument is the expression before `=>`."
-        : `The first parameter, \`${name}\`, is filled by the expression before \`=>\`.`;
 }

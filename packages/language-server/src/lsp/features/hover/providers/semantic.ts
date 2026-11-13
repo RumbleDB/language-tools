@@ -1,10 +1,13 @@
 import {
+    findNodesThatContainPosition,
     findSymbolAtPosition,
     formatSequenceType,
     formatSequenceTypeExpanded,
     parameterListToString,
+    type AnalysisResult,
     type BuiltinFunctionDefinition,
     type Definition,
+    type FunctionCallNode,
     type SchemaConstructorDefinition,
 } from "server/analysis/index.js";
 import { getTypeAtPosition } from "server/integrations/rumble/operations/type-at-position/service.js";
@@ -12,18 +15,16 @@ import {
     formatFunctionDocEntry,
     getBuiltinFunctionDocumentation,
 } from "server/resources/function-docs.js";
-import { describeArrowOperand, findArrowCallByName } from "server/utils/function-calls.js";
-import { sameRange } from "server/utils/range.js";
-import { MarkupKind } from "vscode-languageserver";
+import { getParameterName, isArrowCall } from "server/utils/function-calls.js";
+import { rangeContainsPosition, sameRange } from "server/utils/range.js";
+import { MarkupKind, type Position } from "vscode-languageserver";
 
 import type { HoverProvider } from "../types.js";
 
 export const provideSemanticHover: HoverProvider = async (context) => {
     const analysis = await context.getAnalysis();
     const occurrence = findSymbolAtPosition(analysis, context.position);
-    const arrowCall = findArrowCallByName(analysis, context.position);
-    // Leads the hover, since it changes how the signature below reads.
-    const arrowNote = arrowCall === undefined ? "" : `${describeArrowOperand(arrowCall)}\n\n`;
+    const arrowNote = describeArrowOperandAt(analysis, context.position);
 
     const declaration = occurrence?.declaration;
     if (declaration?.kind === "type" || declaration?.kind === "namespace") {
@@ -107,4 +108,27 @@ function createFunctionHoverContent(
 
 function codeBlock(code: string): string {
     return `\`\`\`jsoniq\n${code}\n\`\`\``;
+}
+
+/**
+ * On the name of an arrow step, a line saying which parameter the expression before `=>` fills.
+ * It leads the hover, since it changes how the signature below it reads.
+ */
+function describeArrowOperandAt(analysis: AnalysisResult, position: Position): string {
+    const call = findNodesThatContainPosition(analysis, position).findLast(
+        (node): node is FunctionCallNode =>
+            node.kind === "function-call" &&
+            isArrowCall(node) &&
+            rangeContainsPosition(node.selectionRange, position),
+    );
+    if (call === undefined) {
+        return "";
+    }
+
+    const name = getParameterName(call, 0);
+    const note =
+        name === undefined
+            ? "The first argument is the expression before `=>`."
+            : `The first parameter, \`${name}\`, is filled by the expression before \`=>\`.`;
+    return `${note}\n\n`;
 }
