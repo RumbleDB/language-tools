@@ -20,16 +20,7 @@ import {
     testDocumentFromUri,
 } from "./test-utils.js";
 
-const fullRange = {
-    start: { line: 0, character: 0 },
-    end: { line: 100, character: 0 },
-};
-
-/** The position just after the first occurrence of `needle`. */
-function positionAfter(document: TextDocument, needle: string) {
-    const position = positionAt(document, needle);
-    return { line: position.line, character: position.character + needle.length };
-}
+const LOCAL = "Q{http://www.w3.org/2005/xquery-local-functions}";
 
 describe.each(["jsoniq", "xquery"])("%s arrow expressions", (languageId) => {
     let documents = 0;
@@ -54,287 +45,272 @@ describe.each(["jsoniq", "xquery"])("%s arrow expressions", (languageId) => {
         );
     }
 
-    it("passes the operand as the first argument, so the function has one more parameter", async () => {
-        const document = open(`${declareF}"x" => local:f(2)`);
+    describe("analysis", () => {
+        it("passes the operand as the first argument, before the name", async () => {
+            const document = open(`${declareF}"x" => local:f(2)`);
 
-        const [call] = await calls(document);
-        expect(call?.name.arity).toBe(2);
-        expect(call?.reference.resolution?.declaration.kind).toBe("function");
-        expect(call?.arguments.map((argument) => [argument.index, argument.piped])).toEqual([
-            [0, true],
-            [1, undefined],
-        ]);
-        expect(document.getText(call?.arguments[0]?.range)).toBe('"x"');
-        expect(await diagnostics(document)).toEqual([]);
+            const [call] = await calls(document);
+            expect(call?.name.arity).toBe(2);
+            expect(call?.reference.resolution?.declaration.kind).toBe("function");
+            expect(call?.arguments.map((argument) => [argument.index, argument.piped])).toEqual([
+                [0, true],
+                [1, undefined],
+            ]);
+            // Children are in source order: the operand precedes the name.
+            expect(call?.children.map((child) => document.getText(child.range))).toEqual([
+                '"x"',
+                "local:f",
+                "2",
+            ]);
+            expect(await diagnostics(document)).toEqual([]);
+        });
+
+        it("counts an argument placeholder in the arity", async () => {
+            const document = open(`${declareF}"x" => local:f(?)`);
+
+            expect((await calls(document))[0]?.name.arity).toBe(2);
+            expect(await diagnostics(document)).toEqual([]);
+        });
+
+        it.each([
+            ["an undefined function", "1 => local:nope()", `${LOCAL}nope#1`],
+            ["arguments that do not fit the arity", `${declareF}1 => local:f(2, 3)`, `${LOCAL}f#3`],
+        ])("reports an arrow to %s", async (_case, source, name) => {
+            expect(await diagnostics(open(source))).toEqual([
+                `Reference to undefined function '${name}'`,
+            ]);
+        });
+
+        it("nests the steps of a chain from the left", async () => {
+            const document = open('"a,b" => tokenize(",") => count()');
+
+            const [outer, inner] = await calls(document);
+            expect(document.getText(outer?.selectionRange)).toBe("count");
+            expect(outer?.name.arity).toBe(1);
+            expect(inner?.name.arity).toBe(2);
+            expect(outer?.arguments[0]?.children).toContain(inner);
+            expect(document.getText(outer?.range)).toBe(document.getText());
+            expect(await diagnostics(document)).toEqual([]);
+        });
+
+        it("leaves a dynamic step as an expression", async () => {
+            const document = open("declare variable $f := concat#2;\n1 => $f(2)");
+
+            // Only `concat#2` names a function; `$f` stays a variable reference.
+            expect((await calls(document)).map((call) => call.name.arity)).toEqual([2]);
+            expect(await diagnostics(document)).toEqual([]);
+        });
     });
 
-    it("keeps the children of an arrow call in source order", async () => {
-        const document = open(`${declareF}"x" => local:f(2)`);
+    describe("navigation and highlighting", () => {
+        it("goes to the definition of the function an arrow names", async () => {
+            const document = open(`${declareF}"x" => local:f(2)`);
 
-        const [call] = await calls(document);
-        expect(call?.children.map((child) => document.getText(child.range))).toEqual([
-            '"x"',
-            "local:f",
-            "2",
-        ]);
+            const location = await findDefinitionLocation(
+                document,
+                positionAtNth(document, "local:f", 1),
+                workspaceService,
+            );
+            expect(location?.range.start).toEqual(positionAt(document, "local:f"));
+        });
+
+        it("finds and renames the function where an arrow names it", async () => {
+            const document = open(`${declareF}local:f(1, 2), "x" => local:f(2)`);
+            const position = positionAt(document, "local:f");
+
+            const references = await findReferenceLocations(
+                document,
+                position,
+                false,
+                workspaceService,
+            );
+            expect(references.map((location) => location.range.start)).toEqual([
+                positionAtNth(document, "local:f", 1),
+                positionAtNth(document, "local:f", 2),
+            ]);
+
+            const edit = await buildRenameWorkspaceEdit(
+                document,
+                position,
+                "local:g",
+                workspaceService,
+            );
+            expect(edit?.changes?.[document.uri]).toHaveLength(3);
+        });
+
+        it("highlights the function names of an arrow chain", async () => {
+            const document = open("declare variable $v := 1;\n$v => concat($v) => count()");
+
+            const { data } = await collectSemanticTokens(document, workspaceService);
+            // [line delta, start delta, length] of each token after the declaration.
+            const tokens = Array.from({ length: data.length / 5 }, (_, token) =>
+                data.slice(token * 5, token * 5 + 3),
+            ).slice(1);
+            expect(tokens).toEqual([
+                [1, 0, 2], // $v
+                [0, 6, 6], // concat
+                [0, 7, 2], // $v
+                [0, 7, 5], // count
+            ]);
+        });
     });
 
-    it("highlights the function names of an arrow chain", async () => {
-        const document = open("declare variable $v := 1;\n$v => concat($v) => count()");
+    describe("signature help", () => {
+        /** The signature help where `needle` starts, and its active signature. */
+        async function signatureAt(source: string, needle: string) {
+            const document = open(source);
+            const help = await findSignatureHelp(
+                document,
+                positionAt(document, needle),
+                workspaceService,
+            );
+            return { help, signature: help?.signatures[help.activeSignature ?? 0] };
+        }
 
-        const { data } = await collectSemanticTokens(document, workspaceService);
-        // [line delta, start delta, length] of each token after the declaration.
-        const tokens = Array.from({ length: data.length / 5 }, (_, token) =>
-            data.slice(token * 5, token * 5 + 3),
-        ).slice(1);
-        expect(tokens).toEqual([
-            [1, 0, 2], // $v
-            [0, 6, 6], // concat
-            [0, 7, 2], // $v
-            [0, 7, 5], // count
-        ]);
+        it("writes a builtin's signature as an arrow step", async () => {
+            const { help, signature } = await signatureAt('"abc" => substring(2)', "2");
+
+            expect(help?.activeParameter).toBe(1);
+            expect(signature?.label).toBe(
+                "$sourceString as xs:string? => substring($start as xs:double) as xs:string",
+            );
+            // Each parameter is its offsets in the label, so the active one still highlights.
+            const parameterText = signature?.parameters?.map(({ label }) =>
+                typeof label === "string" ? label : signature.label.slice(...label),
+            );
+            expect(parameterText).toEqual(["$sourceString as xs:string?", "$start as xs:double"]);
+        });
+
+        it("writes a source function's signature as an arrow step", async () => {
+            const { help, signature } = await signatureAt(`${declareF}"x" => local:f(2)`, "2)");
+
+            expect(signature?.label).toBe("$a => local:f($b)");
+            expect(help?.activeParameter).toBe(1);
+        });
+
+        it("starts at the parameter after the operand", async () => {
+            const { help, signature } = await signatureAt('"abc" => substring()', ")");
+
+            expect(help?.activeParameter).toBe(1);
+            expect(signature?.label).toContain("substring");
+        });
+
+        it("counts written arguments after the operand", async () => {
+            const { help, signature } = await signatureAt('"abc" => substring(2, 3)', "3");
+
+            expect(help?.activeParameter).toBe(2);
+            expect(signature?.parameters).toHaveLength(3);
+        });
+
+        it("gives the enclosing call inside the operand", async () => {
+            const { help, signature } = await signatureAt(
+                'concat("abc" => upper-case(), "d")',
+                "abc",
+            );
+
+            expect(signature?.label).toContain("concat");
+            expect(help?.activeParameter).toBe(0);
+        });
+
+        it("gives nothing inside an operand outside any call", async () => {
+            expect((await signatureAt('"abc" => upper-case()', "abc")).help).toBeNull();
+        });
+
+        it("keeps the call form for a call without an arrow", async () => {
+            const { signature } = await signatureAt('substring("abc", 2)', "2");
+
+            expect(signature?.label).toMatch(/^substring\(/);
+        });
     });
 
-    it("counts an argument placeholder in the arity", async () => {
-        const document = open(`${declareF}"x" => local:f(?)`);
+    describe("hover and inlay hints", () => {
+        /** The markdown of the hover on the function name `name`. */
+        async function hoverOn(source: string, name: string): Promise<string | undefined> {
+            const document = open(source);
+            const hover = await findHover(document, positionAt(document, name), workspaceService);
+            return (hover?.contents as MarkupContent | undefined)?.value;
+        }
 
-        expect((await calls(document))[0]?.name.arity).toBe(2);
-        expect(await diagnostics(document)).toEqual([]);
+        it("starts the hover by saying which parameter the operand fills", async () => {
+            expect(await hoverOn('"abc" => substring(2)', "substring")).toMatch(
+                /^The first parameter, `\$sourceString`, is filled by the expression before `=>`\.\n\n```/,
+            );
+        });
+
+        it("leaves the note out of a call without an arrow", async () => {
+            expect(await hoverOn('substring("abc", 2)', "substring")).not.toContain("before `=>`");
+        });
+
+        it("names only the written arguments in inlay hints", async () => {
+            const document = open(
+                `${declareF}"x" => local:f(2), "a,b" => tokenize(",") => count()`,
+            );
+
+            const hints = await collectInlayHints(
+                document,
+                { start: { line: 0, character: 0 }, end: { line: 100, character: 0 } },
+                workspaceService,
+            );
+            expect(hints.map((hint) => [hint.label, hint.position])).toEqual([
+                ["$b: ", positionAt(document, "2)")],
+                ["$pattern: ", positionAtNth(document, '","', 0)],
+            ]);
+        });
     });
 
-    it("reports an arrow to an undefined function", async () => {
-        expect(await diagnostics(open("1 => local:nope()"))).toEqual([
-            "Reference to undefined function 'Q{http://www.w3.org/2005/xquery-local-functions}nope#1'",
-        ]);
-    });
+    describe("completion", () => {
+        /** The function completions where the source ends, by label. */
+        async function completionsAtEnd(source: string): Promise<Map<string, CompletionItem>> {
+            const document = open(source);
+            const items = await findCompletions(
+                document,
+                document.positionAt(source.length),
+                parserService,
+                workspaceService,
+                createMockWrapperClient(),
+            );
+            return new Map(items.map((item) => [String(item.label), item]));
+        }
 
-    it("reports an arrow whose arguments do not fit the arity", async () => {
-        expect(await diagnostics(open(`${declareF}1 => local:f(2, 3)`))).toEqual([
-            "Reference to undefined function 'Q{http://www.w3.org/2005/xquery-local-functions}f#3'",
-        ]);
-    });
+        it("leaves the parameter the operand fills out of an arrow's call", async () => {
+            const items = await completionsAtEnd('"abc" => ');
 
-    it("nests the steps of a chain from the left", async () => {
-        const document = open('"a,b" => tokenize(",") => count()');
+            expect(items.get("fn:substring")?.insertText).toBe("fn:substring(${1:\\$start})$0");
+            expect(items.get("fn:upper-case")?.insertText).toBe("fn:upper-case()$0");
+            expect(items.get("fn:concat")?.insertText).toBe("fn:concat(${1:\\$arg2})$0");
+        });
 
-        const [outer, inner] = await calls(document);
-        expect(document.getText(outer?.selectionRange)).toBe("count");
-        expect(outer?.name.arity).toBe(1);
-        expect(inner?.name.arity).toBe(2);
-        expect(outer?.arguments[0]?.children).toContain(inner);
-        expect(document.getText(outer?.range)).toBe(document.getText());
-        expect(await diagnostics(document)).toEqual([]);
-    });
+        it("uses the overload with a parameter after an arrow", async () => {
+            // `fn:string` has overloads with no parameter and with one. Both insert `fn:string()`,
+            // but only the second fits after an arrow, and the item shows its signature.
+            const arrowItem = (await completionsAtEnd("1 => ")).get("fn:string");
+            const callItem = (await completionsAtEnd("")).get("fn:string");
+            expect(arrowItem?.insertText).toBe("fn:string()$0");
+            expect(arrowItem?.labelDetails?.detail).toMatch(/^\(\S/);
+            expect(callItem?.labelDetails?.detail).toMatch(/^\(\)/);
+        });
 
-    it("leaves a dynamic step as an expression", async () => {
-        const document = open("declare variable $f := concat#2;\n1 => $f(2)");
+        it("offers no function without parameters after an arrow", async () => {
+            expect((await completionsAtEnd("1 => ")).has("fn:current-date")).toBe(false);
+            expect((await completionsAtEnd("")).has("fn:current-date")).toBe(true);
+        });
 
-        // Only `concat#2` names a function; `$f` stays a variable reference.
-        expect((await calls(document)).map((call) => call.name.arity)).toEqual([2]);
-        expect(await diagnostics(document)).toEqual([]);
-    });
+        it("inserts a declared function after an arrow with its other parameters", async () => {
+            const items = await completionsAtEnd(
+                `declare function local:none() { 1 };\n${declareF}1 => local:`,
+            );
 
-    it("goes to the definition of the function an arrow names", async () => {
-        const document = open(`${declareF}"x" => local:f(2)`);
+            expect(items.get("local:f")?.insertText).toBe("local:f(${1:\\$b})$0");
+            expect(items.has("local:none")).toBe(false);
+        });
 
-        const location = await findDefinitionLocation(
-            document,
-            positionAtNth(document, "local:f", 1),
-            workspaceService,
-        );
-        expect(location?.range.start).toEqual(positionAt(document, "local:f"));
-    });
+        it("inserts every parameter for a call without an arrow", async () => {
+            const items = await completionsAtEnd(declareF);
 
-    it("finds and renames the function where an arrow names it", async () => {
-        const document = open(`${declareF}local:f(1, 2), "x" => local:f(2)`);
-        const position = positionAt(document, "local:f");
-
-        const references = await findReferenceLocations(
-            document,
-            position,
-            false,
-            workspaceService,
-        );
-        expect(references.map((location) => location.range.start)).toEqual([
-            positionAtNth(document, "local:f", 1),
-            positionAtNth(document, "local:f", 2),
-        ]);
-
-        const edit = await buildRenameWorkspaceEdit(
-            document,
-            position,
-            "local:g",
-            workspaceService,
-        );
-        expect(edit?.changes?.[document.uri]).toHaveLength(3);
-    });
-
-    it("starts signature help at the parameter after the operand", async () => {
-        const document = open('"abc" => substring()');
-
-        const help = await findSignatureHelp(
-            document,
-            positionAfter(document, "substring("),
-            workspaceService,
-        );
-        expect(help?.activeParameter).toBe(1);
-        expect(help?.signatures[help.activeSignature!]?.label).toContain("substring");
-    });
-
-    it("counts written arguments after the operand in signature help", async () => {
-        const document = open('"abc" => substring(2, 3)');
-
-        const help = await findSignatureHelp(document, positionAt(document, "3"), workspaceService);
-        expect(help?.activeParameter).toBe(2);
-        expect(help?.signatures[help.activeSignature!]?.parameters).toHaveLength(3);
-    });
-
-    it("gives signature help for the enclosing call inside the operand", async () => {
-        const document = open('concat("abc" => upper-case(), "d")');
-
-        const help = await findSignatureHelp(
-            document,
-            positionAt(document, "abc"),
-            workspaceService,
-        );
-        expect(help?.signatures[help.activeSignature!]?.label).toContain("concat");
-        expect(help?.activeParameter).toBe(0);
-    });
-
-    it("gives no signature help inside an operand outside any call", async () => {
-        const document = open('"abc" => upper-case()');
-
-        expect(
-            await findSignatureHelp(document, positionAt(document, "abc"), workspaceService),
-        ).toBeNull();
-    });
-
-    it("names only the written arguments in inlay hints", async () => {
-        const document = open(`${declareF}"x" => local:f(2), "a,b" => tokenize(",") => count()`);
-
-        const hints = await collectInlayHints(document, fullRange, workspaceService);
-        expect(hints.map((hint) => [hint.label, hint.position])).toEqual([
-            ["$b: ", positionAt(document, "2)")],
-            ["$pattern: ", positionAtNth(document, '","', 0)],
-        ]);
-    });
-
-    it("says on hover which parameter the operand fills", async () => {
-        const document = open('"abc" => substring(2)');
-
-        const hover = await findHover(
-            document,
-            positionAt(document, "substring"),
-            workspaceService,
-        );
-        const contents = hover?.contents as MarkupContent | undefined;
-        expect(contents?.value).toMatch(
-            /^The first parameter, `\$sourceString`, is filled by the expression before `=>`\.\n\n```/,
-        );
-    });
-
-    it("writes the signature as an arrow step in signature help", async () => {
-        const document = open('"abc" => substring(2)');
-
-        const help = await findSignatureHelp(document, positionAt(document, "2"), workspaceService);
-        const signature = help?.signatures[help.activeSignature!];
-        expect(signature?.label).toBe(
-            "$sourceString as xs:string? => substring($start as xs:double) as xs:string",
-        );
-        // Each parameter is its offsets in the label, so the active one still highlights.
-        const parameterText = signature?.parameters?.map(({ label }) =>
-            typeof label === "string" ? label : signature.label.slice(...label),
-        );
-        expect(parameterText).toEqual(["$sourceString as xs:string?", "$start as xs:double"]);
-    });
-
-    it("writes a source function's signature as an arrow step", async () => {
-        const document = open(`${declareF}"x" => local:f(2)`);
-
-        const help = await findSignatureHelp(
-            document,
-            positionAt(document, "2)"),
-            workspaceService,
-        );
-        expect(help?.signatures[0]?.label).toBe("$a => local:f($b)");
-        expect(help?.activeParameter).toBe(1);
-    });
-
-    it("keeps the call form for a call without an arrow", async () => {
-        const document = open('substring("abc", 2)');
-
-        const help = await findSignatureHelp(document, positionAt(document, "2"), workspaceService);
-        expect(help?.signatures[help.activeSignature!]?.label).toMatch(/^substring\(/);
-    });
-
-    it("leaves calls without an arrow free of the operand note", async () => {
-        const document = open('substring("abc", 2)');
-
-        const hover = await findHover(
-            document,
-            positionAt(document, "substring"),
-            workspaceService,
-        );
-        expect(JSON.stringify(hover?.contents)).not.toContain("before `=>`");
-    });
-
-    /** The completions where the source ends, by label. */
-    async function completionsAtEnd(source: string): Promise<Map<string, CompletionItem>> {
-        const document = open(source);
-        const items = await findCompletions(
-            document,
-            document.positionAt(source.length),
-            parserService,
-            workspaceService,
-            createMockWrapperClient(),
-        );
-        return new Map(items.map((item) => [String(item.label), item]));
-    }
-
-    /** The call each function completion inserts where the source ends, by label. */
-    async function insertedCalls(source: string): Promise<Map<string, string | undefined>> {
-        const items = await completionsAtEnd(source);
-        return new Map([...items].map(([label, item]) => [label, item.insertText]));
-    }
-
-    it("leaves the parameter the operand fills out of an arrow's call", async () => {
-        const calls = await insertedCalls('"abc" => ');
-
-        expect(calls.get("fn:substring")).toBe("fn:substring(${1:\\$start})$0");
-        expect(calls.get("fn:upper-case")).toBe("fn:upper-case()$0");
-        expect(calls.get("fn:concat")).toBe("fn:concat(${1:\\$arg2})$0");
-    });
-
-    it("uses the overload with a parameter after an arrow", async () => {
-        // `fn:string` has overloads with no parameter and with one. Both insert `fn:string()`,
-        // but only the second fits after an arrow, and the item shows its signature.
-        const arrowItem = (await completionsAtEnd("1 => ")).get("fn:string");
-        const callItem = (await completionsAtEnd("")).get("fn:string");
-        expect(arrowItem?.insertText).toBe("fn:string()$0");
-        expect(arrowItem?.labelDetails?.detail).toMatch(/^\(\S/);
-        expect(callItem?.labelDetails?.detail).toMatch(/^\(\)/);
-    });
-
-    it("offers no function without parameters after an arrow", async () => {
-        const calls = await insertedCalls("1 => ");
-
-        expect(calls.has("fn:current-date")).toBe(false);
-        expect((await insertedCalls("")).has("fn:current-date")).toBe(true);
-    });
-
-    it("inserts a declared function after an arrow with its other parameters", async () => {
-        const calls = await insertedCalls(
-            `declare function local:none() { 1 };\n${declareF}1 => local:`,
-        );
-
-        expect(calls.get("local:f")).toBe("local:f(${1:\\$b})$0");
-        expect(calls.has("local:none")).toBe(false);
-    });
-
-    it("inserts every parameter for a call without an arrow", async () => {
-        const calls = await insertedCalls(`${declareF}`);
-
-        expect(calls.get("local:f")).toBe("local:f(${1:\\$a}, ${2:\\$b})$0");
-        expect(calls.get("fn:concat")).toBe("fn:concat(${1:\\$arg1}, ${2:\\$arg2})$0");
+            expect(items.get("local:f")?.insertText).toBe("local:f(${1:\\$a}, ${2:\\$b})$0");
+            expect(items.get("fn:concat")?.insertText).toBe(
+                "fn:concat(${1:\\$arg1}, ${2:\\$arg2})$0",
+            );
+        });
     });
 });
