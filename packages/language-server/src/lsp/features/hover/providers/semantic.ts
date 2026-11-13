@@ -22,7 +22,8 @@ export const provideSemanticHover: HoverProvider = async (context) => {
     const analysis = await context.getAnalysis();
     const occurrence = findSymbolAtPosition(analysis, context.position);
     const arrowCall = findArrowCallByName(analysis, context.position);
-    const arrowNote = arrowCall === undefined ? "" : `\n\n${describeArrowOperand(arrowCall)}`;
+    // Leads the hover, since it changes how the signature below reads.
+    const arrowNote = arrowCall === undefined ? "" : `${describeArrowOperand(arrowCall)}\n\n`;
 
     const declaration = occurrence?.declaration;
     if (declaration?.kind === "type" || declaration?.kind === "namespace") {
@@ -40,10 +41,11 @@ export const provideSemanticHover: HoverProvider = async (context) => {
             contents: {
                 kind: MarkupKind.Markdown,
                 value:
+                    arrowNote +
                     createFunctionHoverContent(
                         declaration,
                         context.document.getText(occurrence.range),
-                    ) + arrowNote,
+                    ),
             },
         };
     }
@@ -68,8 +70,8 @@ export const provideSemanticHover: HoverProvider = async (context) => {
         contents: {
             kind: MarkupKind.Markdown,
             value:
-                codeBlock(formatSequenceTypeExpanded(sequenceType, prefix)) +
-                (isName ? arrowNote : ""),
+                (isName ? arrowNote : "") +
+                codeBlock(formatSequenceTypeExpanded(sequenceType, prefix)),
         },
     };
 };

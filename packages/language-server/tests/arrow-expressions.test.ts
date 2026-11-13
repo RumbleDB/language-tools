@@ -8,7 +8,7 @@ import { buildRenameWorkspaceEdit } from "server/lsp/features/rename.js";
 import { collectSemanticTokens } from "server/lsp/features/semantic-tokens.js";
 import { findSignatureHelp } from "server/lsp/features/signature-help.js";
 import { describe, expect, it } from "vitest";
-import type { CompletionItem } from "vscode-languageserver";
+import type { CompletionItem, MarkupContent } from "vscode-languageserver";
 import type { TextDocument } from "vscode-languageserver-textdocument";
 
 import { parserService, workspaceService } from "./services.js";
@@ -238,8 +238,9 @@ describe.each(["jsoniq", "xquery"])("%s arrow expressions", (languageId) => {
             positionAt(document, "substring"),
             workspaceService,
         );
-        expect(JSON.stringify(hover?.contents)).toContain(
-            "The first parameter, `$sourceString`, is filled by the expression before `=>`.",
+        const contents = hover?.contents as MarkupContent | undefined;
+        expect(contents?.value).toMatch(
+            /^The first parameter, `\$sourceString`, is filled by the expression before `=>`\.\n\n```/,
         );
     });
 
