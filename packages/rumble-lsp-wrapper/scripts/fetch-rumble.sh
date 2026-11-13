@@ -12,13 +12,14 @@ WRAPPER_CLASSES_DIR="$WRAPPER_TARGET_DIR/classes"
 
 WRAPPER_METADATA_FILE="$WRAPPER_GENERATED_RESOURCES_DIR/rumble-build.properties"
 WRAPPER_COMPILED_METADATA_FILE="$WRAPPER_CLASSES_DIR/rumble-build.properties"
-WRAPPER_RUMBLE_JAR_LINK="$WRAPPER_GENERATED_RESOURCES_DIR/rumbledb-current-jar-with-dependencies.jar"
 WRAPPER_BUILD_STAMP="$WRAPPER_GENERATED_RESOURCES_DIR/rumble-build.stamp"
 
 RUMBLE_REPO_URL="https://github.com/RumbleDB/rumble.git"
 RUMBLE_REQUESTED_COMMIT="939a4769f2e20fb54a7c576a9fa11c08df2ea8e6"
 RUMBLE_TARGET_DIR="$RUMBLE_DIR/target"
 RUMBLE_BUILD_CACHE_DIR="$WRAPPER_DIR/.cache/rumble/$RUMBLE_REQUESTED_COMMIT"
+# Maven reads this on every run, so the wrapper depends on whatever version the pinned commit declares.
+WRAPPER_MAVEN_CONFIG="$WRAPPER_DIR/.mvn/maven.config"
 
 ensure_rumble_checkout() {
     if [ ! -d "$RUMBLE_DIR" ]; then
@@ -51,7 +52,16 @@ ensure_rumble_checkout() {
     git -C "$RUMBLE_DIR" fetch --depth 1 origin "$RUMBLE_REQUESTED_COMMIT"
     git -C "$RUMBLE_DIR" -c advice.detachedHead=false checkout --detach FETCH_HEAD >/dev/null
     # A jar from before the move is stale, even if no build stamp says so.
-    rm -f "$RUMBLE_TARGET_DIR"/rumbledb-*-jar-with-dependencies.jar
+    remove_rumble_jars
+}
+
+# Rumble's thin jar, without the -tests, -sources, -javadoc or -jar-with-dependencies variants.
+list_rumble_jars() {
+    ls -1t "$1"/rumbledb-*.jar 2>/dev/null | grep -E '/rumbledb-[0-9][^/]*\.jar$' | grep -vE -- '-(tests|sources|javadoc|jar-with-dependencies)\.jar$' || true
+}
+
+remove_rumble_jars() {
+    list_rumble_jars "$RUMBLE_TARGET_DIR" | while IFS= read -r jar; do rm -f "$jar"; done
 }
 
 detect_rumble_ref() {
@@ -99,9 +109,9 @@ stamp_commit_matches_checkout() {
 }
 
 resolve_rumble_jar() {
-    jar_path=$(ls -1t "$RUMBLE_TARGET_DIR"/rumbledb-*-jar-with-dependencies.jar 2>/dev/null | head -n 1 || true)
+    jar_path=$(list_rumble_jars "$RUMBLE_TARGET_DIR" | head -n 1)
     if [ -z "$jar_path" ]; then
-        jar_path=$(ls -1t "$RUMBLE_BUILD_CACHE_DIR"/rumbledb-*-jar-with-dependencies.jar 2>/dev/null | head -n 1 || true)
+        jar_path=$(list_rumble_jars "$RUMBLE_BUILD_CACHE_DIR" | head -n 1)
     fi
     if [ -z "$jar_path" ]; then
         return 1
@@ -125,14 +135,18 @@ cache_rumble_jar() {
 extract_rumble_version_from_jar() {
     jar_file=$(basename "$1")
     version=${jar_file#rumbledb-}
-    version=${version%-jar-with-dependencies.jar}
+    version=${version%.jar}
     printf '%s\n' "$version"
 }
 
-update_rumble_jar_link() {
-    mkdir -p "$WRAPPER_GENERATED_RESOURCES_DIR"
-    ln -sf "$RUMBLE_JAR" "$WRAPPER_RUMBLE_JAR_LINK"
-    echo "Linked Rumble jar to $WRAPPER_RUMBLE_JAR_LINK" >&2
+# Installs the jar with Rumble's own pom, so that Maven resolves its dependencies transitively.
+# This runs on every build: ~/.m2 may hold a 3.1.0 installed from another commit (for example from the CI cache).
+install_rumble_jar() {
+    rumble_version=$(extract_rumble_version_from_jar "$RUMBLE_JAR")
+    (cd "$RUMBLE_DIR" && mvn -q install:install-file -Dfile="$RUMBLE_JAR" -DpomFile=pom.xml)
+    mkdir -p "$(dirname "$WRAPPER_MAVEN_CONFIG")"
+    printf -- '-Drumble.version=%s\n' "$rumble_version" >"$WRAPPER_MAVEN_CONFIG"
+    echo "Installed Rumble $rumble_version into the local Maven repository" >&2
 }
 
 ensure_rumble_checkout
@@ -142,7 +156,7 @@ RUMBLE_COMMIT_SHORT=$(git -C "$RUMBLE_DIR" rev-parse --short HEAD)
 RUMBLE_CURRENT_REF=$(detect_rumble_ref)
 # The jar was built from another commit, so it must not be used for this one.
 if [ -f "$WRAPPER_BUILD_STAMP" ] && ! stamp_commit_matches_checkout; then
-    rm -f "$RUMBLE_TARGET_DIR"/rumbledb-*-jar-with-dependencies.jar
+    remove_rumble_jars
 fi
 RUMBLE_JAR=$(resolve_rumble_jar 2>/dev/null || true)
 if [ -n "$RUMBLE_JAR" ]; then
@@ -157,7 +171,8 @@ fi
 
 if [ -z "$RUMBLE_JAR" ]; then
     echo "Building Rumble from source..." >&2
-    (cd "$RUMBLE_DIR" && mvn -q -DskipTests clean compile assembly:single)
+    # maven.test.skip also skips the -tests jar; javadoc and sources jars are not needed either.
+    (cd "$RUMBLE_DIR" && mvn -q -Dmaven.test.skip -Dmaven.javadoc.skip -Dmaven.source.skip clean package)
     RUMBLE_JAR=$(resolve_rumble_jar)
     cache_rumble_jar
     CURRENT_BUILD_SIGNATURE=$(build_signature)
@@ -165,7 +180,7 @@ elif [ ! -f "$WRAPPER_BUILD_STAMP" ]; then
     echo "Adopting existing Rumble jar for commit $RUMBLE_COMMIT_SHORT..." >&2
 fi
 
-update_rumble_jar_link
+install_rumble_jar
 write_metadata_file "$WRAPPER_METADATA_FILE"
 if [ -d "$WRAPPER_CLASSES_DIR" ]; then
     write_metadata_file "$WRAPPER_COMPILED_METADATA_FILE"

@@ -9,11 +9,6 @@ import { WrapperLaunchConfig } from "./index.js";
 const PACKAGE_ROOT = findPackageRoot();
 const WRAPPER_DEVELOPMENT_FOLDER = path.join(PACKAGE_ROOT, "../rumble-lsp-wrapper");
 const WRAPPER_JAR_DEVELOPMENT_FOLDER = path.join(WRAPPER_DEVELOPMENT_FOLDER, "target");
-const RUMBLE_JAR_DEVELOPMENT_PATH = path.join(
-    WRAPPER_DEVELOPMENT_FOLDER,
-    "generated-resources",
-    "rumbledb-current-jar-with-dependencies.jar",
-);
 const WRAPPER_PACKAGE_JSON_PATH = path.join(WRAPPER_DEVELOPMENT_FOLDER, "package.json");
 
 const WRAPPER_RUNTIME_CLASSPATH_FILE = "runtime-classpath.txt";
@@ -22,20 +17,15 @@ const WRAPPER_MAIN_CLASS = "org.jsoniq.lsp.wrapper.Main";
 export function resolveDevLaunchConfig(): WrapperLaunchConfig | undefined {
     const localJarPath = resolveWrapperJarPath();
     const classpathPath = path.join(WRAPPER_JAR_DEVELOPMENT_FOLDER, WRAPPER_RUNTIME_CLASSPATH_FILE);
-    if (
-        localJarPath === undefined ||
-        !fs.existsSync(classpathPath) ||
-        !fs.existsSync(RUMBLE_JAR_DEVELOPMENT_PATH)
-    ) {
+    if (localJarPath === undefined || !fs.existsSync(classpathPath)) {
         return undefined;
     }
 
     const runtimeClasspath = fs.readFileSync(classpathPath, "utf8").trim();
-    const classpathEntries = [
-        localJarPath,
-        RUMBLE_JAR_DEVELOPMENT_PATH,
-        ...runtimeClasspath.split(path.delimiter),
-    ].filter((entry): entry is string => entry !== undefined && entry.length > 0);
+    // The runtime classpath includes RumbleDB and its dependencies from the local Maven repository.
+    const classpathEntries = [localJarPath, ...runtimeClasspath.split(path.delimiter)].filter(
+        (entry): entry is string => entry !== undefined && entry.length > 0,
+    );
     const classpath = [...new Set(classpathEntries)].join(path.delimiter);
 
     return {

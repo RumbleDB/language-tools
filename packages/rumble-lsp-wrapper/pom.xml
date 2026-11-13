@@ -21,17 +21,16 @@
         <maven.compiler.source>17</maven.compiler.source>
         <maven.compiler.target>17</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <rumble.local.jar>${project.basedir}/generated-resources/rumbledb-current-jar-with-dependencies.jar</rumble.local.jar>
     </properties>
 
     <dependencies>
         <dependency>
             <groupId>com.github.rumbledb</groupId>
             <artifactId>rumbledb</artifactId>
-            <version>local</version>
-            <scope>system</scope>
-            <systemPath>${rumble.local.jar}</systemPath>
+            <!-- scripts/fetch-rumble.sh installs the pinned commit and sets rumble.version in .mvn/maven.config -->
+            <version>${rumble.version}</version>
         </dependency>
+        <!-- Spark is provided-scoped in RumbleDB (so spark-submit can supply it), hence not inherited transitively -->
         <dependency>
             <groupId>org.apache.spark</groupId>
             <artifactId>spark-sql_2.13</artifactId>
@@ -176,32 +175,6 @@
             <id>prod</id>
             <build>
                 <plugins>
-                    <plugin>
-                        <groupId>org.apache.maven.plugins</groupId>
-                        <artifactId>maven-antrun-plugin</artifactId>
-                        <version>3.2.0</version>
-                        <executions>
-                            <execution>
-                                <id>unpack-rumble-classes</id>
-                                <goals>
-                                    <goal>run</goal>
-                                </goals>
-                                <phase>process-classes</phase>
-                                <configuration>
-                                    <target>
-                                        <unzip dest="${project.build.outputDirectory}" src="${rumble.local.jar}">
-                                            <patternset>
-                                                <exclude name="**/module-info.class"/>
-                                                <exclude name="META-INF/*.SF"/>
-                                                <exclude name="META-INF/*.DSA"/>
-                                                <exclude name="META-INF/*.RSA"/>
-                                            </patternset>
-                                        </unzip>
-                                    </target>
-                                </configuration>
-                            </execution>
-                        </executions>
-                    </plugin>
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-shade-plugin</artifactId>
