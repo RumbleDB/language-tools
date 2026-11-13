@@ -8,7 +8,6 @@ import { buildRenameWorkspaceEdit } from "server/lsp/features/rename.js";
 import { collectSemanticTokens } from "server/lsp/features/semantic-tokens.js";
 import { findSignatureHelp } from "server/lsp/features/signature-help.js";
 import { describe, expect, it } from "vitest";
-import type { InlayHint, InlayHintLabelPart } from "vscode-languageserver";
 import type { TextDocument } from "vscode-languageserver-textdocument";
 
 import { workspaceService } from "./services.js";
@@ -18,18 +17,6 @@ const fullRange = {
     start: { line: 0, character: 0 },
     end: { line: 100, character: 0 },
 };
-
-/** The text of a hint, whether it is a string or made of parts. */
-function hintText(hint: InlayHint): string {
-    return typeof hint.label === "string"
-        ? hint.label
-        : hint.label.map((part) => part.value).join("");
-}
-
-/** The parts of a hint's label, or none when the label is plain text. */
-function labelParts(hint: InlayHint | undefined): InlayHintLabelPart[] {
-    return Array.isArray(hint?.label) ? hint.label : [];
-}
 
 /** The position just after the first occurrence of `needle`. */
 function positionAfter(document: TextDocument, needle: string) {
@@ -226,47 +213,14 @@ describe.each(["jsoniq", "xquery"])("%s arrow expressions", (languageId) => {
         ).toBeNull();
     });
 
-    it("names the parameter the operand fills before the function name in inlay hints", async () => {
-        const document = open(`${declareF}"x" => local:f(2)`);
+    it("names only the written arguments in inlay hints", async () => {
+        const document = open(`${declareF}"x" => local:f(2), "a,b" => tokenize(",") => count()`);
 
         const hints = await collectInlayHints(document, fullRange, workspaceService);
-        expect(hints.map((hint) => [hintText(hint), hint.position])).toEqual([
-            ["$a: ", positionAtNth(document, "local:f", 1)],
+        expect(hints.map((hint) => [hint.label, hint.position])).toEqual([
             ["$b: ", positionAt(document, "2)")],
+            ["$pattern: ", positionAtNth(document, '","', 0)],
         ]);
-    });
-
-    it("quotes the operand and links the parameter in the operand hint", async () => {
-        const document = open(`${declareF}"x" => local:f(2)`);
-
-        const [hint] = await collectInlayHints(document, fullRange, workspaceService);
-        const [part] = labelParts(hint);
-        expect(part?.tooltip).toEqual({
-            kind: "markdown",
-            value: 'Filled by the expression before `=>`:\n\n```jsoniq\n"x"\n```',
-        });
-        expect(part?.location).toEqual({
-            uri: document.uri,
-            range: {
-                start: positionAt(document, "$a"),
-                end: positionAfter(document, "$a"),
-            },
-        });
-    });
-
-    it("gives each step of a chain its own operand hint", async () => {
-        const document = open('"a,b" => tokenize(",") => count()');
-
-        const hints = await collectInlayHints(document, fullRange, workspaceService);
-        const operandHints = hints.filter((hint) => Array.isArray(hint.label));
-        expect(operandHints.map((hint) => [hintText(hint), hint.position])).toEqual([
-            ["$arg: ", positionAt(document, "count")],
-            ["$input: ", positionAt(document, "tokenize")],
-        ]);
-        // The outer step quotes the whole inner step as its operand.
-        expect(JSON.stringify(labelParts(operandHints[0])[0]?.tooltip)).toContain(
-            '\\"a,b\\" => tokenize(\\",\\")',
-        );
     });
 
     it("says on hover which parameter the operand fills", async () => {
