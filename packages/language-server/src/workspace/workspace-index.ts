@@ -123,7 +123,7 @@ export class WorkspaceIndex {
         if (cached?.version === document.version) return cached.analysis;
 
         // Capture syntax and imports before yielding to document changes.
-        const ast = this.parser.parse(document).ast;
+        const tree = this.parser.parse(document).tree;
         const prolog = this.getProlog(document);
         const { provider, dependencies } = this.prepareImports(document, prolog);
 
@@ -161,7 +161,7 @@ export class WorkspaceIndex {
                     };
                 });
                 const language = getActiveParserId(document);
-                const { analysis } = analyzeModule(document, ast, {
+                const { analysis } = analyzeModule(document, tree, {
                     provider,
                     prolog,
                     schemaConstructors,
@@ -286,7 +286,7 @@ export class WorkspaceIndex {
         const cached = this.prologs.get(document.uri);
         if (cached?.version === document.version) return cached.prolog;
 
-        const prolog = collectModuleProlog(document.uri, this.parser.parse(document).ast);
+        const prolog = collectModuleProlog(document, this.parser.parse(document).tree);
         this.prologs.set(document.uri, { version: document.version, prolog });
         return prolog;
     }

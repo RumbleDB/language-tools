@@ -14,7 +14,7 @@ import { FileChangeType } from "vscode-languageserver/node";
 import { parserService } from "./services.js";
 
 const definitionsOf = (document: TextDocument) => [
-    ...getDefinitions(analyzeDocument(document, parserService.parse(document).ast).ast),
+    ...getDefinitions(analyzeDocument(document, parserService.parse(document).tree).ast),
 ];
 
 describe("workspace indexing", () => {

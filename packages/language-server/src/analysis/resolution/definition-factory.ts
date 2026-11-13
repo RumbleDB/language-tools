@@ -1,4 +1,3 @@
-import type { AstParameter } from "server/parser/types/ast.js";
 import type { Prefix } from "server/parser/types/name.js";
 import type { Range } from "vscode-languageserver";
 
@@ -67,16 +66,14 @@ export class SourceDefinitionFactory {
     }
 
     public addParameter(
-        parameter: AstParameter,
-        name: QName,
         fn: SourceFunctionDefinition,
+        index: number,
+        name: QName,
+        range: Range,
+        selectionRange: Range,
     ): SourceParameterDefinition {
         const definition: SourceParameterDefinition = {
-            ...this.base(
-                parameter.range,
-                parameter.selectionRange,
-                `${fn.id}:parameter:${parameter.index}`,
-            ),
+            ...this.base(range, selectionRange, `${fn.id}:parameter:${index}`),
             kind: "parameter",
             name,
             function: fn,

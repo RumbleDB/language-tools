@@ -9,3 +9,8 @@ export interface ModuleImport {
     readonly locations: readonly { uri: string; range: Range }[];
     readonly range: Range;
 }
+
+export interface SchemaImport extends ModuleImport {
+    /** Whether the import declares the default element/type namespace. */
+    readonly defaultElementNamespace: boolean;
+}

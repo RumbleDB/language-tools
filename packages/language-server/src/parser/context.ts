@@ -147,6 +147,8 @@ export type TumblingWindowClauseContext =
 export type TypeSwitchStatementContext =
     | jsoniq.TypeSwitchStatementContext
     | xquery.TypeSwitchStatementContext;
+/** A type declaration, which only JSONiq has. */
+export type TypeDeclContext = jsoniq.TypeDeclContext;
 export type TypeswitchExprContext = jsoniq.TypeswitchExprContext | xquery.TypeswitchExprContext;
 export type UriLiteralContext = jsoniq.UriLiteralContext | xquery.UriLiteralContext;
 export type VarBindingContext = jsoniq.VarBindingContext | xquery.VarBindingContext;
