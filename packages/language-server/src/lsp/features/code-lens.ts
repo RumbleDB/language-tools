@@ -22,8 +22,8 @@ export function registerCodeLens({
 export function collectCodeLenses(document: TextDocument, parser: ParserService): CodeLens[] {
     if (isNotebookCellDocument(document) || document.getText().trim() === "") return [];
 
-    const { ast } = parser.parse(document);
-    if (ast.children.some((node) => node.kind === "module-declaration")) return [];
+    // A library module cannot run on its own.
+    if (parser.parse(document).tree.module().libraryModule() !== null) return [];
 
     return [
         {

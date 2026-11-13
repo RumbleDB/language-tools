@@ -1,7 +1,6 @@
-import type { SchemaImportAstNode } from "server/parser/types/ast.js";
 import type { DocumentUri, Range } from "vscode-languageserver";
 
-import type { ModuleImport } from "../analysis/model/module-info.js";
+import type { ModuleImport, SchemaImport } from "../analysis/model/module-info.js";
 
 export interface ResolvedModuleLocation {
     readonly locationUri: string;
@@ -34,7 +33,7 @@ export function resolveModuleLocations(
 /** Schema location hints are relative to the query's effective static base URI. */
 export function resolveSchemaLocations(
     documentUri: DocumentUri,
-    imported: SchemaImportAstNode,
+    imported: SchemaImport,
     declaredBaseUri?: string,
 ): readonly ResolvedModuleLocation[] {
     const baseUri = staticBaseUri(documentUri, declaredBaseUri);

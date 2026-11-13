@@ -24,7 +24,7 @@ describe("analysis namespace bindings", () => {
             ],
             { uri: "file:///function-default.xq", languageId: "xquery" },
         );
-        const analysis = analyzeDocument(document, parser.parse(document).ast, {
+        const analysis = analyzeDocument(document, parser.parse(document).tree, {
             resolveBuiltin: (kind, name) => resolveBuiltin(kind, name, "xquery"),
         });
         // Unprefixed count must not fall back to fn:count under a different function default.
@@ -66,7 +66,7 @@ describe("analysis namespace bindings", () => {
                     languageId: language,
                 },
             );
-            const analysis = analyzeDocument(document, parser.parse(document).ast);
+            const analysis = analyzeDocument(document, parser.parse(document).tree);
             expect(analysis.namespaces.get("xs")).toBe(DEFAULT_NAMESPACES.get("xs"));
             expect(analysis.namespaces.get("lib")).toBe("urn:library");
             expect(analysis.namespaces.get("s")).toBe("urn:schema");
@@ -84,9 +84,9 @@ describe("analysis namespace bindings", () => {
         const document = testDocumentFromUri('declare namespace fn = "urn:custom"; 1', {
             uri: "file:///analysis-namespace-edit.jq",
         });
-        const previous = analyzeDocument(document, parser.parse(document).ast);
+        const previous = analyzeDocument(document, parser.parse(document).tree);
         TextDocument.update(document, [{ text: "1" }], 2);
-        const current = analyzeDocument(document, parser.parse(document).ast);
+        const current = analyzeDocument(document, parser.parse(document).tree);
         // Removing an override restores the default without mutating an older analysis snapshot.
         expect(previous.namespaces.get("fn")).toBe("urn:custom");
         expect(current.namespaces.get("fn")).toBe("http://www.w3.org/2005/xpath-functions");

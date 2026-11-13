@@ -26,7 +26,7 @@ interface TypedStep {
  */
 export const providePathStepCompletions: CompletionProvider = async (context) => {
     const step = typedStep(context);
-    const { ast, tokens } = context.getParseResult();
+    const { tree, tokens } = context.getParseResult();
     const previous = defaultTokenBefore(tokens, step.start);
     if (previous === undefined || !allowsExpressionAt(context, step.start)) {
         return null;
@@ -34,7 +34,7 @@ export const providePathStepCompletions: CompletionProvider = async (context) =>
     // Without a slash, the step applies to the context item. Only schema-typed nodes have declared steps, so other
     // modules need not look for one.
     const afterSlash = isPathSlash(previous);
-    if (!afterSlash && collectModuleProlog(context.document.uri, ast).schemaImports.length === 0) {
+    if (!afterSlash && collectModuleProlog(context.document, tree).schemaImports.length === 0) {
         return null;
     }
     const { pathSteps } = await context.getFocusAt(previous.stop + 1);

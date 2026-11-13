@@ -1,72 +1,20 @@
-import { getCompletionIntent } from "server/parser/completion.js";
-import type { ParserAdapter } from "server/parser/types/adapter.js";
-import { getActiveParserId } from "server/parser/utils.js";
-import { TextDocument } from "vscode-languageserver-textdocument";
-
-import {
-    COMPLETION_START_RULES,
-    EXPRESSION_KEYWORDS,
-    IGNORED_COMPLETION_TOKENS,
-    KEYWORD_COMPLETIONS,
-    LITERAL_XML_RULES,
-    PREFERRED_COMPLETION_RULES,
-} from "./completion-data.js";
-import { JsoniqTokenContextAnalyzer } from "./completion-token-context.js";
+import { createParserAdapter } from "../common/adapter.js";
 import { JsoniqLexer } from "./grammar/JsoniqLexer.js";
 import { JsoniqParser } from "./grammar/JsoniqParser.js";
-import { parseJsoniq } from "./parse.js";
 
-export const jsoniqParserAdapter: ParserAdapter = {
+export const jsoniqParserAdapter = createParserAdapter({
     id: "jsoniq",
-    supports: (document: TextDocument) => getActiveParserId(document) === "jsoniq",
-    parse: parseJsoniq,
-    getCompletionIntent: (parsed, cursorOffset) =>
-        getCompletionIntent(parsed, cursorOffset, {
-            tokenContextAnalyzer: JsoniqTokenContextAnalyzer,
-            ignoredTokens: IGNORED_COMPLETION_TOKENS,
-            completionStartRules: COMPLETION_START_RULES,
-            preferredRules: PREFERRED_COMPLETION_RULES,
-            languageKeywords: KEYWORD_COMPLETIONS,
-            expressionKeywords: EXPRESSION_KEYWORDS,
-            // Calls and named function references; a declaration introduces its name instead.
-            isFunctionReferenceRule: (ruleIndex, candidate) =>
-                ruleIndex === JsoniqParser.RULE_functionName &&
-                candidate?.ruleList.at(-1) !== JsoniqParser.RULE_functionDecl,
-            // Arrow function names use eqName, not functionName.
-            isArrowFunctionRule: (ruleIndex, candidate) =>
-                ruleIndex === JsoniqParser.RULE_eqName &&
-                candidate?.ruleList.at(-1) === JsoniqParser.RULE_arrowFunctionSpecifier,
-            isObjectLookupRule: (ruleIndex) => ruleIndex === JsoniqParser.RULE_objectLookupKey,
-            // Names being introduced are not keyword or reference completion sites.
-            isDeclarationNameRule: (_ruleIndex, candidate) =>
-                [
-                    JsoniqParser.RULE_functionDecl,
-                    JsoniqParser.RULE_varBinding,
-                    JsoniqParser.RULE_namespaceDecl,
-                    JsoniqParser.RULE_libraryModule,
-                    JsoniqParser.RULE_moduleImport,
-                    JsoniqParser.RULE_schemaPrefix,
-                    JsoniqParser.RULE_optionDecl,
-                    JsoniqParser.RULE_annotation,
-                    JsoniqParser.RULE_decimalFormatDecl,
-                    JsoniqParser.RULE_typeDecl,
-                ].includes(candidate?.ruleList.at(-1) ?? -1),
-            isTypeReferenceRule: (ruleIndex, candidate) =>
-                ruleIndex === JsoniqParser.RULE_eqName &&
-                [
-                    JsoniqParser.RULE_itemType,
-                    JsoniqParser.RULE_typeName,
-                    JsoniqParser.RULE_typedMapTest,
-                ].includes(candidate?.ruleList.at(-1) ?? -1),
-            isCommentToken: (tokenType) => tokenType === JsoniqLexer.XQComment,
-            isLiteralXmlRule: (ruleIndex) => LITERAL_XML_RULES.has(ruleIndex),
-            isStringLiteralRule: (ruleIndex) => ruleIndex === JsoniqParser.RULE_stringLiteral,
-            isCatchErrorTargetRule: (ruleIndex, candidate) =>
-                ruleIndex === JsoniqParser.RULE_nameTest &&
-                (candidate?.ruleList.includes(JsoniqParser.RULE_catchClause) === true ||
-                    candidate?.ruleList.includes(JsoniqParser.RULE_catchCaseStatement) === true),
-            isVariableReferenceRule: (ruleIndex) => ruleIndex === JsoniqParser.RULE_varRef,
-            tokenName: (tokenType) => JsoniqParser.symbolicNames[tokenType] ?? tokenType,
-            ruleName: (ruleIndex) => JsoniqParser.ruleNames[ruleIndex] ?? ruleIndex,
-        }),
-};
+    lexer: JsoniqLexer,
+    parser: JsoniqParser,
+    ignoredTokens: [JsoniqLexer.LBRACE_VBAR, JsoniqLexer.RBRACE_VBAR],
+    expressionKeywords: [
+        JsoniqLexer.KW_TRUE,
+        JsoniqLexer.KW_FALSE,
+        JsoniqLexer.KW_NULL,
+        JsoniqLexer.KW_NOT,
+        JsoniqLexer.KW_JSONIQ,
+    ],
+    keywords: [[JsoniqLexer.KW_JSONIQ, "jsoniq version"]],
+    declarationRules: [JsoniqParser.RULE_typeDecl],
+    objectLookupRule: JsoniqParser.RULE_objectLookupKey,
+});

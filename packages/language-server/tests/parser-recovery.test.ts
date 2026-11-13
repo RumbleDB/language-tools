@@ -1,3 +1,4 @@
+import { analyzeDocument } from "server/analysis/index.js";
 import { describe, expect, it } from "vitest";
 
 import { parserService } from "./services.js";
@@ -11,8 +12,8 @@ describe.each(["jsoniq", "xquery"])("%s parser recovery", (languageId) => {
         });
 
         const parsed = parserService.parse(document);
-        const reference = parsed.ast.children.find(
-            (node) => node.kind === "named-function-reference",
+        const reference = analyzeDocument(document, parsed.tree).ast.children.find(
+            (node) => node.kind === "function-call",
         );
 
         expect(parsed.diagnostics.length).toBeGreaterThan(0);

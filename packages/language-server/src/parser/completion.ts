@@ -26,7 +26,7 @@ export type CompletionStartRule = {
     startAfterIntroducer?: boolean;
 };
 
-type CompletionOptions<T extends TokenContextAnalyzer> = {
+export type CompletionOptions<T extends TokenContextAnalyzer = TokenContextAnalyzer> = {
     tokenContextAnalyzer: new (tokens: Token[], cursorOffset: number) => T;
     ignoredTokens: Set<number>;
     preferredRules: Set<number>;

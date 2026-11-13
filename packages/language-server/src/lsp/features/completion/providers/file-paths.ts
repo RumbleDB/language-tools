@@ -122,7 +122,7 @@ async function findPathString(
 ): Promise<PathString | undefined> {
     const { document } = context;
     const startsTheString = (range: Range) => document.offsetAt(range.start) === stringStart;
-    const prolog = collectModuleProlog(document.uri, context.getParseResult().ast);
+    const prolog = collectModuleProlog(document, context.getParseResult().tree);
 
     // A module is located relative to the module that imports it, and by its namespace when no location is given.
     const moduleLocations = prolog.imports.flatMap((imported) =>

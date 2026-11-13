@@ -6,7 +6,7 @@ import { parserService } from "./services.js";
 import { testDocument, testDocumentFromUri } from "./test-utils.js";
 
 const buildAnalysis = (document: Parameters<typeof analyzeDocument>[0]) =>
-    analyzeDocument(document, parserService.parse(document).ast);
+    analyzeDocument(document, parserService.parse(document).tree);
 
 describe("workspace symbol index", () => {
     it("indexes and removes references by symbol identity", () => {

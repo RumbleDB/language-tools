@@ -23,7 +23,7 @@ describe.each(["jsoniq", "xquery"])("%s prolog collection", (languageId) => {
         );
         const parsed = parserService.parse(document);
         expect(parsed.diagnostics).toEqual([]);
-        const prolog = collectModuleProlog(document.uri, parsed.ast);
+        const prolog = collectModuleProlog(document, parsed.tree);
 
         expect(
             [...prolog.declarations.variables.values()].map((definition) =>
@@ -50,7 +50,7 @@ describe.each(["jsoniq", "xquery"])("%s prolog collection", (languageId) => {
         );
         const parsed = parserService.parse(document);
         expect(parsed.diagnostics).toEqual([]);
-        const prolog = collectModuleProlog(document.uri, parsed.ast);
+        const prolog = collectModuleProlog(document, parsed.tree);
 
         expect(prolog.targetNamespace).toBe("urn:lib");
         expect(prolog.imports).toMatchObject([{ prefix: "dep", namespaceUri: "urn:dep" }]);

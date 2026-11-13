@@ -41,7 +41,8 @@ describe("module-local XML Schema types", () => {
                     "($Code, Code(), 1 instance of Code, 1 instance of other:Code, 1 instance of Q{urn:other}Code)",
                 ],
                 {
-                    uri: `file:///schema-default-types.${language === "xquery" ? "xq" : "jq"}`,
+                    // The header is part of the URI, since the parser caches a document by its URI and version.
+                    uri: `file:///schema-default-types-${header.length}.${language === "xquery" ? "xq" : "jq"}`,
                     languageId: language,
                 },
             );
@@ -52,7 +53,7 @@ describe("module-local XML Schema types", () => {
                 origin: "schema",
                 name: { namespaceUri: "urn:other", localName: "Code" },
             };
-            const { analysis } = analyzeModule(document, parsed.ast, {
+            const { analysis } = analyzeModule(document, parsed.tree, {
                 provider,
                 schemaTypes: [...schemaTypes, otherType],
             });
@@ -94,7 +95,7 @@ describe("module-local XML Schema types", () => {
                     languageId: language,
                 },
             );
-            const { analysis } = analyzeModule(document, parser.parse(document).ast, {
+            const { analysis } = analyzeModule(document, parser.parse(document).tree, {
                 provider,
                 schemaTypes,
             });
@@ -117,13 +118,13 @@ describe("module-local XML Schema types", () => {
             ['declare namespace s = "urn:schema";', '(1 instance of s:Code, s:Code("a"))'],
             { uri: "file:///schema-types-separate.jq" },
         );
-        const ast = parser.parse(document).ast;
-        const { analysis } = analyzeModule(document, ast, { provider, schemaTypes });
+        const tree = parser.parse(document).tree;
+        const { analysis } = analyzeModule(document, tree, { provider, schemaTypes });
         // Registering a named type must not invent a constructor for it.
         expect(analysis.diagnostics.map((diagnostic) => diagnostic.code)).toEqual([
             "unresolved-function",
         ]);
-        const removed = analyzeModule(document, ast, { provider }).analysis;
+        const removed = analyzeModule(document, tree, { provider }).analysis;
         expect(removed.diagnostics.map((diagnostic) => diagnostic.code)).toEqual([
             "unresolved-type",
             "unresolved-function",
@@ -139,10 +140,10 @@ describe("module-local XML Schema types", () => {
             ],
             { uri: "file:///schema-types-library.jq" },
         );
-        const libraryAst = parser.parse(library).ast;
-        const prolog = collectModuleProlog(library.uri, libraryAst);
+        const libraryTree = parser.parse(library).tree;
+        const prolog = collectModuleProlog(library, libraryTree);
         expect(
-            analyzeModule(library, libraryAst, { provider, prolog, schemaTypes }).analysis
+            analyzeModule(library, libraryTree, { provider, prolog, schemaTypes }).analysis
                 .diagnostics,
         ).toEqual([]);
         const main = testDocumentFromUri(
@@ -153,7 +154,7 @@ describe("module-local XML Schema types", () => {
             ],
             { uri: "file:///schema-types-main.jq" },
         );
-        const { analysis } = analyzeModule(main, parser.parse(main).ast, {
+        const { analysis } = analyzeModule(main, parser.parse(main).tree, {
             provider: {
                 loadImport: (_uri, imported) => [
                     {

@@ -54,7 +54,7 @@ describe("module-local schema constructors", () => {
             'declare namespace alias = "urn:schema";',
             '(s:Code("a"), alias:Code("b"), s:Code#1)',
         ]);
-        const { analysis } = analyzeModule(document, parser.parse(document).ast, {
+        const { analysis } = analyzeModule(document, parser.parse(document).tree, {
             provider: { loadImport: () => [] },
             schemaConstructors: [constructor],
         });
@@ -77,7 +77,7 @@ describe("module-local schema constructors", () => {
             'declare namespace other = "urn:other";',
             call,
         ]);
-        const { analysis } = analyzeModule(document, parser.parse(document).ast, {
+        const { analysis } = analyzeModule(document, parser.parse(document).tree, {
             provider: { loadImport: () => [] },
             schemaConstructors: [constructor],
         });
@@ -94,14 +94,14 @@ describe("module-local schema constructors", () => {
             "schema-constructor-reset",
             'declare namespace s = "urn:schema"; s:Code("a")',
         );
-        const ast = parser.parse(document).ast;
+        const tree = parser.parse(document).tree;
         const provider = { loadImport: () => [] };
         expect(
-            analyzeModule(document, ast, { provider, schemaConstructors: [constructor] }).analysis
+            analyzeModule(document, tree, { provider, schemaConstructors: [constructor] }).analysis
                 .diagnostics,
         ).toEqual([]);
         expect(
-            analyzeModule(document, ast, { provider }).analysis.diagnostics.map(
+            analyzeModule(document, tree, { provider }).analysis.diagnostics.map(
                 (diagnostic) => diagnostic.code,
             ),
         ).toEqual(["unresolved-function"]);
@@ -113,9 +113,9 @@ describe("module-local schema constructors", () => {
             'import schema namespace s = "urn:schema";',
             'declare function lib:make() { s:Code("a") };',
         ]);
-        const ast = parser.parse(library).ast;
-        const prolog = collectModuleProlog(library.uri, ast);
-        const { analysis: libraryAnalysis } = analyzeModule(library, ast, {
+        const tree = parser.parse(library).tree;
+        const prolog = collectModuleProlog(library, tree);
+        const { analysis: libraryAnalysis } = analyzeModule(library, tree, {
             provider: { loadImport: () => [] },
             prolog,
             schemaConstructors: [constructor],
@@ -128,7 +128,7 @@ describe("module-local schema constructors", () => {
             'declare namespace s = "urn:schema";',
             '(lib:make(), s:Code("a"))',
         ]);
-        const { analysis } = analyzeModule(main, parser.parse(main).ast, {
+        const { analysis } = analyzeModule(main, parser.parse(main).tree, {
             provider: {
                 loadImport: (_uri, imported) => [
                     {

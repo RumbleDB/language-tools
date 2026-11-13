@@ -13,7 +13,7 @@ export class JsoniqFormatterVisitor extends FormatterVisitor {
         super(ctx, { parser: JsoniqParser, literalNames: JsoniqLexer.literalNames });
     }
 
-    public visitTypeDecl = (node: ctx.TypeDeclContext): Doc => {
+    public override visitTypeDecl = (node: ctx.TypeDeclContext): Doc => {
         const schema = node.schemaLanguage() ? concat([this.v(node.schemaLanguage()), space]) : NIL;
         return concat([
             this.kw(node.KW_DECLARE(), JsoniqParser.KW_DECLARE),
@@ -46,14 +46,14 @@ export class JsoniqFormatterVisitor extends FormatterVisitor {
         );
     }
 
-    public visitObjectLookup = (node: ctx.ObjectLookupContext): Doc => {
+    public override visitObjectLookup = (node: ctx.ObjectLookupContext): Doc => {
         return concat([
             this.kw(node.DOT(), JsoniqParser.DOT),
             this.v(node.getChild(1) as ParseTree),
         ]);
     };
 
-    public visitArrayLookup = (node: ctx.ArrayLookupContext): Doc => {
+    public override visitArrayLookup = (node: ctx.ArrayLookupContext): Doc => {
         return concat([
             this.kw(node.LBRACKET(0), JsoniqParser.LBRACKET),
             this.kw(node.LBRACKET(1), JsoniqParser.LBRACKET),
@@ -63,7 +63,7 @@ export class JsoniqFormatterVisitor extends FormatterVisitor {
         ]);
     };
 
-    public visitArrayUnboxing = (node: ctx.ArrayUnboxingContext): Doc => {
+    public override visitArrayUnboxing = (node: ctx.ArrayUnboxingContext): Doc => {
         return concat([
             this.kw(node.LBRACKET(), JsoniqParser.LBRACKET),
             this.kw(node.RBRACKET(), JsoniqParser.RBRACKET),

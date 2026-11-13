@@ -3,6 +3,7 @@
         "target": "es2025",
         "module": "NodeNext",
         "moduleResolution": "NodeNext",
+        "noImplicitOverride": true,
         "outDir": "dist",
         "rootDir": "src",
         "strict": true,

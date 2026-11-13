@@ -1,6 +1,8 @@
+import { analyzeDocument, type AstNode } from "server/analysis/index.js";
 import { formatParsedDocument } from "server/formatter/index.js";
 import { getParserAdapterForDocument } from "server/parser/registry.js";
 import { describe, expect, it } from "vitest";
+import type { TextDocument } from "vscode-languageserver-textdocument";
 
 import { parserService } from "./services.js";
 import { testDocument, testDocumentFromUri } from "./test-utils.js";
@@ -31,14 +33,18 @@ function formatText(
     );
 }
 
-function semanticAst(value: unknown): unknown {
-    return JSON.parse(
-        JSON.stringify(value, (key, nestedValue: unknown) =>
-            key === "range" || key === "selectionRange" || key === "visibleFrom"
-                ? undefined
-                : nestedValue,
-        ),
-    );
+/** The analysis of a document without its positions: each node's kind and name, and its children. */
+function semanticAst(document: TextDocument): unknown {
+    const shape = (node: AstNode): unknown => [
+        node.kind,
+        node.kind === "declaration"
+            ? node.declaration.name
+            : "name" in node
+              ? node.name
+              : undefined,
+        node.children.map(shape),
+    ];
+    return shape(analyzeDocument(document, parserService.parse(document).tree).ast);
 }
 
 function expectFormattingInvariant(source: string, languageId: "jsoniq" | "xquery"): void {
@@ -56,7 +62,7 @@ function expectFormattingInvariant(source: string, languageId: "jsoniq" | "xquer
     });
     const formattedParse = parserService.parse(result);
     expect(formattedParse.diagnostics).toEqual([]);
-    expect(semanticAst(formattedParse.ast)).toEqual(semanticAst(originalParse.ast));
+    expect(semanticAst(result)).toEqual(semanticAst(original));
     expect(formatText(formatted, languageId)).toBe(formatted);
 }
 
@@ -1051,11 +1057,7 @@ describe("JSONiq & XQuery Formatter", () => {
             const originalDoc = testDocument("orig", original);
             const formattedDoc = testDocument("fmt", formatted);
 
-            const origAst = parserService.parse(originalDoc).ast;
-            const fmtAst = parserService.parse(formattedDoc).ast;
-
-            expect(fmtAst.kind).toBe(origAst.kind);
-            expect(fmtAst.children.length).toBe(origAst.children.length);
+            expect(semanticAst(formattedDoc)).toEqual(semanticAst(originalDoc));
         });
 
         it("preserves AST structure before and after formatting for XQuery", () => {
@@ -1072,11 +1074,7 @@ describe("JSONiq & XQuery Formatter", () => {
                 languageId: "xquery",
             });
 
-            const origAst = parserService.parse(originalDoc).ast;
-            const fmtAst = parserService.parse(formattedDoc).ast;
-
-            expect(fmtAst.kind).toBe(origAst.kind);
-            expect(fmtAst.children.length).toBe(origAst.children.length);
+            expect(semanticAst(formattedDoc)).toEqual(semanticAst(originalDoc));
         });
     });
 

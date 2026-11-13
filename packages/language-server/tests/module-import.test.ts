@@ -38,9 +38,9 @@ describe("module imports", () => {
             'declare type lib:Item as { "value": "string" };',
             "declare function lib:identity($value) { $value };",
         ]);
-        const ast = parserService.parse(document).ast;
-        const prolog = collectModuleProlog(document.uri, ast);
-        const analysis = analyzeDocument(document, ast);
+        const tree = parserService.parse(document).tree;
+        const prolog = collectModuleProlog(document, tree);
+        const analysis = analyzeDocument(document, tree);
 
         expect(prolog).toMatchObject({
             targetNamespace: "urn:lib",
@@ -61,10 +61,10 @@ describe("module imports", () => {
             "declare function lib:value() { 2 };",
         ]);
 
-        const prolog = collectModuleProlog(document.uri, parserService.parse(document).ast);
+        const prolog = collectModuleProlog(document, parserService.parse(document).tree);
 
         expect([...prolog.exports.keys()]).toEqual(["$Q{urn:lib}value", "Q{urn:lib}value#0"]);
-        expect(analyzeDocument(document, parserService.parse(document).ast).diagnostics).toEqual([
+        expect(analyzeDocument(document, parserService.parse(document).tree).diagnostics).toEqual([
             expect.objectContaining({ code: "XQST0049" }),
             expect.objectContaining({ code: "XQST0034" }),
         ]);

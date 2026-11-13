@@ -15,8 +15,8 @@ describe.each(["jsoniq", "xquery"])("%s schema imports", (language) => {
         );
         const parsed = new ParserService().parse(document);
         expect(parsed.diagnostics).toEqual([]);
-        const prolog = collectModuleProlog(document.uri, parsed.ast);
-        const analysis = analyzeDocument(document, parsed.ast, { prolog });
+        const prolog = collectModuleProlog(document, parsed.tree);
+        const analysis = analyzeDocument(document, parsed.tree, { prolog });
         expect(analysis.diagnostics).toEqual([]);
         return { document, prolog, analysis };
     }
@@ -35,7 +35,6 @@ describe.each(["jsoniq", "xquery"])("%s schema imports", (language) => {
         );
         const imported = prolog.schemaImports[0]!;
 
-        expect(imported.kind).toBe("schema-import");
         expect(imported.namespaceUri).toBe("urn:test");
         expect(document.getText(imported.namespaceUriRange)).toBe('"urn:test"');
         expect(imported.prefix).toBe("s");
@@ -60,7 +59,6 @@ describe.each(["jsoniq", "xquery"])("%s schema imports", (language) => {
             const { prolog } = parse(source);
             expect(prolog.schemaImports).toHaveLength(1);
             expect(prolog.schemaImports[0]).toMatchObject({
-                kind: "schema-import",
                 defaultElementNamespace,
                 namespaceUri,
             });
@@ -105,7 +103,7 @@ describe.each(["jsoniq", "xquery"])("%s schema imports", (language) => {
         );
         const parsed = new ParserService().parse(document);
         expect(parsed.diagnostics).toEqual([]);
-        const prolog = collectModuleProlog(document.uri, parsed.ast);
+        const prolog = collectModuleProlog(document, parsed.tree);
         // Both declaration forms set the same component; even an empty first value counts.
         expect(prolog.diagnostics.map((diagnostic) => diagnostic.code)).toEqual(["XQST0066"]);
     });
@@ -113,8 +111,8 @@ describe.each(["jsoniq", "xquery"])("%s schema imports", (language) => {
     it("keeps ordinary namespace declarations separate", () => {
         const { prolog } = parse('declare namespace s = "urn:test"; 1');
         expect(prolog.schemaImports).toEqual([]);
-        expect([...prolog.declarations.namespaces.keys()].map((node) => node.kind)).toEqual([
-            "namespace-declaration",
+        expect([...prolog.declarations.namespaces.values()].map(({ name }) => name)).toEqual([
+            { prefix: "s" },
         ]);
     });
 
@@ -138,7 +136,7 @@ it("rejects a duplicate function default even when the first value is empty", ()
         1,
         'declare default function namespace ""; declare default function namespace "urn:second"; 1',
     );
-    const prolog = collectModuleProlog(document.uri, new ParserService().parse(document).ast);
+    const prolog = collectModuleProlog(document, new ParserService().parse(document).tree);
     // An empty namespace still counts as a declaration and must not be overwritten.
     expect(prolog.defaultFunctionNamespace).toBe("");
     expect(prolog.diagnostics.map((diagnostic) => diagnostic.code)).toEqual(["XQST0066"]);

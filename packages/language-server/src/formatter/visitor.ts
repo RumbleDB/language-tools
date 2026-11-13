@@ -1,9 +1,4 @@
-import {
-    AbstractParseTreeVisitor,
-    type ParseTree,
-    ParserRuleContext,
-    type TerminalNode,
-} from "antlr4ng";
+import { type ParseTree, ParserRuleContext, type TerminalNode } from "antlr4ng";
 import { composeTokenDoc, type FormatterContext, type TokenDoc } from "server/formatter/context.js";
 import { concat, type Doc, NIL, space } from "server/formatter/doc.js";
 import {
@@ -98,7 +93,7 @@ import type { SourceTerminal } from "server/formatter/shared/types.js";
 import { formatDirectConstructor } from "server/formatter/shared/xml.js";
 import type { JsoniqParser } from "server/parser/adapters/jsoniq/grammar/JsoniqParser.js";
 import type { XQueryParser } from "server/parser/adapters/xquery/grammar/XQueryParser.js";
-import type * as shared from "server/parser/context.js";
+import * as shared from "server/parser/context.js";
 
 /** The grammar of a language: its parser, for rule indexes and token types, and the literal text of its tokens. */
 export interface FormatterGrammar {
@@ -110,7 +105,7 @@ export interface FormatterGrammar {
  * Formats the syntax that JSONiq and XQuery share. Their parsers dispatch a node to the visit method of its rule by
  * name, so one visitor serves both, and each language adds the visit methods of its own syntax.
  */
-export abstract class FormatterVisitor extends AbstractParseTreeVisitor<Doc> {
+export abstract class FormatterVisitor extends shared.ParserVisitor<Doc> {
     private readonly defaultLayout: DefaultLayoutRules;
 
     protected constructor(
@@ -133,74 +128,74 @@ export abstract class FormatterVisitor extends AbstractParseTreeVisitor<Doc> {
         composeTokenDoc(this.token(terminal, expectedToken));
 
     /** Formats a rule that this visitor does not format itself. */
-    public override visitChildren(node: ParseTree): Doc {
+    public override visitChildren = (node: ParseTree): Doc => {
         return node instanceof ParserRuleContext
             ? formatWithDefaultLayout(this.ctx, node, this.defaultLayout, this.v)
             : NIL;
-    }
+    };
 
     protected override defaultResult(): Doc {
         return NIL;
     }
 
-    public visitTerminal = (node: TerminalNode): Doc => {
+    public override visitTerminal = (node: TerminalNode): Doc => {
         return formatSourceTerminal(this.ctx, node);
     };
 
-    public visitStringLiteral = (node: shared.StringLiteralContext): Doc => {
+    public override visitStringLiteral = (node: shared.StringLiteralContext): Doc => {
         return formatSourceRange(this.ctx, node);
     };
 
-    public visitUriLiteral = (node: shared.UriLiteralContext): Doc => {
+    public override visitUriLiteral = (node: shared.UriLiteralContext): Doc => {
         return formatSourceRange(this.ctx, node);
     };
 
-    public visitStringConstructor = (node: shared.StringConstructorContext): Doc => {
+    public override visitStringConstructor = (node: shared.StringConstructorContext): Doc => {
         return formatStringConstructor(this.ctx, node, this.v);
     };
 
     /** Formats XML tags and expressions while preserving semantic text gaps. */
-    public visitDirectConstructor = (node: shared.DirectConstructorContext): Doc => {
+    public override visitDirectConstructor = (node: shared.DirectConstructorContext): Doc => {
         return formatDirectConstructor(this.ctx, this.grammar.parser, node, this.v, this.kw);
     };
 
-    public visitBoundarySpaceDecl = (node: shared.BoundarySpaceDeclContext): Doc => {
+    public override visitBoundarySpaceDecl = (node: shared.BoundarySpaceDeclContext): Doc => {
         return formatBoundarySpaceDeclaration(this.ctx, node, this.kw);
     };
 
     // ─── Module & Prolog ──────────────────────────────────────────────────────
 
-    public visitModuleAndThisIsIt = (node: shared.ModuleAndThisIsItContext): Doc => {
+    public override visitModuleAndThisIsIt = (node: shared.ModuleAndThisIsItContext): Doc => {
         return formatDocumentRoot(this.ctx, this.visitChildren(node) ?? NIL);
     };
 
-    public visitModule = (node: shared.ModuleContext): Doc => {
+    public override visitModule = (node: shared.ModuleContext): Doc => {
         return formatModule(node, this.v);
     };
 
-    public visitVersionDecl = (node: shared.VersionDeclContext): Doc => {
+    public override visitVersionDecl = (node: shared.VersionDeclContext): Doc => {
         return formatVersionDecl(node, this.v, this.kw);
     };
 
-    public visitLibraryModule = (node: shared.LibraryModuleContext): Doc => {
+    public override visitLibraryModule = (node: shared.LibraryModuleContext): Doc => {
         return formatLibraryModule(node, this.v, this.kw);
     };
 
-    public visitMainModule = (node: shared.MainModuleContext): Doc => {
+    public override visitMainModule = (node: shared.MainModuleContext): Doc => {
         return formatMainModule(node, this.v);
     };
 
-    public visitProlog = (node: shared.PrologContext): Doc => {
+    public override visitProlog = (node: shared.PrologContext): Doc => {
         return formatProlog(this.ctx, node, this.grammar.parser, this.v);
     };
 
-    public visitAnnotatedDecl = (node: shared.AnnotatedDeclContext): Doc => {
+    public override visitAnnotatedDecl = (node: shared.AnnotatedDeclContext): Doc => {
         return formatAnnotatedDeclaration(node, this.v);
     };
 
     // ─── Declarations ─────────────────────────────────────────────────────────
 
-    public visitFunctionDecl = (node: shared.FunctionDeclContext): Doc => {
+    public override visitFunctionDecl = (node: shared.FunctionDeclContext): Doc => {
         return formatFunctionDeclaration(
             node,
             this.v,
@@ -209,157 +204,157 @@ export abstract class FormatterVisitor extends AbstractParseTreeVisitor<Doc> {
         );
     };
 
-    public visitVarDecl = (node: shared.VarDeclContext): Doc => {
+    public override visitVarDecl = (node: shared.VarDeclContext): Doc => {
         return formatVariableDeclaration(node, this.v, this.kw);
     };
 
-    public visitParamList = (node: shared.ParamListContext): Doc => {
+    public override visitParamList = (node: shared.ParamListContext): Doc => {
         return formatParameterList(node, this.v, this.kw);
     };
 
-    public visitParam = (node: shared.ParamContext): Doc => {
+    public override visitParam = (node: shared.ParamContext): Doc => {
         return formatParameter(node, this.v, this.kw);
     };
 
-    public visitAnnotations = (node: shared.AnnotationsContext): Doc => {
+    public override visitAnnotations = (node: shared.AnnotationsContext): Doc => {
         return formatAnnotations(node, this.v);
     };
 
-    public visitAnnotation = (node: shared.AnnotationContext): Doc => {
+    public override visitAnnotation = (node: shared.AnnotationContext): Doc => {
         return formatAnnotation(node, this.v, this.kw);
     };
 
     // ─── Scripting Statements ────────────────────────────────────────────────
 
-    public visitProgram = (node: shared.ProgramContext): Doc => {
+    public override visitProgram = (node: shared.ProgramContext): Doc => {
         return formatProgram(node, this.v);
     };
 
-    public visitStatements = (node: shared.StatementsContext): Doc => {
+    public override visitStatements = (node: shared.StatementsContext): Doc => {
         return formatStatements(node, this.v);
     };
 
-    public visitStatementsAndExpr = (node: shared.StatementsAndExprContext): Doc => {
+    public override visitStatementsAndExpr = (node: shared.StatementsAndExprContext): Doc => {
         return formatStatementsAndExpression(node, this.v);
     };
 
-    public visitStatementsAndOptionalExpr = (
+    public override visitStatementsAndOptionalExpr = (
         node: shared.StatementsAndOptionalExprContext,
     ): Doc => {
         return formatStatementsAndOptionalExpression(node, this.v);
     };
 
-    public visitApplyStatement = (node: shared.ApplyStatementContext): Doc => {
+    public override visitApplyStatement = (node: shared.ApplyStatementContext): Doc => {
         return formatApplyStatement(node, this.v, this.kw);
     };
 
-    public visitAssignStatement = (node: shared.AssignStatementContext): Doc => {
+    public override visitAssignStatement = (node: shared.AssignStatementContext): Doc => {
         return formatAssignStatement(node, this.v, this.kw);
     };
 
-    public visitBlockStatement = (node: shared.BlockStatementContext): Doc => {
+    public override visitBlockStatement = (node: shared.BlockStatementContext): Doc => {
         return formatBlockStatement(node, this.v, this.kw);
     };
 
-    public visitBreakStatement = (node: shared.BreakStatementContext): Doc => {
+    public override visitBreakStatement = (node: shared.BreakStatementContext): Doc => {
         return formatBreakStatement(node, this.kw);
     };
 
-    public visitContinueStatement = (node: shared.ContinueStatementContext): Doc => {
+    public override visitContinueStatement = (node: shared.ContinueStatementContext): Doc => {
         return formatContinueStatement(node, this.kw);
     };
 
-    public visitExitStatement = (node: shared.ExitStatementContext): Doc => {
+    public override visitExitStatement = (node: shared.ExitStatementContext): Doc => {
         return formatExitStatement(node, this.v, this.kw);
     };
 
-    public visitFlworStatement = (node: shared.FlworStatementContext): Doc => {
+    public override visitFlworStatement = (node: shared.FlworStatementContext): Doc => {
         return formatFlworStatement(node, this.v, this.kw);
     };
 
-    public visitIfStatement = (node: shared.IfStatementContext): Doc => {
+    public override visitIfStatement = (node: shared.IfStatementContext): Doc => {
         return formatIfStatement(node, this.v, this.kw);
     };
 
-    public visitSwitchStatement = (node: shared.SwitchStatementContext): Doc => {
+    public override visitSwitchStatement = (node: shared.SwitchStatementContext): Doc => {
         return formatSwitchStatement(node, this.v, this.kw);
     };
 
-    public visitSwitchCaseStatement = (node: shared.SwitchCaseStatementContext): Doc => {
+    public override visitSwitchCaseStatement = (node: shared.SwitchCaseStatementContext): Doc => {
         return formatSwitchCaseStatement(node, this.v, this.kw);
     };
 
-    public visitTryCatchStatement = (node: shared.TryCatchStatementContext): Doc => {
+    public override visitTryCatchStatement = (node: shared.TryCatchStatementContext): Doc => {
         return formatTryCatchStatement(node, this.v, this.kw);
     };
 
-    public visitCatchCaseStatement = (node: shared.CatchCaseStatementContext): Doc => {
+    public override visitCatchCaseStatement = (node: shared.CatchCaseStatementContext): Doc => {
         return formatCatchCaseStatement(node, this.v, this.kw);
     };
 
-    public visitTypeSwitchStatement = (node: shared.TypeSwitchStatementContext): Doc => {
+    public override visitTypeSwitchStatement = (node: shared.TypeSwitchStatementContext): Doc => {
         return formatTypeswitchStatement(node, this.v, this.kw);
     };
 
-    public visitCaseStatement = (node: shared.CaseStatementContext): Doc => {
+    public override visitCaseStatement = (node: shared.CaseStatementContext): Doc => {
         return formatCaseStatement(node, this.v, this.kw);
     };
 
-    public visitVarDeclStatement = (node: shared.VarDeclStatementContext): Doc => {
+    public override visitVarDeclStatement = (node: shared.VarDeclStatementContext): Doc => {
         return formatVariableDeclarationStatement(node, this.v, this.kw);
     };
 
-    public visitVarDeclForStatement = (node: shared.VarDeclForStatementContext): Doc => {
+    public override visitVarDeclForStatement = (node: shared.VarDeclForStatementContext): Doc => {
         return formatVariableDeclarationForStatement(node, this.v, this.kw);
     };
 
-    public visitWhileStatement = (node: shared.WhileStatementContext): Doc => {
+    public override visitWhileStatement = (node: shared.WhileStatementContext): Doc => {
         return formatWhileStatement(node, this.v, this.kw);
     };
 
-    public visitBlockExpr = (node: shared.BlockExprContext): Doc => {
+    public override visitBlockExpr = (node: shared.BlockExprContext): Doc => {
         return formatBlockExpression(node, this.v, this.kw);
     };
 
     // ─── FLWOR Expressions ───────────────────────────────────────────────────
 
-    public visitFlworExpr = (node: shared.FlworExprContext): Doc => {
+    public override visitFlworExpr = (node: shared.FlworExprContext): Doc => {
         return formatFlworExpression(node, this.v, this.kw);
     };
 
-    public visitForClause = (node: shared.ForClauseContext): Doc => {
+    public override visitForClause = (node: shared.ForClauseContext): Doc => {
         return formatForClause(node, this.v, this.kw);
     };
 
-    public visitForVar = (node: shared.ForVarContext): Doc => {
+    public override visitForVar = (node: shared.ForVarContext): Doc => {
         return formatForVariable(node, this.v, this.kw);
     };
 
-    public visitLetClause = (node: shared.LetClauseContext): Doc => {
+    public override visitLetClause = (node: shared.LetClauseContext): Doc => {
         return formatLetClause(node, this.v, this.kw);
     };
 
-    public visitLetVar = (node: shared.LetVarContext): Doc => {
+    public override visitLetVar = (node: shared.LetVarContext): Doc => {
         return formatLetVariable(node, this.v, this.kw);
     };
 
-    public visitWhereClause = (node: shared.WhereClauseContext): Doc => {
+    public override visitWhereClause = (node: shared.WhereClauseContext): Doc => {
         return formatWhereClause(node, this.v, this.kw);
     };
 
-    public visitGroupByClause = (node: shared.GroupByClauseContext): Doc => {
+    public override visitGroupByClause = (node: shared.GroupByClauseContext): Doc => {
         return formatGroupByClause(node, this.v, this.kw);
     };
 
-    public visitGroupByVar = (node: shared.GroupByVarContext): Doc => {
+    public override visitGroupByVar = (node: shared.GroupByVarContext): Doc => {
         return formatGroupByVariable(node, this.v, this.kw);
     };
 
-    public visitOrderByClause = (node: shared.OrderByClauseContext): Doc => {
+    public override visitOrderByClause = (node: shared.OrderByClauseContext): Doc => {
         return formatOrderByClause(node, this.v, this.kw);
     };
 
-    public visitTumblingWindowClause = (node: shared.TumblingWindowClauseContext): Doc => {
+    public override visitTumblingWindowClause = (node: shared.TumblingWindowClauseContext): Doc => {
         return formatWindowClause(
             this.kw(node.KW_TUMBLING(), this.grammar.parser.KW_TUMBLING),
             node,
@@ -368,7 +363,7 @@ export abstract class FormatterVisitor extends AbstractParseTreeVisitor<Doc> {
         );
     };
 
-    public visitSlidingWindowClause = (node: shared.SlidingWindowClauseContext): Doc => {
+    public override visitSlidingWindowClause = (node: shared.SlidingWindowClauseContext): Doc => {
         return formatWindowClause(
             this.kw(node.KW_SLIDING(), this.grammar.parser.KW_SLIDING),
             node,
@@ -377,45 +372,45 @@ export abstract class FormatterVisitor extends AbstractParseTreeVisitor<Doc> {
         );
     };
 
-    public visitCountClause = (node: shared.CountClauseContext): Doc => {
+    public override visitCountClause = (node: shared.CountClauseContext): Doc => {
         return formatCountClause(node, this.v, this.kw);
     };
 
     // ─── Expressions ──────────────────────────────────────────────────────────
 
-    public visitExpr = (node: shared.ExprContext): Doc => {
+    public override visitExpr = (node: shared.ExprContext): Doc => {
         return formatExpressionSequence(node, this.v, this.kw);
     };
 
-    public visitIfExpr = (node: shared.IfExprContext): Doc => {
+    public override visitIfExpr = (node: shared.IfExprContext): Doc => {
         return formatIfExpression(node, this.v, this.kw);
     };
 
-    public visitTryCatchExpr = (node: shared.TryCatchExprContext): Doc => {
+    public override visitTryCatchExpr = (node: shared.TryCatchExprContext): Doc => {
         return formatTryCatchExpression(node, this.v, this.kw);
     };
 
-    public visitCatchClause = (node: shared.CatchClauseContext): Doc => {
+    public override visitCatchClause = (node: shared.CatchClauseContext): Doc => {
         return formatCatchClause(node, this.v, this.kw);
     };
 
-    public visitSwitchExpr = (node: shared.SwitchExprContext): Doc => {
+    public override visitSwitchExpr = (node: shared.SwitchExprContext): Doc => {
         return formatSwitchExpression(node, this.v, this.kw);
     };
 
-    public visitSwitchCaseClause = (node: shared.SwitchCaseClauseContext): Doc => {
+    public override visitSwitchCaseClause = (node: shared.SwitchCaseClauseContext): Doc => {
         return formatSwitchCaseClause(node, this.v, this.kw);
     };
 
-    public visitTypeswitchExpr = (node: shared.TypeswitchExprContext): Doc => {
+    public override visitTypeswitchExpr = (node: shared.TypeswitchExprContext): Doc => {
         return formatTypeswitchExpression(node, this.v, this.kw);
     };
 
-    public visitCaseClause = (node: shared.CaseClauseContext): Doc => {
+    public override visitCaseClause = (node: shared.CaseClauseContext): Doc => {
         return formatCaseClause(node, this.v, this.kw);
     };
 
-    public visitObjectConstructor = (node: shared.ObjectConstructorContext): Doc => {
+    public override visitObjectConstructor = (node: shared.ObjectConstructorContext): Doc => {
         return this.formatObjectConstructor(node);
     };
 
@@ -437,57 +432,61 @@ export abstract class FormatterVisitor extends AbstractParseTreeVisitor<Doc> {
         );
     }
 
-    public visitPairConstructor = (node: shared.PairConstructorContext): Doc => {
+    public override visitPairConstructor = (node: shared.PairConstructorContext): Doc => {
         return formatPairConstructor(node, this.v, this.kw);
     };
 
-    public visitSquareArrayConstructor = (node: shared.SquareArrayConstructorContext): Doc => {
+    public override visitSquareArrayConstructor = (
+        node: shared.SquareArrayConstructorContext,
+    ): Doc => {
         return formatSquareArrayConstructor(node, this.v, this.token, this.kw);
     };
 
-    public visitCurlyArrayConstructor = (node: shared.CurlyArrayConstructorContext): Doc => {
+    public override visitCurlyArrayConstructor = (
+        node: shared.CurlyArrayConstructorContext,
+    ): Doc => {
         return formatCurlyArrayConstructor(node, this.v, this.kw);
     };
 
-    public visitPostfixExpr = (node: shared.PostfixExprContext): Doc => {
+    public override visitPostfixExpr = (node: shared.PostfixExprContext): Doc => {
         return formatPostfixExpression(node, this.v);
     };
 
-    public visitPredicate = (node: shared.PredicateContext): Doc => {
+    public override visitPredicate = (node: shared.PredicateContext): Doc => {
         return formatPredicate(node, this.v, this.kw);
     };
 
     // ─── Primary & Miscellaneous ──────────────────────────────────────────────
 
-    public visitParenthesizedExpr = (node: shared.ParenthesizedExprContext): Doc => {
+    public override visitParenthesizedExpr = (node: shared.ParenthesizedExprContext): Doc => {
         return formatParenthesizedExpression(node, this.v, this.token, this.kw);
     };
 
-    public visitFunctionCall = (node: shared.FunctionCallContext): Doc => {
+    public override visitFunctionCall = (node: shared.FunctionCallContext): Doc => {
         return formatFunctionCall(node, this.v);
     };
 
-    public visitArgumentList = (node: shared.ArgumentListContext): Doc => {
+    public override visitArgumentList = (node: shared.ArgumentListContext): Doc => {
         return formatArgumentList(node, this.v, this.token, this.kw);
     };
 
-    public visitArgument = (node: shared.ArgumentContext): Doc => {
+    public override visitArgument = (node: shared.ArgumentContext): Doc => {
         return formatArgument(node, this.v, this.kw);
     };
 
-    public visitVarRef = (node: shared.VarRefContext): Doc => {
+    public override visitVarRef = (node: shared.VarRefContext): Doc => {
         return formatVariableName(node, this.v, this.kw);
     };
 
-    public visitVarBinding = (node: shared.VarBindingContext): Doc => {
+    public override visitVarBinding = (node: shared.VarBindingContext): Doc => {
         return formatVariableName(node, this.v, this.kw);
     };
 
-    public visitEnclosedExpression = (node: shared.EnclosedExpressionContext): Doc => {
+    public override visitEnclosedExpression = (node: shared.EnclosedExpressionContext): Doc => {
         return formatEnclosedExpression(node, this.v, this.kw);
     };
 
-    public visitSequenceType = (node: shared.SequenceTypeContext): Doc => {
+    public override visitSequenceType = (node: shared.SequenceTypeContext): Doc => {
         return formatSequenceType(node, this.v, this.kw);
     };
 }

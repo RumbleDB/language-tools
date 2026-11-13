@@ -1,4 +1,4 @@
-import type { AstNode as ParserAstNode } from "server/parser/types/ast.js";
+import type { ModuleAndThisIsItContext } from "server/parser/context.js";
 import type { DocumentUri } from "vscode-languageserver";
 import type { TextDocument } from "vscode-languageserver-textdocument";
 
@@ -29,12 +29,12 @@ export interface AnalyzeModuleResult {
  */
 export function analyzeModule(
     document: TextDocument,
-    ast: ParserAstNode,
+    tree: ModuleAndThisIsItContext,
     options: AnalyzeModuleOptions,
 ): AnalyzeModuleResult {
-    const prolog = options.prolog ?? collectModuleProlog(document.uri, ast);
+    const prolog = options.prolog ?? collectModuleProlog(document, tree);
     const importResult = resolveImports(document.uri, prolog, options.provider);
-    const analysis = analyzeDocument(document, ast, {
+    const analysis = analyzeDocument(document, tree, {
         resolvedImports: importResult.resolvedImports,
         prolog,
         ...(options.schemaConstructors !== undefined && {

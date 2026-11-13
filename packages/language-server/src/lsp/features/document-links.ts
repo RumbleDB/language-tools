@@ -24,7 +24,7 @@ export function collectDocumentLinks(
     document: TextDocument,
     parser: ParserService,
 ): DocumentLink[] {
-    const prolog = collectModuleProlog(document.uri, parser.parse(document).ast);
+    const prolog = collectModuleProlog(document, parser.parse(document).tree);
     const locations = [
         ...prolog.imports.flatMap((imported) => resolveModuleLocations(document.uri, imported)),
         ...prolog.schemaImports.flatMap((imported) =>

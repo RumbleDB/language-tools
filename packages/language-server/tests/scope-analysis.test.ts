@@ -16,7 +16,7 @@ import { parserService, workspaceService } from "./services.js";
 import { positionAt, testDocument, testDocumentFromUri } from "./test-utils.js";
 
 const buildAnalysis = (document: TextDocument) =>
-    analyzeDocument(document, parserService.parse(document).ast, {
+    analyzeDocument(document, parserService.parse(document).tree, {
         resolveBuiltin,
     });
 const definitionsOf = (analysis: AnalysisResult) => [...getDefinitions(analysis.ast)];

@@ -1,25 +1,15 @@
-import type {
-    AstNode as ParserAstNode,
-    ModuleAstNode,
-    PrologAstNode,
-    FunctionDeclarationAstNode,
-    ModuleDeclarationAstNode,
-    ModuleImportAstNode,
-    SchemaImportAstNode,
-    BaseUriDeclarationAstNode,
-    NamespaceDeclarationAstNode,
-    DefaultNamespaceDeclarationAstNode,
-    TypeDeclarationAstNode,
-    VariableDeclarationAstNode,
-} from "server/parser/types/ast.js";
-import type { Prefix } from "server/parser/types/name.js";
-import { ParserAstVisitor } from "server/parser/types/visitor.js";
+import type { ParseTree, ParserRuleContext } from "antlr4ng";
+import * as ctx from "server/parser/context.js";
+import { parseFunctionName, parseVarName } from "server/parser/shared/name.js";
+import { parseQNameText, type Prefix } from "server/parser/types/name.js";
+import { rangeFromNode } from "server/utils/range.js";
 import {
     DiagnosticSeverity,
     type Diagnostic,
     type DocumentUri,
     type Range,
 } from "vscode-languageserver";
+import type { TextDocument } from "vscode-languageserver-textdocument";
 
 import { definitionNameToString, duplicateSymbolErrorCode } from "../model/definitions.js";
 import type {
@@ -29,21 +19,16 @@ import type {
     SourceTypeDefinition,
     SourceVariableDefinition,
 } from "../model/definitions.js";
-import type { ModuleImport } from "../model/module-info.js";
+import type { ModuleImport, SchemaImport } from "../model/module-info.js";
 import { SourceDefinitionFactory } from "./definition-factory.js";
 import { NamespaceResolver } from "./name-resolution.js";
 
 export interface ModulePrologDeclarations {
-    readonly namespaces: ReadonlyMap<
-        | ModuleDeclarationAstNode
-        | ModuleImportAstNode
-        | SchemaImportAstNode
-        | NamespaceDeclarationAstNode,
-        SourceNamespaceDefinition
-    >;
-    readonly functions: ReadonlyMap<FunctionDeclarationAstNode, SourceFunctionDefinition>;
-    readonly variables: ReadonlyMap<VariableDeclarationAstNode, SourceVariableDefinition>;
-    readonly types: ReadonlyMap<TypeDeclarationAstNode, SourceTypeDefinition>;
+    /** Library module declarations, module and schema imports, and namespace declarations. */
+    readonly namespaces: ReadonlyMap<ParserRuleContext, SourceNamespaceDefinition>;
+    readonly functions: ReadonlyMap<ctx.FunctionDeclContext, SourceFunctionDefinition>;
+    readonly variables: ReadonlyMap<ctx.VarDeclContext, SourceVariableDefinition>;
+    readonly types: ReadonlyMap<ctx.TypeDeclContext, SourceTypeDefinition>;
 }
 
 export interface ModuleProlog {
@@ -55,7 +40,7 @@ export interface ModuleProlog {
     readonly defaultElementTypeNamespace: string | undefined;
     /** Explicit default for unprefixed function names; an empty string means no namespace. */
     readonly defaultFunctionNamespace: string | undefined;
-    readonly schemaImports: readonly SchemaImportAstNode[];
+    readonly schemaImports: readonly SchemaImport[];
     readonly namespaces: ReadonlyMap<Prefix, SourceNamespaceDefinition>;
     readonly declarations: ModulePrologDeclarations;
     readonly exports: ReadonlyMap<string, SourceModuleExportDefinition>;
@@ -63,22 +48,41 @@ export interface ModuleProlog {
     readonly definitions: SourceDefinitionFactory;
 }
 
-class ModulePrologCollector extends ParserAstVisitor<void> {
+function unquoteStringLiteral(text: string): string {
+    return text.length >= 2 &&
+        ((text.startsWith('"') && text.endsWith('"')) ||
+            (text.startsWith("'") && text.endsWith("'")))
+        ? text.slice(1, -1)
+        : text;
+}
+
+function hasPrivateAnnotation(node: ctx.FunctionDeclContext | ctx.VarDeclContext): boolean {
+    return (
+        node
+            .annotations()
+            ?.annotation()
+            .some((annotation) => {
+                const name = annotation._name?.getText() ?? "";
+                return name === "private" || name.endsWith(":private") || name.endsWith("}private");
+            }) ?? false
+    );
+}
+
+/**
+ * Collects the declarations of a module's prolog from its parse tree. The parsers of both languages dispatch a node to
+ * the visit method of its rule by name, so one visitor serves both. Only the prolog is walked: the query body and the
+ * bodies of declarations declare nothing at module level.
+ */
+class ModulePrologCollector extends ctx.ParserVisitor<void> {
     private readonly imports: ModuleImport[] = [];
-    private readonly schemaImports: SchemaImportAstNode[] = [];
+    private readonly schemaImports: SchemaImport[] = [];
     private readonly exports = new Map<string, SourceModuleExportDefinition>();
     private readonly namespaces = new Map<Prefix, SourceNamespaceDefinition>();
     private readonly declarations = {
-        namespaces: new Map<
-            | ModuleDeclarationAstNode
-            | ModuleImportAstNode
-            | SchemaImportAstNode
-            | NamespaceDeclarationAstNode,
-            SourceNamespaceDefinition
-        >(),
-        functions: new Map<FunctionDeclarationAstNode, SourceFunctionDefinition>(),
-        variables: new Map<VariableDeclarationAstNode, SourceVariableDefinition>(),
-        types: new Map<TypeDeclarationAstNode, SourceTypeDefinition>(),
+        namespaces: new Map<ParserRuleContext, SourceNamespaceDefinition>(),
+        functions: new Map<ctx.FunctionDeclContext, SourceFunctionDefinition>(),
+        variables: new Map<ctx.VarDeclContext, SourceVariableDefinition>(),
+        types: new Map<ctx.TypeDeclContext, SourceTypeDefinition>(),
     };
     private readonly prologDeclarationNames = new Map<
         string,
@@ -92,22 +96,19 @@ class ModulePrologCollector extends ParserAstVisitor<void> {
     private defaultFunctionNamespace: string | undefined;
     private targetNamespace: string | undefined;
 
-    public constructor(
-        private readonly uri: DocumentUri,
-        private readonly ast: ParserAstNode,
-    ) {
+    public constructor(private readonly document: TextDocument) {
         super();
-        this.definitions = new SourceDefinitionFactory(uri);
+        this.definitions = new SourceDefinitionFactory(document.uri);
         this.nameResolver = new NamespaceResolver(this.namespaces, (diagnostic) =>
             this.diagnostics.push(diagnostic),
         );
     }
 
-    public collect(): ModuleProlog {
-        this.visit(this.ast);
+    public collect(tree: ctx.ModuleAndThisIsItContext): ModuleProlog {
+        this.visit(tree);
 
         return {
-            uri: this.uri,
+            uri: this.document.uri,
             targetNamespace: this.targetNamespace,
             imports: this.imports,
             schemaImports: this.schemaImports,
@@ -122,95 +123,192 @@ class ModulePrologCollector extends ParserAstVisitor<void> {
         };
     }
 
-    // Only module containers and prologs are traversed. Declaration visitors
-    // register their own nodes without walking initializer or function bodies.
-    protected override defaultVisit(_node: ParserAstNode): void {}
+    public override visitProgram = (): void => {};
 
-    protected override visitModule(node: ModuleAstNode): void {
-        for (const child of node.children) {
-            if (child.kind === "prolog") {
-                this.visitProlog(child);
-            } else if (child.kind === "module-declaration") {
-                this.visitModuleDeclaration(child);
-            }
-        }
-    }
+    public override visitLibraryModule = (node: ctx.LibraryModuleContext): void => {
+        const prefixNode = node.ncName();
+        const prefix = prefixNode.getText().trim();
+        const namespaceUri = unquoteStringLiteral(node.uriLiteral().getText());
+        // The declaration ends at its semicolon; the prolog after it is not part of it.
+        const range = {
+            start: this.range(node.KW_MODULE()).start,
+            end: this.range(node.SEMICOLON()).end,
+        };
+        const selectionRange = this.range(prefixNode);
 
-    protected override visitProlog(node: PrologAstNode): void {
-        this.visitChildren(node);
-    }
-
-    protected override visitBaseUriDeclaration(node: BaseUriDeclarationAstNode): void {
-        this.baseUri ??= node.uri;
-    }
-
-    protected override visitModuleDeclaration(node: ModuleDeclarationAstNode): void {
-        if (node.namespaceUri.length === 0) {
+        if (namespaceUri.length === 0) {
             this.diagnostics.push({
                 severity: DiagnosticSeverity.Error,
                 code: "XQST0088",
                 message: "A library module target namespace cannot be empty.",
-                range: node.range,
+                range,
             });
         }
-        if (node.prefix === "xml" || node.prefix === "xmlns") {
+        if (prefix === "xml" || prefix === "xmlns") {
             this.diagnostics.push({
                 severity: DiagnosticSeverity.Error,
                 code: "XQST0070",
-                message: `Prefix '${node.prefix}' cannot be used for a library module.`,
-                range: node.selectionRange,
+                message: `Prefix '${prefix}' cannot be used for a library module.`,
+                range: selectionRange,
             });
         }
-        this.targetNamespace = node.namespaceUri;
-        this.bindNamespace(node);
-        for (const child of node.children) {
-            if (child.kind === "prolog") {
-                this.visitProlog(child);
-            }
+        this.targetNamespace = namespaceUri;
+        this.bindNamespace(node, prefix, namespaceUri, range, selectionRange);
+        this.visitChildren(node);
+    };
+
+    public override visitModuleImport = (node: ctx.ModuleImportContext): void => {
+        const target = node._targetNamespace;
+        if (target === undefined) return;
+
+        const moduleImport: ModuleImport = {
+            ...this.importPrefix(node._prefix),
+            namespaceUri: unquoteStringLiteral(target.getText()),
+            namespaceUriRange: this.range(target),
+            locations: this.locations(node._locations),
+            range: this.range(node),
+        };
+        this.imports.push(moduleImport);
+        this.bindImportedNamespace(node, moduleImport);
+    };
+
+    public override visitBaseURIDecl = (node: ctx.BaseURIDeclContext): void => {
+        this.baseUri ??= unquoteStringLiteral(node.uriLiteral().getText());
+    };
+
+    public override visitNamespaceDecl = (node: ctx.NamespaceDeclContext): void => {
+        const prefixNode = node.ncName();
+        const namespaceUri = node.uriLiteral();
+        const prefix = prefixNode?.getText().trim() ?? "";
+        if (prefixNode === null || prefix === "" || namespaceUri === null) return;
+
+        this.bindNamespace(
+            node,
+            prefix,
+            unquoteStringLiteral(namespaceUri.getText()),
+            this.range(node),
+            this.range(prefixNode),
+        );
+    };
+
+    public override visitSchemaImport = (node: ctx.SchemaImportContext): void => {
+        const namespaceUri = node._nsURI;
+        if (namespaceUri === undefined) return;
+
+        const schemaPrefix = node.schemaPrefix();
+        const schemaImport: SchemaImport = {
+            ...this.importPrefix(schemaPrefix?.ncName()),
+            defaultElementNamespace: schemaPrefix?.KW_DEFAULT() != null,
+            namespaceUri: unquoteStringLiteral(namespaceUri.getText()),
+            namespaceUriRange: this.range(namespaceUri),
+            locations: this.locations(node._locations),
+            range: this.range(node),
+        };
+        this.schemaImports.push(schemaImport);
+        if (schemaImport.defaultElementNamespace) {
+            this.setDefaultElementTypeNamespace(
+                schemaImport.namespaceUri,
+                schemaImport.namespaceUriRange,
+            );
         }
-    }
+        this.bindImportedNamespace(node, schemaImport);
+    };
 
-    protected override visitModuleImport(node: ModuleImportAstNode): void {
-        this.imports.push({
-            ...(node.prefix === undefined ? {} : { prefix: node.prefix }),
-            ...(node.prefixRange === undefined ? {} : { prefixRange: node.prefixRange }),
-            namespaceUri: node.namespaceUri,
-            namespaceUriRange: node.namespaceUriRange,
-            locations: node.locations,
-            range: node.range,
-        });
-        if (node.prefix !== undefined) {
-            this.bindNamespace(node);
-        }
-    }
+    public override visitDefaultNamespaceDecl = (node: ctx.DefaultNamespaceDeclContext): void => {
+        const namespaceUriNode = node.stringLiteral();
+        if (namespaceUriNode === null) return;
 
-    protected override visitNamespaceDeclaration(node: NamespaceDeclarationAstNode): void {
-        this.bindNamespace(node);
-    }
-
-    protected override visitSchemaImport(node: SchemaImportAstNode): void {
-        this.schemaImports.push(node);
-        if (node.defaultElementNamespace) {
-            this.setDefaultElementTypeNamespace(node.namespaceUri, node.namespaceUriRange);
-        }
-        this.bindNamespace(node);
-    }
-
-    protected override visitDefaultNamespaceDeclaration(
-        node: DefaultNamespaceDeclarationAstNode,
-    ): void {
-        if (node.namespaceKind === "element") {
-            this.setDefaultElementTypeNamespace(node.namespaceUri, node.namespaceUriRange);
+        const namespaceUri = unquoteStringLiteral(namespaceUriNode.getText());
+        const namespaceUriRange = this.range(namespaceUriNode);
+        if (node.KW_ELEMENT() !== null) {
+            this.setDefaultElementTypeNamespace(namespaceUri, namespaceUriRange);
         } else if (this.defaultFunctionNamespace !== undefined) {
             this.diagnostics.push({
                 severity: DiagnosticSeverity.Error,
                 code: "XQST0066",
                 message: "The default function namespace is declared more than once.",
-                range: node.namespaceUriRange,
+                range: namespaceUriRange,
             });
         } else {
-            this.defaultFunctionNamespace = node.namespaceUri;
+            this.defaultFunctionNamespace = namespaceUri;
         }
+    };
+
+    public override visitFunctionDecl = (node: ctx.FunctionDeclContext): void => {
+        const parameters = node.paramList()?.param() ?? [];
+        const selectionRange = this.range(node.functionName());
+        const definition = this.definitions.function(
+            this.nameResolver.resolveFunctionName(
+                parseFunctionName(node, parameters.length),
+                selectionRange,
+                this.defaultFunctionNamespace,
+            ),
+            this.range(node),
+            selectionRange,
+        );
+        for (const [index, parameter] of parameters.entries()) {
+            const nameNode = parameter._name;
+            const name = nameNode === undefined ? null : parseVarName(nameNode);
+            if (nameNode === undefined || name === null) continue;
+
+            const nameRange = this.range(nameNode);
+            this.definitions.addParameter(
+                definition,
+                index,
+                this.nameResolver.resolveQName(name, nameRange),
+                this.range(parameter),
+                nameRange,
+            );
+        }
+        this.declarations.functions.set(node, definition);
+        this.checkDeclaration(definition, hasPrivateAnnotation(node));
+    };
+
+    public override visitVarDecl = (node: ctx.VarDeclContext): void => {
+        const binding = node.varBinding();
+        const terminator = node.SEMICOLON();
+        const name = binding === null ? null : parseVarName(binding);
+        // Without its semicolon, the declaration is incomplete and declares nothing.
+        if (name === null || terminator === null || terminator.symbol.tokenIndex < 0) return;
+
+        const selectionRange = this.range(binding);
+        const definition = this.definitions.variable(
+            this.nameResolver.resolveQName(name, selectionRange),
+            this.range(node),
+            selectionRange,
+        );
+        this.declarations.variables.set(node, definition);
+        this.checkDeclaration(definition, hasPrivateAnnotation(node));
+    };
+
+    /** A JSONiq type declaration. */
+    public override visitTypeDecl = (node: ctx.TypeDeclContext): void => {
+        const nameNode = node.qname();
+        const selectionRange = this.range(nameNode);
+        const definition = this.definitions.type(
+            this.nameResolver.resolveQName(parseQNameText(nameNode.getText()), selectionRange),
+            this.range(node),
+            selectionRange,
+        );
+        this.declarations.types.set(node, definition);
+        this.checkDeclaration(definition, false);
+    };
+
+    private range(node: ParseTree): Range {
+        return rangeFromNode(node, this.document);
+    }
+
+    private importPrefix(
+        node: ParserRuleContext | null | undefined,
+    ): Pick<ModuleImport, "prefix" | "prefixRange"> {
+        return node == null ? {} : { prefix: node.getText().trim(), prefixRange: this.range(node) };
+    }
+
+    private locations(nodes: readonly ParseTree[]): ModuleImport["locations"] {
+        return nodes.map((location) => ({
+            uri: unquoteStringLiteral(location.getText()),
+            range: this.range(location),
+        }));
     }
 
     private setDefaultElementTypeNamespace(namespaceUri: string, range: Range): void {
@@ -226,74 +324,32 @@ class ModulePrologCollector extends ParserAstVisitor<void> {
         this.defaultElementTypeNamespace = namespaceUri;
     }
 
-    protected override visitFunctionDeclaration(node: FunctionDeclarationAstNode): void {
-        const definition = this.definitions.function(
-            this.nameResolver.resolveFunctionName(
-                node.name,
-                node.selectionRange,
-                this.defaultFunctionNamespace,
-            ),
-            node.range,
-            node.selectionRange,
+    private bindImportedNamespace(node: ParserRuleContext, imported: ModuleImport): void {
+        if (imported.prefix === undefined || imported.prefixRange === undefined) return;
+        this.bindNamespace(
+            node,
+            imported.prefix,
+            imported.namespaceUri,
+            imported.range,
+            imported.prefixRange,
         );
-        node.parameters.forEach((parameter) =>
-            this.definitions.addParameter(
-                parameter,
-                this.nameResolver.resolveQName(parameter.name, parameter.selectionRange),
-                definition,
-            ),
-        );
-        this.declarations.functions.set(node, definition);
-        this.checkDeclaration(node, definition);
-    }
-
-    protected override visitVariableDeclaration(node: VariableDeclarationAstNode): void {
-        const definition = this.definitions.variable(
-            this.nameResolver.resolveQName(node.name, node.selectionRange),
-            node.range,
-            node.selectionRange,
-        );
-        this.declarations.variables.set(node, definition);
-        this.checkDeclaration(node, definition);
-    }
-
-    protected override visitTypeDeclaration(node: TypeDeclarationAstNode): void {
-        const definition = this.definitions.type(
-            this.nameResolver.resolveQName(node.name.qname, node.selectionRange),
-            node.range,
-            node.selectionRange,
-        );
-        this.declarations.types.set(node, definition);
-        this.checkDeclaration(node, definition);
     }
 
     private bindNamespace(
-        node:
-            | ModuleDeclarationAstNode
-            | ModuleImportAstNode
-            | SchemaImportAstNode
-            | NamespaceDeclarationAstNode,
+        node: ParserRuleContext,
+        prefix: Prefix,
+        namespaceUri: string,
+        range: Range,
+        selectionRange: Range,
     ): void {
-        if (node.prefix === undefined) return;
-        const selectionRange =
-            node.kind === "module-import" || node.kind === "schema-import"
-                ? node.prefixRange
-                : node.selectionRange;
-        if (selectionRange === undefined) return;
-
-        const definition = this.definitions.namespace(
-            node.prefix,
-            node.namespaceUri,
-            node.range,
-            selectionRange,
-        );
+        const definition = this.definitions.namespace(prefix, namespaceUri, range, selectionRange);
         this.declarations.namespaces.set(node, definition);
-        this.namespaces.set(node.prefix, definition);
+        this.namespaces.set(prefix, definition);
     }
 
     private checkDeclaration(
-        node: FunctionDeclarationAstNode | VariableDeclarationAstNode | TypeDeclarationAstNode,
         definition: SourceFunctionDefinition | SourceVariableDefinition | SourceTypeDefinition,
+        isPrivate: boolean,
     ): void {
         const name = definitionNameToString(definition, true);
         if (this.prologDeclarationNames.has(name)) {
@@ -323,7 +379,7 @@ class ModulePrologCollector extends ParserAstVisitor<void> {
             return;
         }
 
-        if (!("isPrivate" in node && node.isPrivate)) {
+        if (!isPrivate) {
             if (!this.exports.has(name)) {
                 this.exports.set(name, definition);
             }
@@ -331,6 +387,9 @@ class ModulePrologCollector extends ParserAstVisitor<void> {
     }
 }
 
-export function collectModuleProlog(uri: DocumentUri, ast: ParserAstNode): ModuleProlog {
-    return new ModulePrologCollector(uri, ast).collect();
+export function collectModuleProlog(
+    document: TextDocument,
+    tree: ctx.ModuleAndThisIsItContext,
+): ModuleProlog {
+    return new ModulePrologCollector(document).collect(tree);
 }
