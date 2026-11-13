@@ -149,6 +149,9 @@ class XQueryAstBuilder extends XQueryParserVisitor<AstVisitResult> {
     public override visitItemType = (node: ctx.ItemTypeContext): AstVisitResult =>
         this.common.visitItemType(node);
 
+    public override visitArrowExpr = (node: ctx.ArrowExprContext): AstVisitResult =>
+        this.common.visitArrowExpr(node);
+
     public override visitPredicate = (node: ctx.PredicateContext): AstVisitResult =>
         this.common.visitPredicate(node);
 

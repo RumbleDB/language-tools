@@ -1,12 +1,5 @@
-import type { Position } from "vscode-languageserver";
-
-import type { ArgumentNode, FunctionCallNode } from "../analysis/model/ast.js";
-import type {
-    DefinitionByReferenceKind,
-    SourceFunctionDefinition,
-} from "../analysis/model/definitions.js";
-import type { AnalysisResult } from "../analysis/model/result.js";
-import { findNodesThatContainPosition } from "../analysis/queries.js";
+import type { FunctionCallNode } from "../analysis/model/ast.js";
+import type { SourceFunctionDefinition } from "../analysis/model/definitions.js";
 
 export function chooseBestSignatureIndex(
     parameterCounts: number[],
@@ -35,32 +28,11 @@ export function chooseBestSignatureIndex(
     return smallestMatchingIndex ?? largestIndex;
 }
 
-export function findResolvedFunctionDeclaration(
-    call: FunctionCallNode,
-): DefinitionByReferenceKind["function"] | undefined {
-    return call.reference.resolution?.declaration;
-}
-
 export function findResolvedSourceFunction(
     call: FunctionCallNode,
 ): SourceFunctionDefinition | undefined {
-    const declaration = findResolvedFunctionDeclaration(call);
+    const declaration = call.reference.resolution?.declaration;
     return declaration?.origin === "source" && declaration.kind === "function"
         ? declaration
         : undefined;
-}
-
-export function findCurrentArgument(
-    analysis: AnalysisResult,
-    position: Position,
-): { call: FunctionCallNode; argument: ArgumentNode } | undefined {
-    const containingNodes = findNodesThatContainPosition(analysis, position);
-    const call = containingNodes.findLast((node) => node.kind === "function-call");
-    const argument = containingNodes.findLast((node) => node.kind === "argument");
-
-    if (!call || !argument) {
-        return undefined;
-    }
-
-    return { call, argument };
 }

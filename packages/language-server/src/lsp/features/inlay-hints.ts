@@ -43,7 +43,9 @@ function collectFunctionCallInlayHints(node: AstNode, range: Range): InlayHint[]
 }
 
 function createFunctionCallHints(call: FunctionCallNode): InlayHint[] {
+    // The operand of an arrow precedes the call, so a name there would stack along a chain.
     return call.arguments
+        .filter((argument) => !argument.piped)
         .map((argument) => createParameterHint(argument, getParameterName(call, argument)))
         .filter((hint): hint is InlayHint => hint !== null);
 }

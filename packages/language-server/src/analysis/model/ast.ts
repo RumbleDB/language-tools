@@ -52,7 +52,14 @@ export interface FunctionCallNode extends AstNodeBase<"function-call"> {
 }
 
 export interface ArgumentNode extends AstNodeBase<"argument"> {
+    /** The parameter position this argument binds to. */
     readonly index: number;
+    /**
+     * The left operand of an arrow, passed as the first argument: `U => F(A)` is `F(U, A)`.
+     * It is written before the call's name, not inside its parentheses, so a feature tied to
+     * the written argument list (signature help, inlay hints) must skip it.
+     */
+    readonly piped?: true;
 }
 
 export type AstNode =

@@ -110,6 +110,8 @@ describe("file path completion", () => {
         "json-file('data/¦')",
         'json-lines("data/¦", 10)',
         'let $users := json-lines("data/¦\nreturn $users',
+        '"data/¦" => json-lines()',
+        '"data/¦" => json-lines(10)',
     ])("lists the files of %s", async (query) => {
         expect(await labels(query)).toEqual(["events/", "users.json"]);
     });
