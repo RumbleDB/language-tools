@@ -1,5 +1,5 @@
 ---
-"jsoniq-language-server": patch
+"jsoniq-language-server": minor
 ---
 
 Treat the function after an arrow (`=>`) as a call that receives the left operand as its first argument, as XQuery 3.1 defines it: `$x => f(1)` calls `f($x, 1)`.
