@@ -8,10 +8,17 @@ import { buildRenameWorkspaceEdit } from "server/lsp/features/rename.js";
 import { collectSemanticTokens } from "server/lsp/features/semantic-tokens.js";
 import { findSignatureHelp } from "server/lsp/features/signature-help.js";
 import { describe, expect, it } from "vitest";
+import type { CompletionItem } from "vscode-languageserver";
 import type { TextDocument } from "vscode-languageserver-textdocument";
 
-import { workspaceService } from "./services.js";
-import { positionAt, positionAtNth, testDocumentFromUri } from "./test-utils.js";
+import { parserService, workspaceService } from "./services.js";
+import {
+    createMockWrapperClient,
+    findCompletions,
+    positionAt,
+    positionAtNth,
+    testDocumentFromUri,
+} from "./test-utils.js";
 
 const fullRange = {
     start: { line: 0, character: 0 },
@@ -279,5 +286,65 @@ describe.each(["jsoniq", "xquery"])("%s arrow expressions", (languageId) => {
             workspaceService,
         );
         expect(JSON.stringify(hover?.contents)).not.toContain("before `=>`");
+    });
+
+    /** The completions where the source ends, by label. */
+    async function completionsAtEnd(source: string): Promise<Map<string, CompletionItem>> {
+        const document = open(source);
+        const items = await findCompletions(
+            document,
+            document.positionAt(source.length),
+            parserService,
+            workspaceService,
+            createMockWrapperClient(),
+        );
+        return new Map(items.map((item) => [String(item.label), item]));
+    }
+
+    /** The call each function completion inserts where the source ends, by label. */
+    async function insertedCalls(source: string): Promise<Map<string, string | undefined>> {
+        const items = await completionsAtEnd(source);
+        return new Map([...items].map(([label, item]) => [label, item.insertText]));
+    }
+
+    it("leaves the parameter the operand fills out of an arrow's call", async () => {
+        const calls = await insertedCalls('"abc" => ');
+
+        expect(calls.get("fn:substring")).toBe("fn:substring(${1:\\$start})$0");
+        expect(calls.get("fn:upper-case")).toBe("fn:upper-case()$0");
+        expect(calls.get("fn:concat")).toBe("fn:concat(${1:\\$arg2})$0");
+    });
+
+    it("uses the overload with a parameter after an arrow", async () => {
+        // `fn:string` has overloads with no parameter and with one. Both insert `fn:string()`,
+        // but only the second fits after an arrow, and the item shows its signature.
+        const arrowItem = (await completionsAtEnd("1 => ")).get("fn:string");
+        const callItem = (await completionsAtEnd("")).get("fn:string");
+        expect(arrowItem?.insertText).toBe("fn:string()$0");
+        expect(arrowItem?.labelDetails?.detail).toMatch(/^\(\S/);
+        expect(callItem?.labelDetails?.detail).toMatch(/^\(\)/);
+    });
+
+    it("offers no function without parameters after an arrow", async () => {
+        const calls = await insertedCalls("1 => ");
+
+        expect(calls.has("fn:current-date")).toBe(false);
+        expect((await insertedCalls("")).has("fn:current-date")).toBe(true);
+    });
+
+    it("inserts a declared function after an arrow with its other parameters", async () => {
+        const calls = await insertedCalls(
+            `declare function local:none() { 1 };\n${declareF}1 => local:`,
+        );
+
+        expect(calls.get("local:f")).toBe("local:f(${1:\\$b})$0");
+        expect(calls.has("local:none")).toBe(false);
+    });
+
+    it("inserts every parameter for a call without an arrow", async () => {
+        const calls = await insertedCalls(`${declareF}`);
+
+        expect(calls.get("local:f")).toBe("local:f(${1:\\$a}, ${2:\\$b})$0");
+        expect(calls.get("fn:concat")).toBe("fn:concat(${1:\\$arg1}, ${2:\\$arg2})$0");
     });
 });

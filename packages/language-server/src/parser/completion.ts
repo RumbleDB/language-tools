@@ -35,6 +35,8 @@ type CompletionOptions<T extends TokenContextAnalyzer> = {
     /** The only keywords offered where an expression can start. */
     expressionKeywords: ReadonlySet<number>;
     isFunctionReferenceRule(ruleIndex: number, candidate?: RuleCandidateInfo): boolean;
+    /** A function name after `=>`, which is also a function reference rule. */
+    isArrowFunctionRule(ruleIndex: number, candidate?: RuleCandidateInfo): boolean;
     isObjectLookupRule(ruleIndex: number): boolean;
     isDeclarationNameRule(ruleIndex: number, candidate?: RuleCandidateInfo): boolean;
     isTypeReferenceRule(ruleIndex: number, candidate?: RuleCandidateInfo): boolean;
@@ -86,6 +88,15 @@ export function getCompletionIntent<T extends TokenContextAnalyzer>(
 
     const qnamePrefix = candidates.tokenContext.qnamePrefix;
     const allowFunctions = hasCandidateRule(candidates, options.isFunctionReferenceRule);
+    // Only when no plain call can be written here too, as one would then insert all its arguments.
+    const arrowFunction =
+        hasCandidateRule(candidates, options.isArrowFunctionRule) &&
+        !hasCandidateRule(
+            candidates,
+            (ruleIndex, candidate) =>
+                options.isFunctionReferenceRule(ruleIndex, candidate) &&
+                !options.isArrowFunctionRule(ruleIndex, candidate),
+        );
     const allowVariables =
         !qnamePrefix && hasCandidateRule(candidates, options.isVariableReferenceRule);
     const allowObjectLookup =
@@ -121,6 +132,7 @@ export function getCompletionIntent<T extends TokenContextAnalyzer>(
     return {
         allowVariableReferences: allowVariables,
         allowFunctions,
+        ...(arrowFunction && { arrowFunction: true }),
         allowObjectLookup,
         allowTypes,
         allowErrorCodeTargets,

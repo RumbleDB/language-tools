@@ -1,4 +1,4 @@
-import { getCompletionIntent } from "server/parser/completion.js";
+import { getCompletionIntent, type RuleCandidateInfo } from "server/parser/completion.js";
 import type { ParserAdapter } from "server/parser/types/adapter.js";
 import { getActiveParserId } from "server/parser/utils.js";
 import { TextDocument } from "vscode-languageserver-textdocument";
@@ -16,6 +16,14 @@ import { XQueryLexer } from "./grammar/XQueryLexer.js";
 import { XQueryParser } from "./grammar/XQueryParser.js";
 import { parseXQuery } from "./parse.js";
 
+/** A function name after `=>`: an `eqName`, not a `functionName`, inside the arrow's specifier. */
+function isArrowFunctionName(ruleIndex: number, candidate?: RuleCandidateInfo): boolean {
+    return (
+        ruleIndex === XQueryParser.RULE_eqName &&
+        candidate?.ruleList.at(-1) === XQueryParser.RULE_arrowFunctionSpecifier
+    );
+}
+
 export const xqueryParserAdapter: ParserAdapter = {
     id: "xquery",
     supports: (document: TextDocument) => getActiveParserId(document) === "xquery",
@@ -32,8 +40,8 @@ export const xqueryParserAdapter: ParserAdapter = {
             isFunctionReferenceRule: (ruleIndex, candidate) =>
                 (ruleIndex === XQueryParser.RULE_functionName &&
                     candidate?.ruleList.at(-1) !== XQueryParser.RULE_functionDecl) ||
-                (ruleIndex === XQueryParser.RULE_eqName &&
-                    candidate?.ruleList.at(-1) === XQueryParser.RULE_arrowFunctionSpecifier),
+                isArrowFunctionName(ruleIndex, candidate),
+            isArrowFunctionRule: isArrowFunctionName,
             isObjectLookupRule: () => false,
             // Names being introduced are not keyword or reference completion sites.
             isDeclarationNameRule: (_ruleIndex, candidate) =>

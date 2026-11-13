@@ -1,4 +1,4 @@
-import { getCompletionIntent } from "server/parser/completion.js";
+import { getCompletionIntent, type RuleCandidateInfo } from "server/parser/completion.js";
 import type { ParserAdapter } from "server/parser/types/adapter.js";
 import { getActiveParserId } from "server/parser/utils.js";
 import { TextDocument } from "vscode-languageserver-textdocument";
@@ -16,6 +16,14 @@ import { JsoniqLexer } from "./grammar/JsoniqLexer.js";
 import { JsoniqParser } from "./grammar/JsoniqParser.js";
 import { parseJsoniq } from "./parse.js";
 
+/** A function name after `=>`: an `eqName`, not a `functionName`, inside the arrow's specifier. */
+function isArrowFunctionName(ruleIndex: number, candidate?: RuleCandidateInfo): boolean {
+    return (
+        ruleIndex === JsoniqParser.RULE_eqName &&
+        candidate?.ruleList.at(-1) === JsoniqParser.RULE_arrowFunctionSpecifier
+    );
+}
+
 export const jsoniqParserAdapter: ParserAdapter = {
     id: "jsoniq",
     supports: (document: TextDocument) => getActiveParserId(document) === "jsoniq",
@@ -32,8 +40,8 @@ export const jsoniqParserAdapter: ParserAdapter = {
             isFunctionReferenceRule: (ruleIndex, candidate) =>
                 (ruleIndex === JsoniqParser.RULE_functionName &&
                     candidate?.ruleList.at(-1) !== JsoniqParser.RULE_functionDecl) ||
-                (ruleIndex === JsoniqParser.RULE_eqName &&
-                    candidate?.ruleList.at(-1) === JsoniqParser.RULE_arrowFunctionSpecifier),
+                isArrowFunctionName(ruleIndex, candidate),
+            isArrowFunctionRule: isArrowFunctionName,
             isObjectLookupRule: (ruleIndex) => ruleIndex === JsoniqParser.RULE_objectLookupKey,
             // Names being introduced are not keyword or reference completion sites.
             isDeclarationNameRule: (_ruleIndex, candidate) =>

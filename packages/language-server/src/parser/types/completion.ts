@@ -6,6 +6,11 @@ export interface KeywordCompletion {
 export interface CompletionIntent {
     allowVariableReferences: boolean;
     allowFunctions: boolean;
+    /**
+     * The function name being completed follows `=>`, so the expression before it fills the first
+     * parameter: a call inserts one argument fewer, and a function without parameters cannot be called.
+     */
+    arrowFunction?: true;
     allowTypes: boolean;
     allowObjectLookup: boolean;
     allowErrorCodeTargets: boolean;
