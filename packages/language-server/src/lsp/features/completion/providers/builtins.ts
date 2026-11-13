@@ -23,12 +23,20 @@ import {
 
 import { applyQNamePrefixFilter, getQNameCompletionLabels } from "../context.js";
 import type { CompletionProvider } from "../types.js";
-import { createFunctionCallSnippet } from "./snippets.js";
+import { createCallSnippetFor } from "./snippets.js";
 
 const GENERIC_BUILTIN_PARAMETER_PREFIX = "$arg";
+/** The name a documented signature gives its open-ended last parameter, as in `concat($arg1, $arg2, ...)`. */
+const VARIADIC_PARAMETER_NAME = "...";
 const BUILTIN_FUNCTION_COMPLETION_ITEMS = {
-    jsoniq: createBuiltinFunctionCompletionItems("jsoniq"),
-    xquery: createBuiltinFunctionCompletionItems("xquery"),
+    jsoniq: {
+        call: createBuiltinFunctionCompletionItems("jsoniq", false),
+        arrow: createBuiltinFunctionCompletionItems("jsoniq", true),
+    },
+    xquery: {
+        call: createBuiltinFunctionCompletionItems("xquery", false),
+        arrow: createBuiltinFunctionCompletionItems("xquery", true),
+    },
 };
 const BUILTIN_TYPE_COMPLETION_ITEMS = createBuiltinTypeCompletionItems();
 
@@ -43,11 +51,17 @@ export const provideBuiltinFunctionCompletions: CompletionProvider = async (cont
     }
 
     const language = getActiveParserId(context.document) ?? "jsoniq";
+    const arrow = context.intent.arrowFunction === true;
     const { namespaces, defaultFunctionNamespace } = await context.getAnalysis();
     const items =
         defaultFunctionNamespace === undefined
-            ? BUILTIN_FUNCTION_COMPLETION_ITEMS[language]
-            : createBuiltinFunctionCompletionItems(language, namespaces, defaultFunctionNamespace);
+            ? BUILTIN_FUNCTION_COMPLETION_ITEMS[language][arrow ? "arrow" : "call"]
+            : createBuiltinFunctionCompletionItems(
+                  language,
+                  arrow,
+                  namespaces,
+                  defaultFunctionNamespace,
+              );
 
     // When the user has typed a namespace prefix (e.g. `fn:`), only offer items with that prefix.
     return applyQNamePrefixFilter(items, context) ?? items;
@@ -87,8 +101,14 @@ function isBuiltinFunctionItemData(data: unknown): data is BuiltinFunctionItemDa
     return typeof data === "object" && data !== null && "builtinFunction" in data;
 }
 
+/**
+ * One item per function name, for its overload with the fewest parameters. After `=>` the
+ * expression before the arrow fills the first parameter, so an overload without parameters is
+ * left out and the call leaves that parameter out.
+ */
 function createBuiltinFunctionCompletionItems(
     language: "jsoniq" | "xquery",
+    arrow: boolean,
     namespaces: ReadonlyMap<string, string> = DEFAULT_NAMESPACES,
     defaultFunctionNamespace?: string,
 ): CompletionItem[] {
@@ -115,6 +135,10 @@ function createBuiltinFunctionCompletionItems(
                 definition,
                 docEntry?.signatures,
             );
+            const insertText = createCallSnippetFor(functionName, parameterNames, arrow);
+            if (insertText === null) {
+                continue;
+            }
             const parameterTypes = definition.signature.parameterTypes
                 .map((parameter) => formatSequenceType(parameter.type))
                 .join(", ");
@@ -125,7 +149,7 @@ function createBuiltinFunctionCompletionItems(
                 label: functionName,
                 kind: CompletionItemKind.Function,
                 labelDetails: { detail: signatureSuffix },
-                insertText: createFunctionCallSnippet(functionName, parameterNames),
+                insertText,
                 insertTextFormat: InsertTextFormat.Snippet,
                 detail:
                     overloadCount !== undefined && overloadCount > 1
@@ -167,18 +191,26 @@ function createBuiltinTypeCompletionItems(): CompletionItem[] {
     });
 }
 
+/**
+ * The parameter names of one overload, as its documented signature of the same arity names them.
+ * A variadic signature such as `concat($arg1, $arg2, ...)` names its first parameters, and the
+ * rest are numbered, so the call has exactly as many placeholders as the overload has parameters.
+ */
 function getBuiltinCompletionParameterNames(
     definition: BuiltinFunctionDefinition,
     signatures: Signature[] | undefined,
 ): string[] {
-    const preferredSignature = signatures?.reduce((best, current) =>
-        current.params.length < best.params.length ? current : best,
-    );
-    if (preferredSignature !== undefined) {
-        return preferredSignature.params.map((parameter) => `$${parameter.name}`);
-    }
+    const arity = definition.signature.parameterTypes.length;
+    const documented =
+        signatures?.find((signature) => signature.params.length === arity) ??
+        signatures?.find((signature) => signature.params.at(-1)?.name === VARIADIC_PARAMETER_NAME);
+    const names =
+        documented?.params
+            .filter((parameter) => parameter.name !== VARIADIC_PARAMETER_NAME)
+            .map((parameter) => `$${parameter.name}`) ?? [];
 
-    return definition.signature.parameterTypes.map(
-        (_parameter, index) => `${GENERIC_BUILTIN_PARAMETER_PREFIX}${index + 1}`,
+    return Array.from(
+        { length: arity },
+        (_parameter, index) => names[index] ?? `${GENERIC_BUILTIN_PARAMETER_PREFIX}${index + 1}`,
     );
 }

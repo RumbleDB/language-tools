@@ -16,7 +16,7 @@ import {
     FunctionDocEntry,
     getBuiltinFunctionDocumentation,
 } from "server/resources/function-docs.js";
-import { chooseBestSignatureIndex } from "server/utils/function-calls.js";
+import { chooseBestSignatureIndex, isArrowCall } from "server/utils/function-calls.js";
 import type { WorkspaceService } from "server/workspace/service.js";
 import {
     MarkupKind,
@@ -41,18 +41,50 @@ export function registerSignatureHelp({
     });
 }
 
+/**
+ * The label of an arrow step's signature, written as the step is: `$a => f($b, $c)`. The first
+ * parameter stands where the operand is, so no note is needed to say what fills it. Each
+ * parameter's label is its offsets in the signature label, as `$a` is outside the parentheses.
+ */
+function createArrowLabel(
+    functionName: string,
+    parameterLabels: string[],
+    returnSuffix: string,
+): { label: string; parameterLabels: [number, number][] } {
+    const [operand, ...written] = parameterLabels;
+    let label = "";
+    const offsets: [number, number][] = [];
+    const append = (text: string): void => {
+        offsets.push([label.length, label.length + text.length]);
+        label += text;
+    };
+
+    append(operand!);
+    label += ` => ${functionName}(`;
+    for (const [index, parameter] of written.entries()) {
+        if (index > 0) label += ", ";
+        append(parameter);
+    }
+    label += `)${returnSuffix}`;
+    return { label, parameterLabels: offsets };
+}
+
 function createSignatureInformation(
     functionName: string,
     parameters: { label: string; documentation?: string }[],
     documentationSections: string[],
-    returnType?: string,
+    { returnType, arrow = false }: { returnType?: string | undefined; arrow?: boolean } = {},
 ): SignatureInformation {
+    const returnSuffix = returnType ? ` as ${returnType}` : "";
+    const labels = parameters.map((parameter) => parameter.label);
+    // A function without parameters cannot be an arrow step, so it keeps the call form.
+    const arrowLabel =
+        arrow && labels.length > 0 ? createArrowLabel(functionName, labels, returnSuffix) : null;
+
     const signature: SignatureInformation = {
-        label:
-            `${functionName}(${parameters.map((parameter) => parameter.label).join(", ")})` +
-            (returnType ? ` as ${returnType}` : ""),
-        parameters: parameters.map((parameter) => ({
-            label: parameter.label,
+        label: arrowLabel?.label ?? `${functionName}(${labels.join(", ")})${returnSuffix}`,
+        parameters: parameters.map((parameter, index) => ({
+            label: arrowLabel?.parameterLabels[index] ?? parameter.label,
             ...(parameter.documentation === undefined
                 ? {}
                 : {
@@ -82,7 +114,10 @@ function getDocumentationSections(entry: FunctionDocEntry): string[] {
     ].filter((section): section is string => Boolean(section));
 }
 
-function getBuiltinSignatures(functionName: FunctionName): SignatureInformation[] | null {
+function getBuiltinSignatures(
+    functionName: FunctionName,
+    arrow: boolean,
+): SignatureInformation[] | null {
     const docsEntry = getBuiltinFunctionDocumentation(functionName.qname);
     if (!docsEntry || docsEntry.signatures.length === 0) {
         return null;
@@ -103,13 +138,14 @@ function getBuiltinSignatures(functionName: FunctionName): SignatureInformation[
                 };
             }),
             documentationSections,
-            signature.returnType,
+            { returnType: signature.returnType, arrow },
         ),
     );
 }
 
 function getSourceSignatures(
     functionDeclaration: DefinitionByReferenceKind["function"] | undefined,
+    arrow: boolean,
 ): SignatureInformation[] | null {
     if (functionDeclaration?.origin !== "source" || functionDeclaration.kind !== "function") {
         return null;
@@ -122,6 +158,7 @@ function getSourceSignatures(
                 label: definitionNameToString(parameter),
             })),
             [],
+            { arrow },
         ),
     ];
 }
@@ -132,7 +169,8 @@ function resolveSignatures(
     resolvedDeclaration: DefinitionByReferenceKind["function"] | undefined,
     functionName: string,
 ): { signatures: SignatureInformation[]; activeSignature: number } {
-    const builtinSignatures = getBuiltinSignatures(call.name);
+    const arrow = isArrowCall(call);
+    const builtinSignatures = getBuiltinSignatures(call.name, arrow);
     if (builtinSignatures) {
         return {
             signatures: builtinSignatures,
@@ -152,14 +190,17 @@ function resolveSignatures(
                         label: `$arg${index + 1} as ${formatSequenceType(parameter.type)}`,
                     })),
                     [],
-                    formatSequenceType(resolvedDeclaration.signature.returnType),
+                    {
+                        returnType: formatSequenceType(resolvedDeclaration.signature.returnType),
+                        arrow,
+                    },
                 ),
             ],
             activeSignature: 0,
         };
     }
 
-    const sourceSignatures = getSourceSignatures(resolvedDeclaration);
+    const sourceSignatures = getSourceSignatures(resolvedDeclaration, arrow);
     if (sourceSignatures) {
         return {
             signatures: sourceSignatures,
@@ -173,16 +214,41 @@ function resolveSignatures(
     };
 }
 
-function getActiveParameter(call: FunctionCallNode, containingNodes: AstNode[]): number {
-    const activeArgumentNode = containingNodes.findLast(
-        (node): node is ArgumentNode => node.kind == "argument",
-    );
-    if (activeArgumentNode !== undefined) {
-        return Math.max(0, call.arguments.indexOf(activeArgumentNode));
+/**
+ * The innermost call around the position, and the argument of it that holds the position.
+ * The operand of an arrow is that call's first argument, but it is not written inside the
+ * call's parentheses, so a position there belongs to the enclosing call instead.
+ */
+function findActiveCall(
+    containingNodes: AstNode[],
+): { call: FunctionCallNode; argument: ArgumentNode | undefined } | undefined {
+    for (let index = containingNodes.length - 1; index >= 0; index--) {
+        const call = containingNodes[index]!;
+        if (call.kind !== "function-call") continue;
+
+        const child = containingNodes[index + 1];
+        const argument = child?.kind === "argument" ? child : undefined;
+        if (argument?.piped) continue;
+        return { call, argument };
+    }
+    return undefined;
+}
+
+function getActiveParameter(call: FunctionCallNode, argument: ArgumentNode | undefined): number {
+    if (argument !== undefined) {
+        return argument.index;
     }
 
     const trailingArgument = call.arguments.at(-1);
-    return trailingArgument?.children.length === 0 ? Math.max(0, call.arguments.length - 1) : 0;
+    if (
+        trailingArgument !== undefined &&
+        !trailingArgument.piped &&
+        trailingArgument.children.length === 0
+    ) {
+        return trailingArgument.index;
+    }
+    // The first written argument, which follows the operand of an arrow.
+    return isArrowCall(call) ? 1 : 0;
 }
 
 export async function findSignatureHelp(
@@ -193,12 +259,13 @@ export async function findSignatureHelp(
     const analysis = await workspace.getAnalysis(document);
     const containingNodes = findNodesThatContainPosition(analysis, position);
 
-    const activeCall = containingNodes.findLast((node) => node.kind == "function-call");
-    if (!activeCall) {
+    const active = findActiveCall(containingNodes);
+    if (!active) {
         return null;
     }
 
-    const activeParameter = getActiveParameter(activeCall, containingNodes);
+    const activeCall = active.call;
+    const activeParameter = getActiveParameter(activeCall, active.argument);
 
     // An unfinished constructor call has no argument yet. Signature help can match
     // its expanded name while semantic resolution continues to require the correct arity.

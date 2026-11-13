@@ -1,9 +1,5 @@
 import type { ArgumentNode, AstNode, FunctionCallNode } from "server/analysis/index.js";
-import { getBuiltinFunctionDocumentation } from "server/resources/function-docs.js";
-import {
-    chooseBestSignatureIndex,
-    findResolvedSourceFunction,
-} from "server/utils/function-calls.js";
+import { getParameterName } from "server/utils/function-calls.js";
 import { rangesIntersect } from "server/utils/range.js";
 import type { WorkspaceService } from "server/workspace/service.js";
 import { InlayHintKind, type InlayHint, type Range } from "vscode-languageserver";
@@ -43,15 +39,15 @@ function collectFunctionCallInlayHints(node: AstNode, range: Range): InlayHint[]
 }
 
 function createFunctionCallHints(call: FunctionCallNode): InlayHint[] {
+    // Only written arguments get a hint. Signature help and hover say what an arrow's operand fills.
     return call.arguments
-        .map((argument) => createParameterHint(argument, getParameterName(call, argument)))
+        .filter((argument) => !argument.piped)
+        .map((argument) => createParameterHint(call, argument))
         .filter((hint): hint is InlayHint => hint !== null);
 }
 
-function createParameterHint(
-    argument: ArgumentNode,
-    parameterName: string | undefined,
-): InlayHint | null {
+function createParameterHint(call: FunctionCallNode, argument: ArgumentNode): InlayHint | null {
+    const parameterName = getParameterName(call, argument.index);
     if (parameterName === undefined) {
         return null;
     }
@@ -62,37 +58,4 @@ function createParameterHint(
         label: `${parameterName}: `,
         paddingRight: true,
     };
-}
-
-function getParameterName(call: FunctionCallNode, argument: ArgumentNode): string | undefined {
-    const sourceDefinition = findResolvedSourceFunction(call);
-
-    if (sourceDefinition) {
-        const parameter = sourceDefinition.parameters[argument.index];
-        return parameter === undefined ? undefined : `$${parameter.name.localName}`;
-    }
-
-    return getBuiltinParameterName(call, argument.index);
-}
-
-function getBuiltinParameterName(
-    call: FunctionCallNode,
-    argumentIndex: number,
-): string | undefined {
-    const docsEntry = getBuiltinFunctionDocumentation(call.name.qname);
-
-    if (!docsEntry || docsEntry.signatures.length === 0) {
-        return undefined;
-    }
-
-    const signature =
-        docsEntry.signatures[
-            chooseBestSignatureIndex(
-                docsEntry.signatures.map((candidate) => candidate.params.length),
-                call.arguments.length,
-            )
-        ]!;
-
-    const parameter = signature.params[argumentIndex];
-    return parameter === undefined ? undefined : `$${parameter.name}`;
 }

@@ -25,7 +25,11 @@ export const provideSchemaConstructorCompletions: CompletionProvider = async (co
                 kind: CompletionItemKind.Function,
                 labelDetails: { detail: signatureSuffix },
                 detail: `${label}${signatureSuffix}`,
-                insertText: createFunctionCallSnippet(label, ["$value"]),
+                // A constructor takes one value, which the expression before `=>` can be.
+                insertText: createFunctionCallSnippet(
+                    label,
+                    context.intent.arrowFunction ? [] : ["$value"],
+                ),
                 insertTextFormat: InsertTextFormat.Snippet,
             });
         }

@@ -157,7 +157,10 @@ export interface ContextItemExpressionAstNode extends AstNodeBase<"context-item-
 export interface FocusAstNode extends AstNodeBase<"focus"> {}
 
 export interface ArgumentAstNode extends AstNodeBase<"argument"> {
+    /** The parameter position this argument binds to. */
     readonly index: number;
+    /** The left operand of an arrow, passed as the first argument: `U => F(A)` is `F(U, A)`. */
+    readonly piped?: true;
 }
 
 export type AstNode =

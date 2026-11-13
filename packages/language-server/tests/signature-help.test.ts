@@ -42,6 +42,16 @@ describe("JSONiq signature help", () => {
             expect(help?.signatures[help.activeSignature ?? 0]?.label).toContain("fn:substring");
         });
 
+        it("returns signature help in the space after a trailing comma", async () => {
+            const document = testDocument("sig-incomplete-space", ['fn:substring("hello",    )']);
+
+            // No argument holds this position: recovery puts the empty one just before `)`.
+            const pos: Position = { line: 0, character: 'fn:substring("hello", '.length };
+            const help = await findSignatureHelp(document, pos, workspaceService);
+
+            expect(help?.activeParameter).toBe(1);
+        });
+
         it("returns signature help for incomplete source calls with trailing commas", async () => {
             const document = testDocument("sig-incomplete-source", [
                 "declare function local:f($a as xs:string, $b) {",

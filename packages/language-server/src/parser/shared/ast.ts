@@ -9,7 +9,7 @@ import { CONTEXT_ITEM_NAME, parseQNameText } from "server/parser/types/name.js";
 import { rangeFromNode } from "server/utils/range.js";
 import type { TextDocument } from "vscode-languageserver-textdocument";
 
-import { parseFunctionName, parseVarName } from "./name.js";
+import { parseArrowFunctionName, parseFunctionName, parseVarName } from "./name.js";
 
 export type AstVisitResult = AstNode[];
 
@@ -564,6 +564,67 @@ export class CommonAstBuilder {
             },
         ];
     }
+
+    /**
+     * Desugars each arrow step as XQuery 3.1 §3.16 defines it: `U => F(A, B)` is `F(U, A, B)`.
+     * A named step becomes a call whose first argument is the operand, so `F` resolves with
+     * arity N+1 and the steps of a chain nest left to right. A dynamic step (`$f` or `(expr)`)
+     * names no function, so its parts stay plain expressions.
+     */
+    public visitArrowExpr = (node: ctx.ArrowExprContext): AstVisitResult => {
+        const operand = node._main_expr;
+        const specifiers = node.arrowFunctionSpecifier();
+        if (operand === undefined || specifiers.length === 0) {
+            return this.traversal.visitChildren(node);
+        }
+
+        const argumentLists = node.argumentList();
+        let result = this.traversal.visit(operand);
+        let range = rangeFromNode(operand, this.document);
+
+        for (const [index, specifier] of specifiers.entries()) {
+            // Each specifier has its argument list, even an empty one that error recovery left.
+            const argumentList = argumentLists[index];
+            const explicitArguments = argumentList?.argument() ?? [];
+            const stepRange = {
+                start: range.start,
+                end: rangeFromNode(argumentList ?? specifier, this.document).end,
+            };
+
+            const nameNode = specifier.eqName();
+            const name = parseArrowFunctionName(
+                specifier,
+                argumentList === undefined ? undefined : explicitArguments.length,
+            );
+            if (nameNode === null || name === null) {
+                result = [
+                    ...result,
+                    ...this.traversal.visit(specifier),
+                    ...explicitArguments.flatMap((argument) =>
+                        this.traversal.visitChildren(argument),
+                    ),
+                ];
+            } else {
+                result = [
+                    {
+                        kind: "function-call",
+                        name,
+                        selectionRange: rangeFromNode(nameNode, this.document),
+                        range: stepRange,
+                        children: [
+                            { kind: "argument", range, children: result, index: 0, piped: true },
+                            ...explicitArguments.flatMap((argument, argumentIndex) =>
+                                this.visitArgument(argument, argumentIndex + 1),
+                            ),
+                        ],
+                    },
+                ];
+            }
+            range = stepRange;
+        }
+
+        return result;
+    };
 
     private buildParameters(node: ctx.FunctionDeclContext): AstParameter[] {
         const parameters: AstParameter[] = [];

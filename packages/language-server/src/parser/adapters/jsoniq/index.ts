@@ -28,12 +28,14 @@ export const jsoniqParserAdapter: ParserAdapter = {
             preferredRules: PREFERRED_COMPLETION_RULES,
             languageKeywords: KEYWORD_COMPLETIONS,
             expressionKeywords: EXPRESSION_KEYWORDS,
-            // Calls, named function references, and named arrow specifiers.
+            // Calls and named function references; a declaration introduces its name instead.
             isFunctionReferenceRule: (ruleIndex, candidate) =>
-                (ruleIndex === JsoniqParser.RULE_functionName &&
-                    candidate?.ruleList.at(-1) !== JsoniqParser.RULE_functionDecl) ||
-                (ruleIndex === JsoniqParser.RULE_eqName &&
-                    candidate?.ruleList.at(-1) === JsoniqParser.RULE_arrowFunctionSpecifier),
+                ruleIndex === JsoniqParser.RULE_functionName &&
+                candidate?.ruleList.at(-1) !== JsoniqParser.RULE_functionDecl,
+            // Arrow function names use eqName, not functionName.
+            isArrowFunctionRule: (ruleIndex, candidate) =>
+                ruleIndex === JsoniqParser.RULE_eqName &&
+                candidate?.ruleList.at(-1) === JsoniqParser.RULE_arrowFunctionSpecifier,
             isObjectLookupRule: (ruleIndex) => ruleIndex === JsoniqParser.RULE_objectLookupKey,
             // Names being introduced are not keyword or reference completion sites.
             isDeclarationNameRule: (_ruleIndex, candidate) =>

@@ -16,6 +16,10 @@ export type AnnotationsContext = jsoniq.AnnotationsContext | xquery.AnnotationsC
 export type ApplyStatementContext = jsoniq.ApplyStatementContext | xquery.ApplyStatementContext;
 export type ArgumentContext = jsoniq.ArgumentContext | xquery.ArgumentContext;
 export type ArgumentListContext = jsoniq.ArgumentListContext | xquery.ArgumentListContext;
+export type ArrowExprContext = jsoniq.ArrowExprContext | xquery.ArrowExprContext;
+export type ArrowFunctionSpecifierContext =
+    | jsoniq.ArrowFunctionSpecifierContext
+    | xquery.ArrowFunctionSpecifierContext;
 export type AssignStatementContext = jsoniq.AssignStatementContext | xquery.AssignStatementContext;
 export type BaseURIDeclContext = jsoniq.BaseURIDeclContext | xquery.BaseURIDeclContext;
 export type BlockExprContext = jsoniq.BlockExprContext | xquery.BlockExprContext;

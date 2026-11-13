@@ -26,7 +26,7 @@ import {
     lookupDotAtCursor,
 } from "../context.js";
 import type { CompletionProvider } from "../types.js";
-import { createFunctionCallSnippet } from "./snippets.js";
+import { createCallSnippetFor } from "./snippets.js";
 
 export const provideVariableCompletions: CompletionProvider = async (context) => {
     // A field name is far more likely after a lookup dot. A variable, as in `$o.$key`, still follows a typed `$`.
@@ -76,8 +76,11 @@ export const provideSourceFunctionCompletions: CompletionProvider = async (conte
                 definition.name.qname,
                 namespaces,
                 defaultFunctionNamespace,
-            ).map((label) => toFunctionCompletionItem(definition, label)),
-        );
+            ).map((label) =>
+                toFunctionCompletionItem(definition, label, context.intent.arrowFunction),
+            ),
+        )
+        .filter((item): item is CompletionItem => item !== null);
 
     return applyQNamePrefixFilter(items, context) ?? items;
 };
@@ -125,10 +128,15 @@ function toVariableCompletionItem(
 function toFunctionCompletionItem(
     declaration: SourceFunctionDefinition,
     label: string,
-): CompletionItem {
+    arrow: boolean | undefined,
+): CompletionItem | null {
     const parameterNames = declaration.parameters.map((parameter) =>
         definitionNameToString(parameter),
     );
+    const insertText = createCallSnippetFor(label, parameterNames, arrow);
+    if (insertText === null) {
+        return null;
+    }
     const signatureSuffix = parameterListToString(declaration);
     const signature = `${label}${signatureSuffix}`;
 
@@ -137,7 +145,7 @@ function toFunctionCompletionItem(
         kind: CompletionItemKind.Function,
         labelDetails: { detail: signatureSuffix },
         detail: signature,
-        insertText: createFunctionCallSnippet(label, parameterNames),
+        insertText,
         insertTextFormat: InsertTextFormat.Snippet,
         documentation: {
             kind: MarkupKind.Markdown,
