@@ -16,11 +16,7 @@ import {
     FunctionDocEntry,
     getBuiltinFunctionDocumentation,
 } from "server/resources/function-docs.js";
-import {
-    chooseBestSignatureIndex,
-    describeArrowOperand,
-    isArrowCall,
-} from "server/utils/function-calls.js";
+import { chooseBestSignatureIndex, isArrowCall } from "server/utils/function-calls.js";
 import type { WorkspaceService } from "server/workspace/service.js";
 import {
     MarkupKind,
@@ -45,18 +41,51 @@ export function registerSignatureHelp({
     });
 }
 
+/**
+ * The label of an arrow step's signature, written as the step is: `$a => f($b, $c)`. The first
+ * parameter stands where the operand is, so no note is needed to say what fills it. Each
+ * parameter's label is its offsets in the signature label, as `$a` is outside the parentheses.
+ */
+function createArrowLabel(
+    functionName: string,
+    parameterLabels: string[],
+    returnSuffix: string,
+): { label: string; parameterLabels: [number, number][] } {
+    const [operand, ...written] = parameterLabels;
+    let label = "";
+    const offsets: [number, number][] = [];
+    const append = (text: string): void => {
+        offsets.push([label.length, label.length + text.length]);
+        label += text;
+    };
+
+    append(operand!);
+    label += ` => ${functionName}(`;
+    for (const [index, parameter] of written.entries()) {
+        if (index > 0) label += ", ";
+        append(parameter);
+    }
+    label += `)${returnSuffix}`;
+    return { label, parameterLabels: offsets };
+}
+
 function createSignatureInformation(
     functionName: string,
     parameters: { label: string; documentation?: string }[],
     documentationSections: string[],
     returnType?: string,
+    arrow = false,
 ): SignatureInformation {
+    const returnSuffix = returnType ? ` as ${returnType}` : "";
+    const labels = parameters.map((parameter) => parameter.label);
+    // A function without parameters cannot be an arrow step, so it keeps the call form.
+    const arrowLabel =
+        arrow && labels.length > 0 ? createArrowLabel(functionName, labels, returnSuffix) : null;
+
     const signature: SignatureInformation = {
-        label:
-            `${functionName}(${parameters.map((parameter) => parameter.label).join(", ")})` +
-            (returnType ? ` as ${returnType}` : ""),
-        parameters: parameters.map((parameter) => ({
-            label: parameter.label,
+        label: arrowLabel?.label ?? `${functionName}(${labels.join(", ")})${returnSuffix}`,
+        parameters: parameters.map((parameter, index) => ({
+            label: arrowLabel?.parameterLabels[index] ?? parameter.label,
             ...(parameter.documentation === undefined
                 ? {}
                 : {
@@ -86,7 +115,10 @@ function getDocumentationSections(entry: FunctionDocEntry): string[] {
     ].filter((section): section is string => Boolean(section));
 }
 
-function getBuiltinSignatures(functionName: FunctionName): SignatureInformation[] | null {
+function getBuiltinSignatures(
+    functionName: FunctionName,
+    arrow: boolean,
+): SignatureInformation[] | null {
     const docsEntry = getBuiltinFunctionDocumentation(functionName.qname);
     if (!docsEntry || docsEntry.signatures.length === 0) {
         return null;
@@ -108,12 +140,14 @@ function getBuiltinSignatures(functionName: FunctionName): SignatureInformation[
             }),
             documentationSections,
             signature.returnType,
+            arrow,
         ),
     );
 }
 
 function getSourceSignatures(
     functionDeclaration: DefinitionByReferenceKind["function"] | undefined,
+    arrow: boolean,
 ): SignatureInformation[] | null {
     if (functionDeclaration?.origin !== "source" || functionDeclaration.kind !== "function") {
         return null;
@@ -126,6 +160,8 @@ function getSourceSignatures(
                 label: definitionNameToString(parameter),
             })),
             [],
+            undefined,
+            arrow,
         ),
     ];
 }
@@ -136,7 +172,8 @@ function resolveSignatures(
     resolvedDeclaration: DefinitionByReferenceKind["function"] | undefined,
     functionName: string,
 ): { signatures: SignatureInformation[]; activeSignature: number } {
-    const builtinSignatures = getBuiltinSignatures(call.name);
+    const arrow = isArrowCall(call);
+    const builtinSignatures = getBuiltinSignatures(call.name, arrow);
     if (builtinSignatures) {
         return {
             signatures: builtinSignatures,
@@ -157,13 +194,14 @@ function resolveSignatures(
                     })),
                     [],
                     formatSequenceType(resolvedDeclaration.signature.returnType),
+                    arrow,
                 ),
             ],
             activeSignature: 0,
         };
     }
 
-    const sourceSignatures = getSourceSignatures(resolvedDeclaration);
+    const sourceSignatures = getSourceSignatures(resolvedDeclaration, arrow);
     if (sourceSignatures) {
         return {
             signatures: sourceSignatures,
@@ -249,29 +287,8 @@ export async function findSignatureHelp(
     );
 
     return {
-        signatures: isArrowCall(activeCall)
-            ? signatures.map((signature) =>
-                  withLeadingNote(signature, describeArrowOperand(activeCall)),
-              )
-            : signatures,
+        signatures,
         activeSignature,
         activeParameter,
-    };
-}
-
-/**
- * Adds a note above a signature's documentation. A parameter's own documentation shows only
- * while it is active, and an arrow's first parameter never is, so the note goes on the signature.
- */
-function withLeadingNote(signature: SignatureInformation, note: string): SignatureInformation {
-    const existing = signature.documentation;
-    const value =
-        existing === undefined ? "" : typeof existing === "string" ? existing : existing.value;
-    return {
-        ...signature,
-        documentation: {
-            kind: MarkupKind.Markdown,
-            value: value === "" ? note : `${note}\n\n${value}`,
-        },
     };
 }
