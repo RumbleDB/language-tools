@@ -1,5 +1,5 @@
-import { AbstractParseTreeVisitor, type ParseTree, type ParserRuleContext } from "antlr4ng";
-import type * as ctx from "server/parser/context.js";
+import type { ParseTree, ParserRuleContext } from "antlr4ng";
+import * as ctx from "server/parser/context.js";
 import { parseFunctionName, parseVarName } from "server/parser/shared/name.js";
 import { parseQNameText, type Prefix } from "server/parser/types/name.js";
 import { rangeFromNode } from "server/utils/range.js";
@@ -73,7 +73,7 @@ function hasPrivateAnnotation(node: ctx.FunctionDeclContext | ctx.VarDeclContext
  * the visit method of its rule by name, so one visitor serves both. Only the prolog is walked: the query body and the
  * bodies of declarations declare nothing at module level.
  */
-class ModulePrologCollector extends AbstractParseTreeVisitor<void> {
+class ModulePrologCollector extends ctx.ParserVisitor<void> {
     private readonly imports: ModuleImport[] = [];
     private readonly schemaImports: SchemaImport[] = [];
     private readonly exports = new Map<string, SourceModuleExportDefinition>();
@@ -123,9 +123,9 @@ class ModulePrologCollector extends AbstractParseTreeVisitor<void> {
         };
     }
 
-    public visitProgram(): void {}
+    public override visitProgram = (): void => {};
 
-    public visitLibraryModule(node: ctx.LibraryModuleContext): void {
+    public override visitLibraryModule = (node: ctx.LibraryModuleContext): void => {
         const prefixNode = node.ncName();
         const prefix = prefixNode.getText().trim();
         const namespaceUri = unquoteStringLiteral(node.uriLiteral().getText());
@@ -155,9 +155,9 @@ class ModulePrologCollector extends AbstractParseTreeVisitor<void> {
         this.targetNamespace = namespaceUri;
         this.bindNamespace(node, prefix, namespaceUri, range, selectionRange);
         this.visitChildren(node);
-    }
+    };
 
-    public visitModuleImport(node: ctx.ModuleImportContext): void {
+    public override visitModuleImport = (node: ctx.ModuleImportContext): void => {
         const target = node._targetNamespace;
         if (target === undefined) return;
 
@@ -170,13 +170,13 @@ class ModulePrologCollector extends AbstractParseTreeVisitor<void> {
         };
         this.imports.push(moduleImport);
         this.bindImportedNamespace(node, moduleImport);
-    }
+    };
 
-    public visitBaseURIDecl(node: ctx.BaseURIDeclContext): void {
+    public override visitBaseURIDecl = (node: ctx.BaseURIDeclContext): void => {
         this.baseUri ??= unquoteStringLiteral(node.uriLiteral().getText());
-    }
+    };
 
-    public visitNamespaceDecl(node: ctx.NamespaceDeclContext): void {
+    public override visitNamespaceDecl = (node: ctx.NamespaceDeclContext): void => {
         const prefixNode = node.ncName();
         const namespaceUri = node.uriLiteral();
         const prefix = prefixNode?.getText().trim() ?? "";
@@ -189,9 +189,9 @@ class ModulePrologCollector extends AbstractParseTreeVisitor<void> {
             this.range(node),
             this.range(prefixNode),
         );
-    }
+    };
 
-    public visitSchemaImport(node: ctx.SchemaImportContext): void {
+    public override visitSchemaImport = (node: ctx.SchemaImportContext): void => {
         const namespaceUri = node._nsURI;
         if (namespaceUri === undefined) return;
 
@@ -212,9 +212,9 @@ class ModulePrologCollector extends AbstractParseTreeVisitor<void> {
             );
         }
         this.bindImportedNamespace(node, schemaImport);
-    }
+    };
 
-    public visitDefaultNamespaceDecl(node: ctx.DefaultNamespaceDeclContext): void {
+    public override visitDefaultNamespaceDecl = (node: ctx.DefaultNamespaceDeclContext): void => {
         const namespaceUriNode = node.stringLiteral();
         if (namespaceUriNode === null) return;
 
@@ -232,9 +232,9 @@ class ModulePrologCollector extends AbstractParseTreeVisitor<void> {
         } else {
             this.defaultFunctionNamespace = namespaceUri;
         }
-    }
+    };
 
-    public visitFunctionDecl(node: ctx.FunctionDeclContext): void {
+    public override visitFunctionDecl = (node: ctx.FunctionDeclContext): void => {
         const parameters = node.paramList()?.param() ?? [];
         const selectionRange = this.range(node.functionName());
         const definition = this.definitions.function(
@@ -262,9 +262,9 @@ class ModulePrologCollector extends AbstractParseTreeVisitor<void> {
         }
         this.declarations.functions.set(node, definition);
         this.checkDeclaration(definition, hasPrivateAnnotation(node));
-    }
+    };
 
-    public visitVarDecl(node: ctx.VarDeclContext): void {
+    public override visitVarDecl = (node: ctx.VarDeclContext): void => {
         const binding = node.varBinding();
         const terminator = node.SEMICOLON();
         const name = binding === null ? null : parseVarName(binding);
@@ -279,10 +279,10 @@ class ModulePrologCollector extends AbstractParseTreeVisitor<void> {
         );
         this.declarations.variables.set(node, definition);
         this.checkDeclaration(definition, hasPrivateAnnotation(node));
-    }
+    };
 
     /** A JSONiq type declaration. */
-    public visitTypeDecl(node: ctx.TypeDeclContext): void {
+    public override visitTypeDecl = (node: ctx.TypeDeclContext): void => {
         const nameNode = node.qname();
         const selectionRange = this.range(nameNode);
         const definition = this.definitions.type(
@@ -292,7 +292,7 @@ class ModulePrologCollector extends AbstractParseTreeVisitor<void> {
         );
         this.declarations.types.set(node, definition);
         this.checkDeclaration(definition, false);
-    }
+    };
 
     private range(node: ParseTree): Range {
         return rangeFromNode(node, this.document);

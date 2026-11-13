@@ -1,5 +1,9 @@
+import { AbstractParseTreeVisitor } from "antlr4ng";
+
 import type * as jsoniq from "./adapters/jsoniq/grammar/JsoniqParser.js";
+import type * as jsoniqVisitor from "./adapters/jsoniq/grammar/JsoniqParserVisitor.js";
 import type * as xquery from "./adapters/xquery/grammar/XQueryParser.js";
+import type * as xqueryVisitor from "./adapters/xquery/grammar/XQueryParserVisitor.js";
 
 /** Shared CST types. A node belongs to either grammar, so these are unions. */
 
@@ -171,3 +175,36 @@ export type WindowStartConditionContext =
 export type WindowVarsContext = jsoniq.WindowVarsContext | xquery.WindowVarsContext;
 
 export type VariableNameContext = VarRefContext | VarBindingContext;
+
+/** The node type that a visit method of a grammar's visitor takes, or never when the grammar has no such method. */
+type VisitedContext<Visitor, Method extends PropertyKey> = Method extends keyof Visitor
+    ? NonNullable<Visitor[Method]> extends (node: infer Context) => unknown
+        ? Context
+        : never
+    : never;
+
+/** The visit method of each rule of either grammar, taking the node of that rule from either grammar. */
+type RuleVisitMethods<Result> = {
+    [
+        Method in Exclude<
+            | keyof jsoniqVisitor.JsoniqParserVisitor<Result>
+            | keyof xqueryVisitor.XQueryParserVisitor<Result>,
+            keyof AbstractParseTreeVisitor<Result>
+        >
+    ]?: (
+        node:
+            | VisitedContext<jsoniqVisitor.JsoniqParserVisitor<Result>, Method>
+            | VisitedContext<xqueryVisitor.XQueryParserVisitor<Result>, Method>,
+    ) => Result;
+};
+
+/**
+ * A visitor of the parse tree of either language. Both parsers dispatch a node to the visit method of its rule by name,
+ * so one visitor serves both. Its visit methods are declared here, so that `override` checks each against the rules of
+ * the grammars: a visit method whose rule was renamed or removed does not compile.
+ */
+export type ParserVisitor<Result> = AbstractParseTreeVisitor<Result> & RuleVisitMethods<Result>;
+
+export const ParserVisitor = AbstractParseTreeVisitor as abstract new <
+    Result,
+>() => ParserVisitor<Result>;

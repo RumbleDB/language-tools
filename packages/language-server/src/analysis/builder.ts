@@ -1,10 +1,5 @@
-import {
-    AbstractParseTreeVisitor,
-    type ParseTree,
-    type ParserRuleContext,
-    type TerminalNode,
-} from "antlr4ng";
-import type * as ctx from "server/parser/context.js";
+import { type ParseTree, type ParserRuleContext, type TerminalNode } from "antlr4ng";
+import * as ctx from "server/parser/context.js";
 import {
     parseArrowFunctionName,
     parseFunctionName,
@@ -66,7 +61,7 @@ type VariableBinding = [
  * reference as it goes. The parsers of both languages dispatch a node to the visit method of its rule by name, so one
  * visitor serves both. A rule without a visit method contributes the nodes of its children.
  */
-class AnalysisBuilder extends AbstractParseTreeVisitor<AstNode[]> {
+class AnalysisBuilder extends ctx.ParserVisitor<AstNode[]> {
     private readonly moduleScope: ScopeBuilder;
     private currentScope: ScopeBuilder;
     private readonly definitions: SourceDefinitionFactory;
@@ -156,23 +151,23 @@ class AnalysisBuilder extends AbstractParseTreeVisitor<AstNode[]> {
     // Prolog declarations, whose definitions the prolog collector made.
 
     /** A library module declaration, which owns the prolog after it. */
-    public visitLibraryModule(node: ctx.LibraryModuleContext): AstNode[] {
+    public override visitLibraryModule = (node: ctx.LibraryModuleContext): AstNode[] => {
         return [...this.namespaceDeclaration(node), ...this.visitChildren(node)];
-    }
+    };
 
-    public visitModuleImport(node: ctx.ModuleImportContext): AstNode[] {
+    public override visitModuleImport = (node: ctx.ModuleImportContext): AstNode[] => {
         return this.namespaceDeclaration(node);
-    }
+    };
 
-    public visitSchemaImport(node: ctx.SchemaImportContext): AstNode[] {
+    public override visitSchemaImport = (node: ctx.SchemaImportContext): AstNode[] => {
         return this.namespaceDeclaration(node);
-    }
+    };
 
-    public visitNamespaceDecl(node: ctx.NamespaceDeclContext): AstNode[] {
+    public override visitNamespaceDecl = (node: ctx.NamespaceDeclContext): AstNode[] => {
         return this.namespaceDeclaration(node);
-    }
+    };
 
-    public visitContextItemDecl(node: ctx.ContextItemDeclContext): AstNode[] {
+    public override visitContextItemDecl = (node: ctx.ContextItemDeclContext): AstNode[] => {
         const range = this.range(node);
         const selectionRange = {
             start: this.range(node.KW_CONTEXT()).start,
@@ -185,14 +180,14 @@ class AnalysisBuilder extends AbstractParseTreeVisitor<AstNode[]> {
         );
         this.currentScope.declare(definition, this.document.offsetAt(range.end));
         return [this.createDeclarationNode(definition)];
-    }
+    };
 
-    public visitTypeDecl(node: ctx.TypeDeclContext): AstNode[] {
+    public override visitTypeDecl = (node: ctx.TypeDeclContext): AstNode[] => {
         const definition = this.declarations.types.get(node);
         return definition === undefined ? [] : [this.createDeclarationNode(definition)];
-    }
+    };
 
-    public visitFunctionDecl(node: ctx.FunctionDeclContext): AstNode[] {
+    public override visitFunctionDecl = (node: ctx.FunctionDeclContext): AstNode[] => {
         const definition = this.declarations.functions.get(node)!;
         const children = this.enterScope(this.range(node), () => [
             ...definition.parameters.map((parameter) => {
@@ -202,46 +197,52 @@ class AnalysisBuilder extends AbstractParseTreeVisitor<AstNode[]> {
             ...this.visitChildrenWithFocus(node, [node._fn_body]),
         ]);
         return [this.createDeclarationNode(definition, children)];
-    }
+    };
 
-    public visitVarDecl(node: ctx.VarDeclContext): AstNode[] {
+    public override visitVarDecl = (node: ctx.VarDeclContext): AstNode[] => {
         const definition = this.declarations.variables.get(node);
         if (definition === undefined) return this.visitChildren(node);
 
         // The initializer cannot refer to the variable it initializes.
         const children = this.withExcludedDefinition(definition, () => this.visitChildren(node));
         return [this.createDeclarationNode(definition, children)];
-    }
+    };
 
     // Variable bindings.
 
-    public visitForVar(node: ctx.ForVarContext): AstNode[] {
+    public override visitForVar = (node: ctx.ForVarContext): AstNode[] => {
         const visibleFrom = this.endOf(node._ex);
         return this.declarationsBeforeChildren(node, [
             [node._var_ref, visibleFrom],
             [node._at, visibleFrom],
         ]);
-    }
+    };
 
-    public visitLetVar(node: ctx.LetVarContext): AstNode[] {
+    public override visitLetVar = (node: ctx.LetVarContext): AstNode[] => {
         return this.declarationWithChildren(node, [node._var_ref, this.endOf(node._ex)]);
-    }
+    };
 
-    public visitTumblingWindowClause(node: ctx.TumblingWindowClauseContext): AstNode[] {
+    public override visitTumblingWindowClause = (
+        node: ctx.TumblingWindowClauseContext,
+    ): AstNode[] => {
         return this.declarationsBeforeChildren(node, [[node._name, this.range(node).end]]);
-    }
+    };
 
-    public visitSlidingWindowClause(node: ctx.SlidingWindowClauseContext): AstNode[] {
+    public override visitSlidingWindowClause = (
+        node: ctx.SlidingWindowClauseContext,
+    ): AstNode[] => {
         return this.declarationsBeforeChildren(node, [[node._name, this.range(node).end]]);
-    }
+    };
 
-    public visitWindowStartCondition(node: ctx.WindowStartConditionContext): AstNode[] {
+    public override visitWindowStartCondition = (
+        node: ctx.WindowStartConditionContext,
+    ): AstNode[] => {
         return this.visitWindowCondition(node);
-    }
+    };
 
-    public visitWindowEndCondition(node: ctx.WindowEndConditionContext): AstNode[] {
+    public override visitWindowEndCondition = (node: ctx.WindowEndConditionContext): AstNode[] => {
         return this.visitWindowCondition(node);
-    }
+    };
 
     private visitWindowCondition(
         node: ctx.WindowStartConditionContext | ctx.WindowEndConditionContext,
@@ -260,42 +261,44 @@ class AnalysisBuilder extends AbstractParseTreeVisitor<AstNode[]> {
         ];
     }
 
-    public visitCountClause(node: ctx.CountClauseContext): AstNode[] {
+    public override visitCountClause = (node: ctx.CountClauseContext): AstNode[] => {
         return this.declarationsBeforeChildren(node, [[node.varBinding(), this.range(node).end]]);
-    }
+    };
 
-    public visitGroupByClause(node: ctx.GroupByClauseContext): AstNode[] {
+    public override visitGroupByClause = (node: ctx.GroupByClauseContext): AstNode[] => {
         const visibleFrom = this.range(node).end;
         return node
             .groupByVar()
             .flatMap((variable) =>
                 this.declarationsBeforeChildren(variable, [[variable._var_ref, visibleFrom]]),
             );
-    }
+    };
 
-    public visitQuantifiedExprVar(node: ctx.QuantifiedExprVarContext): AstNode[] {
+    public override visitQuantifiedExprVar = (node: ctx.QuantifiedExprVarContext): AstNode[] => {
         return this.declarationsBeforeChildren(node, [
             [node._var_ref, this.endOf(node.exprSingle())],
         ]);
-    }
+    };
 
-    public visitTypeswitchExpr(node: ctx.TypeswitchExprContext): AstNode[] {
+    public override visitTypeswitchExpr = (node: ctx.TypeswitchExprContext): AstNode[] => {
         return this.declarationsBeforeChildren(node, [[node._var_ref, this.startOf(node._def)]]);
-    }
+    };
 
-    public visitCaseClause(node: ctx.CaseClauseContext): AstNode[] {
+    public override visitCaseClause = (node: ctx.CaseClauseContext): AstNode[] => {
         return this.declarationsBeforeChildren(node, [[node._var_ref, this.startOf(node._ret)]]);
-    }
+    };
 
-    public visitTypeSwitchStatement(node: ctx.TypeSwitchStatementContext): AstNode[] {
+    public override visitTypeSwitchStatement = (
+        node: ctx.TypeSwitchStatementContext,
+    ): AstNode[] => {
         return this.declarationsBeforeChildren(node, [[node._var_ref, this.startOf(node._def)]]);
-    }
+    };
 
-    public visitCaseStatement(node: ctx.CaseStatementContext): AstNode[] {
+    public override visitCaseStatement = (node: ctx.CaseStatementContext): AstNode[] => {
         return this.declarationsBeforeChildren(node, [[node._var_ref, this.startOf(node._ret)]]);
-    }
+    };
 
-    public visitInlineFunctionExpr(node: ctx.InlineFunctionExprContext): AstNode[] {
+    public override visitInlineFunctionExpr = (node: ctx.InlineFunctionExprContext): AstNode[] => {
         const visibleFrom = this.endOf(node.LBRACE());
         const parameters = node.paramList()?.param() ?? [];
         return this.declarationsBeforeChildren(
@@ -303,9 +306,9 @@ class AnalysisBuilder extends AbstractParseTreeVisitor<AstNode[]> {
             parameters.map((parameter): VariableBinding => [parameter._name, visibleFrom]),
             () => this.visitChildrenWithFocus(node, [node._fn_body]),
         );
-    }
+    };
 
-    public visitVarDeclStatement(node: ctx.VarDeclStatementContext): AstNode[] {
+    public override visitVarDeclStatement = (node: ctx.VarDeclStatementContext): AstNode[] => {
         const terminator = node.SEMICOLON();
         const visibleFrom =
             terminator === null || terminator.symbol.tokenIndex < 0
@@ -319,9 +322,9 @@ class AnalysisBuilder extends AbstractParseTreeVisitor<AstNode[]> {
                     this.declarationsBeforeChildren(variable, [[variable._var_ref, visibleFrom]]),
                 ),
         ];
-    }
+    };
 
-    public visitTransformExpr(node: ctx.TransformExprContext): AstNode[] {
+    public override visitTransformExpr = (node: ctx.TransformExprContext): AstNode[] => {
         const visibleFrom = this.startOf(node._mod_expr);
         return [
             ...node
@@ -332,29 +335,29 @@ class AnalysisBuilder extends AbstractParseTreeVisitor<AstNode[]> {
             ...this.visit(node._mod_expr),
             ...this.visit(node._ret_expr),
         ];
-    }
+    };
 
     // Scopes.
 
-    public visitFlworExpr(node: ctx.FlworExprContext): AstNode[] {
+    public override visitFlworExpr = (node: ctx.FlworExprContext): AstNode[] => {
         return this.enterScope(this.range(node), () => this.visitChildren(node));
-    }
+    };
 
-    public visitFlworStatement(node: ctx.FlworStatementContext): AstNode[] {
+    public override visitFlworStatement = (node: ctx.FlworStatementContext): AstNode[] => {
         return this.enterScope(this.range(node), () => this.visitChildren(node));
-    }
+    };
 
-    public visitQuantifiedExpr(node: ctx.QuantifiedExprContext): AstNode[] {
+    public override visitQuantifiedExpr = (node: ctx.QuantifiedExprContext): AstNode[] => {
         return this.enterScope(this.range(node), () => this.visitChildren(node));
-    }
+    };
 
-    public visitCatchClause(node: ctx.CatchClauseContext): AstNode[] {
+    public override visitCatchClause = (node: ctx.CatchClauseContext): AstNode[] => {
         return this.visitCatch(node, node.LBRACE(), node._catch_expression);
-    }
+    };
 
-    public visitCatchCaseStatement(node: ctx.CatchCaseStatementContext): AstNode[] {
+    public override visitCatchCaseStatement = (node: ctx.CatchCaseStatementContext): AstNode[] => {
         return this.visitCatch(node, node._catch_block?.LBRACE(), node._catch_block);
-    }
+    };
 
     /** A catch clause, whose body sees the error variables, such as `$err:code`. */
     private visitCatch(
@@ -381,26 +384,26 @@ class AnalysisBuilder extends AbstractParseTreeVisitor<AstNode[]> {
     }
 
     /** A predicate filters with each item as the context item. */
-    public visitPredicate(node: ctx.PredicateContext): AstNode[] {
+    public override visitPredicate = (node: ctx.PredicateContext): AstNode[] => {
         return this.withFocus(node, () => this.visitChildren(node));
-    }
+    };
 
-    public visitSimpleMapExpr(node: ctx.SimpleMapExprContext): AstNode[] {
+    public override visitSimpleMapExpr = (node: ctx.SimpleMapExprContext): AstNode[] => {
         return this.visitChildrenWithFocus(node, node._map_expr);
-    }
+    };
 
     /** A leading slash evaluates the path from the root of the context item's tree. */
-    public visitPathExpr(node: ctx.PathExprContext): AstNode[] {
+    public override visitPathExpr = (node: ctx.PathExprContext): AstNode[] => {
         return this.visitChildrenWithFocus(node, [node._singleslash, node._doubleslash]);
-    }
+    };
 
-    public visitRelativePathExpr(node: ctx.RelativePathExprContext): AstNode[] {
+    public override visitRelativePathExpr = (node: ctx.RelativePathExprContext): AstNode[] => {
         return this.visitChildrenWithFocus(node, node.stepExpr().slice(1));
-    }
+    };
 
     // References.
 
-    public visitVarRef(node: ctx.VarRefContext): AstNode[] {
+    public override visitVarRef = (node: ctx.VarRefContext): AstNode[] => {
         const name = parseVarName(node);
         if (name === null) return [];
 
@@ -408,9 +411,9 @@ class AnalysisBuilder extends AbstractParseTreeVisitor<AstNode[]> {
         return [
             this.createReference("variable", this.nameResolver.resolveQName(name, range), range),
         ];
-    }
+    };
 
-    public visitContextItemExpr(node: ctx.ContextItemExprContext): AstNode[] {
+    public override visitContextItemExpr = (node: ctx.ContextItemExprContext): AstNode[] => {
         const range = this.range(node);
         return [
             this.createReference(
@@ -421,18 +424,18 @@ class AnalysisBuilder extends AbstractParseTreeVisitor<AstNode[]> {
                 false,
             ),
         ];
-    }
+    };
 
-    public visitItemType(node: ctx.ItemTypeContext): AstNode[] {
+    public override visitItemType = (node: ctx.ItemTypeContext): AstNode[] => {
         const nameNode = node.eqName();
         if (nameNode === null) return this.visitChildren(node);
 
         const range = this.range(nameNode);
         const name = this.nameResolver.resolveTypeName(parseQNameText(nameNode.getText()), range);
         return [this.createReference("type", name, range)];
-    }
+    };
 
-    public visitFunctionCall(node: ctx.FunctionCallContext): AstNode[] {
+    public override visitFunctionCall = (node: ctx.FunctionCallContext): AstNode[] => {
         const nameNode = node._fn_name;
         if (nameNode === undefined) return [];
 
@@ -442,9 +445,9 @@ class AnalysisBuilder extends AbstractParseTreeVisitor<AstNode[]> {
                 this.visitChildren(node),
             ),
         ];
-    }
+    };
 
-    public visitNamedFunctionRef(node: ctx.NamedFunctionRefContext): AstNode[] {
+    public override visitNamedFunctionRef = (node: ctx.NamedFunctionRefContext): AstNode[] => {
         const nameNode = node._fn_name;
         if (nameNode === undefined) return [];
 
@@ -454,11 +457,11 @@ class AnalysisBuilder extends AbstractParseTreeVisitor<AstNode[]> {
         );
         const name = parseFunctionName(node, Number.isNaN(arity) ? undefined : arity);
         return [this.createFunctionCall(name, this.range(nameNode), this.range(node), () => [])];
-    }
+    };
 
-    public visitArgumentList(node: ctx.ArgumentListContext): AstNode[] {
+    public override visitArgumentList = (node: ctx.ArgumentListContext): AstNode[] => {
         return node.argument().map((argument, index) => this.createArgument(argument, index));
-    }
+    };
 
     /**
      * Desugars each arrow step as XQuery 3.1 §3.16 defines it: `U => F(A, B)` is `F(U, A, B)`.
@@ -466,7 +469,7 @@ class AnalysisBuilder extends AbstractParseTreeVisitor<AstNode[]> {
      * arity N+1 and the steps of a chain nest left to right. A dynamic step (`$f` or `(expr)`)
      * names no function, so its parts stay plain expressions.
      */
-    public visitArrowExpr(node: ctx.ArrowExprContext): AstNode[] {
+    public override visitArrowExpr = (node: ctx.ArrowExprContext): AstNode[] => {
         const operand = node._main_expr;
         const specifiers = node.arrowFunctionSpecifier();
         if (operand === undefined || specifiers.length === 0) {
@@ -522,7 +525,7 @@ class AnalysisBuilder extends AbstractParseTreeVisitor<AstNode[]> {
         }
 
         return result;
-    }
+    };
 
     private range(node: ParseTree): Range {
         return rangeFromNode(node, this.document);
