@@ -583,12 +583,8 @@ export class CommonAstBuilder {
         let range = rangeFromNode(operand, this.document);
 
         for (const [index, specifier] of specifiers.entries()) {
-            // Error recovery can drop an argument list, so match each list to its specifier by position.
-            const nextStart = specifiers[index + 1]?.start?.tokenIndex ?? Number.POSITIVE_INFINITY;
-            const argumentList = argumentLists.find((list) => {
-                const start = list.start?.tokenIndex ?? -1;
-                return start > (specifier.stop?.tokenIndex ?? -1) && start < nextStart;
-            });
+            // Each specifier has its argument list, even an empty one that error recovery left.
+            const argumentList = argumentLists[index];
             const explicitArguments = argumentList?.argument() ?? [];
             const stepRange = {
                 start: range.start,

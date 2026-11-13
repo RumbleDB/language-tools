@@ -1,4 +1,4 @@
-import { getCompletionIntent, type RuleCandidateInfo } from "server/parser/completion.js";
+import { getCompletionIntent } from "server/parser/completion.js";
 import type { ParserAdapter } from "server/parser/types/adapter.js";
 import { getActiveParserId } from "server/parser/utils.js";
 import { TextDocument } from "vscode-languageserver-textdocument";
@@ -16,14 +16,6 @@ import { XQueryLexer } from "./grammar/XQueryLexer.js";
 import { XQueryParser } from "./grammar/XQueryParser.js";
 import { parseXQuery } from "./parse.js";
 
-/** A function name after `=>`: an `eqName`, not a `functionName`, inside the arrow's specifier. */
-function isArrowFunctionName(ruleIndex: number, candidate?: RuleCandidateInfo): boolean {
-    return (
-        ruleIndex === XQueryParser.RULE_eqName &&
-        candidate?.ruleList.at(-1) === XQueryParser.RULE_arrowFunctionSpecifier
-    );
-}
-
 export const xqueryParserAdapter: ParserAdapter = {
     id: "xquery",
     supports: (document: TextDocument) => getActiveParserId(document) === "xquery",
@@ -36,12 +28,14 @@ export const xqueryParserAdapter: ParserAdapter = {
             preferredRules: PREFERRED_COMPLETION_RULES,
             languageKeywords: KEYWORD_COMPLETIONS,
             expressionKeywords: EXPRESSION_KEYWORDS,
-            // Calls, named function references, and named arrow specifiers.
+            // Calls and named function references; a declaration introduces its name instead.
             isFunctionReferenceRule: (ruleIndex, candidate) =>
-                (ruleIndex === XQueryParser.RULE_functionName &&
-                    candidate?.ruleList.at(-1) !== XQueryParser.RULE_functionDecl) ||
-                isArrowFunctionName(ruleIndex, candidate),
-            isArrowFunctionRule: isArrowFunctionName,
+                ruleIndex === XQueryParser.RULE_functionName &&
+                candidate?.ruleList.at(-1) !== XQueryParser.RULE_functionDecl,
+            // Arrow function names use eqName, not functionName.
+            isArrowFunctionRule: (ruleIndex, candidate) =>
+                ruleIndex === XQueryParser.RULE_eqName &&
+                candidate?.ruleList.at(-1) === XQueryParser.RULE_arrowFunctionSpecifier,
             isObjectLookupRule: () => false,
             // Names being introduced are not keyword or reference completion sites.
             isDeclarationNameRule: (_ruleIndex, candidate) =>

@@ -34,8 +34,9 @@ type CompletionOptions<T extends TokenContextAnalyzer> = {
     languageKeywords: LanguageKeywordCompletion[];
     /** The only keywords offered where an expression can start. */
     expressionKeywords: ReadonlySet<number>;
+    /** The name of a function call or of a named function reference. */
     isFunctionReferenceRule(ruleIndex: number, candidate?: RuleCandidateInfo): boolean;
-    /** A function name after `=>`, which is also a function reference rule. */
+    /** The name of the function after `=>`. */
     isArrowFunctionRule(ruleIndex: number, candidate?: RuleCandidateInfo): boolean;
     isObjectLookupRule(ruleIndex: number): boolean;
     isDeclarationNameRule(ruleIndex: number, candidate?: RuleCandidateInfo): boolean;
@@ -87,16 +88,11 @@ export function getCompletionIntent<T extends TokenContextAnalyzer>(
     }
 
     const qnamePrefix = candidates.tokenContext.qnamePrefix;
-    const allowFunctions = hasCandidateRule(candidates, options.isFunctionReferenceRule);
+    const allowFunctionReferences = hasCandidateRule(candidates, options.isFunctionReferenceRule);
+    const allowArrowFunctions = hasCandidateRule(candidates, options.isArrowFunctionRule);
+    const allowFunctions = allowFunctionReferences || allowArrowFunctions;
     // Only when no plain call can be written here too, as one would then insert all its arguments.
-    const arrowFunction =
-        hasCandidateRule(candidates, options.isArrowFunctionRule) &&
-        !hasCandidateRule(
-            candidates,
-            (ruleIndex, candidate) =>
-                options.isFunctionReferenceRule(ruleIndex, candidate) &&
-                !options.isArrowFunctionRule(ruleIndex, candidate),
-        );
+    const arrowFunction = allowArrowFunctions && !allowFunctionReferences;
     const allowVariables =
         !qnamePrefix && hasCandidateRule(candidates, options.isVariableReferenceRule);
     const allowObjectLookup =

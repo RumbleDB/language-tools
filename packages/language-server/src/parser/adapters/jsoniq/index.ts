@@ -1,4 +1,4 @@
-import { getCompletionIntent, type RuleCandidateInfo } from "server/parser/completion.js";
+import { getCompletionIntent } from "server/parser/completion.js";
 import type { ParserAdapter } from "server/parser/types/adapter.js";
 import { getActiveParserId } from "server/parser/utils.js";
 import { TextDocument } from "vscode-languageserver-textdocument";
@@ -16,14 +16,6 @@ import { JsoniqLexer } from "./grammar/JsoniqLexer.js";
 import { JsoniqParser } from "./grammar/JsoniqParser.js";
 import { parseJsoniq } from "./parse.js";
 
-/** A function name after `=>`: an `eqName`, not a `functionName`, inside the arrow's specifier. */
-function isArrowFunctionName(ruleIndex: number, candidate?: RuleCandidateInfo): boolean {
-    return (
-        ruleIndex === JsoniqParser.RULE_eqName &&
-        candidate?.ruleList.at(-1) === JsoniqParser.RULE_arrowFunctionSpecifier
-    );
-}
-
 export const jsoniqParserAdapter: ParserAdapter = {
     id: "jsoniq",
     supports: (document: TextDocument) => getActiveParserId(document) === "jsoniq",
@@ -36,12 +28,14 @@ export const jsoniqParserAdapter: ParserAdapter = {
             preferredRules: PREFERRED_COMPLETION_RULES,
             languageKeywords: KEYWORD_COMPLETIONS,
             expressionKeywords: EXPRESSION_KEYWORDS,
-            // Calls, named function references, and named arrow specifiers.
+            // Calls and named function references; a declaration introduces its name instead.
             isFunctionReferenceRule: (ruleIndex, candidate) =>
-                (ruleIndex === JsoniqParser.RULE_functionName &&
-                    candidate?.ruleList.at(-1) !== JsoniqParser.RULE_functionDecl) ||
-                isArrowFunctionName(ruleIndex, candidate),
-            isArrowFunctionRule: isArrowFunctionName,
+                ruleIndex === JsoniqParser.RULE_functionName &&
+                candidate?.ruleList.at(-1) !== JsoniqParser.RULE_functionDecl,
+            // Arrow function names use eqName, not functionName.
+            isArrowFunctionRule: (ruleIndex, candidate) =>
+                ruleIndex === JsoniqParser.RULE_eqName &&
+                candidate?.ruleList.at(-1) === JsoniqParser.RULE_arrowFunctionSpecifier,
             isObjectLookupRule: (ruleIndex) => ruleIndex === JsoniqParser.RULE_objectLookupKey,
             // Names being introduced are not keyword or reference completion sites.
             isDeclarationNameRule: (_ruleIndex, candidate) =>
