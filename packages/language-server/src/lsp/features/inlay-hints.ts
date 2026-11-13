@@ -1,9 +1,5 @@
 import type { ArgumentNode, AstNode, FunctionCallNode } from "server/analysis/index.js";
-import { getBuiltinFunctionDocumentation } from "server/resources/function-docs.js";
-import {
-    chooseBestSignatureIndex,
-    findResolvedSourceFunction,
-} from "server/utils/function-calls.js";
+import { getParameterName } from "server/utils/function-calls.js";
 import { rangesIntersect } from "server/utils/range.js";
 import type { WorkspaceService } from "server/workspace/service.js";
 import { InlayHintKind, type InlayHint, type Range } from "vscode-languageserver";
@@ -43,58 +39,30 @@ function collectFunctionCallInlayHints(node: AstNode, range: Range): InlayHint[]
 }
 
 function createFunctionCallHints(call: FunctionCallNode): InlayHint[] {
-    // The operand of an arrow precedes the call, so a name there would stack along a chain.
     return call.arguments
-        .filter((argument) => !argument.piped)
-        .map((argument) => createParameterHint(argument, getParameterName(call, argument)))
+        .map((argument) => createParameterHint(call, argument))
         .filter((hint): hint is InlayHint => hint !== null);
 }
 
-function createParameterHint(
-    argument: ArgumentNode,
-    parameterName: string | undefined,
-): InlayHint | null {
+function createParameterHint(call: FunctionCallNode, argument: ArgumentNode): InlayHint | null {
+    const parameterName = getParameterName(call, argument.index);
     if (parameterName === undefined) {
         return null;
     }
 
-    return {
-        position: argument.range.start,
-        kind: InlayHintKind.Parameter,
-        label: `${parameterName}: `,
-        paddingRight: true,
-    };
-}
-
-function getParameterName(call: FunctionCallNode, argument: ArgumentNode): string | undefined {
-    const sourceDefinition = findResolvedSourceFunction(call);
-
-    if (sourceDefinition) {
-        const parameter = sourceDefinition.parameters[argument.index];
-        return parameter === undefined ? undefined : `$${parameter.name.localName}`;
-    }
-
-    return getBuiltinParameterName(call, argument.index);
-}
-
-function getBuiltinParameterName(
-    call: FunctionCallNode,
-    argumentIndex: number,
-): string | undefined {
-    const docsEntry = getBuiltinFunctionDocumentation(call.name.qname);
-
-    if (!docsEntry || docsEntry.signatures.length === 0) {
-        return undefined;
-    }
-
-    const signature =
-        docsEntry.signatures[
-            chooseBestSignatureIndex(
-                docsEntry.signatures.map((candidate) => candidate.params.length),
-                call.arguments.length,
-            )
-        ]!;
-
-    const parameter = signature.params[argumentIndex];
-    return parameter === undefined ? undefined : `$${parameter.name}`;
+    // An arrow's operand starts where the previous step does, so a hint there would stack along
+    // a chain. Name the parameter it fills before the function name instead: `$s => $input ⇐ tokenize(…)`.
+    return argument.piped
+        ? {
+              position: call.selectionRange.start,
+              kind: InlayHintKind.Parameter,
+              label: `${parameterName} ⇐`,
+              paddingRight: true,
+          }
+        : {
+              position: argument.range.start,
+              kind: InlayHintKind.Parameter,
+              label: `${parameterName}: `,
+              paddingRight: true,
+          };
 }

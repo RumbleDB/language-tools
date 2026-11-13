@@ -12,13 +12,17 @@ import {
     formatFunctionDocEntry,
     getBuiltinFunctionDocumentation,
 } from "server/resources/function-docs.js";
+import { describeArrowOperand, findArrowCallByName } from "server/utils/function-calls.js";
 import { sameRange } from "server/utils/range.js";
 import { MarkupKind } from "vscode-languageserver";
 
 import type { HoverProvider } from "../types.js";
 
 export const provideSemanticHover: HoverProvider = async (context) => {
-    const occurrence = findSymbolAtPosition(await context.getAnalysis(), context.position);
+    const analysis = await context.getAnalysis();
+    const occurrence = findSymbolAtPosition(analysis, context.position);
+    const arrowCall = findArrowCallByName(analysis, context.position);
+    const arrowNote = arrowCall === undefined ? "" : `\n\n${describeArrowOperand(arrowCall)}`;
 
     const declaration = occurrence?.declaration;
     if (declaration?.kind === "type" || declaration?.kind === "namespace") {
@@ -35,10 +39,11 @@ export const provideSemanticHover: HoverProvider = async (context) => {
             range: occurrence.range,
             contents: {
                 kind: MarkupKind.Markdown,
-                value: createFunctionHoverContent(
-                    declaration,
-                    context.document.getText(occurrence.range),
-                ),
+                value:
+                    createFunctionHoverContent(
+                        declaration,
+                        context.document.getText(occurrence.range),
+                    ) + arrowNote,
             },
         };
     }
@@ -62,7 +67,9 @@ export const provideSemanticHover: HoverProvider = async (context) => {
         range,
         contents: {
             kind: MarkupKind.Markdown,
-            value: codeBlock(formatSequenceTypeExpanded(sequenceType, prefix)),
+            value:
+                codeBlock(formatSequenceTypeExpanded(sequenceType, prefix)) +
+                (isName ? arrowNote : ""),
         },
     };
 };

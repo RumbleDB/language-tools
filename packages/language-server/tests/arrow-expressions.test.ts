@@ -213,12 +213,64 @@ describe.each(["jsoniq", "xquery"])("%s arrow expressions", (languageId) => {
         ).toBeNull();
     });
 
-    it("names the written arguments, not the operand, in inlay hints", async () => {
+    it("names the parameter the operand fills before the function name in inlay hints", async () => {
         const document = open(`${declareF}"x" => local:f(2)`);
 
         const hints = await collectInlayHints(document, fullRange, workspaceService);
         expect(hints.map((hint) => [hint.label, hint.position])).toEqual([
+            ["$a ⇐", positionAtNth(document, "local:f", 1)],
             ["$b: ", positionAt(document, "2)")],
         ]);
+    });
+
+    it("gives each step of a chain its own operand hint", async () => {
+        const document = open('"a,b" => tokenize(",") => count()');
+
+        const hints = await collectInlayHints(document, fullRange, workspaceService);
+        expect(hints.filter((hint) => String(hint.label).endsWith("⇐"))).toEqual([
+            expect.objectContaining({ label: "$arg ⇐", position: positionAt(document, "count") }),
+            expect.objectContaining({
+                label: "$input ⇐",
+                position: positionAt(document, "tokenize"),
+            }),
+        ]);
+    });
+
+    it("says on hover which parameter the operand fills", async () => {
+        const document = open('"abc" => substring(2)');
+
+        const hover = await findHover(
+            document,
+            positionAt(document, "substring"),
+            workspaceService,
+        );
+        expect(JSON.stringify(hover?.contents)).toContain(
+            "The first parameter, `$sourceString`, is filled by the expression before `=>`.",
+        );
+    });
+
+    it("says in signature help which parameter the operand fills", async () => {
+        const document = open('"abc" => substring()');
+
+        const help = await findSignatureHelp(
+            document,
+            positionAfter(document, "substring("),
+            workspaceService,
+        );
+        const documentation = help?.signatures[help.activeSignature!]?.documentation;
+        expect(typeof documentation === "string" ? documentation : documentation?.value).toMatch(
+            /^The first parameter, `\$sourceString`, is filled by the expression before `=>`\./,
+        );
+    });
+
+    it("leaves calls without an arrow free of the operand note", async () => {
+        const document = open('substring("abc", 2)');
+
+        const hover = await findHover(
+            document,
+            positionAt(document, "substring"),
+            workspaceService,
+        );
+        expect(JSON.stringify(hover?.contents)).not.toContain("before `=>`");
     });
 });

@@ -1,5 +1,11 @@
+import type { Position } from "vscode-languageserver";
+
 import type { FunctionCallNode } from "../analysis/model/ast.js";
 import type { SourceFunctionDefinition } from "../analysis/model/definitions.js";
+import type { AnalysisResult } from "../analysis/model/result.js";
+import { findNodesThatContainPosition } from "../analysis/queries.js";
+import { getBuiltinFunctionDocumentation } from "../resources/function-docs.js";
+import { rangeContainsPosition } from "./range.js";
 
 export function chooseBestSignatureIndex(
     parameterCounts: number[],
@@ -35,4 +41,57 @@ export function findResolvedSourceFunction(
     return declaration?.origin === "source" && declaration.kind === "function"
         ? declaration
         : undefined;
+}
+
+/**
+ * The `$name` of the parameter at `index` of the function a call resolves to. A builtin with
+ * several signatures uses the one that fits the call's arguments.
+ */
+export function getParameterName(call: FunctionCallNode, index: number): string | undefined {
+    const sourceDefinition = findResolvedSourceFunction(call);
+    if (sourceDefinition) {
+        const parameter = sourceDefinition.parameters[index];
+        return parameter === undefined ? undefined : `$${parameter.name.localName}`;
+    }
+
+    const docsEntry = getBuiltinFunctionDocumentation(call.name.qname);
+    if (!docsEntry || docsEntry.signatures.length === 0) {
+        return undefined;
+    }
+
+    const signature =
+        docsEntry.signatures[
+            chooseBestSignatureIndex(
+                docsEntry.signatures.map((candidate) => candidate.params.length),
+                call.arguments.length,
+            )
+        ]!;
+    const parameter = signature.params[index];
+    return parameter === undefined ? undefined : `$${parameter.name}`;
+}
+
+/** Whether the call is an arrow step, whose first argument is the expression before `=>`. */
+export function isArrowCall(call: FunctionCallNode): boolean {
+    return call.arguments[0]?.piped === true;
+}
+
+/** The arrow step whose function name holds the position. */
+export function findArrowCallByName(
+    analysis: AnalysisResult,
+    position: Position,
+): FunctionCallNode | undefined {
+    return findNodesThatContainPosition(analysis, position).findLast(
+        (node): node is FunctionCallNode =>
+            node.kind === "function-call" &&
+            isArrowCall(node) &&
+            rangeContainsPosition(node.selectionRange, position),
+    );
+}
+
+/** Explains that the expression before `=>` fills the first parameter, named when it is known. */
+export function describeArrowOperand(call: FunctionCallNode): string {
+    const name = getParameterName(call, 0);
+    return name === undefined
+        ? "The first argument is the expression before `=>`."
+        : `The first parameter, \`${name}\`, is filled by the expression before \`=>\`.`;
 }

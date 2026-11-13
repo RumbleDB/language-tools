@@ -16,7 +16,11 @@ import {
     FunctionDocEntry,
     getBuiltinFunctionDocumentation,
 } from "server/resources/function-docs.js";
-import { chooseBestSignatureIndex } from "server/utils/function-calls.js";
+import {
+    chooseBestSignatureIndex,
+    describeArrowOperand,
+    isArrowCall,
+} from "server/utils/function-calls.js";
 import type { WorkspaceService } from "server/workspace/service.js";
 import {
     MarkupKind,
@@ -207,7 +211,7 @@ function getActiveParameter(call: FunctionCallNode, argument: ArgumentNode | und
         return trailingArgument.index;
     }
     // The first written argument, which follows the operand of an arrow.
-    return call.arguments[0]?.piped ? 1 : 0;
+    return isArrowCall(call) ? 1 : 0;
 }
 
 export async function findSignatureHelp(
@@ -245,8 +249,29 @@ export async function findSignatureHelp(
     );
 
     return {
-        signatures,
+        signatures: isArrowCall(activeCall)
+            ? signatures.map((signature) =>
+                  withLeadingNote(signature, describeArrowOperand(activeCall)),
+              )
+            : signatures,
         activeSignature,
         activeParameter,
+    };
+}
+
+/**
+ * Adds a note above a signature's documentation. A parameter's own documentation shows only
+ * while it is active, and an arrow's first parameter never is, so the note goes on the signature.
+ */
+function withLeadingNote(signature: SignatureInformation, note: string): SignatureInformation {
+    const existing = signature.documentation;
+    const value =
+        existing === undefined ? "" : typeof existing === "string" ? existing : existing.value;
+    return {
+        ...signature,
+        documentation: {
+            kind: MarkupKind.Markdown,
+            value: value === "" ? note : `${note}\n\n${value}`,
+        },
     };
 }
