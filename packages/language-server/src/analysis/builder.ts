@@ -172,14 +172,6 @@ class AnalysisBuilder extends AbstractParseTreeVisitor<AstNode[]> {
         return this.namespaceDeclaration(node);
     }
 
-    public visitDefaultNamespaceDecl(): AstNode[] {
-        return [];
-    }
-
-    public visitBaseURIDecl(): AstNode[] {
-        return [];
-    }
-
     public visitContextItemDecl(node: ctx.ContextItemDeclContext): AstNode[] {
         const range = this.range(node);
         const selectionRange = {

@@ -1,6 +1,9 @@
-import type { Token } from "antlr4ng";
 import { TokenContextAnalyzer } from "server/parser/completion-context.js";
-import { getCompletionIntent, type CompletionStartRule } from "server/parser/completion.js";
+import {
+    getCompletionIntent,
+    type CompletionOptions,
+    type CompletionStartRule,
+} from "server/parser/completion.js";
 import { parseDocument } from "server/parser/shared/parse.js";
 import type { ParserAdapter } from "server/parser/types/adapter.js";
 import type { LanguageKeywordCompletion } from "server/parser/types/completion.js";
@@ -62,11 +65,8 @@ export function createParserAdapter(grammar: LanguageGrammar): ParserAdapter {
         Parser.RULE_dirAttributeTextApos,
     ]);
 
-    const options = {
-        tokenContextAnalyzer: LanguageTokenContextAnalyzer as new (
-            tokens: Token[],
-            cursorOffset: number,
-        ) => TokenContextAnalyzer,
+    const options: CompletionOptions = {
+        tokenContextAnalyzer: LanguageTokenContextAnalyzer,
         ignoredTokens: new Set([
             Lexer.QUESTION,
             Lexer.PLUS,
@@ -184,16 +184,16 @@ export function createParserAdapter(grammar: LanguageGrammar): ParserAdapter {
             ...(grammar.expressionKeywords ?? []),
         ]),
         // Calls and named function references; a declaration introduces its name instead.
-        isFunctionReferenceRule: (ruleIndex: number, candidate?: { ruleList: number[] }) =>
+        isFunctionReferenceRule: (ruleIndex, candidate) =>
             ruleIndex === Parser.RULE_functionName &&
             candidate?.ruleList.at(-1) !== Parser.RULE_functionDecl,
         // Arrow function names use eqName, not functionName.
-        isArrowFunctionRule: (ruleIndex: number, candidate?: { ruleList: number[] }) =>
+        isArrowFunctionRule: (ruleIndex, candidate) =>
             ruleIndex === Parser.RULE_eqName &&
             candidate?.ruleList.at(-1) === Parser.RULE_arrowFunctionSpecifier,
-        isObjectLookupRule: (ruleIndex: number) => ruleIndex === grammar.objectLookupRule,
+        isObjectLookupRule: (ruleIndex) => ruleIndex === grammar.objectLookupRule,
         // Names being introduced are not keyword or reference completion sites.
-        isDeclarationNameRule: (_ruleIndex: number, candidate?: { ruleList: number[] }) =>
+        isDeclarationNameRule: (_ruleIndex, candidate) =>
             [
                 Parser.RULE_functionDecl,
                 Parser.RULE_varBinding,
@@ -206,21 +206,21 @@ export function createParserAdapter(grammar: LanguageGrammar): ParserAdapter {
                 Parser.RULE_decimalFormatDecl,
                 ...(grammar.declarationRules ?? []),
             ].includes(candidate?.ruleList.at(-1) ?? -1),
-        isTypeReferenceRule: (ruleIndex: number, candidate?: { ruleList: number[] }) =>
+        isTypeReferenceRule: (ruleIndex, candidate) =>
             ruleIndex === Parser.RULE_eqName &&
             [Parser.RULE_itemType, Parser.RULE_typeName, Parser.RULE_typedMapTest].includes(
                 candidate?.ruleList.at(-1) ?? -1,
             ),
-        isCommentToken: (tokenType: number) => tokenType === Lexer.XQComment,
-        isLiteralXmlRule: (ruleIndex: number) => literalXmlRules.has(ruleIndex),
-        isStringLiteralRule: (ruleIndex: number) => ruleIndex === Parser.RULE_stringLiteral,
-        isCatchErrorTargetRule: (ruleIndex: number, candidate?: { ruleList: number[] }) =>
+        isCommentToken: (tokenType) => tokenType === Lexer.XQComment,
+        isLiteralXmlRule: (ruleIndex) => literalXmlRules.has(ruleIndex),
+        isStringLiteralRule: (ruleIndex) => ruleIndex === Parser.RULE_stringLiteral,
+        isCatchErrorTargetRule: (ruleIndex, candidate) =>
             ruleIndex === Parser.RULE_nameTest &&
             (candidate?.ruleList.includes(Parser.RULE_catchClause) === true ||
                 candidate?.ruleList.includes(Parser.RULE_catchCaseStatement) === true),
-        isVariableReferenceRule: (ruleIndex: number) => ruleIndex === Parser.RULE_varRef,
-        tokenName: (tokenType: number) => Parser.symbolicNames[tokenType] ?? tokenType,
-        ruleName: (ruleIndex: number) => Parser.ruleNames[ruleIndex] ?? ruleIndex,
+        isVariableReferenceRule: (ruleIndex) => ruleIndex === Parser.RULE_varRef,
+        tokenName: (tokenType) => Parser.symbolicNames[tokenType] ?? tokenType,
+        ruleName: (ruleIndex) => Parser.ruleNames[ruleIndex] ?? ruleIndex,
     };
 
     return {
