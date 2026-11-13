@@ -50,9 +50,14 @@ function computeBuildKey() {
     addDirectoryToHash(hash, path.join(packageDir, "src", "main"));
     addFileToHash(hash, path.join(packageDir, "generated-resources", "rumble-build.properties"));
 
-    const rumbleJar = fs.realpathSync(
-        path.join(packageDir, "generated-resources", "rumbledb-current-jar-with-dependencies.jar"),
+    const rumbleBuildProperties = fs.readFileSync(
+        path.join(packageDir, "generated-resources", "rumble-build.properties"),
+        "utf8",
     );
+    const rumbleJar = /^rumble\.jar=(.*)$/m.exec(rumbleBuildProperties)?.[1];
+    if (!rumbleJar) {
+        throw new Error("rumble-build.properties does not name the Rumble jar");
+    }
     const rumbleJarStat = fs.statSync(rumbleJar);
     hash.update(`rumbleJar=${rumbleJar}\0${rumbleJarStat.size}\0${rumbleJarStat.mtimeMs}\0`);
     return hash.digest("hex");
