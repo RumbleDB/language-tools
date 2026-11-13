@@ -321,20 +321,12 @@ class AnalysisBuilder extends ParserAstVisitor<AstNode[]> {
         );
         const reference = this.createReference("function", name, node.selectionRange);
         const argumentNodes = this.visitChildrenAsNodes(node);
-        // Keep children in source order: the operand of an arrow comes before the name.
-        const nameIndex = argumentNodes.findIndex(
-            (child) =>
-                this.document.offsetAt(child.range.start) >
-                this.document.offsetAt(reference.range.start),
-        );
+        // Keep children in source order: an arrow's operand, its first argument, precedes the name.
+        const [first, ...rest] = argumentNodes;
         const children =
-            nameIndex === -1
-                ? [...argumentNodes, reference]
-                : [
-                      ...argumentNodes.slice(0, nameIndex),
-                      reference,
-                      ...argumentNodes.slice(nameIndex),
-                  ];
+            first?.kind === "argument" && first.piped
+                ? [first, reference, ...rest]
+                : [reference, ...argumentNodes];
         return {
             kind: "function-call",
             range: node.range,
