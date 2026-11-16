@@ -95,6 +95,17 @@ export function isNotebookCellDocument(document: TextDocument): boolean {
     return document.uri.startsWith(NOTEBOOK_CELL_URI_PREFIX);
 }
 
+/**
+ * The URI that a document's relative URIs resolve against. A notebook cell's resolve against its notebook, as they do
+ * when the cell runs: `vscode-notebook-cell:/dir/a.ipynb#cell` against `file:///dir/a.ipynb`.
+ */
+export function documentBaseUri(documentUri: string): string {
+    if (!documentUri.startsWith(NOTEBOOK_CELL_URI_PREFIX)) return documentUri;
+    const { pathname } = new URL(documentUri);
+    // An untitled notebook has no path, and so no directory to resolve against.
+    return pathname.startsWith("/") ? `file://${pathname}` : documentUri;
+}
+
 export function hasJsoniqCellMagic(document: TextDocument): boolean {
     return isNotebookCellDocument(document) && JSONIQ_MAGIC_PATTERN.test(document.getText());
 }

@@ -1,5 +1,5 @@
 import type { WrapperClient } from "server/integrations/rumble/client.js";
-import { getDocumentText } from "server/parser/utils.js";
+import { documentBaseUri, getDocumentText } from "server/parser/utils.js";
 import { createLogger } from "server/utils/logger.js";
 import type { CancellationToken, Position } from "vscode-languageserver";
 import type { TextDocument } from "vscode-languageserver-textdocument";
@@ -30,7 +30,7 @@ export async function getFocusAtPosition(
             {
                 requestType: REQUEST_TYPE_FOCUS_AT_POSITION,
                 body: Buffer.from(getDocumentText(document), "utf8").toString("base64"),
-                documentUri: document.uri,
+                documentUri: documentBaseUri(document.uri),
                 position,
             },
             { token },
