@@ -24,7 +24,7 @@ Files are parsed with ANTLR grammars for both languages, which keeps these featu
 
 Type-checking diagnostics, inferred types and running queries come from RumbleDB, through the [Java wrapper](https://github.com/RumbleDB/language-tools/tree/main/packages/rumble-lsp-wrapper). This needs Java 17 or newer on your `PATH`.
 
-The wrapper JAR is too large to ship in the npm package. The server downloads it from GitHub Releases when it is first needed, checks its SHA-256 against the bundled manifest, and caches it. Set `JSONIQ_LSP_CACHE_DIR` to control where it is stored.
+The wrapper JAR is too large to ship in the npm package. The server downloads it from GitHub Releases when it is first needed, checks its SHA-256 against the bundled manifest, and caches it. Set `JSONIQ_LSP_CACHE_DIR` to control where it is stored. To use another wrapper JAR, such as one you built yourself, set `JSONIQ_LSP_WRAPPER_JAR` to its path.
 
 If you don't want any of this, set `wrapper.enabled` to `false` (see below) and the server runs on the parser alone.
 

@@ -14,7 +14,9 @@ pnpm run build:wrapper
 
 This fetches RumbleDB at the commit pinned in `scripts/fetch-rumble.sh`, builds it, and then builds the wrapper. Both steps are cached: the wrapper is only rebuilt when its Java sources, Maven configuration, version or RumbleDB JAR change. To skip the cache, run `pnpm run build:force` in this package. Production builds are never cached.
 
-Run the tests with `pnpm test` in this package, and format the Java code with `pnpm run fmt`.
+Each RumbleDB build is installed into the local Maven repository under its own version, such as `3.1.0-local-660355a3f22b`, named after the jar's contents. Old versions stay in `~/.m2/repository/com/github/rumbledb/rumbledb/` and can be deleted.
+
+Run the tests with `pnpm test` in this package, and format the Java code with `pnpm run fmt`. `pnpm run build:prod` runs the same tests against the shaded release jar.
 
 When a local build exists, the language server uses it. Otherwise it falls back to the JAR from GitHub Releases.
 
