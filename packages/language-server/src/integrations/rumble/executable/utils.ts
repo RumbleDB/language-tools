@@ -3,6 +3,8 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
+import { type WrapperLaunchConfig } from "./index.js";
+
 const LANGUAGE_SERVER_CACHE_DIRNAME = "jsoniq-language-server";
 const WRAPPER_CACHE_SUBDIRECTORY = "wrapper";
 
@@ -34,6 +36,28 @@ export function getBaseCacheDirectory(
     }
 
     return path.join(os.homedir(), ".cache");
+}
+
+/** Runs a shaded wrapper jar the way a release does. */
+export function jarLaunchConfig(jarPath: string): WrapperLaunchConfig {
+    return { args: ["-jar", jarPath, "--daemon"] };
+}
+
+/**
+ * JSONIQ_LSP_WRAPPER_JAR runs the given wrapper jar instead of the development build or the
+ * released jar, for example to test a locally built release jar.
+ */
+export function resolveWrapperJarOverride(
+    env: NodeJS.ProcessEnv = process.env,
+): WrapperLaunchConfig | undefined {
+    const jarPath = env.JSONIQ_LSP_WRAPPER_JAR;
+    if (jarPath === undefined || jarPath.length === 0) {
+        return undefined;
+    }
+    if (!fs.existsSync(jarPath)) {
+        throw new Error(`JSONIQ_LSP_WRAPPER_JAR is set to '${jarPath}', which does not exist.`);
+    }
+    return jarLaunchConfig(path.resolve(jarPath));
 }
 
 export function getWrapperCacheDirectory(

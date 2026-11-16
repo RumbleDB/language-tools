@@ -1,12 +1,35 @@
 import os from "node:os";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 import {
     getBaseCacheDirectory,
     getWrapperCacheDirectory,
+    resolveWrapperJarOverride,
     sparkConfToJvmArgs,
 } from "server/integrations/rumble/executable/utils";
 import { describe, expect, it } from "vitest";
+
+describe("wrapper jar override", () => {
+    it("is not used when JSONIQ_LSP_WRAPPER_JAR is unset or empty", () => {
+        expect(resolveWrapperJarOverride({})).toBeUndefined();
+        expect(resolveWrapperJarOverride({ JSONIQ_LSP_WRAPPER_JAR: "" })).toBeUndefined();
+    });
+
+    it("runs the given jar like a release", () => {
+        const jarPath = fileURLToPath(import.meta.url);
+        expect(resolveWrapperJarOverride({ JSONIQ_LSP_WRAPPER_JAR: jarPath })).toEqual({
+            args: ["-jar", jarPath, "--daemon"],
+        });
+    });
+
+    it("fails when the jar does not exist", () => {
+        const jarPath = path.join(os.tmpdir(), "jsoniq-lsp-missing-wrapper.jar");
+        expect(() => resolveWrapperJarOverride({ JSONIQ_LSP_WRAPPER_JAR: jarPath })).toThrow(
+            jarPath,
+        );
+    });
+});
 
 describe("wrapper executable cache directories", () => {
     it("uses JSONIQ_LSP_CACHE_DIR when explicitly provided", () => {

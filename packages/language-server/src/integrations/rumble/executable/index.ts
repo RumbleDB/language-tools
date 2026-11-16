@@ -5,7 +5,7 @@ import { createLogger } from "server/utils/logger.js";
 import { resolveDevLaunchConfig } from "./dev.js";
 import { DownloadProgressReporter } from "./download.js";
 import { resolveProdLaunchConfig } from "./prod.js";
-import { SPARK_JVM_ARGS, sparkConfToJvmArgs } from "./utils.js";
+import { resolveWrapperJarOverride, SPARK_JVM_ARGS, sparkConfToJvmArgs } from "./utils.js";
 
 const logger = createLogger("wrapper:jar-resolution");
 
@@ -20,13 +20,7 @@ export interface WrapperResolutionOptions {
 export async function resolveWrapperLaunchConfig(
     options: WrapperResolutionOptions = {},
 ): Promise<WrapperLaunchConfig> {
-    const devConfig = resolveDevLaunchConfig();
-    const config = devConfig ?? (await resolveProdLaunchConfig(options));
-    if (devConfig === undefined) {
-        logger.debug(
-            "No development wrapper configuration found, falling back to production configuration.",
-        );
-    }
+    const config = await resolveLaunchConfig(options);
 
     const sparkConfArgs = sparkConfToJvmArgs(buildSparkConf(serverConfig.wrapper), (key) =>
         logger.warn(
@@ -37,4 +31,25 @@ export async function resolveWrapperLaunchConfig(
     return {
         args: [...SPARK_JVM_ARGS, ...sparkConfArgs, ...config.args],
     };
+}
+
+async function resolveLaunchConfig(
+    options: WrapperResolutionOptions,
+): Promise<WrapperLaunchConfig> {
+    const overrideConfig = resolveWrapperJarOverride();
+    if (overrideConfig !== undefined) {
+        logger.info(
+            `Using the wrapper jar from JSONIQ_LSP_WRAPPER_JAR: ${process.env.JSONIQ_LSP_WRAPPER_JAR}`,
+        );
+        return overrideConfig;
+    }
+
+    const devConfig = resolveDevLaunchConfig();
+    if (devConfig !== undefined) {
+        return devConfig;
+    }
+    logger.debug(
+        "No development wrapper configuration found, falling back to production configuration.",
+    );
+    return resolveProdLaunchConfig(options);
 }
