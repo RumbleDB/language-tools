@@ -1,5 +1,26 @@
 # jsoniq-language-server
 
+## 2.21.0
+
+### Minor Changes
+
+- [#145](https://github.com/RumbleDB/language-tools/pull/145) [`75533ed`](https://github.com/RumbleDB/language-tools/commit/75533ede745572765b4893e8beae18dfb2118a3e) - Treat the function after an arrow (`=>`) as a call that receives the left operand as its first argument, as XQuery 3.1 defines it: `$x => f(1)` calls `f($x, 1)`.
+  
+  - Go to definition, hover, references and rename now work on the function name after `=>`. Renaming a function used to leave its arrow uses unchanged.
+  - An arrow to an undefined function, or with the wrong number of arguments, is now reported.
+  - Signature help writes an arrow step the way it is called, `$sourceString => substring($start)`, and starts at the second parameter. Hover on the name says which parameter the operand fills.
+  - Completing a function name after `=>` inserts the call without the parameter the operand fills, and leaves out functions without parameters.
+  - File paths complete in the operand of `"data.json" => json-lines()`.
+  - Completing `concat` inserts two arguments instead of a literal `$...` placeholder.
+
+- [#150](https://github.com/RumbleDB/language-tools/pull/150) [`a34f11f`](https://github.com/RumbleDB/language-tools/commit/a34f11f48b08a9a45e24162a405763c76a601ad3) - Add `--ensure-wrapper` to the server, which downloads the RumbleDB wrapper JAR unless it is cached, prints the command that starts it, and exits. Run it to download the JAR ahead of time, for example when building an image: `node dist/bundled/main.mjs --ensure-wrapper`. It replaces the `dist/integrations/rumble/executable/ensure-wrapper.mjs` script.
+
+### Patch Changes
+
+- [#149](https://github.com/RumbleDB/language-tools/pull/149) [`22ba7e0`](https://github.com/RumbleDB/language-tools/commit/22ba7e09f865b2203e1fb18f437dab554facc760) - Resolve the relative paths of a notebook cell against its notebook, as when the cell runs. RumbleDB was given the cell's `vscode-notebook-cell:` URI as the base URI, so reading a file such as `delta-file("table")` failed with "No file system is configured for scheme vscode-notebook-cell". Module imports, schema locations and file path completion in cells also resolve next to the notebook now.
+
+- [#148](https://github.com/RumbleDB/language-tools/pull/148) [`7ff9827`](https://github.com/RumbleDB/language-tools/commit/7ff98273c3f2caf8154a7762f8fbbc0ebc3fc22f) - Build the wrapper jar with RumbleDB as a regular Maven dependency. The jar now contains a single version of each library: it used to mix classes from two versions of some, such as `jackson-core` 2.18.2 and 2.18.6.
+
 ## 2.20.2
 
 ### Patch Changes

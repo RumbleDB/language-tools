@@ -1,5 +1,11 @@
 # rumble-lsp-wrapper
 
+## 0.16.2
+
+### Patch Changes
+
+- [#148](https://github.com/RumbleDB/language-tools/pull/148) [`7ff9827`](https://github.com/RumbleDB/language-tools/commit/7ff98273c3f2caf8154a7762f8fbbc0ebc3fc22f) - Build the wrapper jar with RumbleDB as a regular Maven dependency. The jar now contains a single version of each library: it used to mix classes from two versions of some, such as `jackson-core` 2.18.2 and 2.18.6.
+
 ## 0.16.1
 
 ### Patch Changes
