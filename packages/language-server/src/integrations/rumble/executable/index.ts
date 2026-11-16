@@ -33,6 +33,20 @@ export async function resolveWrapperLaunchConfig(
     };
 }
 
+/**
+ * `main.mjs --ensure-wrapper`: downloads the wrapper JAR unless it is cached, and prints the command that starts it.
+ * Exits with code 1 when the JAR cannot be resolved.
+ */
+export async function ensureWrapper(): Promise<void> {
+    try {
+        const { args } = await resolveWrapperLaunchConfig();
+        console.log(["java", ...args].join(" "));
+    } catch (error) {
+        console.error(error instanceof Error ? error.message : String(error));
+        process.exitCode = 1;
+    }
+}
+
 async function resolveLaunchConfig(
     options: WrapperResolutionOptions,
 ): Promise<WrapperLaunchConfig> {
