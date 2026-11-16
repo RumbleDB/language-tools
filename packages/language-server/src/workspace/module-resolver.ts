@@ -1,3 +1,4 @@
+import { documentBaseUri } from "server/parser/utils.js";
 import type { DocumentUri, Range } from "vscode-languageserver";
 
 import type { ModuleImport, SchemaImport } from "../analysis/model/module-info.js";
@@ -21,7 +22,7 @@ export function resolveModuleLocations(
         try {
             return {
                 locationUri: location.uri,
-                targetUri: new URL(location.uri, importerUri).toString(),
+                targetUri: new URL(location.uri, documentBaseUri(importerUri)).toString(),
                 range: location.range,
             };
         } catch {
@@ -50,7 +51,8 @@ export function staticBaseUri(
     declaredBaseUri: string | undefined,
 ): string | undefined {
     try {
-        return new URL(declaredBaseUri ?? documentUri, documentUri).href;
+        const baseUri = documentBaseUri(documentUri);
+        return new URL(declaredBaseUri ?? baseUri, baseUri).href;
     } catch {
         return undefined;
     }

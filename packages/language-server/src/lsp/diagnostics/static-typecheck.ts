@@ -1,6 +1,7 @@
 import type { WrapperClient } from "server/integrations/rumble/client.js";
 import { getStaticTypecheck } from "server/integrations/rumble/operations/static-typecheck/service.js";
 import type { StaticTypecheckError } from "server/integrations/rumble/operations/static-typecheck/types.js";
+import { documentBaseUri } from "server/parser/utils.js";
 import { DiagnosticSeverity, type Diagnostic } from "vscode-languageserver";
 import { TextDocument } from "vscode-languageserver-textdocument";
 
@@ -24,10 +25,12 @@ function belongsToDocument(error: StaticTypecheckError, document: TextDocument):
     const location = error.location.trim();
     if (location.length === 0) return true;
 
+    // Rumble locates errors by the URI the query was sent with.
+    const sentUri = documentBaseUri(document.uri);
     try {
-        return new URL(location, document.uri).toString() === new URL(document.uri).toString();
+        return new URL(location, sentUri).toString() === new URL(sentUri).toString();
     } catch {
-        return location === document.uri;
+        return location === sentUri;
     }
 }
 
