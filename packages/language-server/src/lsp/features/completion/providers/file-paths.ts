@@ -8,6 +8,7 @@ import {
     type FunctionCallNode,
 } from "server/analysis/index.js";
 import { FN_NAMESPACE, JN_NAMESPACE } from "server/analysis/model/constants.js";
+import { documentBaseUri } from "server/parser/utils.js";
 import { languageIdForWorkspacePath } from "server/workspace/files.js";
 import { staticBaseUri } from "server/workspace/module-resolver.js";
 import { CompletionItemKind, type Range } from "vscode-languageserver";
@@ -132,7 +133,7 @@ async function findPathString(
     );
     if (moduleLocations.some(startsTheString)) {
         return {
-            baseUri: document.uri,
+            baseUri: documentBaseUri(document.uri),
             accepts: (entry) =>
                 entry.isDirectory || languageIdForWorkspacePath(entry.name) !== undefined,
         };

@@ -1,4 +1,5 @@
 import type { WrapperClient } from "server/integrations/rumble/client.js";
+import { documentBaseUri } from "server/parser/utils.js";
 import { createLogger } from "server/utils/logger.js";
 
 import {
@@ -23,7 +24,7 @@ export async function getSchemaCatalog(
         const response = await client.sendRequest<SchemaCatalogRequestSpec>({
             requestType: REQUEST_TYPE_SCHEMA_CATALOG,
             body: Buffer.from(JSON.stringify(input), "utf8").toString("base64"),
-            documentUri,
+            documentUri: documentBaseUri(documentUri),
         });
         if (response.error != null) {
             throw new Error(response.error.message);

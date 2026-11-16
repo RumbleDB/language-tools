@@ -1,5 +1,5 @@
 import type { WrapperClient } from "server/integrations/rumble/client.js";
-import { getDocumentText } from "server/parser/utils.js";
+import { documentBaseUri, getDocumentText } from "server/parser/utils.js";
 import { createLogger } from "server/utils/logger.js";
 import type { CancellationToken } from "vscode-languageserver";
 import type { TextDocument } from "vscode-languageserver-textdocument";
@@ -39,16 +39,15 @@ export async function runQueryFromSource(
         };
     }
 
-    const request: RunQueryRequest = {
-        requestType: REQUEST_TYPE_RUN_QUERY,
-        body: source !== undefined ? Buffer.from(source, "utf8").toString("base64") : undefined,
-        documentUri,
-    };
-
     try {
         if (!documentUri) {
             throw new Error("A document URI is required for run-query.");
         }
+        const request: RunQueryRequest = {
+            requestType: REQUEST_TYPE_RUN_QUERY,
+            body: source !== undefined ? Buffer.from(source, "utf8").toString("base64") : undefined,
+            documentUri: documentBaseUri(documentUri),
+        };
         // No timeout, since a query may run for long. Cancelling restarts RumbleDB to stop the query.
         const response = await client.sendRequest<RunQueryRequestSpec>(request, {
             token,

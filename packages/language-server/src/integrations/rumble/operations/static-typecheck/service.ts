@@ -1,6 +1,6 @@
 import type { WrapperClient } from "server/integrations/rumble/client.js";
 import type { WrapperDaemonResponse } from "server/integrations/rumble/protocol.js";
-import { getDocumentText } from "server/parser/utils.js";
+import { documentBaseUri, getDocumentText } from "server/parser/utils.js";
 import { createLogger } from "server/utils/logger.js";
 import type { DocumentUri } from "vscode-languageserver";
 import { TextDocument } from "vscode-languageserver-textdocument";
@@ -112,6 +112,6 @@ function createStaticTypecheckRequest(
     return {
         requestType: REQUEST_TYPE_STATIC_TYPECHECK,
         body: Buffer.from(getDocumentText(document), "utf8").toString("base64"),
-        documentUri: document.uri,
+        documentUri: documentBaseUri(document.uri),
     };
 }
