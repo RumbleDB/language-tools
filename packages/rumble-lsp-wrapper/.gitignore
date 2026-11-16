@@ -1,3 +1,4 @@
 target/
 /rumbledb
 generated-resources/
+.mvn/maven.config

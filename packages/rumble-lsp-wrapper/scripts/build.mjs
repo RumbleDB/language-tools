@@ -49,12 +49,8 @@ function computeBuildKey() {
     addFileToHash(hash, path.join(packageDir, "pom.xml"));
     addDirectoryToHash(hash, path.join(packageDir, "src", "main"));
     addFileToHash(hash, path.join(packageDir, "generated-resources", "rumble-build.properties"));
-
-    const rumbleJar = fs.realpathSync(
-        path.join(packageDir, "generated-resources", "rumbledb-current-jar-with-dependencies.jar"),
-    );
-    const rumbleJarStat = fs.statSync(rumbleJar);
-    hash.update(`rumbleJar=${rumbleJar}\0${rumbleJarStat.size}\0${rumbleJarStat.mtimeMs}\0`);
+    // The Rumble version in here is named after the jar's contents, so it changes whenever Rumble does.
+    addFileToHash(hash, path.join(packageDir, ".mvn", "maven.config"));
     return hash.digest("hex");
 }
 
@@ -91,7 +87,8 @@ if (isProdBuild) {
 } else {
     mvnArgs.push("-DskipTests");
 }
-mvnArgs.push("package", `-Drevision=${packageJson.version}`);
+// The prod profile runs the tests against the shaded jar, after the package phase.
+mvnArgs.push(isProdBuild ? "verify" : "package", `-Drevision=${packageJson.version}`);
 
 execFileSync("mvn", mvnArgs, {
     cwd: packageDir,

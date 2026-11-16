@@ -6,7 +6,7 @@ import { createLogger } from "server/utils/logger.js";
 
 import { createTerminalProgressReporter, downloadWithProgress } from "./download.js";
 import { type WrapperLaunchConfig, type WrapperResolutionOptions } from "./index.js";
-import { computeFileSha256, getWrapperCacheDirectory } from "./utils.js";
+import { computeFileSha256, getWrapperCacheDirectory, jarLaunchConfig } from "./utils.js";
 
 /// Production environment: use package assets instead of compiled output.
 const PACKAGE_ROOT = findPackageRoot();
@@ -108,8 +108,5 @@ export async function resolveProductionJarPath(
 export async function resolveProdLaunchConfig(
     options: WrapperResolutionOptions = {},
 ): Promise<WrapperLaunchConfig> {
-    const cachedJarPath = await resolveProductionJarPath(options);
-    return {
-        args: ["-jar", cachedJarPath, "--daemon"],
-    };
+    return jarLaunchConfig(await resolveProductionJarPath(options));
 }
