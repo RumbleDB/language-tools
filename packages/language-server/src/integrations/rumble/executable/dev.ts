@@ -24,7 +24,7 @@ export function resolveDevLaunchConfig(): WrapperLaunchConfig | undefined {
     const runtimeClasspath = fs.readFileSync(classpathPath, "utf8").trim();
     // The runtime classpath includes RumbleDB and its dependencies from the local Maven repository.
     const classpathEntries = [localJarPath, ...runtimeClasspath.split(path.delimiter)].filter(
-        (entry): entry is string => entry !== undefined && entry.length > 0,
+        (entry) => entry.length > 0,
     );
     const classpath = [...new Set(classpathEntries)].join(path.delimiter);
 

@@ -18,7 +18,7 @@ RUMBLE_REPO_URL="https://github.com/RumbleDB/rumble.git"
 RUMBLE_REQUESTED_COMMIT="939a4769f2e20fb54a7c576a9fa11c08df2ea8e6"
 RUMBLE_TARGET_DIR="$RUMBLE_DIR/target"
 RUMBLE_BUILD_CACHE_DIR="$WRAPPER_DIR/.cache/rumble/$RUMBLE_REQUESTED_COMMIT"
-# Maven reads this on every run, so the wrapper depends on whatever version the pinned commit declares.
+# Maven reads this on every run, so the wrapper depends on the Rumble build that this script installed.
 WRAPPER_MAVEN_CONFIG="$WRAPPER_DIR/.mvn/maven.config"
 
 ensure_rumble_checkout() {
@@ -139,14 +139,52 @@ extract_rumble_version_from_jar() {
     printf '%s\n' "$version"
 }
 
+# The local Maven repository is shared by every checkout, worktree and Rumble build on this machine,
+# so a plain 3.1.0 would be overwritten by whichever of them installed last.
+# Naming the version after the jar and pom contents means that a version is only ever installed with
+# the same contents, and that a different build always gets a different version.
+compute_rumble_maven_version() {
+    contents_hash=$(
+        {
+            git hash-object "$RUMBLE_JAR"
+            git hash-object "$RUMBLE_DIR/pom.xml"
+        } | git hash-object --stdin | cut -c 1-12
+    )
+    printf '%s-local-%s\n' "$(extract_rumble_version_from_jar "$RUMBLE_JAR")" "$contents_hash"
+}
+
+# Rumble's pom with the project version replaced. Rumble's pom has no parent, so the first <version> is the project's.
+write_rumble_maven_pom() {
+    awk -v version="$1" '
+        !done && /<version>[^<]*<\/version>/ { sub(/<version>[^<]*<\/version>/, "<version>" version "</version>"); done = 1 }
+        { print }
+    ' "$RUMBLE_DIR/pom.xml" >"$2"
+    if ! grep -q "<version>$1</version>" "$2"; then
+        echo "Could not set the version in a copy of $RUMBLE_DIR/pom.xml" >&2
+        exit 1
+    fi
+}
+
 # Installs the jar with Rumble's own pom, so that Maven resolves its dependencies transitively.
-# This runs on every build: ~/.m2 may hold a 3.1.0 installed from another commit (for example from the CI cache).
 install_rumble_jar() {
-    rumble_version=$(extract_rumble_version_from_jar "$RUMBLE_JAR")
-    (cd "$RUMBLE_DIR" && mvn -q install:install-file -Dfile="$RUMBLE_JAR" -DpomFile=pom.xml)
-    mkdir -p "$(dirname "$WRAPPER_MAVEN_CONFIG")"
-    printf -- '-Drumble.version=%s\n' "$rumble_version" >"$WRAPPER_MAVEN_CONFIG"
-    echo "Installed Rumble $rumble_version into the local Maven repository" >&2
+    rumble_maven_version=$(compute_rumble_maven_version)
+    installed_dir="$HOME/.m2/repository/com/github/rumbledb/rumbledb/$rumble_maven_version"
+    # Skipping saves starting Maven. With a localRepository set in settings.xml, the jar is just reinstalled every time.
+    if [ -f "$installed_dir/rumbledb-$rumble_maven_version.jar" ] && [ -f "$installed_dir/rumbledb-$rumble_maven_version.pom" ]; then
+        echo "Rumble $rumble_maven_version is already in the local Maven repository" >&2
+    else
+        rumble_maven_pom="$WRAPPER_GENERATED_RESOURCES_DIR/rumbledb.pom"
+        mkdir -p "$WRAPPER_GENERATED_RESOURCES_DIR"
+        write_rumble_maven_pom "$rumble_maven_version" "$rumble_maven_pom"
+        (cd "$RUMBLE_DIR" && mvn -q install:install-file -Dfile="$RUMBLE_JAR" -DpomFile="$rumble_maven_pom")
+        echo "Installed Rumble $rumble_maven_version into the local Maven repository" >&2
+    fi
+
+    maven_config_line="-Drumble.version=$rumble_maven_version"
+    if [ "$(cat "$WRAPPER_MAVEN_CONFIG" 2>/dev/null || true)" != "$maven_config_line" ]; then
+        mkdir -p "$(dirname "$WRAPPER_MAVEN_CONFIG")"
+        printf '%s\n' "$maven_config_line" >"$WRAPPER_MAVEN_CONFIG"
+    fi
 }
 
 ensure_rumble_checkout

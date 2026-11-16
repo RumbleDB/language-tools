@@ -49,17 +49,8 @@ function computeBuildKey() {
     addFileToHash(hash, path.join(packageDir, "pom.xml"));
     addDirectoryToHash(hash, path.join(packageDir, "src", "main"));
     addFileToHash(hash, path.join(packageDir, "generated-resources", "rumble-build.properties"));
-
-    const rumbleBuildProperties = fs.readFileSync(
-        path.join(packageDir, "generated-resources", "rumble-build.properties"),
-        "utf8",
-    );
-    const rumbleJar = /^rumble\.jar=(.*)$/m.exec(rumbleBuildProperties)?.[1];
-    if (!rumbleJar) {
-        throw new Error("rumble-build.properties does not name the Rumble jar");
-    }
-    const rumbleJarStat = fs.statSync(rumbleJar);
-    hash.update(`rumbleJar=${rumbleJar}\0${rumbleJarStat.size}\0${rumbleJarStat.mtimeMs}\0`);
+    // The Rumble version in here is named after the jar's contents, so it changes whenever Rumble does.
+    addFileToHash(hash, path.join(packageDir, ".mvn", "maven.config"));
     return hash.digest("hex");
 }
 

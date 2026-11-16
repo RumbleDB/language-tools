@@ -21,13 +21,15 @@
         <maven.compiler.source>17</maven.compiler.source>
         <maven.compiler.target>17</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <!-- Overridden by .mvn/maven.config; this placeholder only lets goals such as clean and spotless run before it exists -->
+        <rumble.version>0-run-scripts-fetch-rumble.sh</rumble.version>
     </properties>
 
     <dependencies>
         <dependency>
             <groupId>com.github.rumbledb</groupId>
             <artifactId>rumbledb</artifactId>
-            <!-- scripts/fetch-rumble.sh installs the pinned commit and sets rumble.version in .mvn/maven.config -->
+            <!-- scripts/fetch-rumble.sh installs the pinned commit under a version named after its contents and sets rumble.version in .mvn/maven.config -->
             <version>${rumble.version}</version>
         </dependency>
         <!-- Spark is provided-scoped in RumbleDB (so spark-submit can supply it), hence not inherited transitively -->
