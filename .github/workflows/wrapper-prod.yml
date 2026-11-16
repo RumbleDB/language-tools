@@ -1,0 +1,55 @@
+name: Wrapper release jar
+
+# Test CI only builds the wrapper for development, against Maven's classpath.
+# This builds the shaded release jar and runs the tests against it, so packaging problems show up before a release.
+on:
+    push:
+        branches:
+            - main
+        paths:
+            - "packages/rumble-lsp-wrapper/**"
+            - ".github/workflows/wrapper-prod.yml"
+    pull_request:
+        paths:
+            - "packages/rumble-lsp-wrapper/**"
+            - ".github/workflows/wrapper-prod.yml"
+
+env:
+    HUSKY: 0
+
+jobs:
+    release-jar:
+        runs-on: ubuntu-latest
+
+        steps:
+            - name: Check out repository
+              uses: actions/checkout@v6
+
+            - name: Set up pnpm
+              uses: pnpm/action-setup@v6
+
+            - name: Set up Node.js
+              uses: actions/setup-node@v6
+              with:
+                  node-version: 26
+                  cache: pnpm
+
+            - name: Set up Java
+              uses: actions/setup-java@v5
+              with:
+                  distribution: temurin
+                  java-version: "17"
+                  cache: maven
+
+            - name: Cache built RumbleDB JAR
+              uses: actions/cache@v5
+              with:
+                  path: packages/rumble-lsp-wrapper/.cache/rumble
+                  key: rumbledb-${{ runner.os }}-java17-${{ hashFiles('packages/rumble-lsp-wrapper/scripts/fetch-rumble.sh') }}
+
+            - name: Install dependencies
+              run: pnpm install --frozen-lockfile
+
+            # The prod profile runs the wrapper's tests against the shaded jar.
+            - name: Build and test release jar
+              run: pnpm --filter rumble-lsp-wrapper run build:prod

@@ -87,7 +87,8 @@ if (isProdBuild) {
 } else {
     mvnArgs.push("-DskipTests");
 }
-mvnArgs.push("package", `-Drevision=${packageJson.version}`);
+// The prod profile runs the tests against the shaded jar, after the package phase.
+mvnArgs.push(isProdBuild ? "verify" : "package", `-Drevision=${packageJson.version}`);
 
 execFileSync("mvn", mvnArgs, {
     cwd: packageDir,
