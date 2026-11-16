@@ -76,10 +76,7 @@ detect_rumble_ref() {
 
 write_metadata_file() {
     metadata_file=$1
-    rumble_version=""
-    if [ -n "$RUMBLE_JAR" ]; then
-        rumble_version=$(extract_rumble_version_from_jar "$RUMBLE_JAR")
-    fi
+    rumble_version=$(extract_rumble_version_from_jar "$RUMBLE_JAR")
     mkdir -p "$(dirname "$metadata_file")"
     cat >"$metadata_file" <<EOF
 rumble.repoUrl=$RUMBLE_REPO_URL
@@ -173,18 +170,15 @@ install_rumble_jar() {
     if [ -f "$installed_dir/rumbledb-$rumble_maven_version.jar" ] && [ -f "$installed_dir/rumbledb-$rumble_maven_version.pom" ]; then
         echo "Rumble $rumble_maven_version is already in the local Maven repository" >&2
     else
+        # write_metadata_file has created the generated resources folder.
         rumble_maven_pom="$WRAPPER_GENERATED_RESOURCES_DIR/rumbledb.pom"
-        mkdir -p "$WRAPPER_GENERATED_RESOURCES_DIR"
         write_rumble_maven_pom "$rumble_maven_version" "$rumble_maven_pom"
         (cd "$RUMBLE_DIR" && mvn -q install:install-file -Dfile="$RUMBLE_JAR" -DpomFile="$rumble_maven_pom")
         echo "Installed Rumble $rumble_maven_version into the local Maven repository" >&2
     fi
 
-    maven_config_line="-Drumble.version=$rumble_maven_version"
-    if [ "$(cat "$WRAPPER_MAVEN_CONFIG" 2>/dev/null || true)" != "$maven_config_line" ]; then
-        mkdir -p "$(dirname "$WRAPPER_MAVEN_CONFIG")"
-        printf '%s\n' "$maven_config_line" >"$WRAPPER_MAVEN_CONFIG"
-    fi
+    mkdir -p "$(dirname "$WRAPPER_MAVEN_CONFIG")"
+    printf -- '-Drumble.version=%s\n' "$rumble_maven_version" >"$WRAPPER_MAVEN_CONFIG"
 }
 
 ensure_rumble_checkout
@@ -197,32 +191,21 @@ if [ -f "$WRAPPER_BUILD_STAMP" ] && ! stamp_commit_matches_checkout; then
     remove_rumble_jars
 fi
 RUMBLE_JAR=$(resolve_rumble_jar 2>/dev/null || true)
-if [ -n "$RUMBLE_JAR" ]; then
-    cache_rumble_jar
-fi
-CURRENT_BUILD_SIGNATURE=$(build_signature)
-
-write_metadata_file "$WRAPPER_METADATA_FILE"
-if [ -d "$WRAPPER_CLASSES_DIR" ]; then
-    write_metadata_file "$WRAPPER_COMPILED_METADATA_FILE"
-fi
-
 if [ -z "$RUMBLE_JAR" ]; then
     echo "Building Rumble from source..." >&2
     # maven.test.skip also skips the -tests jar; javadoc and sources jars are not needed either.
     (cd "$RUMBLE_DIR" && mvn -q -Dmaven.test.skip -Dmaven.javadoc.skip -Dmaven.source.skip clean package)
     RUMBLE_JAR=$(resolve_rumble_jar)
-    cache_rumble_jar
-    CURRENT_BUILD_SIGNATURE=$(build_signature)
 elif [ ! -f "$WRAPPER_BUILD_STAMP" ]; then
     echo "Adopting existing Rumble jar for commit $RUMBLE_COMMIT_SHORT..." >&2
 fi
+cache_rumble_jar
 
-install_rumble_jar
 write_metadata_file "$WRAPPER_METADATA_FILE"
 if [ -d "$WRAPPER_CLASSES_DIR" ]; then
     write_metadata_file "$WRAPPER_COMPILED_METADATA_FILE"
 fi
-printf '%s' "$CURRENT_BUILD_SIGNATURE" >"$WRAPPER_BUILD_STAMP"
+install_rumble_jar
+build_signature >"$WRAPPER_BUILD_STAMP"
 
 echo "Prepared Rumble $(extract_rumble_version_from_jar "$RUMBLE_JAR") at commit $RUMBLE_COMMIT_SHORT ($RUMBLE_CURRENT_REF)." >&2
