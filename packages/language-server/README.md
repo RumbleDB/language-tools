@@ -26,6 +26,12 @@ Type-checking diagnostics, inferred types and running queries come from RumbleDB
 
 The wrapper JAR is too large to ship in the npm package. The server downloads it from GitHub Releases when it is first needed, checks its SHA-256 against the bundled manifest, and caches it. Set `JSONIQ_LSP_CACHE_DIR` to control where it is stored. To use another wrapper JAR, such as one you built yourself, set `JSONIQ_LSP_WRAPPER_JAR` to its path.
 
+To download the JAR ahead of time, for example when building an image, run the server with `--ensure-wrapper`. It downloads the JAR unless it is cached, prints the command that starts it, and exits:
+
+```sh
+node node_modules/jsoniq-language-server/dist/bundled/main.mjs --ensure-wrapper
+```
+
 If you don't want any of this, set `wrapper.enabled` to `false` (see below) and the server runs on the parser alone.
 
 ## Configuration

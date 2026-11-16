@@ -8,7 +8,6 @@ export default defineConfig([
             "src/main.ts",
             "src/lsp/protocol/notifications/index.ts",
             "src/lsp/protocol/requests/index.ts",
-            "src/integrations/rumble/executable/ensure-wrapper.ts",
         ],
         root: "src",
         outDir: "dist",
